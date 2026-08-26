@@ -1,0 +1,186 @@
+<div class="portal-shell">
+  <header class="portal-header">
+    <a routerLink="/reports" class="portal-brand"
+      >Crystal Reports 外部報表系統</a
+    >
+    <div class="account-summary">
+      <span
+        >{{ Auth.CurrentUser?.DisplayName }}（{{
+          Auth.CurrentUser?.Role
+        }}）</span
+      ><button type="button" (click)="Logout()">登出</button>
+    </div>
+  </header>
+  <aside class="portal-nav" aria-label="系統導覽">
+    <p class="nav-group-title">一般使用者功能</p>
+    <a routerLink="/reports" routerLinkActive="active"
+      >ReportList／ReportSearch／ReportCategory</a
+    >
+    <a routerLink="/reports/parameters" routerLinkActive="active"
+      >ReportParameter</a
+    >
+    <a routerLink="/reports/preview" routerLinkActive="active">ReportPreview</a>
+    <ng-container *ngIf="Auth.IsAdmin"
+      ><p class="nav-group-title">管理功能</p>
+      <a routerLink="/admin/users" routerLinkActive="active">UserManagement</a
+      ><a routerLink="/admin/roles" routerLinkActive="active">RoleManagement</a
+      ><a routerLink="/admin/permissions" routerLinkActive="active"
+        >ReportPermission</a
+      ><a routerLink="/admin/reports" routerLinkActive="active">RptManagement</a
+      ><a routerLink="/admin/parameters" routerLinkActive="active"
+        >ReportParameterSetting</a
+      ><a routerLink="/admin/database-connections" routerLinkActive="active"
+        >DatabaseConnection</a
+      ><a routerLink="/admin/operation-logs" routerLinkActive="active"
+        >OperationLog</a
+      ></ng-container
+    >
+  </aside>
+  <main class="portal-main">
+    <p class="demo-banner">
+      Development／Local Demo：此頁的帳號、資料與權限皆為 Mock，非正式驗證。
+    </p>
+    <h1>{{ PageTitle }}</h1>
+    <section *ngIf="Page === 'ReportList'" class="content-card">
+      <div class="toolbar">
+        <label
+          >搜尋報表
+          <input
+            [(ngModel)]="SearchText"
+            placeholder="輸入報表名稱或說明" /></label
+        ><label
+          >分類
+          <select [(ngModel)]="SelectedCategory">
+            <option *ngFor="let Category of Categories" [value]="Category">
+              {{ Category }}
+            </option>
+          </select></label
+        >
+      </div>
+      <div class="report-groups">
+        <section>
+          <h2>最近使用報表</h2>
+          <p>應收帳款報表、庫存明細</p>
+        </section>
+        <section>
+          <h2>常用報表</h2>
+          <p>此區為 Mock 顯示，不包含收藏或排序規則。</p>
+        </section>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>報表名稱</th>
+            <th>分類</th>
+            <th>說明</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let Report of FilteredReports">
+            <td>{{ Report.ReportName }}</td>
+            <td>{{ Report.Category }}</td>
+            <td>{{ Report.Description }}</td>
+            <td>
+              <button type="button" (click)="SelectReport()">選擇</button>
+            </td>
+          </tr>
+          <tr *ngIf="!FilteredReports.length">
+            <td colspan="4">目前條件下沒有符合的報表。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    <section *ngIf="Page === 'ReportParameter'" class="content-card">
+      <p>應收帳款報表的 Mock 參數表單。</p>
+      <div class="form-grid">
+        <label>開始日期 <input type="date" /></label
+        ><label>結束日期 <input type="date" /></label
+        ><label
+          >客戶
+          <select>
+            <option>全部客戶</option>
+            <option>Demo 客戶</option>
+          </select></label
+        ><label
+          >狀態
+          <select multiple>
+            <option>未收款</option>
+            <option>已收款</option>
+          </select></label
+        >
+      </div>
+      <p class="muted">UserCode&#64; 由 Mock 登入者帶入，不提供修改。</p>
+      <button
+        *ngIf="Auth.ReportPermission.CanExecute"
+        type="button"
+        (click)="ExecuteReport()"
+      >
+        產生報表
+      </button>
+    </section>
+    <section *ngIf="Page === 'ReportPreview'" class="content-card">
+      <div class="preview-placeholder">PDF 預覽 Mock 區</div>
+      <div class="output-actions">
+        <button
+          *ngIf="Auth.ReportPermission.CanExportPdf"
+          type="button"
+          (click)="SelectOutputAction('PdfExport')"
+        >
+          下載 PDF</button
+        ><button
+          *ngIf="Auth.ReportPermission.CanPrint"
+          type="button"
+          (click)="SelectOutputAction('BrowserPrint')"
+        >
+          瀏覽器列印</button
+        ><button
+          *ngIf="Auth.ReportPermission.CanPrint"
+          type="button"
+          (click)="SelectOutputAction('FixedPrinterPrint')"
+        >
+          固定印表機列印
+        </button>
+      </div>
+      <p *ngIf="MockNotice" class="mock-notice" role="status">
+        {{ MockNotice }}
+      </p>
+      <p class="muted">固定印表機的設定、服務與工作狀態仍為 TBD。</p>
+    </section>
+    <section
+      *ngIf="
+        Page !== 'ReportList' &&
+        Page !== 'ReportParameter' &&
+        Page !== 'ReportPreview'
+      "
+      class="content-card"
+    >
+      <p>{{ AdminDescription }}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Mock 項目</th>
+            <th>狀態</th>
+            <th>說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ PageTitle }}</td>
+            <td>可檢視</td>
+            <td>僅供 ADMIN UIUX 流程驗證，未呼叫後端 API。</td>
+          </tr>
+        </tbody>
+      </table>
+      <section *ngIf="Page === 'ReportPermission'" class="permission-matrix">
+        <h2>MEMBER 報表權限</h2>
+        <p>
+          CanView：true　CanExecute：true　CanExportPdf：true　CanPrint：true
+        </p>
+      </section>
+      <section *ngIf="Page === 'OperationLog'" class="permission-matrix">
+        <p>保存期間：180 天</p>
+      </section>
+    </section>
+  </main>
+</div>

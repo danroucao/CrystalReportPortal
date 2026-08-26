@@ -1,0 +1,85 @@
+import { Routes } from '@angular/router';
+
+import { LoginComponent } from './login/login.component';
+import { DemoPortalComponent } from './demo-portal/demo-portal.component';
+import { DemoAdminGuard, DemoAuthGuard } from './guards/demo-auth.guards';
+
+export const routes: Routes = [
+  {
+    path: 'login',
+    component: LoginComponent,
+    title: '登入｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'reports',
+    component: DemoPortalComponent,
+    canActivate: [DemoAuthGuard],
+    data: { Page: 'ReportList' },
+    title: '我的報表｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'reports/parameters',
+    component: DemoPortalComponent,
+    canActivate: [DemoAuthGuard],
+    data: { Page: 'ReportParameter' },
+    title: '報表條件｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'reports/preview',
+    component: DemoPortalComponent,
+    canActivate: [DemoAuthGuard],
+    data: { Page: 'ReportPreview' },
+    title: '報表預覽｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'admin/users',
+    component: DemoPortalComponent,
+    canActivate: [DemoAdminGuard],
+    data: { Page: 'UserManagement' },
+    title: '使用者管理｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'admin/roles',
+    component: DemoPortalComponent,
+    canActivate: [DemoAdminGuard],
+    data: { Page: 'RoleManagement' },
+    title: '角色管理｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'admin/permissions',
+    component: DemoPortalComponent,
+    canActivate: [DemoAdminGuard],
+    data: { Page: 'ReportPermission' },
+    title: '報表權限｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'admin/reports',
+    component: DemoPortalComponent,
+    canActivate: [DemoAdminGuard],
+    data: { Page: 'RptManagement' },
+    title: 'RPT 管理｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'admin/parameters',
+    component: DemoPortalComponent,
+    canActivate: [DemoAdminGuard],
+    data: { Page: 'ReportParameterSetting' },
+    title: '報表參數設定｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'admin/database-connections',
+    component: DemoPortalComponent,
+    canActivate: [DemoAdminGuard],
+    data: { Page: 'DatabaseConnection' },
+    title: '資料庫連線｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'admin/operation-logs',
+    component: DemoPortalComponent,
+    canActivate: [DemoAdminGuard],
+    data: { Page: 'OperationLog' },
+    title: '操作紀錄｜Crystal Reports 外部報表系統',
+  },
+  { path: '', pathMatch: 'full', redirectTo: 'login' },
+  { path: '**', redirectTo: 'login' },
+];

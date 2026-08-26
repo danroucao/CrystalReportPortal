@@ -1,0 +1,129 @@
+<div class="login-page">
+  <header class="topbar">
+    <a
+      class="brand"
+      routerLink="/login"
+      aria-label="Crystal Reports 外部報表系統登入頁"
+    >
+      <span class="brand__mark" aria-hidden="true">CR</span>
+      <span class="brand__copy"
+        ><strong>Crystal Reports 外部報表系統</strong
+        ><small>安全登入入口</small></span
+      >
+    </a>
+    <a class="support-link" href="#support">系統支援</a>
+  </header>
+
+  <main class="login-main">
+    <section class="login-card" aria-labelledby="login-title">
+      <h1 id="login-title">登入</h1>
+      <p class="intro">請使用您的帳號登入系統。</p>
+      <div
+        *ngIf="notice"
+        [class]="noticeClass"
+        role="alert"
+        aria-live="assertive"
+      >
+        {{ noticeMessage }}
+      </div>
+
+      <form
+        [formGroup]="loginForm"
+        (ngSubmit)="submit()"
+        [attr.aria-busy]="isSubmitting"
+      >
+        <div class="field">
+          <label for="account"
+            >帳號 <span class="required">（必填）</span></label
+          >
+          <input
+            id="account"
+            type="text"
+            formControlName="account"
+            autocomplete="username"
+            aria-describedby="account-error"
+            [attr.aria-invalid]="submitted && account.invalid ? 'true' : null"
+            (input)="clearNotice()"
+          />
+          <small
+            id="account-error"
+            class="field-error"
+            *ngIf="submitted && account.invalid"
+            >請輸入帳號。</small
+          >
+        </div>
+
+        <div class="field">
+          <label for="password"
+            >密碼 <span class="required">（必填）</span></label
+          >
+          <div class="password-row">
+            <input
+              id="password"
+              [type]="passwordVisible ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="current-password"
+              aria-describedby="password-error"
+              [attr.aria-invalid]="
+                submitted && password.invalid ? 'true' : null
+              "
+              (input)="clearNotice()"
+            />
+            <button
+              class="password-toggle"
+              type="button"
+              [attr.aria-label]="passwordVisible ? '隱藏密碼' : '顯示密碼'"
+              (click)="togglePassword()"
+            >
+              {{ passwordVisible ? "隱藏" : "顯示" }}
+            </button>
+          </div>
+          <small
+            id="password-error"
+            class="field-error"
+            *ngIf="submitted && password.invalid"
+            >請輸入密碼。</small
+          >
+        </div>
+
+        <button class="submit-button" type="submit" [disabled]="isSubmitting">
+          <span class="spinner" *ngIf="isSubmitting" aria-hidden="true"></span
+          >{{ isSubmitting ? "登入中…" : "登入" }}
+        </button>
+      </form>
+      <div>
+        <!-- 本機 Demo 測試帳號 -->
+        <section
+          *ngIf="Auth.IsDemoAuthenticationEnabled"
+          class="demo-accounts"
+          aria-labelledby="demo-accounts-title"
+        >
+          <h2 id="demo-accounts-title">本機 Demo 測試帳號</h2>
+          <p>僅供本機開發與展示使用，禁止用於正式環境。</p>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">帳號</th>
+                <th scope="col">密碼</th>
+                <th scope="col">角色</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let DemoAccount of Auth.DemoUsers">
+                <td>{{ DemoAccount.Account }}</td>
+                <td>{{ DemoAccount.Password }}</td>
+                <td>{{ DemoAccount.Role }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <p class="preview-note">
+          目前為本機 Mock 驗證：帳密不會送出或儲存；正式環境將改由 ASP.NET Core
+          Login API、Session 與 RBAC 負責。
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer id="support">版本資訊與支援聯絡方式待需求確認</footer>
+</div>
