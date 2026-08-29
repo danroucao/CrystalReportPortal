@@ -1,0 +1,114 @@
+@ReportSystem.Api_HostAddress = https://localhost:7227
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoi5ris6Kmm5L2_55So6ICFIiwiRW1wbG95ZWVObyI6IkEwMDEiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBRE1JTiIsImV4cCI6MTc4ODAzMDQxMiwiaXNzIjoiUmVwb3J0U3lzdGVtLkFwaSIsImF1ZCI6IlJlcG9ydFN5c3RlbS5XZWIifQ.km0jxuMAqX8G3mCzkXKrv_fYp3TPQD2aqjF9YqCn5OU
+@userToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjIiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoi5LiA6Iis5ris6Kmm5L2_55So6ICFIiwiRW1wbG95ZWVObyI6IkEwMDIiLCJleHAiOjE3ODgwMjk5NDYsImlzcyI6IlJlcG9ydFN5c3RlbS5BcGkiLCJhdWQiOiJSZXBvcnRTeXN0ZW0uV2ViIn0._OOGS9-CMCfgOJNAIkjaJl8WmjKiazlX0HVeJHeDlsI
+@expireTestToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoi5ris6Kmm5L2_55So6ICFIiwiRW1wbG95ZWVObyI6IkEwMDEiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBRE1JTiIsImV4cCI6MTc4ODAyNjU5MywiaXNzIjoiUmVwb3J0U3lzdGVtLkFwaSIsImF1ZCI6IlJlcG9ydFN5c3RlbS5XZWIifQ.nK00cM_0n6FvXcgkC1Pwrhi1iIT_RnfXrX1IQkP2uVw
+
+### 測試系統狀態
+GET {{ReportSystem.Api_HostAddress}}/api/health
+Accept: application/json
+
+### 測試登入
+POST {{ReportSystem.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "employeeNo": "A001",
+  "password": "123456"
+}
+
+### 錯誤密碼
+POST {{ReportSystem.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "employeeNo": "A001",
+  "password": "wrong-password"
+}
+
+### 不存在帳號
+POST {{ReportSystem.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "employeeNo": "NOT-EXIST",
+  "password": "123456"
+}
+
+### 停用帳號不能登入
+POST {{ReportSystem.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "employeeNo": "A002",
+  "password": "123456"
+}
+
+### 查看目前登入者：沒有攜帶 Token
+GET {{ReportSystem.Api_HostAddress}}/api/auth/me
+Accept: application/json
+
+### 查看目前登入者：有攜帶 Token
+GET {{ReportSystem.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 測試管理者權限
+GET {{ReportSystem.Api_HostAddress}}/api/auth/admin-test
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 未登入不能取得報表清單
+GET {{ReportSystem.Api_HostAddress}}/api/reports
+
+Accept: application/json
+### 取得目前登入者可使用的報表
+GET {{ReportSystem.Api_HostAddress}}/api/reports
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 停用報表不能出現在清單
+GET {{ReportSystem.Api_HostAddress}}/api/reports
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### A002 一般使用者登入
+POST {{ReportSystem.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "employeeNo": "A002",
+  "password": "123456"
+}
+
+### A002 取得報表清單
+GET {{ReportSystem.Api_HostAddress}}/api/reports
+Authorization: Bearer {{userToken}}
+Accept: application/json
+
+### Token 過期測試：重新登入
+POST {{ReportSystem.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "employeeNo": "A001",
+  "password": "123456"
+}
+
+### Token 過期測試：剛取得時應成功
+GET {{ReportSystem.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{expireTestToken}}
+Accept: application/json
+
+### 分類停用後取得報表
+GET {{ReportSystem.Api_HostAddress}}/api/reports
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 空白帳號密碼
+POST {{ReportSystem.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "employeeNo": "",
+  "password": ""
+}
