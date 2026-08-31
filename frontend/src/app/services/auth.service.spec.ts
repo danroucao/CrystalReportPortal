@@ -1,15 +1,16 @@
 import { AuthService } from './auth.service';
+import { MockRbacService } from './mock-rbac.service';
 
 describe('AuthService', () => {
   let Auth: AuthService;
 
   beforeEach(() => {
-    Auth = new AuthService();
+    Auth = new AuthService(new MockRbacService());
   });
 
-  it('authenticates the MEMBER Demo account with all report permissions', () => {
+  it('authenticates the finance Demo account with accounts-receivable permission', () => {
     expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
-    expect(Auth.CurrentUser?.Role).toBe('MEMBER');
+    expect(Auth.CurrentUser?.Role).toBe('FINANCE');
     expect(Auth.ReportPermission).toEqual({
       CanView: true,
       CanExecute: true,
@@ -17,6 +18,10 @@ describe('AuthService', () => {
       CanPrint: true,
     });
     expect(Auth.IsAdmin).toBeFalse();
+    expect(Auth.AccessibleReports.map((Report) => Report.ReportName)).toEqual([
+      'AccountBalance',
+      'Activity',
+    ]);
   });
 
   it('authenticates the ADMIN Demo account with management access', () => {
@@ -24,6 +29,11 @@ describe('AuthService', () => {
     expect(Auth.CurrentUser?.Role).toBe('ADMIN');
     expect(Auth.HasManagementPermission('UserManagement')).toBeTrue();
     expect(Auth.HasManagementPermission('OperationLog')).toBeTrue();
+    Auth.SwitchDemoRole('WAREHOUSE');
+    expect(Auth.AccessibleReports.map((Report) => Report.ReportName)).toEqual([
+      'InventoryTransfer_HANA',
+    ]);
+    expect(Auth.IsAdmin).toBeFalse();
   });
 
   it('rejects incorrect credentials and clears the Demo login state on logout', () => {

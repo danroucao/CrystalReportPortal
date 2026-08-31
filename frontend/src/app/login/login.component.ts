@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthService } from '../services/auth.service';
+import { NotificationService } from '../services/notification.service';
 
 type NoticeKind =
   | 'credential-error'
@@ -15,7 +16,7 @@ type NoticeKind =
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
@@ -24,6 +25,7 @@ export class LoginComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   readonly Auth = inject(AuthService);
+  readonly Notifications = inject(NotificationService);
 
   readonly loginForm = this.formBuilder.nonNullable.group({
     account: ['', Validators.required],
@@ -107,6 +109,7 @@ export class LoginComponent implements OnInit {
         return;
       }
 
+      this.Notifications.ShowSuccess('登入成功！');
       void this.router.navigate(['/reports']);
     }, 700);
   }

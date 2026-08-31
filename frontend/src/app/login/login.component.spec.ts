@@ -2,6 +2,7 @@ import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 
 import { routes } from '../app.routes';
+import { NotificationService } from '../services/notification.service';
 import { LoginComponent } from './login.component';
 
 describe('LoginComponent', () => {
@@ -42,9 +43,21 @@ describe('LoginComponent', () => {
     expect(component.password.value).toBe('not-a-real-password');
   });
 
+  it('shows login status messages in a modal instead of moving the form', () => {
+    const fixture = TestBed.createComponent(LoginComponent);
+    const component = fixture.componentInstance;
+    component.notice = 'credential-error';
+    fixture.detectChanges();
+
+    const Modal = fixture.nativeElement.querySelector('.notification-modal--error');
+    expect(Modal?.getAttribute('role')).toBe('alertdialog');
+    expect(Modal?.textContent).toContain('登入提示');
+  });
+
   it('navigates a MEMBER demo account to ReportList', fakeAsync(() => {
     const fixture = TestBed.createComponent(LoginComponent);
     const router = TestBed.inject(Router);
+    const Notifications = TestBed.inject(NotificationService);
     const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
     const component = fixture.componentInstance;
     component.account.setValue('user@example.com');
@@ -56,6 +69,7 @@ describe('LoginComponent', () => {
 
     tick(700);
     expect(navigateSpy).toHaveBeenCalledWith(['/reports']);
+    expect(Notifications.SuccessMessage).toBe('登入成功！');
     expect(component.loginForm.enabled).toBeTrue();
   }));
 

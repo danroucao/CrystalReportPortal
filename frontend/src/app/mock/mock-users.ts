@@ -1,23 +1,40 @@
-import { MockRole } from './mock-permissions';
+import { MockRoleKey } from './mock-permissions';
 
 export interface MockUser {
-  readonly Account: string;
-  readonly Password: string;
-  readonly Role: MockRole;
-  readonly DisplayName: string;
+  Account: string;
+  Password: string;
+  Role: MockRoleKey;
+  DisplayName: string;
+  Enabled: boolean;
 }
 
 export const MockUsers: readonly MockUser[] = [
   {
     Account: 'user@example.com',
     Password: 'user123',
-    Role: 'MEMBER',
-    DisplayName: '一般使用者 Demo',
+    Role: 'FINANCE',
+    DisplayName: '財務人員 Demo',
+    Enabled: true,
   },
   {
     Account: 'admin@example.com',
     Password: 'admin123',
     Role: 'ADMIN',
-    DisplayName: '系統管理員 Demo',
+    DisplayName: '系統管理員',
+    Enabled: true,
+  },
+  {
+    Account: 'admin2@example.com',
+    Password: 'admin234',
+    Role: 'ADMIN',
+    DisplayName: '系統管理員 B',
+    Enabled: true,
+  },
+  {
+    Account: 'admin3@example.com',
+    Password: 'admin345',
+    Role: 'ADMIN',
+    DisplayName: '系統管理員 C',
+    Enabled: true,
   },
 ];

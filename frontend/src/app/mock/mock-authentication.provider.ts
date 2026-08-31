@@ -9,7 +9,9 @@ export const MockAuthenticationProvider: MockAuthenticationProviderModel = {
     return (
       MockUsers.find(
         (MockUser) =>
-          MockUser.Account === Account && MockUser.Password === Password,
+          MockUser.Account === Account &&
+          MockUser.Password === Password &&
+          MockUser.Enabled === true,
       ) ?? null
     );
   },

@@ -39,13 +39,6 @@ export const routes: Routes = [
     title: '使用者管理｜Crystal Reports 外部報表系統',
   },
   {
-    path: 'admin/roles',
-    component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
-    data: { Page: 'RoleManagement' },
-    title: '角色管理｜Crystal Reports 外部報表系統',
-  },
-  {
     path: 'admin/permissions',
     component: DemoPortalComponent,
     canActivate: [DemoAdminGuard],
