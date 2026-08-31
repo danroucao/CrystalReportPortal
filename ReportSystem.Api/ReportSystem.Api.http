@@ -1,13 +1,11 @@
 @ReportSystem.Api_HostAddress = https://localhost:7227
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoi5ris6Kmm5L2_55So6ICFIiwiRW1wbG95ZWVObyI6IkEwMDEiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBRE1JTiIsImV4cCI6MTc4ODAzMDQxMiwiaXNzIjoiUmVwb3J0U3lzdGVtLkFwaSIsImF1ZCI6IlJlcG9ydFN5c3RlbS5XZWIifQ.km0jxuMAqX8G3mCzkXKrv_fYp3TPQD2aqjF9YqCn5OU
-@userToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjIiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoi5LiA6Iis5ris6Kmm5L2_55So6ICFIiwiRW1wbG95ZWVObyI6IkEwMDIiLCJleHAiOjE3ODgwMjk5NDYsImlzcyI6IlJlcG9ydFN5c3RlbS5BcGkiLCJhdWQiOiJSZXBvcnRTeXN0ZW0uV2ViIn0._OOGS9-CMCfgOJNAIkjaJl8WmjKiazlX0HVeJHeDlsI
-@expireTestToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoi5ris6Kmm5L2_55So6ICFIiwiRW1wbG95ZWVObyI6IkEwMDEiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBRE1JTiIsImV4cCI6MTc4ODAyNjU5MywiaXNzIjoiUmVwb3J0U3lzdGVtLkFwaSIsImF1ZCI6IlJlcG9ydFN5c3RlbS5XZWIifQ.nK00cM_0n6FvXcgkC1Pwrhi1iIT_RnfXrX1IQkP2uVw
 
-### 測試系統狀態
+### 1. 系統狀態
 GET {{ReportSystem.Api_HostAddress}}/api/health
 Accept: application/json
 
-### 測試登入
+### 2. 正確帳密登入（A001：管理員）
+# 請從回應的 token 欄位複製 Token，貼到下方 @adminToken。
 POST {{ReportSystem.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
@@ -16,7 +14,10 @@ Content-Type: application/json
   "password": "123456"
 }
 
-### 錯誤密碼
+### 3. 貼上步驟 2 最新取得的 Token 後，再執行後續管理員測試
+@adminToken = PASTE_A001_TOKEN_HERE
+
+### 4. 錯誤密碼：預期 401
 POST {{ReportSystem.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
@@ -25,7 +26,7 @@ Content-Type: application/json
   "password": "wrong-password"
 }
 
-### 不存在帳號
+### 5. 不存在帳號：預期 401
 POST {{ReportSystem.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
@@ -34,44 +35,31 @@ Content-Type: application/json
   "password": "123456"
 }
 
-### 停用帳號不能登入
-POST {{ReportSystem.Api_HostAddress}}/api/auth/login
-Content-Type: application/json
-
-{
-  "employeeNo": "A002",
-  "password": "123456"
-}
-
-### 查看目前登入者：沒有攜帶 Token
+### 6. 沒有 Token：預期 401
 GET {{ReportSystem.Api_HostAddress}}/api/auth/me
 Accept: application/json
 
-### 查看目前登入者：有攜帶 Token
+### 7. 有正確 Token：預期登入者資料
 GET {{ReportSystem.Api_HostAddress}}/api/auth/me
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 Accept: application/json
 
-### 測試管理者權限
+### 8. 管理員權限：A001 具有 ADMIN 時，預期 200
 GET {{ReportSystem.Api_HostAddress}}/api/auth/admin-test
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 Accept: application/json
 
-### 未登入不能取得報表清單
+### 9. 未登入不能取得報表清單：預期 401
 GET {{ReportSystem.Api_HostAddress}}/api/reports
-
 Accept: application/json
-### 取得目前登入者可使用的報表
+
+### 10. A001 可看到自己有權限且啟用的報表
 GET {{ReportSystem.Api_HostAddress}}/api/reports
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 Accept: application/json
 
-### 停用報表不能出現在清單
-GET {{ReportSystem.Api_HostAddress}}/api/reports
-Authorization: Bearer {{token}}
-Accept: application/json
-
-### A002 一般使用者登入
+### 11. A002 一般使用者測試（只有 A002 已啟用時才執行）
+# 先執行此登入請求；再把回傳 token 貼到 @userToken。
 POST {{ReportSystem.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
@@ -80,35 +68,60 @@ Content-Type: application/json
   "password": "123456"
 }
 
-### A002 取得報表清單
+### 12. 貼上 A002 最新 Token
+@userToken = PASTE_A002_TOKEN_HERE
+
+### 13. 比較 A002 可看到的報表清單
 GET {{ReportSystem.Api_HostAddress}}/api/reports
 Authorization: Bearer {{userToken}}
 Accept: application/json
 
-### Token 過期測試：重新登入
+### 14. Token 過期測試
+# 將 appsettings.json 的 Jwt:ExpireMinutes 暫時改為 1，重新啟動 API 後登入取得 Token。
+# 等超過 1 分鐘，再把 Token 貼到 @expiredToken 並執行下一段；預期 401。
+@expiredToken = PASTE_EXPIRED_TOKEN_HERE
+
+### 15. 已過期 Token：預期 401
+GET {{ReportSystem.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{expiredToken}}
+Accept: application/json
+
+### 16. 密碼複雜度：預期 401，因新密碼沒有英文和數字
+POST {{ReportSystem.Api_HostAddress}}/api/auth/change-password
+Content-Type: application/json
+
+{
+  "employeeNo": "A001",
+  "currentPassword": "123456",
+  "newPassword": "12345678"
+}
+
+### 17. 修改密碼：這個請求會真的改掉資料庫密碼，請只用測試帳號執行
+# 新密碼必須至少 8 碼，且含英文與數字。成功後請用新密碼重新登入。
+POST {{ReportSystem.Api_HostAddress}}/api/auth/change-password
+Content-Type: application/json
+
+{
+  "employeeNo": "A001",
+  "currentPassword": "123456",
+  "newPassword": "Test1234"
+}
+
+### 18. 連續密碼錯誤鎖定：同一帳號在 15 分鐘內連續執行此請求 5 次
+# 第 6 次登入（即使密碼正確）預期 401；15 分鐘後可再登入。
 POST {{ReportSystem.Api_HostAddress}}/api/auth/login
 Content-Type: application/json
 
 {
   "employeeNo": "A001",
-  "password": "123456"
+  "password": "wrong-password"
 }
 
-### Token 過期測試：剛取得時應成功
-GET {{ReportSystem.Api_HostAddress}}/api/auth/me
-Authorization: Bearer {{expireTestToken}}
+### 19. 單筆報表執行權限
+# 將 1 改成資料庫中實際存在的 ReportId；有 CanExecute 權限時為 200，否則為 403。
+GET {{ReportSystem.Api_HostAddress}}/api/reports/1/execute-access
+Authorization: Bearer {{adminToken}}
 Accept: application/json
 
-### 分類停用後取得報表
-GET {{ReportSystem.Api_HostAddress}}/api/reports
-Authorization: Bearer {{token}}
-Accept: application/json
-
-### 空白帳號密碼
-POST {{ReportSystem.Api_HostAddress}}/api/auth/login
-Content-Type: application/json
-
-{
-  "employeeNo": "",
-  "password": ""
-}
+### 登出規則（目前不需要後端 API）
+# 前端按登出時刪除自己保存的 JWT；之後請求未帶 Token，API 就會回傳 401。

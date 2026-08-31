@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ReportSystem.Api.Data;
+using ReportSystem.Api.Services;
 using System.Security.Claims;
 
 namespace ReportSystem.Api.Controllers;
@@ -11,12 +10,11 @@ namespace ReportSystem.Api.Controllers;
 [Authorize]
 public class ReportsController : ControllerBase
 {
-    private readonly ReportSystemDbContext _dbContext;
+    private readonly IReportService _reportService;
 
-    public ReportsController(
-        ReportSystemDbContext dbContext)
+    public ReportsController(IReportService reportService)
     {
-        _dbContext = dbContext;
+        _reportService = reportService;
     }
 
     [HttpGet]
@@ -27,70 +25,31 @@ public class ReportsController : ControllerBase
             .Select(claim => claim.Value)
             .ToList();
 
-        if (roleCodes.Count == 0)
+        var result = await _reportService.GetReportsAsync(roleCodes);
+
+        return Ok(result);
+    }
+
+    [HttpGet("{reportId:long}/execute-access")]
+    public async Task<IActionResult> CheckExecuteAccess(long reportId)
+    {
+        var roleCodes = User
+            .FindAll(ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .ToList();
+
+        var allowed = await _reportService.CanExecuteReportAsync(reportId, roleCodes);
+
+        if (!allowed)
         {
-            return Ok(new
-            {
-                success = true,
-                count = 0,
-                reports = Array.Empty<object>()
-            });
+            return Forbid();
         }
-
-        var reports = await _dbContext.RoleReportPermissions
-            .AsNoTracking()
-            .Where(permission =>
-                roleCodes.Contains(permission.Role.RoleCode) &&
-                permission.Role.IsEnabled &&
-                permission.Report.IsEnabled &&
-                permission.Report.Category.IsEnabled
-            )
-            .GroupBy(permission => new
-            {
-                permission.Report.ReportId,
-                permission.Report.ReportCode,
-                permission.Report.ReportName,
-                permission.Report.Description,
-                permission.Report.Category.CategoryId,
-                permission.Report.Category.CategoryName
-            })
-            .Select(group => new
-            {
-                group.Key.ReportId,
-                group.Key.ReportCode,
-                group.Key.ReportName,
-                group.Key.Description,
-
-                category = new
-                {
-                    group.Key.CategoryId,
-                    group.Key.CategoryName
-                },
-
-                permissions = new
-                {
-                    canExecute = group.Any(
-                        permission => permission.CanExecute
-                    ),
-
-                    canExport = group.Any(
-                        permission => permission.CanExport
-                    ),
-
-                    canPrint = group.Any(
-                        permission => permission.CanPrint
-                    )
-                }
-            })
-            .OrderBy(report => report.category.CategoryName)
-            .ThenBy(report => report.ReportName)
-            .ToListAsync();
 
         return Ok(new
         {
             success = true,
-            count = reports.Count,
-            reports
+            message = "具有執行此報表的權限",
+            reportId
         });
     }
 }
