@@ -1,6 +1,22 @@
+<<<<<<< HEAD
+# Visual Studio
+.vs/
+
+# Build results
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+
+# Visual Studio Code（如果不想共用設定）
+.vscode/
+=======
 bin/
 obj/
 docs/
 test-data/
 README.md
 .git
+>>>>>>> main
