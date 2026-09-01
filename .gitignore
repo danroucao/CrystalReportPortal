@@ -1,23 +1,27 @@
-<<<<<<< HEAD
 # Visual Studio
 .vs/
+**/.vs/
 
-# Build results
+# Build output
 bin/
 obj/
+**/bin/
+**/obj/
 
-# User-specific files
+# Visual Studio user files
 *.user
 *.suo
 
-# Visual Studio Code（如果不想共用設定）
-.vscode/
-=======
-bin/
-obj/
-docs/
-.vs/
-test-data/
-README.md
-.git
->>>>>>> main
+# Angular / Node
+**/node_modules/
+**/dist/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.*
+
+# Generated report output
+reports/Output/
