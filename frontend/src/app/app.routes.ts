@@ -50,14 +50,7 @@ export const routes: Routes = [
     component: DemoPortalComponent,
     canActivate: [DemoAdminGuard],
     data: { Page: 'RptManagement' },
-    title: 'RPT 管理｜Crystal Reports 外部報表系統',
-  },
-  {
-    path: 'admin/parameters',
-    component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
-    data: { Page: 'ReportParameterSetting' },
-    title: '報表參數設定｜Crystal Reports 外部報表系統',
+    title: '報表管理｜Crystal Reports 外部報表系統',
   },
   {
     path: 'admin/database-connections',

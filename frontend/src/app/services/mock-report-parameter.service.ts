@@ -13,7 +13,7 @@ export class MockReportParameterService {
   private readonly LovStatusOverrides = new Map<string, MockLovStatus>();
 
   GetDefinitions(ReportKey: MockReportKey): MockReportParameterDefinition[] {
-    return MockReportParameterDefinitions[ReportKey].map((Definition) => ({
+    return (MockReportParameterDefinitions[ReportKey] ?? []).map((Definition) => ({
       ...Definition,
       Options: Definition.Options?.map((Option) => ({ ...Option })),
     }));
@@ -54,7 +54,7 @@ export class MockReportParameterService {
     ReportKey: MockReportKey,
     ParameterName: string,
   ): MockReportParameterDefinition | undefined {
-    return MockReportParameterDefinitions[ReportKey].find(
+    return (MockReportParameterDefinitions[ReportKey] ?? []).find(
       (Definition) => Definition.ParameterName === ParameterName,
     );
   }

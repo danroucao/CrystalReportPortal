@@ -64,6 +64,11 @@ export interface MockFavoriteReport {
   readonly LastUsedAt: string | null;
 }
 
+export interface MockReportSearchCriteria {
+  readonly StartDate: string;
+  readonly EndDate: string;
+}
+
 interface MockFavoriteReportState {
   IsFavorite: boolean;
   LastUsedAt: string | null;
@@ -95,24 +100,14 @@ export class MockRbacService {
   private readonly FavoriteReportStore: Record<
     string,
     Partial<Record<MockReportKey, MockFavoriteReportState>>
-  > = {
-    'admin@example.com': {
-      AccountBalance: { IsFavorite: true, LastUsedAt: '2026-08-30T09:20:00+08:00' },
-      Activity: { IsFavorite: true, LastUsedAt: '2026-08-29T14:10:00+08:00' },
-      InventoryTransferHana: { IsFavorite: true, LastUsedAt: null },
-      ProductionOrder: { IsFavorite: true, LastUsedAt: '2026-08-28T11:45:00+08:00' },
-      ServiceContract: { IsFavorite: true, LastUsedAt: '2026-08-27T16:05:00+08:00' },
-    },
-    'user@example.com': {
-      AccountBalance: { IsFavorite: true, LastUsedAt: '2026-08-30T10:15:00+08:00' },
-      Activity: { IsFavorite: true, LastUsedAt: null },
-    },
-  };
+  > = this.CreateInitialFavoriteStore();
   private readonly RoleChangeRequestsStore: MockRoleChangeRequest[] = [];
   private NextRoleChangeRequestId = 1;
   private NextCustomRoleSequence = 1;
+  private NextUploadedReportSequence = 1;
   private readonly PermissionStore: Record<string, Record<string, MockCategoryPermission>> = this.CloneInitialPermissions();
-  private SelectedReportKey: MockReportKey = 'AccountBalance';
+  private SelectedReportKey: MockReportKey | null = null;
+  private SelectedReportSearchCriteria: MockReportSearchCriteria | null = null;
 
   get IsEnabled(): boolean { return MockAuthenticationProvider.IsEnabled; }
   get Users(): readonly MockUser[] { return this.UsersStore.map((User) => this.ToReadModel(User)); }
@@ -122,6 +117,7 @@ export class MockRbacService {
   get AdminCount(): number { return this.UsersStore.filter((User) => User.Roles.includes('ADMIN')).length; }
   get Roles(): readonly MockRole[] { return this.RoleStore.map((Role) => ({ ...Role, ManagementPermissions: [...Role.ManagementPermissions] })); }
   get Reports(): readonly MockReport[] { return this.ReportStore.map((Report) => ({ ...Report })); }
+  get ReportCategories(): readonly string[] { return this.GetReportCategories(); }
 
   GetRoleUserCount(RoleKey: MockRoleKey): number {
     return this.UsersStore.filter((User) => User.Roles.includes(RoleKey)).length;
@@ -156,6 +152,7 @@ export class MockRbacService {
       CreatedAt: Timestamp,
       UpdatedAt: Timestamp,
     });
+    this.FavoriteReportStore[Draft.Account.trim()] = this.CreateEmptyFavoriteState();
     return true;
   }
 
@@ -275,7 +272,77 @@ export class MockRbacService {
 
   SetReportEnabled(ReportKey: MockReportKey, Enabled: boolean): void {
     const ReportIndex = this.ReportStore.findIndex((Report) => Report.ReportKey === ReportKey);
-    if (ReportIndex >= 0) this.ReportStore[ReportIndex] = { ...this.ReportStore[ReportIndex], Enabled };
+    if (ReportIndex >= 0) {
+      this.ReportStore[ReportIndex] = {
+        ...this.ReportStore[ReportIndex],
+        Enabled,
+        UpdatedAt: this.GetTimestamp(),
+      };
+    }
+  }
+
+  GetReport(ReportKey: MockReportKey): MockReport | null {
+    const Report = this.ReportStore.find((Entry) => Entry.ReportKey === ReportKey);
+    return Report ? { ...Report } : null;
+  }
+
+  CreateReport(Draft: {
+    ReportName: string;
+    Category: string;
+    Enabled: boolean;
+    FileName: string;
+  }): MockReport | null {
+    const ReportName = Draft.ReportName.trim();
+    const Category = Draft.Category.trim();
+    const FileName = Draft.FileName.trim();
+    if (!ReportName || !Category || !FileName) return null;
+    const Timestamp = this.GetTimestamp();
+    const Report: MockReport = {
+      ReportKey: `UploadedReport${this.NextUploadedReportSequence++}` as MockReportKey,
+      ReportName,
+      Category,
+      Description: '前端 Mock 上傳的報表。',
+      FileName,
+      Enabled: Draft.Enabled,
+      CreatedAt: Timestamp,
+      UpdatedAt: Timestamp,
+    };
+    this.ReportStore.push(Report);
+    return { ...Report };
+  }
+
+  UpdateReport(
+    ReportKey: MockReportKey,
+    Draft: {
+      ReportName: string;
+      Category: string;
+      Enabled: boolean;
+      FileName?: string;
+    },
+  ): boolean {
+    const ReportIndex = this.ReportStore.findIndex((Report) => Report.ReportKey === ReportKey);
+    if (ReportIndex < 0 || !Draft.ReportName.trim() || !Draft.Category.trim()) return false;
+    const Current = this.ReportStore[ReportIndex];
+    this.ReportStore[ReportIndex] = {
+      ...Current,
+      ReportName: Draft.ReportName.trim(),
+      Category: Draft.Category.trim(),
+      Enabled: Draft.Enabled,
+      FileName: Draft.FileName?.trim() || Current.FileName,
+      UpdatedAt: this.GetTimestamp(),
+    };
+    return true;
+  }
+
+  DeleteReport(ReportKey: MockReportKey): boolean {
+    const ReportIndex = this.ReportStore.findIndex((Report) => Report.ReportKey === ReportKey);
+    if (ReportIndex < 0) return false;
+    this.ReportStore.splice(ReportIndex, 1);
+    if (this.SelectedReportKey === ReportKey) {
+      this.SelectedReportKey = null;
+      this.SelectedReportSearchCriteria = null;
+    }
+    return true;
   }
 
   GetAccessibleReports(Roles: readonly MockRoleKey[]): readonly MockReport[] {
@@ -307,6 +374,20 @@ export class MockRbacService {
     if (!Favorite?.IsFavorite) return false;
     Favorite.IsFavorite = false;
     return true;
+  }
+
+  IsFavoriteReport(Account: string, ReportKey: MockReportKey): boolean {
+    return this.FavoriteReportStore[Account]?.[ReportKey]?.IsFavorite === true;
+  }
+
+  ToggleFavoriteReport(Account: string, ReportKey: MockReportKey): boolean {
+    const Favorites =
+      this.FavoriteReportStore[Account] ?? (this.FavoriteReportStore[Account] = {});
+    const Favorite =
+      Favorites[ReportKey] ??
+      (Favorites[ReportKey] = { IsFavorite: false, LastUsedAt: null });
+    Favorite.IsFavorite = !Favorite.IsFavorite;
+    return Favorite.IsFavorite;
   }
 
   RecordReportExecution(Account: string, ReportKey: MockReportKey): void {
@@ -357,10 +438,25 @@ export class MockRbacService {
 
   GetRole(RoleKey: MockRoleKey): MockRole { return this.RoleStore.find((Role) => Role.Key === RoleKey)!; }
   HasManagementPermission(Role: MockRoleKey, Permission: MockManagementPermission): boolean { return this.GetRole(Role).ManagementPermissions.includes(Permission); }
-  SelectReport(ReportKey: MockReportKey): void { this.SelectedReportKey = ReportKey; }
+  SelectReport(
+    ReportKey: MockReportKey,
+    SearchCriteria: MockReportSearchCriteria | null = null,
+  ): void {
+    this.SelectedReportKey = ReportKey;
+    this.SelectedReportSearchCriteria = SearchCriteria ? { ...SearchCriteria } : null;
+  }
+  ClearSelectedReport(): void {
+    this.SelectedReportKey = null;
+    this.SelectedReportSearchCriteria = null;
+  }
+  GetSelectedReportSearchCriteria(): MockReportSearchCriteria | null {
+    return this.SelectedReportSearchCriteria
+      ? { ...this.SelectedReportSearchCriteria }
+      : null;
+  }
   GetSelectedReport(Roles: readonly MockRoleKey[]): MockReport | null {
     const Reports = this.GetAccessibleReports(Roles);
-    return Reports.find((Report) => Report.ReportKey === this.SelectedReportKey) ?? Reports[0] ?? null;
+    return Reports.find((Report) => Report.ReportKey === this.SelectedReportKey) ?? null;
   }
 
   private NormalizePermission(Permission: MockCategoryPermission): MockCategoryPermission {
@@ -381,6 +477,32 @@ export class MockRbacService {
         ],
       ),
     ) as Record<string, Record<string, MockCategoryPermission>>;
+  }
+
+  private CreateInitialFavoriteStore(): Record<
+    string,
+    Partial<Record<MockReportKey, MockFavoriteReportState>>
+  > {
+    return Object.fromEntries(
+      this.UsersStore.map((User) => [
+        User.Account,
+        this.CreateEmptyFavoriteState(),
+      ]),
+    ) as Record<
+      string,
+      Partial<Record<MockReportKey, MockFavoriteReportState>>
+    >;
+  }
+
+  private CreateEmptyFavoriteState(): Partial<
+    Record<MockReportKey, MockFavoriteReportState>
+  > {
+    return Object.fromEntries(
+      this.ReportStore.map((Report) => [
+        Report.ReportKey,
+        { IsFavorite: false, LastUsedAt: null },
+      ]),
+    ) as Partial<Record<MockReportKey, MockFavoriteReportState>>;
   }
 
   private ToCategoryPermissionRecord(

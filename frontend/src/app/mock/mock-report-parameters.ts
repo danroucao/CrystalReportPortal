@@ -57,7 +57,7 @@ export interface MockReportParameterDefinition {
 }
 
 export type MockReportParameterDefinitions = Readonly<
-  Record<MockReportKey, readonly MockReportParameterDefinition[]>
+  Partial<Record<MockReportKey, readonly MockReportParameterDefinition[]>>
 >;
 
 const CustomerOptions: readonly MockParameterOption[] = [

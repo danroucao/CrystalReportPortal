@@ -3,7 +3,6 @@ export type MockRoleKey = string;
 export type MockManagementPermission =
   | 'UserManagement'
   | 'RptManagement'
-  | 'ReportParameterSetting'
   | 'DatabaseConnection'
   | 'OperationLog';
 
@@ -26,7 +25,7 @@ export interface MockCategoryPermissionEntry {
 }
 
 const AllManagementPermissions: readonly MockManagementPermission[] = [
-  'UserManagement', 'RptManagement', 'ReportParameterSetting',
+  'UserManagement', 'RptManagement',
   'DatabaseConnection', 'OperationLog',
 ];
 

@@ -15,16 +15,16 @@ describe('MockRbacService', () => {
     Service.SetReportEnabled('DocumentsV2WithSerialAndBatchDetails', true);
 
     expect(Service.GetAccessibleReports(['FINANCE']).map((Report) => Report.ReportKey)).toEqual([
-      'AccountBalance', 'MonthlyRevenue', 'Activity',
+      'AccountBalance', 'MonthlyRevenue', 'Activity', 'ActivityAttendance', 'CampaignPerformance',
     ]);
     expect(Service.GetAccessibleReports(['PURCHASE']).map((Report) => Report.ReportKey)).toEqual([
-      'DocumentsV2WithSerialAndBatchDetails', 'ProductionOrder',
+      'DocumentsV2WithSerialAndBatchDetails', 'ProductionOrder', 'ProductionYield', 'DocumentArchive',
     ]);
     expect(Service.GetAccessibleReports(['PURCHASE', 'WAREHOUSE']).map((Report) => Report.ReportKey)).toEqual([
-      'InventoryTransferHana', 'DocumentsV2WithSerialAndBatchDetails', 'ProductionOrder',
+      'InventoryTransferHana', 'DocumentsV2WithSerialAndBatchDetails', 'ProductionOrder', 'InventoryAging', 'ProductionYield', 'DocumentArchive',
     ]);
     expect(Service.GetAccessibleReports(['WAREHOUSE']).map((Report) => Report.ReportKey)).toEqual([
-      'InventoryTransferHana',
+      'InventoryTransferHana', 'InventoryAging',
     ]);
   });
 
@@ -99,7 +99,9 @@ describe('MockRbacService', () => {
       CanExportPdf: false,
       CanPrint: false,
     });
-    expect(Service.GetAccessibleReports(['FINANCE']).map((Report) => Report.ReportKey)).toEqual(['Activity']);
+    expect(Service.GetAccessibleReports(['FINANCE']).map((Report) => Report.ReportKey)).toEqual([
+      'Activity', 'ActivityAttendance', 'CampaignPerformance',
+    ]);
   });
 
   it('creates roles and retains only executable category output settings', () => {
@@ -152,7 +154,7 @@ describe('MockRbacService', () => {
   });
 
   it('keeps all reports in management while excluding disabled reports from the normal report list', () => {
-    expect(Service.Reports).toHaveSize(7);
+    expect(Service.Reports).toHaveSize(13);
     expect(Service.Reports.every((Report) => Report.ReportKey && Report.FileName && Report.Category && Report.Description)).toBeTrue();
     expect(Service.GetAccessibleReports(['ADMIN']).some((Report) => Report.ReportKey === 'DocumentsV2WithSerialAndBatchDetails')).toBeFalse();
 

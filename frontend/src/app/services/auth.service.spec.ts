@@ -11,6 +11,7 @@ describe('AuthService', () => {
   it('authenticates the finance Demo account with accounts-receivable permission', () => {
     expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
     expect(Auth.CurrentUser?.Roles).toEqual(['FINANCE']);
+    Auth.SelectReport('AccountBalance');
     expect(Auth.SelectedReportCategoryPermission).toEqual({
       CanExecute: true,
       CanExportPdf: true,
