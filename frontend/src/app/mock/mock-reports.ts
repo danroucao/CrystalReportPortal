@@ -9,6 +9,7 @@ export interface MockReport {
 
 export type MockReportKey =
   | 'AccountBalance'
+  | 'MonthlyRevenue'
   | 'Activity'
   | 'InventoryTransferHana'
   | 'DocumentsV2WithSerialAndBatchDetails'
@@ -23,6 +24,14 @@ export const MockReports: readonly MockReport[] = [
     Category: '財務',
     Description: '模擬帳戶餘額與期間結餘資訊的 ReportList Metadata。',
     FileName: 'AccountBalance.rpt',
+    Enabled: true,
+  },
+  {
+    ReportKey: 'MonthlyRevenue',
+    ReportName: 'MonthlyRevenue',
+    Category: '財務',
+    Description: '新增至財務分類的月營收報表，用於驗證分類權限自動套用。',
+    FileName: 'MonthlyRevenue.rpt',
     Enabled: true,
   },
   {

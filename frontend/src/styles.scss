@@ -883,6 +883,92 @@ app-demo-portal .report-list-table button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
+app-demo-portal .favorite-category-tabs {
+  display: flex;
+  gap: 0.2rem;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 0 1rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+  scrollbar-width: thin;
+}
+app-demo-portal .favorite-category-tabs button {
+  min-height: 40px;
+  padding: 0 0.65rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  color: var(--color-muted);
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+app-demo-portal .favorite-category-tabs button:hover,
+app-demo-portal .favorite-category-tabs button:focus-visible {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+app-demo-portal .favorite-category-tabs button.is-active {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+}
+app-demo-portal .favorite-report-table {
+  min-width: 52rem;
+}
+app-demo-portal .favorite-report-table th:nth-child(1) {
+  width: 8%;
+}
+app-demo-portal .favorite-report-table th:nth-child(2) {
+  width: 32%;
+}
+app-demo-portal .favorite-report-table th:nth-child(3) {
+  width: 18%;
+}
+app-demo-portal .favorite-report-table th:nth-child(4) {
+  width: 28%;
+}
+app-demo-portal .favorite-report-table th:nth-child(5) {
+  width: 14%;
+}
+app-demo-portal .favorite-star-button,
+app-demo-portal .favorite-sort-button {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text);
+  background: transparent;
+}
+app-demo-portal .favorite-star-button {
+  color: #e8a400;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+app-demo-portal .favorite-star-button:hover,
+app-demo-portal .favorite-star-button:focus-visible {
+  color: #b97a00;
+  background: transparent;
+  transform: scale(1.08);
+}
+app-demo-portal .favorite-sort-button {
+  color: var(--color-muted);
+  font-size: inherit;
+  font-weight: 800;
+}
+app-demo-portal .favorite-sort-button:hover,
+app-demo-portal .favorite-sort-button:focus-visible {
+  color: var(--color-primary);
+  background: transparent;
+  text-decoration: underline;
+}
+app-demo-portal .favorite-empty-state {
+  margin: 0;
+  padding: 2rem 0.75rem;
+  color: var(--color-muted);
+  text-align: center;
+}
 app-demo-portal .role-editor-fields {
   display: grid;
   grid-template-columns: minmax(12rem, 0.8fr) minmax(16rem, 1.2fr);
@@ -921,11 +1007,173 @@ app-demo-portal .account-status-switch:disabled {
   opacity: 0.55;
 }
 
+app-demo-portal .parameter-form-fields {
+  align-items: start;
+}
+app-demo-portal .parameter-search-toolbar {
+  display: grid;
+  grid-template-columns: minmax(10rem, 28rem);
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+}
+app-demo-portal .parameter-search-toolbar label,
+app-demo-portal .selected-parameter-report-label {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .parameter-search-toolbar input {
+  min-height: 38px;
+  padding: 0 0.6rem;
+  border: 1px solid #aaa69e;
+  border-radius: 5px;
+  font: inherit;
+}
+app-demo-portal .parameter-section-heading {
+  margin: 0 0 0.85rem;
+  font-size: 1rem;
+}
+app-demo-portal .parameter-report-table-scroll {
+  min-height: 13rem;
+}
+app-demo-portal .parameter-report-table {
+  min-width: 34rem;
+}
+app-demo-portal .parameter-report-table th:nth-child(1) {
+  width: 52%;
+}
+app-demo-portal .parameter-report-table th:nth-child(2) {
+  width: 28%;
+}
+app-demo-portal .parameter-report-table th:nth-child(3) {
+  width: 20%;
+}
+app-demo-portal .sortable-table-header {
+  display: inline-flex;
+  align-items: center;
+  min-height: auto;
+  gap: 0.35rem;
+  padding: 0.2rem 0.35rem;
+  border: 0;
+  border-radius: 4px;
+  color: var(--color-muted);
+  background: transparent;
+  font-size: inherit;
+}
+app-demo-portal .sortable-table-header:hover,
+app-demo-portal .sortable-table-header:focus-visible {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+app-demo-portal .parameter-report-empty-state {
+  height: 7rem;
+  color: var(--color-muted);
+  text-align: center;
+  vertical-align: middle;
+}
+app-demo-portal .selected-parameter-report {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-secondary);
+  border-radius: 6px;
+  background: #fdfcf9;
+}
+app-demo-portal .selected-parameter-report-label {
+  margin: 0 0 0.25rem;
+}
+app-demo-portal .selected-parameter-report h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+app-demo-portal .parameter-field,
+app-demo-portal .parameter-range-field {
+  min-width: min(100%, 15rem);
+}
+app-demo-portal .parameter-range-field {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(9rem, 1fr));
+  gap: 0.4rem 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+app-demo-portal .parameter-range-field legend {
+  grid-column: 1 / -1;
+  padding: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .parameter-range-field label,
+app-demo-portal .parameter-field {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .parameter-field textarea {
+  min-height: 5.5rem;
+  padding: 0.6rem;
+  resize: vertical;
+  border: 1px solid #aaa69e;
+  border-radius: 5px;
+  font: inherit;
+}
+app-demo-portal .parameter-checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  align-self: end;
+  min-height: 38px;
+  gap: 0.5rem;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+app-demo-portal .parameter-field-error,
+app-demo-portal .parameter-range-field .parameter-field-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #b42318;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+app-demo-portal .parameter-state {
+  margin: 0.35rem 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+app-demo-portal .parameter-state-error {
+  color: #b42318;
+}
+app-demo-portal .parameter-state .secondary-button {
+  min-height: 28px;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+}
+app-demo-portal .parameter-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 @media (max-width: 720px) {
   app-demo-portal .role-editor-fields {
     grid-template-columns: 1fr;
   }
   app-demo-portal .role-card {
     flex-basis: min(16rem, calc(100vw - 7rem));
+  }
+  app-demo-portal .parameter-range-field {
+    grid-template-columns: 1fr;
+  }
+  app-demo-portal .selected-parameter-report {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

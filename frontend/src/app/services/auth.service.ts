@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { MockManagementPermission, MockReportPermission, MockRole, MockRoleKey } from '../mock/mock-permissions';
+import { MockCategoryPermission, MockManagementPermission, MockRole, MockRoleKey } from '../mock/mock-permissions';
 import { MockReport, MockReportKey } from '../mock/mock-reports';
 import { MockUser } from '../mock/mock-users';
 import { MockRbacService } from './mock-rbac.service';
@@ -60,8 +60,13 @@ export class AuthService {
   SwitchDemoRole(Role: MockRoleKey): void { if (this.CanSwitchDemoRole) this.ActiveRolesOverride = [Role]; }
   SelectReport(ReportKey: MockReportKey): void { this.MockRbac.SelectReport(ReportKey); }
 
-  get ReportPermission(): MockReportPermission {
-    return this.SelectedReport ? this.MockRbac.GetEffectiveReportPermission(this.ActiveRoles, this.SelectedReport.ReportKey) : { CanExecute: false, CanExportPdf: false, CanPrint: false };
+  get SelectedReportCategoryPermission(): MockCategoryPermission {
+    return this.SelectedReport
+      ? this.MockRbac.GetEffectiveCategoryPermission(
+          this.ActiveRoles,
+          this.SelectedReport.Category,
+        )
+      : { CanExecute: false, CanExportPdf: false, CanPrint: false };
   }
 
   HasManagementPermission(Permission: MockManagementPermission): boolean {

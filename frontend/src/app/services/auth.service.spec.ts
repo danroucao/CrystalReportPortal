@@ -11,7 +11,7 @@ describe('AuthService', () => {
   it('authenticates the finance Demo account with accounts-receivable permission', () => {
     expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
     expect(Auth.CurrentUser?.Roles).toEqual(['FINANCE']);
-    expect(Auth.ReportPermission).toEqual({
+    expect(Auth.SelectedReportCategoryPermission).toEqual({
       CanExecute: true,
       CanExportPdf: true,
       CanPrint: true,
@@ -19,6 +19,7 @@ describe('AuthService', () => {
     expect(Auth.IsAdmin).toBeFalse();
     expect(Auth.AccessibleReports.map((Report) => Report.ReportName)).toEqual([
       'AccountBalance',
+      'MonthlyRevenue',
       'Activity',
     ]);
   });
@@ -43,6 +44,6 @@ describe('AuthService', () => {
     Auth.Logout();
 
     expect(Auth.CurrentUser).toBeNull();
-    expect(Auth.ReportPermission.CanExecute).toBeFalse();
+    expect(Auth.SelectedReportCategoryPermission.CanExecute).toBeFalse();
   });
 });

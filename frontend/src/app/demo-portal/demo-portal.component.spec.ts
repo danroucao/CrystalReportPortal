@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 
 import { AuthService } from '../services/auth.service';
 import { MockRbacService, MockUserDraft } from '../services/mock-rbac.service';
+import { MockReportParameterService } from '../services/mock-report-parameter.service';
 import { NotificationService } from '../services/notification.service';
 import { DemoPortalComponent } from './demo-portal.component';
 
@@ -196,8 +198,9 @@ describe('DemoPortalComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Frontend Mock Only');
   });
 
-  it('renders only enabled CanExecute reports without RPT file names', () => {
+  it('renders only the current user favorites, supports category and date sorting, and keeps report selection flow', () => {
     const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
     const RouterService = TestBed.inject(Router);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
       snapshot: { data: { Page: string } };
@@ -210,18 +213,159 @@ describe('DemoPortalComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll('.report-list-table tbody tr').length).toBe(5);
+    expect(fixture.nativeElement.querySelectorAll('.favorite-report-table tbody tr').length).toBe(5);
+    expect(component.FavoriteReports).toHaveSize(5);
+    expect(component.FavoriteCategoryTabs).toEqual([
+      { Category: '全部', Count: 5 },
+      { Category: '財務', Count: 1 },
+      { Category: '活動', Count: 1 },
+      { Category: '庫存', Count: 1 },
+      { Category: '生產', Count: 1 },
+      { Category: '服務', Count: 1 },
+    ]);
+    expect(fixture.nativeElement.textContent).not.toContain('最近使用報表');
+    expect(fixture.nativeElement.textContent).not.toContain('常用報表');
     expect(fixture.nativeElement.textContent).not.toContain('Documents v2 (With Serial And Batch Details - invoice show data from delivery as well)');
     expect(fixture.nativeElement.textContent).not.toContain('AccountBalance.rpt');
-    expect(fixture.nativeElement.querySelector('.report-list-table th')?.parentElement?.textContent).not.toContain('檔案名稱');
+    expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('收藏');
+    expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('最近使用日期 ↓');
+
+    component.SetFavoriteCategory('財務');
+    expect(component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName)).toEqual(['AccountBalance']);
+    component.SetFavoriteCategory('全部');
+    component.ToggleFavoriteLastUsedSort();
+    expect(component.GetFavoriteLastUsedSortIndicator()).toBe('↑');
+    expect(component.DisplayedFavoriteReports.at(-1)?.Report.ReportName).toBe('InventoryTransfer_HANA');
 
     component.SelectReportByKey('AccountBalance');
     expect(Auth.SelectedReport?.ReportKey).toBe('AccountBalance');
-    expect(Navigate).toHaveBeenCalledWith(['/reports/parameters']);
+    expect(Navigate).toHaveBeenCalledWith(['/reports/parameters'], {
+      state: { OpenReportParameters: true },
+    });
 
-    component.SearchText = 'no-match';
+    component.RemoveFavoriteReport(
+      component.FavoriteReports.find(
+        ({ Report }) => Report.ReportKey === 'Activity',
+      )!,
+    );
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.report-list-table td[colspan="4"]')?.textContent).toContain('目前條件下沒有符合的報表。');
+    expect(component.FavoriteReports).toHaveSize(4);
+    expect(MockRbac.GetFavoriteReports('user@example.com', ['FINANCE'])).toHaveSize(2);
+  });
+
+  it('filters favorites through existing report access and renders a table-free empty state', () => {
+    const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportList';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    MockRbac.SetReportEnabled('AccountBalance', false);
+    expect(component.FavoriteReports.map(({ Report }) => Report.ReportKey)).not.toContain(
+      'AccountBalance',
+    );
+
+    [...component.FavoriteReports].forEach((Favorite) =>
+      component.RemoveFavoriteReport(Favorite),
+    );
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.favorite-report-table')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.favorite-empty-state')?.textContent).toContain(
+      '目前沒有收藏的報表。',
+    );
+  });
+
+  it('provides report search, single-column sorting, selection, and return on the ReportParameter page', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    const Host = fixture.nativeElement as HTMLElement;
+
+    expect(component.IsReportParameterMode).toBeFalse();
+    expect(Host.querySelector('h1')?.textContent).toContain('報表搜尋 / 報表條件');
+    expect(
+      Array.from(Host.querySelectorAll('.portal-nav > a')).map((Link) =>
+        Link.textContent?.trim(),
+      ),
+    ).toEqual(['報表搜尋 / 報表條件', '收藏的報表', '報表預覽', '帳號設定']);
+    expect(
+      Array.from(Host.querySelectorAll('.parameter-report-table th')).map((Header) =>
+        Header.textContent?.replace(/[↕↑↓]/g, '').trim(),
+      ),
+    ).toEqual(['報表名稱', '分類', '操作']);
+    expect(component.DisplayedParameterReports).toHaveSize(5);
+    expect(Host.textContent).not.toContain('RptFileName');
+    expect(Host.textContent).not.toContain('RptFilePath');
+
+    component.ParameterReportSearchText = 'Account';
+    fixture.detectChanges();
+    expect(component.DisplayedParameterReports.map((Report) => Report.ReportName)).toEqual([
+      'AccountBalance',
+    ]);
+    component.ToggleParameterReportSort('ReportName');
+    expect(component.GetParameterReportSortIndicator('ReportName')).toBe('↑');
+    expect(component.ParameterReportSearchText).toBe('Account');
+
+    component.ParameterReportSearchText = '';
+    component.ToggleParameterReportSort('ReportName');
+    expect(component.GetParameterReportSortIndicator('ReportName')).toBe('↓');
+    expect(component.DisplayedParameterReports.map((Report) => Report.ReportName)).toEqual([
+      ...component.ParameterAccessibleReports,
+    ]
+      .map((Report) => Report.ReportName)
+      .sort((Left, Right) => Right.localeCompare(Left, 'zh-Hant')));
+    component.ToggleParameterReportSort('Category');
+    expect(component.GetParameterReportSortIndicator('Category')).toBe('↑');
+
+    component.SelectReportForParameters('AccountBalance');
+    fixture.detectChanges();
+    expect(component.IsReportParameterMode).toBeTrue();
+    expect(Host.textContent).toContain('已選擇報表');
+    expect(Host.textContent).toContain('AccountBalance / 財務');
+    expect(Host.querySelector('.parameter-report-table')).toBeNull();
+
+    component.ReturnToParameterReportSearch();
+    fixture.detectChanges();
+    expect(component.IsReportParameterMode).toBeFalse();
+    expect(Host.querySelector('.parameter-report-table')).not.toBeNull();
+  });
+
+  it('distinguishes a report search empty state from no accessible reports', () => {
+    const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.ParameterReportSearchText = 'no-match';
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('找不到符合條件的報表。');
+
+    component.ParameterReportSearchText = '';
+    MockRbac.Reports.forEach((Report) =>
+      MockRbac.SetReportEnabled(Report.ReportKey, false),
+    );
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('目前沒有可使用的報表。');
   });
 
   it('shows enabled and disabled reports with safe file names to an administrator in RptManagement', () => {
@@ -241,7 +385,7 @@ describe('DemoPortalComponent', () => {
     expect(
       Array.from(Table.querySelectorAll('th')).map((Header) => Header.textContent?.trim()),
     ).toEqual(['報表名稱', '分類', 'RPT 檔名', '啟用狀態']);
-    expect(Table.querySelectorAll('[role="switch"]').length).toBe(6);
+    expect(Table.querySelectorAll('[role="switch"]').length).toBe(7);
     expect(Host.textContent).toContain('Documents v2 (With Serial And Batch Details - invoice show data from delivery as well).rpt');
     expect(Host.textContent).toContain('停用');
     expect(Host.textContent).not.toContain('RptFilePath');
@@ -273,26 +417,39 @@ describe('DemoPortalComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('若不修改密碼請保持空白。');
   });
 
-  it('uses localized permission labels throughout the ReportPermission UI', () => {
+  it('uses localized category permission labels in the EditRole dialog', () => {
     const Auth = TestBed.inject(AuthService);
-    const Route = TestBed.inject(ActivatedRoute) as unknown as {
-      snapshot: { data: { Page: string } };
-    };
-    Route.snapshot.data.Page = 'ReportPermission';
     expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
+    fixture.componentInstance.OpenEditRoleDialog('FINANCE');
     fixture.detectChanges();
 
     const Headers = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll(
-        '.permission-matrix th',
+        '.role-permission-table th',
       ),
     ).map((Header) => Header.textContent?.trim());
-    expect(Headers).toEqual(['報表', '執行', '匯出', '列印']);
+    expect(Headers).toEqual(['報表分類', '執行', '匯出', '列印']);
+    expect(fixture.nativeElement.textContent).toContain('財務');
+    expect(fixture.nativeElement.textContent).not.toContain('AccountBalance');
     expect(fixture.nativeElement.textContent).not.toContain('CanExecute');
     expect(fixture.nativeElement.textContent).not.toContain('CanExportPdf');
     expect(fixture.nativeElement.textContent).not.toContain('CanPrint');
+  });
+
+  it('removes the standalone permission navigation and makes SystemAdmin category rows read-only', () => {
+    const Auth = TestBed.inject(AuthService);
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    component.OpenEditRoleDialog('ADMIN');
+    fixture.detectChanges();
+
+    const Host = fixture.nativeElement as HTMLElement;
+    expect(Host.textContent).not.toContain('報表權限管理');
+    expect(Host.querySelectorAll('.role-permission-table input:disabled').length).toBeGreaterThan(0);
+    expect(Host.textContent).toContain('系統管理員擁有所有報表分類權限，設定為唯讀。');
   });
 
   it('opens the export menu, closes it after selection, and shows the selected Mock format', () => {
@@ -338,7 +495,7 @@ describe('DemoPortalComponent', () => {
     );
   });
 
-  it('automatically synchronizes an invalid report date range', () => {
+  it('renders the selected report definition and automatically synchronizes an invalid date range', () => {
     const Auth = TestBed.inject(AuthService);
     const RouterService = TestBed.inject(Router);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
@@ -350,35 +507,151 @@ describe('DemoPortalComponent', () => {
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
-    component.SetReportStartDate('2026-08-30');
+    fixture.detectChanges();
+    component.SelectReportForParameters('AccountBalance');
     fixture.detectChanges();
 
-    const DateInputs = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('input[type="date"]');
-    expect(DateInputs[1].min).toBe('2026-08-30');
+    expect(component.VisibleReportParameters.map((Definition) => Definition.ParameterName)).toEqual([
+      'PostingDate',
+      'CustomerCode',
+    ]);
+    expect(fixture.nativeElement.textContent).not.toContain('UserCode@');
 
-    component.SetReportEndDate('2026-08-31');
-    expect(component.ReportEndDate).toBe('2026-08-31');
-    expect(component.ReportDateRangeError).toBe('');
+    const PostingDate = component.ReportParameterForm.get(
+      'PostingDate',
+    ) as unknown as FormGroup;
+    PostingDate.get('Start')!.setValue('2026-08-30');
+    PostingDate.get('End')!.setValue('2026-08-31');
+    component.OnRangeValueChange(component.VisibleReportParameters[0]);
+    expect(PostingDate.get('End')!.value).toBe('2026-08-31');
 
-    component.SetReportEndDate('2026-08-29');
-    expect(component.ReportEndDate).toBe('2026-08-30');
-    expect(component.ReportDateRangeError).toBe(
+    PostingDate.get('End')!.setValue('2026-08-29');
+    component.OnRangeValueChange(component.VisibleReportParameters[0]);
+    expect(PostingDate.get('End')!.value).toBe('2026-08-30');
+    expect(component.ParameterRangeErrors['PostingDate']).toBe(
       '結束日期不得早於開始日期，已同步為開始日期，請重新選擇。',
     );
 
-    component.SetReportEndDate('2026-08-30');
-    expect(component.ReportDateRangeError).toBe('');
-
-    component.SetReportStartDate('2026-09-01');
-    expect(component.ReportEndDate).toBe('2026-09-01');
-    expect(component.ReportDateRangeError).toBe(
-      '結束日期不得早於開始日期，已同步為開始日期，請重新選擇。',
-    );
-
-    component.SetReportEndDate('2026-09-02');
-    expect(component.ReportDateRangeError).toBe('');
+    PostingDate.get('End')!.setValue('2026-09-02');
+    component.OnRangeValueChange(component.VisibleReportParameters[0]);
+    expect(component.ParameterRangeErrors['PostingDate']).toBeUndefined();
     component.ExecuteReport();
     expect(Navigate).toHaveBeenCalledWith(['/reports/preview']);
+  });
+
+  it('renders the complete Activity input-type set with typed defaults', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    Auth.SelectReport('Activity');
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.SelectReportForParameters('Activity');
+    fixture.detectChanges();
+
+    expect(component.VisibleReportParameters.map((Definition) => Definition.DisplayName)).toEqual([
+      '活動時間',
+      '關鍵字',
+      '備註',
+      '筆數上限',
+      '最小金額',
+      '包含停用項目',
+    ]);
+    expect(component.ReportParameterForm.get('ResultLimit')!.value).toBe(100);
+    expect(component.ReportParameterForm.get('MinimumAmount')!.value).toBe(0.5);
+    expect(component.ReportParameterForm.get('IncludeInactive')!.value).toBeFalse();
+
+    const Host = fixture.nativeElement as HTMLElement;
+    expect(Host.querySelector('input[type="datetime-local"]')).not.toBeNull();
+    expect(Host.querySelector('textarea')).not.toBeNull();
+    expect(Host.querySelectorAll('input[type="number"]').length).toBe(2);
+    expect(Host.querySelector('input[type="checkbox"]')).not.toBeNull();
+  });
+
+  it('blocks invalid generation, supports multi-select, and validates a numeric range', () => {
+    const Auth = TestBed.inject(AuthService);
+    const RouterService = TestBed.inject(Router);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    Auth.SelectReport('InventoryTransferHana');
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.SelectReportForParameters('InventoryTransferHana');
+    fixture.detectChanges();
+
+    expect(component.CanGenerateReport).toBeFalse();
+    component.ExecuteReport();
+    expect(Navigate).not.toHaveBeenCalled();
+
+    (
+      component.ReportParameterForm.get(
+        'ItemCodes',
+      ) as unknown as FormControl<string[]>
+    ).setValue(['A-100', 'B-200']);
+    const Quantity = component.ReportParameterForm.get('Quantity') as unknown as FormGroup;
+    Quantity.get('Start')!.setValue(10);
+    Quantity.get('End')!.setValue(10);
+    expect(component.CanGenerateReport).toBeTrue();
+
+    Quantity.get('End')!.setValue(9);
+    expect(component.CanGenerateReport).toBeFalse();
+    expect(Quantity.hasError('range')).toBeTrue();
+
+    Quantity.get('End')!.setValue(10);
+    component.ExecuteReport();
+    expect(Navigate).toHaveBeenCalledWith(['/reports/preview']);
+    expect(component.LastMockExecutionParameters?.['ItemCodes']).toEqual([
+      'A-100',
+      'B-200',
+    ]);
+    expect(component.LastMockExecutionParameters?.['Quantity']).toEqual({
+      Start: 10,
+      End: 10,
+    });
+  });
+
+  it('renders SQL LOV loading, empty, error, and retry states without rendering UserCode@', () => {
+    const Auth = TestBed.inject(AuthService);
+    const ParameterService = TestBed.inject(MockReportParameterService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    Auth.SelectReport('AccountBalance');
+
+    ParameterService.SetLovStatus('AccountBalance', 'CustomerCode', 'loading');
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.SelectReportForParameters('AccountBalance');
+    fixture.detectChanges();
+    const Host = fixture.nativeElement as HTMLElement;
+    expect(Host.textContent).toContain('載入選項中…');
+    expect(Host.textContent).not.toContain('UserCode@');
+
+    ParameterService.SetLovStatus('AccountBalance', 'CustomerCode', 'empty');
+    fixture.detectChanges();
+    expect(Host.textContent).toContain('目前無可選項。');
+
+    ParameterService.SetLovStatus('AccountBalance', 'CustomerCode', 'error');
+    fixture.detectChanges();
+    expect(Host.textContent).toContain('無法載入選項，請重試。');
+    component.RetryLov(component.VisibleReportParameters[1]);
+    fixture.detectChanges();
+    expect(Host.textContent).not.toContain('無法載入選項，請重試。');
+    expect(ParameterService.GetLovStatus('AccountBalance', 'CustomerCode')).toBe('success');
   });
 
   it('redirects an administrator to reports after approving their own demotion', () => {

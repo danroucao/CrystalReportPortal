@@ -9,7 +9,15 @@ import {
   ViewChild,
   inject,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+} from '@angular/forms';
 import {
   ActivatedRoute,
   Router,
@@ -18,7 +26,7 @@ import {
 } from '@angular/router';
 
 import {
-  MockReportPermissionEntry,
+  MockCategoryPermissionEntry,
   MockRole,
   MockRoleKey,
 } from '../mock/mock-permissions';
@@ -26,6 +34,7 @@ import { MockReportKey } from '../mock/mock-reports';
 import { AuthService } from '../services/auth.service';
 import {
   MockAccountSettingsDraft,
+  MockFavoriteReport,
   MockRbacService,
   MockRoleChangeRequestStatus,
   MockRoleDraft,
@@ -33,11 +42,18 @@ import {
   MockUserEditDraft,
 } from '../services/mock-rbac.service';
 import { MockUser } from '../mock/mock-users';
+import {
+  MockLovStatus,
+  MockParameterDefaultValue,
+  MockParameterInputType,
+  MockReportParameterDefinition,
+} from '../mock/mock-report-parameters';
 import { NotificationService } from '../services/notification.service';
 import {
   MockDatabaseConnectionDraft,
   MockDatabaseConnectionService,
 } from '../services/mock-database-connection.service';
+import { MockReportParameterService } from '../services/mock-report-parameter.service';
 
 type DemoPortalPage =
   | 'ReportList'
@@ -45,7 +61,6 @@ type DemoPortalPage =
   | 'ReportPreview'
   | 'AccountSettings'
   | 'UserManagement'
-  | 'ReportPermission'
   | 'RptManagement'
   | 'ReportParameterSetting'
   | 'DatabaseConnection'
@@ -59,29 +74,56 @@ interface MockExportOption {
   readonly RequiresBackendConfirmation: boolean;
 }
 
+type MockParameterFormValue =
+  | string
+  | number
+  | boolean
+  | string[]
+  | { Start: string | number | null; End: string | number | null }
+  | null;
+
+type ParameterReportSortField = 'ReportName' | 'Category';
+type ParameterReportSortDirection = 'asc' | 'desc';
+
+interface FavoriteCategoryTab {
+  readonly Category: string;
+  readonly Count: number;
+}
+
 @Component({
   selector: 'app-demo-portal',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    RouterLink,
+    RouterLinkActive,
+  ],
   templateUrl: './demo-portal.component.html',
   styleUrl: './demo-portal.component.scss',
 })
 export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly Auth = inject(AuthService);
   readonly MockRbac = inject(MockRbacService);
+  readonly ReportParameters = inject(MockReportParameterService);
   readonly DatabaseConnections = inject(MockDatabaseConnectionService);
   readonly Notifications = inject(NotificationService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly Page = this.route.snapshot.data['Page'] as DemoPortalPage;
-  SearchText = '';
-  SelectedCategory = '全部';
-  readonly StatusOptions = ['未收款', '已收款'];
-  SelectedStatuses: string[] = [];
-  ReportStartDate = '';
-  ReportEndDate = '';
-  ReportDateRangeError = '';
+  SelectedFavoriteCategory = '全部';
+  FavoriteLastUsedSortDirection: 'asc' | 'desc' = 'desc';
+  ParameterReportSearchText = '';
+  ParameterReportSortField: ParameterReportSortField | null = null;
+  ParameterReportSortDirection: ParameterReportSortDirection = 'asc';
+  IsReportParameterMode = false;
+  ReportParameterDefinitions: MockReportParameterDefinition[] = [];
+  ReportParameterForm = new FormGroup({});
+  readonly ParameterRangeErrors: Record<string, string> = {};
+  LastMockExecutionParameters: Readonly<Record<string, MockParameterFormValue>> | null =
+    null;
   MockNotice = '';
   IsExportMenuOpen = false;
   readonly ExportOptions: readonly MockExportOption[] = [
@@ -93,8 +135,6 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     { Label: '文字檔', FormatKey: 'Text', Enabled: true, MockOnly: true, RequiresBackendConfirmation: true },
   ];
   ManagementNotice = '';
-  SelectedRoleKey: MockRoleKey = 'FINANCE';
-  EditablePermissions: MockReportPermissionEntry[] = [];
   EditingAccount: string | null = null;
   UserDraft: MockUserDraft = this.CreateUserDraft();
   EditingUser: MockUserEditDraft | null = null;
@@ -126,8 +166,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private roleCardResizeObserver?: ResizeObserver;
 
   ngOnInit(): void {
-    this.LoadPermissionEditor();
     this.LoadAccountSettings();
+    this.IsReportParameterMode =
+      this.Page === 'ReportParameter' &&
+      this.router.getCurrentNavigation()?.extras.state?.['OpenReportParameters'] ===
+        true;
+    if (this.IsReportParameterMode) this.LoadReportParameterForm();
   }
 
   ngAfterViewInit(): void {
@@ -150,12 +194,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get PageTitle(): string {
     const PageTitles: Readonly<Record<DemoPortalPage, string>> = {
-      ReportList: '我的報表',
-      ReportParameter: '報表條件',
+      ReportList: '收藏的報表',
+      ReportParameter: '報表搜尋 / 報表條件',
       ReportPreview: '報表預覽',
       AccountSettings: '帳號設定',
       UserManagement: '使用者管理',
-      ReportPermission: '報表權限管理',
       RptManagement: 'RPT 報表管理',
       ReportParameterSetting: '報表參數設定',
       DatabaseConnection: 'MSSQL 資料庫連線管理',
@@ -164,42 +207,158 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return PageTitles[this.Page];
   }
 
-  get FilteredReports() {
-    const NormalizedSearchText = this.SearchText.trim().toLowerCase();
-    return this.Auth.AccessibleReports.filter(
-      (MockReport) =>
-        MockReport.Enabled &&
-        (this.SelectedCategory === '全部' ||
-          MockReport.Category === this.SelectedCategory) &&
-        (!NormalizedSearchText ||
-          `${MockReport.ReportName} ${MockReport.Description}`
-            .toLowerCase()
-            .includes(NormalizedSearchText)),
+  get FavoriteReports(): readonly MockFavoriteReport[] {
+    const Account = this.Auth.CurrentUser?.Account;
+    return Account
+      ? this.MockRbac.GetFavoriteReports(Account, this.Auth.ActiveRoles)
+      : [];
+  }
+
+  get FavoriteCategoryTabs(): readonly FavoriteCategoryTab[] {
+    const FavoriteReports = this.FavoriteReports;
+    const Categories = [...new Set(FavoriteReports.map(({ Report }) => Report.Category))];
+    return [
+      { Category: '全部', Count: FavoriteReports.length },
+      ...Categories.map((Category) => ({
+        Category,
+        Count: FavoriteReports.filter(({ Report }) => Report.Category === Category)
+          .length,
+      })),
+    ];
+  }
+
+  get DisplayedFavoriteReports(): readonly MockFavoriteReport[] {
+    const Direction = this.FavoriteLastUsedSortDirection === 'asc' ? 1 : -1;
+    return this.FavoriteReports
+      .filter(
+        ({ Report }) =>
+          this.SelectedFavoriteCategory === '全部' ||
+          Report.Category === this.SelectedFavoriteCategory,
+      )
+      .sort((Left, Right) => {
+        if (!Left.LastUsedAt && !Right.LastUsedAt) {
+          return Left.Report.ReportName.localeCompare(
+            Right.Report.ReportName,
+            'zh-Hant',
+          );
+        }
+        if (!Left.LastUsedAt) return 1;
+        if (!Right.LastUsedAt) return -1;
+        return (
+          (new Date(Left.LastUsedAt).getTime() -
+            new Date(Right.LastUsedAt).getTime()) *
+          Direction
+        );
+      });
+  }
+
+  SetFavoriteCategory(Category: string): void {
+    this.SelectedFavoriteCategory = Category;
+  }
+
+  ToggleFavoriteLastUsedSort(): void {
+    this.FavoriteLastUsedSortDirection =
+      this.FavoriteLastUsedSortDirection === 'asc' ? 'desc' : 'asc';
+  }
+
+  GetFavoriteLastUsedSortIndicator(): string {
+    return this.FavoriteLastUsedSortDirection === 'asc' ? '↑' : '↓';
+  }
+
+  GetFavoriteLastUsedAriaSort(): 'ascending' | 'descending' {
+    return this.FavoriteLastUsedSortDirection === 'asc'
+      ? 'ascending'
+      : 'descending';
+  }
+
+  FormatFavoriteLastUsedAt(LastUsedAt: string | null): string {
+    if (!LastUsedAt) return '尚未使用';
+    const DateValue = new Date(LastUsedAt);
+    if (Number.isNaN(DateValue.getTime())) return '尚未使用';
+    const Pad = (Value: number) => Value.toString().padStart(2, '0');
+    return `${DateValue.getFullYear()}/${Pad(DateValue.getMonth() + 1)}/${Pad(
+      DateValue.getDate(),
+    )} ${Pad(DateValue.getHours())}:${Pad(DateValue.getMinutes())}`;
+  }
+
+  RemoveFavoriteReport(Favorite: MockFavoriteReport): void {
+    const Account = this.Auth.CurrentUser?.Account;
+    if (!Account) return;
+    if (!this.MockRbac.RemoveFavoriteReport(Account, Favorite.Report.ReportKey)) {
+      return;
+    }
+    if (
+      this.SelectedFavoriteCategory !== '全部' &&
+      !this.FavoriteCategoryTabs.some(
+        (Tab) => Tab.Category === this.SelectedFavoriteCategory,
+      )
+    ) {
+      this.SelectedFavoriteCategory = '全部';
+    }
+    this.ShowSuccessToast(`已取消收藏「${Favorite.Report.ReportName}」。`);
+  }
+
+  get ParameterAccessibleReports() {
+    return this.Auth.AccessibleReports.filter((Report) => Report.Enabled);
+  }
+
+  get DisplayedParameterReports() {
+    const SearchText = this.ParameterReportSearchText.trim().toLocaleLowerCase();
+    const Reports = this.ParameterAccessibleReports.filter(
+      (Report) =>
+        !SearchText ||
+        `${Report.ReportName} ${Report.Category}`
+          .toLocaleLowerCase()
+          .includes(SearchText),
+    );
+    if (!this.ParameterReportSortField) return Reports;
+
+    const SortField = this.ParameterReportSortField;
+    const Direction = this.ParameterReportSortDirection === 'asc' ? 1 : -1;
+    return [...Reports].sort(
+      (Left, Right) =>
+        Left[SortField].localeCompare(Right[SortField], 'zh-Hant') * Direction,
     );
   }
 
-  get Categories(): readonly string[] {
-    return ['全部', ...new Set(this.Auth.AccessibleReports.map((MockReport) => MockReport.Category))];
+  get HasParameterReportSearchText(): boolean {
+    return Boolean(this.ParameterReportSearchText.trim());
+  }
+
+  ToggleParameterReportSort(Field: ParameterReportSortField): void {
+    if (this.ParameterReportSortField === Field) {
+      this.ParameterReportSortDirection =
+        this.ParameterReportSortDirection === 'asc' ? 'desc' : 'asc';
+      return;
+    }
+    this.ParameterReportSortField = Field;
+    this.ParameterReportSortDirection = 'asc';
+  }
+
+  GetParameterReportSortIndicator(Field: ParameterReportSortField): string {
+    if (this.ParameterReportSortField !== Field) return '↕';
+    return this.ParameterReportSortDirection === 'asc' ? '↑' : '↓';
+  }
+
+  GetParameterReportAriaSort(Field: ParameterReportSortField):
+    | 'ascending'
+    | 'descending'
+    | 'none' {
+    if (this.ParameterReportSortField !== Field) return 'none';
+    return this.ParameterReportSortDirection === 'asc'
+      ? 'ascending'
+      : 'descending';
   }
 
   get AdminDescription(): string {
     const Descriptions: Partial<Record<DemoPortalPage, string>> = {
       UserManagement: '檢視使用者帳號、角色與啟用狀態的 Mock 清單。',
-      ReportPermission:
-        '檢視執行、PDF、列印的 Mock 權限矩陣。',
       RptManagement: '檢視 RPT 報表名稱、分類與啟用狀態的 Mock 資料。',
       ReportParameterSetting: '檢視 RPT 參數顯示設定的 Mock 資料。',
       DatabaseConnection: '檢視資料庫連線設定畫面；不會顯示或連線真實帳密。',
       OperationLog: '檢視操作紀錄畫面與 180 天 保存標示的 Mock 資料。',
     };
     return Descriptions[this.Page] ?? '';
-  }
-
-  SelectReport(): void {
-    const Report = this.FilteredReports[0];
-    if (!Report) return;
-    this.Auth.SelectReport(Report.ReportKey);
-    void this.router.navigate(['/reports/parameters']);
   }
 
   get FilteredUsers() {
@@ -214,45 +373,171 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  get StatusSelectionLabel(): string {
-    return this.SelectedStatuses.length
-      ? this.SelectedStatuses.join('、')
-      : '請選擇狀態';
+  get VisibleReportParameters(): readonly MockReportParameterDefinition[] {
+    return this.ReportParameterDefinitions
+      .filter((Definition) => Definition.IsVisible)
+      .sort((Left, Right) => Left.DisplayOrder - Right.DisplayOrder);
   }
 
-  IsStatusSelected(Status: string): boolean {
-    return this.SelectedStatuses.includes(Status);
+  get SelectedReportKey(): MockReportKey | null {
+    return this.Auth.SelectedReport?.ReportKey ?? null;
   }
 
-  SetStatusSelection(Status: string, IsSelected: boolean): void {
-    this.SelectedStatuses = IsSelected
-      ? [...this.SelectedStatuses, Status]
-      : this.SelectedStatuses.filter(
-          (SelectedStatus) => SelectedStatus !== Status,
-        );
+  get CanGenerateReport(): boolean {
+    return Boolean(
+      this.Auth.SelectedReportCategoryPermission.CanExecute &&
+        this.SelectedReportKey &&
+        this.ReportParameterForm.valid &&
+        this.VisibleReportParameters.every(
+          (Definition) =>
+            !this.UsesLov(Definition) ||
+            this.GetLovStatus(Definition) === 'success',
+        ),
+    );
+  }
+
+  GetControlKind(Definition: MockReportParameterDefinition):
+    | 'range'
+    | 'textarea'
+    | 'checkbox'
+    | 'select'
+    | 'input' {
+    if (Definition.AllowRangeValues) return 'range';
+    if (Definition.InputType === 'LongText') return 'textarea';
+    if (Definition.InputType === 'Checkbox') return 'checkbox';
+    if (
+      Definition.InputType === 'SingleSelect' ||
+      Definition.InputType === 'MultiSelect'
+    ) {
+      return 'select';
+    }
+    return 'input';
+  }
+
+  GetInputHtmlType(Definition: MockReportParameterDefinition): string {
+    const TypeByInputType: Readonly<
+      Partial<Record<MockParameterInputType, string>>
+    > = {
+      Date: 'date',
+      DateTime: 'datetime-local',
+      Number: 'number',
+      Text: 'text',
+    };
+    return TypeByInputType[Definition.InputType] ?? 'text';
+  }
+
+  UsesLov(Definition: MockReportParameterDefinition): boolean {
+    return Definition.ValueSourceType === 'SqlLov';
+  }
+
+  GetLovStatus(Definition: MockReportParameterDefinition): MockLovStatus {
+    const ReportKey = this.SelectedReportKey;
+    return ReportKey
+      ? this.ReportParameters.GetLovStatus(ReportKey, Definition.ParameterName)
+      : 'error';
+  }
+
+  GetLovOptions(Definition: MockReportParameterDefinition) {
+    const ReportKey = this.SelectedReportKey;
+    if (!ReportKey) return [];
+    return Definition.ValueSourceType === 'SqlLov'
+      ? this.ReportParameters.GetLovOptions(ReportKey, Definition.ParameterName)
+      : Definition.Options ?? [];
+  }
+
+  RetryLov(Definition: MockReportParameterDefinition): void {
+    const ReportKey = this.SelectedReportKey;
+    if (!ReportKey) return;
+    this.ReportParameters.RetryLov(ReportKey, Definition.ParameterName);
+    this.ReportParameterForm.updateValueAndValidity();
+  }
+
+  OnRangeValueChange(Definition: MockReportParameterDefinition): void {
+    if (Definition.DataType !== 'Date') return;
+    const RangeControl = this.GetRangeControl(Definition);
+    if (!RangeControl) return;
+
+    const Start = RangeControl.controls['Start'].value;
+    const End = RangeControl.controls['End'].value;
+    if (!this.IsDateOnlyBefore(End, Start)) {
+      delete this.ParameterRangeErrors[Definition.ParameterName];
+      return;
+    }
+
+    RangeControl.controls['End'].setValue(Start);
+    this.ParameterRangeErrors[Definition.ParameterName] =
+      '結束日期不得早於開始日期，已同步為開始日期，請重新選擇。';
+  }
+
+  GetRangeStartValue(Definition: MockReportParameterDefinition): string | null {
+    if (Definition.DataType !== 'Date') return null;
+    const RangeControl = this.GetRangeControl(Definition);
+    const StartValue = RangeControl?.controls['Start'].value;
+    return typeof StartValue === 'string' && StartValue ? StartValue : null;
+  }
+
+  ResetReportParameters(): void {
+    this.ReportParameterForm = this.BuildParameterForm(
+      this.VisibleReportParameters,
+    );
+    Object.keys(this.ParameterRangeErrors).forEach((Key) =>
+      delete this.ParameterRangeErrors[Key],
+    );
+    this.LastMockExecutionParameters = null;
+  }
+
+  GetParameterError(Definition: MockReportParameterDefinition): string {
+    const Control = this.ReportParameterForm.get(Definition.ParameterName);
+    if (!Control || !(Control.touched || Control.dirty)) return '';
+    if (this.ParameterRangeErrors[Definition.ParameterName]) {
+      return this.ParameterRangeErrors[Definition.ParameterName];
+    }
+    const ErrorControl = this.GetErrorControl(Control);
+    if (ErrorControl.hasError('required')) return '此欄位為必填。';
+    if (ErrorControl.hasError('integer')) return '請輸入整數。';
+    if (ErrorControl.hasError('number')) return '請輸入有效數字。';
+    if (ErrorControl.hasError('date')) return '請輸入有效日期。';
+    if (ErrorControl.hasError('dateTime')) return '請輸入有效日期時間。';
+    if (Control.hasError('range')) {
+      return Definition.DataType === 'Date'
+        ? '結束日期不得早於開始日期。'
+        : '結束值不得小於開始值。';
+    }
+    return '';
   }
 
   SelectReportByKey(ReportKey: MockReportKey): void {
     const Report = this.Auth.AccessibleReports.find((Entry) => Entry.ReportKey === ReportKey);
     if (!Report?.Enabled) return;
     this.Auth.SelectReport(ReportKey);
-    void this.router.navigate(['/reports/parameters']);
+    void this.router.navigate(['/reports/parameters'], {
+      state: { OpenReportParameters: true },
+    });
   }
 
-  SetReportStartDate(DateValue: string): void {
-    this.ReportStartDate = DateValue;
-    this.CorrectReportDateRange();
+  SelectReportForParameters(ReportKey: MockReportKey): void {
+    const Report = this.ParameterAccessibleReports.find(
+      (Entry) => Entry.ReportKey === ReportKey,
+    );
+    if (!Report) return;
+    this.Auth.SelectReport(ReportKey);
+    this.IsReportParameterMode = true;
+    this.LoadReportParameterForm();
   }
 
-  SetReportEndDate(DateValue: string): void {
-    this.ReportEndDate = DateValue;
-    this.CorrectReportDateRange();
+  ReturnToParameterReportSearch(): void {
+    this.IsReportParameterMode = false;
   }
 
   ExecuteReport(): void {
-    if (!this.IsReportDateRangeValid) {
-      this.CorrectReportDateRange();
+    if (!this.CanGenerateReport) {
+      this.ReportParameterForm.markAllAsTouched();
       return;
+    }
+    this.LastMockExecutionParameters = this.SerializeReportParameters();
+    const Account = this.Auth.CurrentUser?.Account;
+    if (Account && this.SelectedReportKey) {
+      this.MockRbac.RecordReportExecution(Account, this.SelectedReportKey);
     }
     void this.router.navigate(['/reports/preview']);
   }
@@ -598,7 +883,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.EditingRoleKey = Role.Key;
     this.RoleDraft = {
       DisplayName: Role.DisplayName,
-      Permissions: this.MockRbac.GetReportPermissionEntries(Role.Key),
+      Permissions: this.MockRbac.GetCategoryPermissionEntries(Role.Key),
     };
     this.RoleDraftError = '';
     this.IsEditRoleDialogOpen = true;
@@ -644,10 +929,6 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       this.CloseDeleteRoleDialog();
       return;
     }
-    if (this.SelectedRoleKey === Role.Key) {
-      this.SelectedRoleKey = this.MockRbac.Roles[0]?.Key ?? 'ADMIN';
-      this.LoadPermissionEditor();
-    }
     if (this.UserRoleFilter === Role.Key) this.UserRoleFilter = null;
     this.CloseDeleteRoleDialog();
     this.CloseEditRoleDialog();
@@ -665,8 +946,6 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       this.RoleDraftError = '角色名稱已存在，請輸入未重複的角色名稱。';
       return;
     }
-    this.SelectedRoleKey = Role.Key;
-    this.LoadPermissionEditor();
     this.CloseCreateRoleDialog();
     this.ScheduleRoleCardNavigationUpdate();
     this.ShowSuccessToast(`新增角色「${Role.DisplayName}」，成功！`);
@@ -688,8 +967,6 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const DisplayName = this.MockRbac.GetRole(this.EditingRoleKey).DisplayName;
-    this.SelectedRoleKey = this.EditingRoleKey;
-    this.LoadPermissionEditor();
     this.CloseEditRoleDialog();
     this.ShowSuccessToast(`角色「${DisplayName}」已更新。`);
   }
@@ -706,20 +983,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  LoadPermissionEditor(): void {
-    this.EditablePermissions = this.MockRbac.GetReportPermissionEntries(
-      this.SelectedRoleKey,
-    );
-  }
-  SavePermissions(): void {
-    this.MockRbac.SaveReportPermissions(
-      this.SelectedRoleKey,
-      this.EditablePermissions,
-    );
-    this.ManagementNotice = 'Mock 報表權限已儲存，將立即套用於目前測試角色。';
-  }
-
-  SetPermissionCanExecute(Entry: MockReportPermissionEntry, CanExecute: boolean): void {
+  SetPermissionCanExecute(Entry: MockCategoryPermissionEntry, CanExecute: boolean): void {
+    if (this.IsBuiltInRole(this.EditingRoleKey)) return;
     Entry.Permission.CanExecute = CanExecute;
     if (!CanExecute) {
       Entry.Permission.CanExportPdf = false;
@@ -761,21 +1026,245 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  private get IsReportDateRangeValid(): boolean {
-    const StartDate = this.ParseDateOnly(this.ReportStartDate);
-    const EndDate = this.ParseDateOnly(this.ReportEndDate);
-    return !StartDate || !EndDate || EndDate.getTime() >= StartDate.getTime();
+  private LoadReportParameterForm(): void {
+    const ReportKey = this.SelectedReportKey;
+    this.ReportParameterDefinitions = ReportKey
+      ? this.ReportParameters.GetDefinitions(ReportKey)
+      : [];
+    this.ReportParameterForm = this.BuildParameterForm(
+      this.VisibleReportParameters,
+    );
+    Object.keys(this.ParameterRangeErrors).forEach((Key) =>
+      delete this.ParameterRangeErrors[Key],
+    );
+    this.LastMockExecutionParameters = null;
   }
 
-  private CorrectReportDateRange(): void {
-    if (this.IsReportDateRangeValid) {
-      this.ReportDateRangeError = '';
-      return;
-    }
+  private BuildParameterForm(
+    Definitions: readonly MockReportParameterDefinition[],
+  ): FormGroup {
+    const Form = new FormGroup({});
+    Definitions.forEach((Definition) => {
+      if (Definition.AllowRangeValues) {
+        const DefaultValue = this.GetRangeDefaultValue(Definition.DefaultValue);
+        Form.addControl(
+          Definition.ParameterName,
+          new FormGroup(
+            {
+              Start: new FormControl(
+                DefaultValue.Start,
+                this.GetValueValidators(Definition),
+              ),
+              End: new FormControl(
+                DefaultValue.End,
+                this.GetValueValidators(Definition),
+              ),
+            },
+            { validators: this.CreateRangeValidator(Definition) },
+          ),
+        );
+        return;
+      }
 
-    this.ReportEndDate = this.ReportStartDate;
-    this.ReportDateRangeError =
-      '結束日期不得早於開始日期，已同步為開始日期，請重新選擇。';
+      Form.addControl(
+        Definition.ParameterName,
+        new FormControl(
+          this.GetDefaultValue(Definition),
+          this.GetValueValidators(Definition),
+        ),
+      );
+    });
+    return Form;
+  }
+
+  private GetDefaultValue(
+    Definition: MockReportParameterDefinition,
+  ): string | number | boolean | string[] | null {
+    const DefaultValue = Definition.DefaultValue;
+    if (Definition.AllowMultipleValues) {
+      return Array.isArray(DefaultValue) ? [...DefaultValue] : [];
+    }
+    if (Definition.DataType === 'Boolean') {
+      return DefaultValue === true;
+    }
+    if (Definition.DataType === 'Integer' || Definition.DataType === 'Float') {
+      return typeof DefaultValue === 'number' ? DefaultValue : null;
+    }
+    return typeof DefaultValue === 'string' ? DefaultValue : '';
+  }
+
+  private GetRangeDefaultValue(DefaultValue: MockParameterDefaultValue): {
+    Start: string | number | null;
+    End: string | number | null;
+  } {
+    if (
+      typeof DefaultValue === 'object' &&
+      DefaultValue !== null &&
+      !Array.isArray(DefaultValue) &&
+      'Start' in DefaultValue &&
+      'End' in DefaultValue
+    ) {
+      return { Start: DefaultValue.Start, End: DefaultValue.End };
+    }
+    return { Start: null, End: null };
+  }
+
+  private GetValueValidators(
+    Definition: MockReportParameterDefinition,
+  ): ValidatorFn[] {
+    const Validators: ValidatorFn[] = [];
+    if (Definition.IsRequired) Validators.push(this.RequiredParameterValidator);
+    if (Definition.DataType === 'Integer') Validators.push(this.IntegerValidator);
+    if (Definition.DataType === 'Float') Validators.push(this.NumberValidator);
+    if (Definition.DataType === 'Date') Validators.push(this.DateValidator);
+    if (Definition.DataType === 'DateTime') Validators.push(this.DateTimeValidator);
+    return Validators;
+  }
+
+  private readonly RequiredParameterValidator: ValidatorFn = (
+    Control: AbstractControl,
+  ): ValidationErrors | null => {
+    const Value = Control.value;
+    return Value === null ||
+      Value === undefined ||
+      Value === '' ||
+      (Array.isArray(Value) && Value.length === 0)
+      ? { required: true }
+      : null;
+  };
+
+  private readonly IntegerValidator: ValidatorFn = (
+    Control: AbstractControl,
+  ): ValidationErrors | null => {
+    const Value = Control.value;
+    if (Value === null || Value === '') return null;
+    return Number.isInteger(Number(Value)) ? null : { integer: true };
+  };
+
+  private readonly NumberValidator: ValidatorFn = (
+    Control: AbstractControl,
+  ): ValidationErrors | null => {
+    const Value = Control.value;
+    if (Value === null || Value === '') return null;
+    return Number.isFinite(Number(Value)) ? null : { number: true };
+  };
+
+  private readonly DateValidator: ValidatorFn = (
+    Control: AbstractControl,
+  ): ValidationErrors | null => {
+    const Value = Control.value;
+    if (Value === null || Value === '') return null;
+    return this.ParseDateOnly(String(Value)) ? null : { date: true };
+  };
+
+  private readonly DateTimeValidator: ValidatorFn = (
+    Control: AbstractControl,
+  ): ValidationErrors | null => {
+    const Value = Control.value;
+    if (Value === null || Value === '') return null;
+    return Number.isNaN(Date.parse(String(Value))) ? { dateTime: true } : null;
+  };
+
+  private CreateRangeValidator(
+    Definition: MockReportParameterDefinition,
+  ): ValidatorFn {
+    return (Control: AbstractControl): ValidationErrors | null => {
+      const RangeValue = Control.value as {
+        Start?: string | number | null;
+        End?: string | number | null;
+      };
+      if (
+        RangeValue?.Start === null ||
+        RangeValue?.Start === '' ||
+        RangeValue?.End === null ||
+        RangeValue?.End === ''
+      ) {
+        return null;
+      }
+
+      if (Definition.DataType === 'Date') {
+        const Start = this.ParseDateOnly(String(RangeValue.Start));
+        const End = this.ParseDateOnly(String(RangeValue.End));
+        return !Start || !End || Start.getTime() <= End.getTime()
+          ? null
+          : { range: true };
+      }
+
+      const Start = Number(RangeValue.Start);
+      const End = Number(RangeValue.End);
+      return !Number.isFinite(Start) || !Number.isFinite(End) || Start <= End
+        ? null
+        : { range: true };
+    };
+  }
+
+  private GetRangeControl(
+    Definition: MockReportParameterDefinition,
+  ): FormGroup | null {
+    const Control = this.ReportParameterForm.get(Definition.ParameterName);
+    return Control instanceof FormGroup ? Control : null;
+  }
+
+  private GetErrorControl(Control: AbstractControl): AbstractControl {
+    if (!(Control instanceof FormGroup)) return Control;
+    return (
+      Object.values(Control.controls).find((Child) => Child.invalid) ?? Control
+    );
+  }
+
+  private SerializeReportParameters(): Readonly<
+    Record<string, MockParameterFormValue>
+  > {
+    return Object.fromEntries(
+      this.VisibleReportParameters.map((Definition) => [
+        Definition.ParameterName,
+        this.SerializeParameterValue(
+          Definition,
+          this.ReportParameterForm.get(Definition.ParameterName)?.value,
+        ),
+      ]),
+    );
+  }
+
+  private SerializeParameterValue(
+    Definition: MockReportParameterDefinition,
+    Value: unknown,
+  ): MockParameterFormValue {
+    if (Definition.AllowRangeValues) {
+      const RangeValue = Value as {
+        Start: string | number | null;
+        End: string | number | null;
+      };
+      return {
+        Start: this.SerializeScalarValue(Definition, RangeValue.Start),
+        End: this.SerializeScalarValue(Definition, RangeValue.End),
+      } as { Start: string | number | null; End: string | number | null };
+    }
+    if (Definition.AllowMultipleValues) {
+      return Array.isArray(Value) ? Value.map(String) : [];
+    }
+    return this.SerializeScalarValue(Definition, Value);
+  }
+
+  private SerializeScalarValue(
+    Definition: MockReportParameterDefinition,
+    Value: unknown,
+  ): string | number | boolean | null {
+    if (Value === null || Value === '') return null;
+    if (Definition.DataType === 'Boolean') return Boolean(Value);
+    if (Definition.DataType === 'Integer' || Definition.DataType === 'Float') {
+      return Number(Value);
+    }
+    return String(Value);
+  }
+
+  private IsDateOnlyBefore(
+    EndDateValue: unknown,
+    StartDateValue: unknown,
+  ): boolean {
+    const EndDate = this.ParseDateOnly(String(EndDateValue ?? ''));
+    const StartDate = this.ParseDateOnly(String(StartDateValue ?? ''));
+    return Boolean(EndDate && StartDate && EndDate.getTime() < StartDate.getTime());
   }
 
   private ParseDateOnly(DateValue: string): Date | null {
@@ -818,7 +1307,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private CreateRoleDraft(): MockRoleDraft {
     return {
       DisplayName: '',
-      Permissions: this.MockRbac.GetEmptyReportPermissionEntries(),
+      Permissions: this.MockRbac.GetEmptyCategoryPermissionEntries(),
     };
   }
   private CreateDatabaseConnectionDraft(): MockDatabaseConnectionDraft {

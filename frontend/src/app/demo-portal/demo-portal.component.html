@@ -13,19 +13,19 @@
   <aside class="portal-nav" aria-label="系統導覽">
     <p class="nav-group-title">一般使用者功能</p>
     <a
-      routerLink="/reports"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      >我的報表</a
-    >
-    <!-- ReportList／ReportSearch／ReportCategory -->
-    <a
       routerLink="/reports/parameters"
       routerLinkActive="active"
       [routerLinkActiveOptions]="{ exact: true }"
-      >報表條件</a
+      >報表搜尋 / 報表條件</a
     >
     <!-- ReportParameter -->
+    <a
+      routerLink="/reports"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      >收藏的報表</a
+    >
+    <!-- ReportList／ReportSearch／ReportCategory -->
     <a
       routerLink="/reports/preview"
       routerLinkActive="active"
@@ -49,13 +49,6 @@
         >使用者管理</a
       >
       <!-- UserManagement -->
-      <a
-        routerLink="/admin/permissions"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        >報表權限管理</a
-      >
-      <!-- ReportPermission -->
       <a
         routerLink="/admin/reports"
         routerLinkActive="active"
@@ -98,135 +91,313 @@
     </div>
     <h1>{{ PageTitle }}</h1>
     <section *ngIf="Page === 'ReportList'" class="content-card">
-      <div class="toolbar">
-        <label
-          >搜尋報表
-          <input
-            [(ngModel)]="SearchText"
-            placeholder="輸入報表名稱或說明" /></label
-        ><label
-          >分類
-          <select [(ngModel)]="SelectedCategory">
-            <option *ngFor="let Category of Categories" [value]="Category">
-              {{ Category }}
-            </option>
-          </select></label
+      <nav
+        *ngIf="FavoriteReports.length"
+        class="favorite-category-tabs"
+        aria-label="依分類篩選收藏的報表"
+      >
+        <button
+          *ngFor="let Tab of FavoriteCategoryTabs"
+          type="button"
+          [class.is-active]="SelectedFavoriteCategory === Tab.Category"
+          [attr.aria-pressed]="SelectedFavoriteCategory === Tab.Category"
+          (click)="SetFavoriteCategory(Tab.Category)"
         >
-      </div>
-      <div class="report-groups">
-        <section>
-          <h2>最近使用報表</h2>
-          <p>應收帳款報表、庫存明細</p>
-        </section>
-        <section>
-          <h2>常用報表</h2>
-          <p>此區為 Mock 顯示，不包含收藏或排序規則。</p>
-        </section>
-      </div>
-      <div class="table-scroll">
-        <table class="report-list-table">
+          {{ Tab.Category }}（{{ Tab.Count }}）
+        </button>
+      </nav>
+      <div *ngIf="FavoriteReports.length; else EmptyFavoriteReports" class="table-scroll">
+        <table class="report-list-table favorite-report-table">
           <thead>
             <tr>
+              <th scope="col">收藏</th>
               <th>報表名稱</th>
               <th>分類</th>
-              <th>說明</th>
+              <th
+                scope="col"
+                [attr.aria-sort]="GetFavoriteLastUsedAriaSort()"
+              >
+                <button
+                  type="button"
+                  class="favorite-sort-button"
+                  (click)="ToggleFavoriteLastUsedSort()"
+                >
+                  最近使用日期 {{ GetFavoriteLastUsedSortIndicator() }}
+                </button>
+              </th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let Report of FilteredReports">
-              <td class="report-name-cell">{{ Report.ReportName }}</td>
-              <td>{{ Report.Category }}</td>
-              <td class="report-description-cell">{{ Report.Description }}</td>
+            <tr *ngFor="let Favorite of DisplayedFavoriteReports">
               <td>
                 <button
                   type="button"
-                  (click)="SelectReportByKey(Report.ReportKey)"
+                  class="favorite-star-button"
+                  [attr.aria-label]="'取消收藏 ' + Favorite.Report.ReportName"
+                  [title]="'取消收藏 ' + Favorite.Report.ReportName"
+                  (click)="RemoveFavoriteReport(Favorite)"
+                >★</button>
+              </td>
+              <td class="report-name-cell">{{ Favorite.Report.ReportName }}</td>
+              <td>{{ Favorite.Report.Category }}</td>
+              <td>{{ FormatFavoriteLastUsedAt(Favorite.LastUsedAt) }}</td>
+              <td>
+                <button
+                  type="button"
+                  (click)="SelectReportByKey(Favorite.Report.ReportKey)"
                 >
                   選擇
                 </button>
               </td>
             </tr>
-            <tr *ngIf="!FilteredReports.length">
-              <td colspan="4">目前條件下沒有符合的報表。</td>
-            </tr>
           </tbody>
         </table>
       </div>
+      <ng-template #EmptyFavoriteReports>
+        <p class="favorite-empty-state">目前沒有收藏的報表。</p>
+      </ng-template>
     </section>
     <section *ngIf="Page === 'ReportParameter'" class="content-card">
-      <p>{{ Auth.SelectedReport?.ReportName }} 的 Mock 參數表單。</p>
-      <div class="form-grid parameter-form">
-        <label
-          >開始日期
+      <ng-container *ngIf="!IsReportParameterMode; else ParameterFormMode">
+        <div class="parameter-search-toolbar">
+          <label for="parameter-report-search">搜尋報表</label>
           <input
-            type="date"
-            [ngModel]="ReportStartDate"
-            (ngModelChange)="SetReportStartDate($event)"
-          /> </label
-        ><label
-          >結束日期
-          <input
-            type="date"
-            [ngModel]="ReportEndDate"
-            [min]="ReportStartDate || null"
-            (ngModelChange)="SetReportEndDate($event)"
-          /> </label
-        ><label
-          >客戶
-          <select>
-            <option>全部客戶</option>
-            <option>Demo 客戶</option>
-          </select></label
-        >
-        <div class="form-field">
-          <span id="status-label" class="form-field-label">狀態</span>
-          <details class="status-multiselect">
-            <summary aria-labelledby="status-label">
-              <span>{{ StatusSelectionLabel }}</span>
-            </summary>
-            <div
-              class="status-multiselect-options"
-              role="group"
-              aria-labelledby="status-label"
-            >
-              <label
-                *ngFor="let Status of StatusOptions"
-                class="status-option"
-                [class.is-selected]="IsStatusSelected(Status)"
-              >
-                <input
-                  type="checkbox"
-                  [checked]="IsStatusSelected(Status)"
-                  (change)="
-                    SetStatusSelection(Status, $any($event.target).checked)
-                  "
-                />
-                <span>{{ Status }}</span>
-              </label>
-            </div>
-          </details>
+            id="parameter-report-search"
+            [(ngModel)]="ParameterReportSearchText"
+            placeholder="搜尋報表名稱"
+            aria-label="搜尋報表名稱或分類"
+          />
         </div>
+        <h2 class="parameter-section-heading">報表列表</h2>
+        <div class="table-scroll parameter-report-table-scroll">
+          <table class="parameter-report-table">
+            <thead>
+              <tr>
+                <th [attr.aria-sort]="GetParameterReportAriaSort('ReportName')">
+                  <button
+                    type="button"
+                    class="sortable-table-header"
+                    (click)="ToggleParameterReportSort('ReportName')"
+                  >
+                    報表名稱 <span aria-hidden="true">{{ GetParameterReportSortIndicator('ReportName') }}</span>
+                  </button>
+                </th>
+                <th [attr.aria-sort]="GetParameterReportAriaSort('Category')">
+                  <button
+                    type="button"
+                    class="sortable-table-header"
+                    (click)="ToggleParameterReportSort('Category')"
+                  >
+                    分類 <span aria-hidden="true">{{ GetParameterReportSortIndicator('Category') }}</span>
+                  </button>
+                </th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let Report of DisplayedParameterReports">
+                <td class="report-name-cell">{{ Report.ReportName }}</td>
+                <td>{{ Report.Category }}</td>
+                <td>
+                  <button
+                    type="button"
+                    (click)="SelectReportForParameters(Report.ReportKey)"
+                  >
+                    選擇
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="!DisplayedParameterReports.length">
+                <td colspan="3" class="parameter-report-empty-state">
+                  {{
+                    HasParameterReportSearchText
+                      ? '找不到符合條件的報表。'
+                      : '目前沒有可使用的報表。'
+                  }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+
+      <ng-template #ParameterFormMode>
+      <div class="selected-parameter-report">
+        <div>
+          <p class="selected-parameter-report-label">已選擇報表</p>
+          <h2>{{ Auth.SelectedReport?.ReportName }} / {{ Auth.SelectedReport?.Category }}</h2>
+        </div>
+        <button
+          type="button"
+          class="secondary-button"
+          (click)="ReturnToParameterReportSearch()"
+        >
+          重新選擇報表
+        </button>
       </div>
-      <p *ngIf="ReportDateRangeError" class="parameter-date-error" role="alert">
-        {{ ReportDateRangeError }}
-      </p>
-      <p class="muted">UserCode&#64; 由 Mock 登入者帶入，不提供修改。</p>
-      <button
-        *ngIf="Auth.ReportPermission.CanExecute"
-        type="button"
-        (click)="ExecuteReport()"
+      <h2 class="parameter-section-heading">報表條件</h2>
+      <p>{{ Auth.SelectedReport?.ReportName }} 的 Mock 動態參數表單。</p>
+      <form
+        class="parameter-form"
+        [formGroup]="ReportParameterForm"
+        (ngSubmit)="ExecuteReport()"
+        novalidate
       >
-        產生報表
-      </button>
-      <p *ngIf="!Auth.ReportPermission.CanExecute" class="mock-notice">
-        目前測試角色沒有執行權限。
-      </p>
+        <div class="form-grid parameter-form-fields">
+          <ng-container *ngFor="let Definition of VisibleReportParameters">
+            <fieldset
+              *ngIf="GetControlKind(Definition) === 'range'"
+              class="parameter-range-field"
+              [formGroupName]="Definition.ParameterName"
+            >
+              <legend>
+                {{ Definition.DisplayName
+                }}<span *ngIf="Definition.IsRequired" aria-hidden="true">（必填）</span>
+              </legend>
+              <label>
+                開始{{ Definition.DataType === 'Date' ? '日期' : '值' }}
+                <input
+                  [type]="GetInputHtmlType(Definition)"
+                  formControlName="Start"
+                  (change)="OnRangeValueChange(Definition)"
+                />
+              </label>
+              <label>
+                結束{{ Definition.DataType === 'Date' ? '日期' : '值' }}
+                <input
+                  [type]="GetInputHtmlType(Definition)"
+                  formControlName="End"
+                  [min]="GetRangeStartValue(Definition)"
+                  (change)="OnRangeValueChange(Definition)"
+                />
+              </label>
+              <p
+                *ngIf="GetParameterError(Definition)"
+                class="parameter-field-error"
+                role="alert"
+              >
+                {{ GetParameterError(Definition) }}
+              </p>
+            </fieldset>
+
+            <label
+              *ngIf="GetControlKind(Definition) === 'input'"
+              class="parameter-field"
+            >
+              {{ Definition.DisplayName
+              }}<span *ngIf="Definition.IsRequired" aria-hidden="true">（必填）</span>
+              <input
+                [type]="GetInputHtmlType(Definition)"
+                [formControlName]="Definition.ParameterName"
+              />
+              <span
+                *ngIf="GetParameterError(Definition)"
+                class="parameter-field-error"
+                role="alert"
+              >{{ GetParameterError(Definition) }}</span>
+            </label>
+
+            <label
+              *ngIf="GetControlKind(Definition) === 'textarea'"
+              class="parameter-field"
+            >
+              {{ Definition.DisplayName
+              }}<span *ngIf="Definition.IsRequired" aria-hidden="true">（必填）</span>
+              <textarea [formControlName]="Definition.ParameterName"></textarea>
+              <span
+                *ngIf="GetParameterError(Definition)"
+                class="parameter-field-error"
+                role="alert"
+              >{{ GetParameterError(Definition) }}</span>
+            </label>
+
+            <label
+              *ngIf="GetControlKind(Definition) === 'checkbox'"
+              class="parameter-checkbox-field"
+            >
+              <input type="checkbox" [formControlName]="Definition.ParameterName" />
+              <span>{{ Definition.DisplayName }}</span>
+            </label>
+
+            <div
+              *ngIf="GetControlKind(Definition) === 'select'"
+              class="parameter-field"
+            >
+              <label [for]="Definition.ParameterName">
+                {{ Definition.DisplayName
+                }}<span *ngIf="Definition.IsRequired" aria-hidden="true">（必填）</span>
+              </label>
+              <p
+                *ngIf="UsesLov(Definition) && GetLovStatus(Definition) === 'loading'"
+                class="parameter-state"
+              >載入選項中…</p>
+              <p
+                *ngIf="UsesLov(Definition) && GetLovStatus(Definition) === 'empty'"
+                class="parameter-state"
+              >目前無可選項。</p>
+              <div
+                *ngIf="UsesLov(Definition) && GetLovStatus(Definition) === 'error'"
+                class="parameter-state parameter-state-error"
+                role="alert"
+              >
+                無法載入選項，請重試。
+                <button type="button" class="secondary-button" (click)="RetryLov(Definition)">
+                  重試
+                </button>
+              </div>
+              <select
+                [id]="Definition.ParameterName"
+                [formControlName]="Definition.ParameterName"
+                [multiple]="Definition.AllowMultipleValues"
+                [disabled]="UsesLov(Definition) && GetLovStatus(Definition) !== 'success'"
+              >
+                <option
+                  *ngIf="!Definition.AllowMultipleValues"
+                  value=""
+                  [disabled]="Definition.IsRequired"
+                >請選擇</option>
+                <option
+                  *ngFor="let Option of GetLovOptions(Definition)"
+                  [value]="Option.Value"
+                >{{ Option.DisplayText }}</option>
+              </select>
+              <span
+                *ngIf="GetParameterError(Definition)"
+                class="parameter-field-error"
+                role="alert"
+              >{{ GetParameterError(Definition) }}</span>
+            </div>
+          </ng-container>
+        </div>
+        <p *ngIf="!VisibleReportParameters.length" class="muted">
+          此 Mock 報表沒有需要輸入的條件。
+        </p>
+        <button
+          *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
+          type="submit"
+          [disabled]="!CanGenerateReport"
+        >
+          產生報表
+        </button>
+        <button
+          *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
+          type="button"
+          class="secondary-button"
+          (click)="ResetReportParameters()"
+        >
+          重設
+        </button>
+        <p *ngIf="!Auth.SelectedReportCategoryPermission.CanExecute" class="mock-notice">
+          目前測試角色沒有執行權限。
+        </p>
+      </form>
+      </ng-template>
     </section>
     <section *ngIf="Page === 'ReportPreview'" class="content-card">
       <div class="preview-placeholder">PDF 預覽 Mock 區</div>
       <div class="output-actions">
-        <div *ngIf="Auth.ReportPermission.CanExportPdf" class="export-dropdown">
+        <div *ngIf="Auth.SelectedReportCategoryPermission.CanExportPdf" class="export-dropdown">
           <button
             type="button"
             class="export-trigger"
@@ -263,13 +434,13 @@
           </div>
         </div>
         <button
-          *ngIf="Auth.ReportPermission.CanPrint"
+          *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
           type="button"
           (click)="SelectOutputAction('BrowserPrint')"
         >
           瀏覽器列印</button
         ><button
-          *ngIf="Auth.ReportPermission.CanPrint"
+          *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
           type="button"
           (click)="SelectOutputAction('FixedPrinterPrint')"
         >
@@ -897,12 +1068,18 @@
               系統內建角色名稱不可修改。
             </p>
             <div class="create-role-permissions">
-              <h3>報表權限</h3>
+              <h3>報表分類權限</h3>
+              <p
+                *ngIf="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
+                class="role-name-lock-hint"
+              >
+                系統管理員擁有所有報表分類權限，設定為唯讀。
+              </p>
               <div class="table-scroll">
                 <table class="role-permission-table">
                   <thead>
                     <tr>
-                      <th>報表</th>
+                      <th>報表分類</th>
                       <th>執行</th>
                       <th>匯出</th>
                       <th>列印</th>
@@ -910,7 +1087,7 @@
                   </thead>
                   <tbody>
                     <tr *ngFor="let Entry of RoleDraft.Permissions">
-                      <td>{{ Entry.ReportName }}</td>
+                      <td>{{ Entry.Category }}</td>
                       <td>
                         <input
                           type="checkbox"
@@ -918,20 +1095,21 @@
                           (ngModelChange)="
                             SetPermissionCanExecute(Entry, $event)
                           "
+                          [disabled]="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
                         />
                       </td>
                       <td>
                         <input
                           type="checkbox"
                           [(ngModel)]="Entry.Permission.CanExportPdf"
-                          [disabled]="!Entry.Permission.CanExecute"
+                          [disabled]="!Entry.Permission.CanExecute || (IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey))"
                         />
                       </td>
                       <td>
                         <input
                           type="checkbox"
                           [(ngModel)]="Entry.Permission.CanPrint"
-                          [disabled]="!Entry.Permission.CanExecute"
+                          [disabled]="!Entry.Permission.CanExecute || (IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey))"
                         />
                       </td>
                     </tr>
@@ -1023,64 +1201,6 @@
             </div>
           </section>
         </section>
-      </section>
-      <section
-        *ngIf="Page === 'ReportPermission'"
-        class="permission-matrix management-section"
-      >
-        <h2>Mock 報表權限</h2>
-        <label
-          >角色
-          <select
-            [(ngModel)]="SelectedRoleKey"
-            (ngModelChange)="LoadPermissionEditor()"
-          >
-            <option *ngFor="let Role of MockRbac.Roles" [value]="Role.Key">
-              {{ Role.DisplayName }}
-            </option>
-          </select></label
-        >
-        <table>
-          <thead>
-            <tr>
-              <th>報表</th>
-              <th>執行</th>
-              <th>匯出</th>
-              <th>列印</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let Entry of EditablePermissions">
-              <td>{{ Entry.ReportName }}</td>
-              <td>
-                <input
-                  type="checkbox"
-                  [ngModel]="Entry.Permission.CanExecute"
-                  (ngModelChange)="SetPermissionCanExecute(Entry, $event)"
-                />
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  [(ngModel)]="Entry.Permission.CanExportPdf"
-                  [disabled]="!Entry.Permission.CanExecute"
-                />
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  [(ngModel)]="Entry.Permission.CanPrint"
-                  [disabled]="!Entry.Permission.CanExecute"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="permission-action-area">
-          <button type="button" (click)="SavePermissions()">
-            儲存 Mock 權限
-          </button>
-        </div>
       </section>
       <section *ngIf="Page === 'RptManagement'" class="management-section">
         <h2>Mock RPT 報表</h2>
@@ -1303,7 +1423,6 @@
       <table
         *ngIf="
           Page !== 'UserManagement' &&
-          Page !== 'ReportPermission' &&
           Page !== 'RptManagement' &&
           Page !== 'DatabaseConnection'
         "

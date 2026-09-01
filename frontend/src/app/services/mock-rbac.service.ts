@@ -2,7 +2,17 @@ import { Injectable } from '@angular/core';
 
 import { MockAuthenticationProvider } from '../mock/mock-authentication.provider';
 import { MockReport, MockReportKey, MockReports } from '../mock/mock-reports';
-import { InitialMockRoleReportPermissions, MockManagementPermission, MockReportPermission, MockReportPermissionEntry, MockRole, MockRoleKey, MockRoles } from '../mock/mock-permissions';
+import {
+  EmptyMockCategoryPermission,
+  FullMockCategoryPermission,
+  InitialMockRoleCategoryPermissions,
+  MockCategoryPermission,
+  MockCategoryPermissionEntry,
+  MockManagementPermission,
+  MockRole,
+  MockRoleKey,
+  MockRoles,
+} from '../mock/mock-permissions';
 import { MockUser, MockUserCredential } from '../mock/mock-users';
 
 export interface MockUserDraft {
@@ -25,7 +35,7 @@ export interface MockAccountSettingsDraft {
 
 export interface MockRoleDraft {
   DisplayName: string;
-  Permissions: MockReportPermissionEntry[];
+  Permissions: MockCategoryPermissionEntry[];
 }
 
 export type MockRoleSaveResult = 'updated' | 'not-found' | 'invalid' | 'duplicate-name';
@@ -49,6 +59,16 @@ export interface MockRoleChangeRequest {
   Status: MockRoleChangeRequestStatus;
 }
 
+export interface MockFavoriteReport {
+  readonly Report: MockReport;
+  readonly LastUsedAt: string | null;
+}
+
+interface MockFavoriteReportState {
+  IsFavorite: boolean;
+  LastUsedAt: string | null;
+}
+
 export type MockUserEditResult =
   | 'updated'
   | 'role-change-requested'
@@ -67,21 +87,31 @@ export type MockRoleChangeResponseResult =
   | 'not-pending'
   | 'minimum-admins';
 
-const EmptyPermission = (): MockReportPermission => ({
-  CanExecute: false,
-  CanExportPdf: false,
-  CanPrint: false,
-});
-
 @Injectable({ providedIn: 'root' })
 export class MockRbacService {
   private readonly UsersStore: MockUserCredential[] = MockAuthenticationProvider.GetInitialUsers().map((User) => this.CloneCredential(User));
   private readonly RoleStore: MockRole[] = MockRoles.map((Role) => ({ ...Role, ManagementPermissions: [...Role.ManagementPermissions] }));
   private readonly ReportStore: MockReport[] = MockReports.map((Report) => ({ ...Report }));
+  private readonly FavoriteReportStore: Record<
+    string,
+    Partial<Record<MockReportKey, MockFavoriteReportState>>
+  > = {
+    'admin@example.com': {
+      AccountBalance: { IsFavorite: true, LastUsedAt: '2026-08-30T09:20:00+08:00' },
+      Activity: { IsFavorite: true, LastUsedAt: '2026-08-29T14:10:00+08:00' },
+      InventoryTransferHana: { IsFavorite: true, LastUsedAt: null },
+      ProductionOrder: { IsFavorite: true, LastUsedAt: '2026-08-28T11:45:00+08:00' },
+      ServiceContract: { IsFavorite: true, LastUsedAt: '2026-08-27T16:05:00+08:00' },
+    },
+    'user@example.com': {
+      AccountBalance: { IsFavorite: true, LastUsedAt: '2026-08-30T10:15:00+08:00' },
+      Activity: { IsFavorite: true, LastUsedAt: null },
+    },
+  };
   private readonly RoleChangeRequestsStore: MockRoleChangeRequest[] = [];
   private NextRoleChangeRequestId = 1;
   private NextCustomRoleSequence = 1;
-  private readonly PermissionStore: Record<string, Record<MockReportKey, MockReportPermission>> = this.CloneInitialPermissions();
+  private readonly PermissionStore: Record<string, Record<string, MockCategoryPermission>> = this.CloneInitialPermissions();
   private SelectedReportKey: MockReportKey = 'AccountBalance';
 
   get IsEnabled(): boolean { return MockAuthenticationProvider.IsEnabled; }
@@ -215,7 +245,7 @@ export class MockRbacService {
       ManagementPermissions: [],
     };
     this.RoleStore.push(Role);
-    this.PermissionStore[Key] = Object.fromEntries(Draft.Permissions.map((Entry) => [Entry.ReportKey, this.NormalizePermission(Entry.Permission)])) as Record<MockReportKey, MockReportPermission>;
+    this.PermissionStore[Key] = this.ToCategoryPermissionRecord(Draft.Permissions);
     return { ...Role, ManagementPermissions: [...Role.ManagementPermissions] };
   }
 
@@ -229,7 +259,7 @@ export class MockRbacService {
     if (!DisplayName) return 'invalid';
     if (this.RoleStore.some((Role) => Role.Key !== RoleKey && Role.DisplayName === DisplayName)) return 'duplicate-name';
     this.RoleStore[RoleIndex] = { ...ExistingRole, DisplayName };
-    this.SaveReportPermissions(RoleKey, Draft.Permissions);
+    this.SaveCategoryPermissions(RoleKey, Draft.Permissions);
     return 'updated';
   }
 
@@ -250,36 +280,79 @@ export class MockRbacService {
 
   GetAccessibleReports(Roles: readonly MockRoleKey[]): readonly MockReport[] {
     return this.ReportStore
-      .filter((Report) => Report.Enabled && this.GetEffectiveReportPermission(Roles, Report.ReportKey).CanExecute)
+      .filter(
+        (Report) =>
+          Report.Enabled &&
+          this.IsValidCategory(Report.Category) &&
+          this.GetEffectiveCategoryPermission(Roles, Report.Category).CanExecute,
+      )
       .map((Report) => ({ ...Report }));
   }
 
-  GetReportPermission(Role: MockRoleKey, ReportKey: MockReportKey): MockReportPermission {
-    return { ...(this.PermissionStore[Role]?.[ReportKey] ?? EmptyPermission()) };
+  GetFavoriteReports(
+    Account: string,
+    Roles: readonly MockRoleKey[],
+  ): readonly MockFavoriteReport[] {
+    const Favorites = this.FavoriteReportStore[Account] ?? {};
+    return this.GetAccessibleReports(Roles)
+      .filter((Report) => Favorites[Report.ReportKey]?.IsFavorite)
+      .map((Report) => ({
+        Report,
+        LastUsedAt: Favorites[Report.ReportKey]?.LastUsedAt ?? null,
+      }));
   }
 
-  GetEffectiveReportPermission(Roles: readonly MockRoleKey[], ReportKey: MockReportKey): MockReportPermission {
-    return this.NormalizeRoles(Roles).reduce<MockReportPermission>((Effective, Role) => {
-      const Permission = this.GetReportPermission(Role, ReportKey);
+  RemoveFavoriteReport(Account: string, ReportKey: MockReportKey): boolean {
+    const Favorite = this.FavoriteReportStore[Account]?.[ReportKey];
+    if (!Favorite?.IsFavorite) return false;
+    Favorite.IsFavorite = false;
+    return true;
+  }
+
+  RecordReportExecution(Account: string, ReportKey: MockReportKey): void {
+    const Favorite = this.FavoriteReportStore[Account]?.[ReportKey];
+    if (Favorite?.IsFavorite) Favorite.LastUsedAt = new Date().toISOString();
+  }
+
+  GetCategoryPermission(Role: MockRoleKey, Category: string): MockCategoryPermission {
+    if (Role === 'ADMIN') return FullMockCategoryPermission();
+    return {
+      ...(this.PermissionStore[Role]?.[Category] ?? EmptyMockCategoryPermission()),
+    };
+  }
+
+  GetEffectiveCategoryPermission(
+    Roles: readonly MockRoleKey[],
+    Category: string,
+  ): MockCategoryPermission {
+    if (!this.IsValidCategory(Category)) return EmptyMockCategoryPermission();
+    return this.NormalizeRoles(Roles).reduce<MockCategoryPermission>((Effective, Role) => {
+      const Permission = this.GetCategoryPermission(Role, Category);
       return {
         CanExecute: Effective.CanExecute || Permission.CanExecute,
         CanExportPdf: Effective.CanExportPdf || Permission.CanExportPdf,
         CanPrint: Effective.CanPrint || Permission.CanPrint,
       };
-    }, EmptyPermission());
+    }, EmptyMockCategoryPermission());
   }
 
-  GetReportPermissionEntries(Role: MockRoleKey): MockReportPermissionEntry[] {
-    return this.Reports.map((Report) => ({ ReportKey: Report.ReportKey, ReportName: Report.ReportName, Permission: this.GetReportPermission(Role, Report.ReportKey) }));
+  GetCategoryPermissionEntries(Role: MockRoleKey): MockCategoryPermissionEntry[] {
+    return this.GetReportCategories().map((Category) => ({
+      Category,
+      Permission: this.GetCategoryPermission(Role, Category),
+    }));
   }
 
-  GetEmptyReportPermissionEntries(): MockReportPermissionEntry[] {
-    return this.Reports.map((Report) => ({ ReportKey: Report.ReportKey, ReportName: Report.ReportName, Permission: EmptyPermission() }));
+  GetEmptyCategoryPermissionEntries(): MockCategoryPermissionEntry[] {
+    return this.GetReportCategories().map((Category) => ({
+      Category,
+      Permission: EmptyMockCategoryPermission(),
+    }));
   }
 
-  SaveReportPermissions(Role: MockRoleKey, Entries: readonly MockReportPermissionEntry[]): void {
-    if (!this.PermissionStore[Role]) return;
-    Entries.forEach((Entry) => { this.PermissionStore[Role][Entry.ReportKey] = this.NormalizePermission(Entry.Permission); });
+  SaveCategoryPermissions(Role: MockRoleKey, Entries: readonly MockCategoryPermissionEntry[]): void {
+    if (Role === 'ADMIN') return;
+    this.PermissionStore[Role] = this.ToCategoryPermissionRecord(Entries);
   }
 
   GetRole(RoleKey: MockRoleKey): MockRole { return this.RoleStore.find((Role) => Role.Key === RoleKey)!; }
@@ -290,12 +363,51 @@ export class MockRbacService {
     return Reports.find((Report) => Report.ReportKey === this.SelectedReportKey) ?? Reports[0] ?? null;
   }
 
-  private NormalizePermission(Permission: MockReportPermission): MockReportPermission {
-    return Permission.CanExecute ? { ...Permission } : EmptyPermission();
+  private NormalizePermission(Permission: MockCategoryPermission): MockCategoryPermission {
+    return Permission.CanExecute ? { ...Permission } : EmptyMockCategoryPermission();
   }
 
-  private CloneInitialPermissions(): Record<string, Record<MockReportKey, MockReportPermission>> {
-    return Object.fromEntries(Object.entries(InitialMockRoleReportPermissions).map(([Role, Permissions]) => [Role, Object.fromEntries(Object.entries(Permissions).map(([ReportKey, Permission]) => [ReportKey, this.NormalizePermission(Permission)]))])) as Record<string, Record<MockReportKey, MockReportPermission>>;
+  private CloneInitialPermissions(): Record<string, Record<string, MockCategoryPermission>> {
+    return Object.fromEntries(
+      Object.entries(InitialMockRoleCategoryPermissions).map(
+        ([Role, Permissions]) => [
+          Role,
+          Object.fromEntries(
+            Object.entries(Permissions).map(([Category, Permission]) => [
+              Category,
+              this.NormalizePermission(Permission),
+            ]),
+          ),
+        ],
+      ),
+    ) as Record<string, Record<string, MockCategoryPermission>>;
+  }
+
+  private ToCategoryPermissionRecord(
+    Entries: readonly MockCategoryPermissionEntry[],
+  ): Record<string, MockCategoryPermission> {
+    return Object.fromEntries(
+      Entries
+        .filter((Entry) => this.IsValidCategory(Entry.Category))
+        .map((Entry) => [
+          Entry.Category,
+          this.NormalizePermission(Entry.Permission),
+        ]),
+    ) as Record<string, MockCategoryPermission>;
+  }
+
+  private GetReportCategories(): string[] {
+    return [
+      ...new Set(
+        this.ReportStore
+          .map((Report) => Report.Category.trim())
+          .filter((Category) => this.IsValidCategory(Category)),
+      ),
+    ];
+  }
+
+  private IsValidCategory(Category: string): boolean {
+    return Boolean(Category.trim());
   }
 
   private ToReadModel({ Password: _, Roles, ...User }: MockUserCredential): MockUser {

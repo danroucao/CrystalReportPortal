@@ -15,7 +15,7 @@ describe('MockRbacService', () => {
     Service.SetReportEnabled('DocumentsV2WithSerialAndBatchDetails', true);
 
     expect(Service.GetAccessibleReports(['FINANCE']).map((Report) => Report.ReportKey)).toEqual([
-      'AccountBalance', 'Activity',
+      'AccountBalance', 'MonthlyRevenue', 'Activity',
     ]);
     expect(Service.GetAccessibleReports(['PURCHASE']).map((Report) => Report.ReportKey)).toEqual([
       'DocumentsV2WithSerialAndBatchDetails', 'ProductionOrder',
@@ -28,14 +28,32 @@ describe('MockRbacService', () => {
     ]);
   });
 
-  it('calculates a union of report permissions across ordinary roles', () => {
-    expect(Service.GetEffectiveReportPermission(['PURCHASE', 'WAREHOUSE'], 'InventoryTransferHana')).toEqual({
+  it('calculates a union of category permissions across ordinary roles', () => {
+    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], '庫存')).toEqual({
       CanExecute: true,
       CanExportPdf: true,
       CanPrint: true,
     });
-    expect(Service.GetEffectiveReportPermission(['PURCHASE', 'WAREHOUSE'], 'ProductionOrder').CanExecute).toBeTrue();
-    expect(Service.GetEffectiveReportPermission(['PURCHASE', 'WAREHOUSE'], 'AccountBalance').CanExecute).toBeFalse();
+    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], '生產').CanExecute).toBeTrue();
+    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], '財務').CanExecute).toBeFalse();
+  });
+
+  it('automatically grants a newly added report when its category is already executable', () => {
+    const FinanceReports = Service.GetAccessibleReports(['FINANCE']);
+
+    expect(FinanceReports.map((Report) => Report.ReportKey)).toContain('MonthlyRevenue');
+    expect(Service.GetCategoryPermission('FINANCE', '財務').CanExecute).toBeTrue();
+  });
+
+  it('keeps SystemAdmin category permissions fully allowed without persisted checkbox state', () => {
+    expect(Service.GetCategoryPermissionEntries('ADMIN')).toEqual(
+      jasmine.arrayContaining([
+        jasmine.objectContaining({
+          Category: '財務',
+          Permission: { CanExecute: true, CanExportPdf: true, CanPrint: true },
+        }),
+      ]),
+    );
   });
 
   it('normalizes SystemAdmin as the only assigned role', () => {
@@ -70,13 +88,13 @@ describe('MockRbacService', () => {
   });
 
   it('clears output permissions whenever CanExecute is removed', () => {
-    const Entries = Service.GetReportPermissionEntries('FINANCE');
-    const Entry = Entries.find((Permission) => Permission.ReportKey === 'AccountBalance')!;
+    const Entries = Service.GetCategoryPermissionEntries('FINANCE');
+    const Entry = Entries.find((Permission) => Permission.Category === '財務')!;
     Entry.Permission = { CanExecute: false, CanExportPdf: true, CanPrint: true };
 
-    Service.SaveReportPermissions('FINANCE', Entries);
+    Service.SaveCategoryPermissions('FINANCE', Entries);
 
-    expect(Service.GetReportPermission('FINANCE', 'AccountBalance')).toEqual({
+    expect(Service.GetCategoryPermission('FINANCE', '財務')).toEqual({
       CanExecute: false,
       CanExportPdf: false,
       CanPrint: false,
@@ -84,8 +102,8 @@ describe('MockRbacService', () => {
     expect(Service.GetAccessibleReports(['FINANCE']).map((Report) => Report.ReportKey)).toEqual(['Activity']);
   });
 
-  it('creates roles and retains only executable report output settings', () => {
-    const Permissions = Service.GetEmptyReportPermissionEntries();
+  it('creates roles and retains only executable category output settings', () => {
+    const Permissions = Service.GetEmptyCategoryPermissionEntries();
     Permissions[0].Permission = { CanExecute: true, CanExportPdf: true, CanPrint: false };
     const Draft: MockRoleDraft = {
       DisplayName: '業務人員',
@@ -95,13 +113,13 @@ describe('MockRbacService', () => {
     const CreatedRole = Service.CreateRole(Draft);
 
     expect(CreatedRole?.DisplayName).toBe('業務人員');
-    expect(Service.GetReportPermission(CreatedRole!.Key, Permissions[0].ReportKey)).toEqual(Permissions[0].Permission);
+    expect(Service.GetCategoryPermission(CreatedRole!.Key, Permissions[0].Category)).toEqual(Permissions[0].Permission);
     expect(Service.CreateRole(Draft)).toBeNull();
   });
 
   it('locks the built-in role name while allowing custom roles to be renamed', () => {
     const AdminName = Service.GetRole('ADMIN').DisplayName;
-    const Permissions = Service.GetReportPermissionEntries('ADMIN');
+    const Permissions = Service.GetCategoryPermissionEntries('ADMIN');
 
     expect(Service.UpdateRole('ADMIN', {
       DisplayName: '不應套用的名稱',
@@ -111,11 +129,11 @@ describe('MockRbacService', () => {
 
     const CreatedRole = Service.CreateRole({
       DisplayName: 'admin123',
-      Permissions: Service.GetEmptyReportPermissionEntries(),
+      Permissions: Service.GetEmptyCategoryPermissionEntries(),
     })!;
     expect(Service.UpdateRole(CreatedRole.Key, {
       DisplayName: '自訂管理角色',
-      Permissions: Service.GetReportPermissionEntries(CreatedRole.Key),
+      Permissions: Service.GetCategoryPermissionEntries(CreatedRole.Key),
     })).toBe('updated');
     expect(Service.GetRole(CreatedRole.Key).Key).toBe(CreatedRole.Key);
     expect(Service.GetRole(CreatedRole.Key).DisplayName).toBe('自訂管理角色');
@@ -124,7 +142,7 @@ describe('MockRbacService', () => {
   it('deletes only unused custom roles and preserves built-in or assigned roles', () => {
     const CreatedRole = Service.CreateRole({
       DisplayName: 'admin123',
-      Permissions: Service.GetEmptyReportPermissionEntries(),
+      Permissions: Service.GetEmptyCategoryPermissionEntries(),
     })!;
 
     expect(Service.DeleteRole('ADMIN')).toBe('built-in-role');
@@ -134,7 +152,7 @@ describe('MockRbacService', () => {
   });
 
   it('keeps all reports in management while excluding disabled reports from the normal report list', () => {
-    expect(Service.Reports).toHaveSize(6);
+    expect(Service.Reports).toHaveSize(7);
     expect(Service.Reports.every((Report) => Report.ReportKey && Report.FileName && Report.Category && Report.Description)).toBeTrue();
     expect(Service.GetAccessibleReports(['ADMIN']).some((Report) => Report.ReportKey === 'DocumentsV2WithSerialAndBatchDetails')).toBeFalse();
 
