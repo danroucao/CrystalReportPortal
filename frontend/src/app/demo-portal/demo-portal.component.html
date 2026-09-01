@@ -5,41 +5,97 @@
     >
     <div class="account-summary">
       <span
-        >{{ Auth.CurrentUser?.DisplayName }}（{{
-          Auth.CurrentUser?.Role
-        }}）</span
-      ><button type="button" (click)="Logout()">登出</button>
+        >{{ Auth.CurrentUser?.DisplayName }}（{{ Auth.ActiveRoleNames }}）</span
+      >
+      <button type="button" (click)="Logout()">登出</button>
     </div>
   </header>
   <aside class="portal-nav" aria-label="系統導覽">
     <p class="nav-group-title">一般使用者功能</p>
-    <a routerLink="/reports" routerLinkActive="active"
-      >ReportList／ReportSearch／ReportCategory</a
+    <a
+      routerLink="/reports"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      >我的報表</a
     >
-    <a routerLink="/reports/parameters" routerLinkActive="active"
-      >ReportParameter</a
+    <!-- ReportList／ReportSearch／ReportCategory -->
+    <a
+      routerLink="/reports/parameters"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      >報表條件</a
     >
-    <a routerLink="/reports/preview" routerLinkActive="active">ReportPreview</a>
+    <!-- ReportParameter -->
+    <a
+      routerLink="/reports/preview"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      >報表預覽</a
+    >
+    <!-- ReportPreview -->
+    <a
+      routerLink="/account/settings"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      >帳號設定</a
+    >
+    <!-- AccountSettings -->
     <ng-container *ngIf="Auth.IsAdmin"
       ><p class="nav-group-title">管理功能</p>
-      <a routerLink="/admin/users" routerLinkActive="active">UserManagement</a
-      ><a routerLink="/admin/roles" routerLinkActive="active">RoleManagement</a
-      ><a routerLink="/admin/permissions" routerLinkActive="active"
-        >ReportPermission</a
-      ><a routerLink="/admin/reports" routerLinkActive="active">RptManagement</a
-      ><a routerLink="/admin/parameters" routerLinkActive="active"
-        >ReportParameterSetting</a
-      ><a routerLink="/admin/database-connections" routerLinkActive="active"
-        >DatabaseConnection</a
-      ><a routerLink="/admin/operation-logs" routerLinkActive="active"
-        >OperationLog</a
-      ></ng-container
-    >
+      <a
+        routerLink="/admin/users"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >使用者管理</a
+      >
+      <!-- UserManagement -->
+      <a
+        routerLink="/admin/permissions"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >報表權限管理</a
+      >
+      <!-- ReportPermission -->
+      <a
+        routerLink="/admin/reports"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >RPT 報表管理</a
+      >
+      <!-- RptManagement -->
+      <a
+        routerLink="/admin/parameters"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >報表參數設定</a
+      >
+      <!-- ReportParameterSetting -->
+      <a
+        routerLink="/admin/database-connections"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >MSSQL 資料庫連線管理</a
+      >
+      <!-- DatabaseConnection -->
+      <a
+        routerLink="/admin/operation-logs"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >操作紀錄查詢</a
+      >
+      <!-- OperationLog -->
+    </ng-container>
   </aside>
   <main class="portal-main">
-    <p class="demo-banner">
-      Development／Local Demo：此頁的帳號、資料與權限皆為 Mock，非正式驗證。
-    </p>
+    <div
+      *ngIf="Notifications.SuccessMessage"
+      class="success-toast"
+      role="status"
+      aria-live="polite"
+    >
+      <span aria-hidden="true">✓</span>
+      {{ Notifications.SuccessMessage }}
+    </div>
     <h1>{{ PageTitle }}</h1>
     <section *ngIf="Page === 'ReportList'" class="content-card">
       <div class="toolbar">
@@ -67,49 +123,94 @@
           <p>此區為 Mock 顯示，不包含收藏或排序規則。</p>
         </section>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>報表名稱</th>
-            <th>分類</th>
-            <th>說明</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let Report of FilteredReports">
-            <td>{{ Report.ReportName }}</td>
-            <td>{{ Report.Category }}</td>
-            <td>{{ Report.Description }}</td>
-            <td>
-              <button type="button" (click)="SelectReport()">選擇</button>
-            </td>
-          </tr>
-          <tr *ngIf="!FilteredReports.length">
-            <td colspan="4">目前條件下沒有符合的報表。</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-scroll">
+        <table class="report-list-table">
+          <thead>
+            <tr>
+              <th>報表名稱</th>
+              <th>分類</th>
+              <th>說明</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let Report of FilteredReports">
+              <td class="report-name-cell">{{ Report.ReportName }}</td>
+              <td>{{ Report.Category }}</td>
+              <td class="report-description-cell">{{ Report.Description }}</td>
+              <td>
+                <button
+                  type="button"
+                  (click)="SelectReportByKey(Report.ReportKey)"
+                >
+                  選擇
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="!FilteredReports.length">
+              <td colspan="4">目前條件下沒有符合的報表。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
     <section *ngIf="Page === 'ReportParameter'" class="content-card">
-      <p>應收帳款報表的 Mock 參數表單。</p>
-      <div class="form-grid">
-        <label>開始日期 <input type="date" /></label
-        ><label>結束日期 <input type="date" /></label
+      <p>{{ Auth.SelectedReport?.ReportName }} 的 Mock 參數表單。</p>
+      <div class="form-grid parameter-form">
+        <label
+          >開始日期
+          <input
+            type="date"
+            [ngModel]="ReportStartDate"
+            (ngModelChange)="SetReportStartDate($event)"
+          /> </label
+        ><label
+          >結束日期
+          <input
+            type="date"
+            [ngModel]="ReportEndDate"
+            [min]="ReportStartDate || null"
+            (ngModelChange)="SetReportEndDate($event)"
+          /> </label
         ><label
           >客戶
           <select>
             <option>全部客戶</option>
             <option>Demo 客戶</option>
           </select></label
-        ><label
-          >狀態
-          <select multiple>
-            <option>未收款</option>
-            <option>已收款</option>
-          </select></label
         >
+        <div class="form-field">
+          <span id="status-label" class="form-field-label">狀態</span>
+          <details class="status-multiselect">
+            <summary aria-labelledby="status-label">
+              <span>{{ StatusSelectionLabel }}</span>
+            </summary>
+            <div
+              class="status-multiselect-options"
+              role="group"
+              aria-labelledby="status-label"
+            >
+              <label
+                *ngFor="let Status of StatusOptions"
+                class="status-option"
+                [class.is-selected]="IsStatusSelected(Status)"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="IsStatusSelected(Status)"
+                  (change)="
+                    SetStatusSelection(Status, $any($event.target).checked)
+                  "
+                />
+                <span>{{ Status }}</span>
+              </label>
+            </div>
+          </details>
+        </div>
       </div>
+      <p *ngIf="ReportDateRangeError" class="parameter-date-error" role="alert">
+        {{ ReportDateRangeError }}
+      </p>
       <p class="muted">UserCode&#64; 由 Mock 登入者帶入，不提供修改。</p>
       <button
         *ngIf="Auth.ReportPermission.CanExecute"
@@ -118,17 +219,50 @@
       >
         產生報表
       </button>
+      <p *ngIf="!Auth.ReportPermission.CanExecute" class="mock-notice">
+        目前測試角色沒有執行權限。
+      </p>
     </section>
     <section *ngIf="Page === 'ReportPreview'" class="content-card">
       <div class="preview-placeholder">PDF 預覽 Mock 區</div>
       <div class="output-actions">
+        <div *ngIf="Auth.ReportPermission.CanExportPdf" class="export-dropdown">
+          <button
+            type="button"
+            class="export-trigger"
+            aria-haspopup="menu"
+            [attr.aria-expanded]="IsExportMenuOpen"
+            (click)="ToggleExportMenu()"
+          >
+            <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
+            </svg>
+            匯出
+            <svg class="export-chevron" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m7 10 5 5 5-5" />
+            </svg>
+          </button>
+          <div
+            *ngIf="IsExportMenuOpen"
+            class="export-menu"
+            role="menu"
+            aria-label="報表匯出格式"
+          >
+            <button
+              *ngFor="let Option of ExportOptions"
+              type="button"
+              role="menuitem"
+              [disabled]="!Option.Enabled"
+              (click)="SelectExportOption(Option)"
+            >
+              <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
+              </svg>
+              {{ Option.Label }}
+            </button>
+          </div>
+        </div>
         <button
-          *ngIf="Auth.ReportPermission.CanExportPdf"
-          type="button"
-          (click)="SelectOutputAction('PdfExport')"
-        >
-          下載 PDF</button
-        ><button
           *ngIf="Auth.ReportPermission.CanPrint"
           type="button"
           (click)="SelectOutputAction('BrowserPrint')"
@@ -147,16 +281,1033 @@
       </p>
       <p class="muted">固定印表機的設定、服務與工作狀態仍為 TBD。</p>
     </section>
-    <section
-      *ngIf="
-        Page !== 'ReportList' &&
-        Page !== 'ReportParameter' &&
-        Page !== 'ReportPreview'
-      "
-      class="content-card"
-    >
-      <p>{{ AdminDescription }}</p>
-      <table>
+    <section *ngIf="Page === 'AccountSettings'" class="content-card">
+      <h2>帳號設定</h2>
+      <p class="muted">
+        Frontend Mock
+        Only：可修改自己的使用者名稱與新密碼；目前密碼驗證與正式儲存仍需後端支援。
+      </p>
+      <div class="form-grid edit-user-form">
+        <label
+          >使用者帳號 <input [value]="Auth.CurrentUser?.Account" disabled
+        /></label>
+        <label
+          >使用者名稱 <input [(ngModel)]="AccountSettingsDraft.DisplayName"
+        /></label>
+        <label
+          >新密碼（可留空）
+          <input type="password" [(ngModel)]="AccountSettingsDraft.NewPassword"
+        /></label>
+        <label
+          >確認新密碼
+          <input type="password" [(ngModel)]="AccountSettingsConfirmation"
+        /></label>
+      </div>
+      <p *ngIf="AccountSettingsNotice" class="mock-notice" role="status">
+        {{ AccountSettingsNotice }}
+      </p>
+      <button type="button" (click)="SaveAccountSettings()">
+        儲存帳號設定
+      </button>
+    </section>
+    <section *ngIf="Auth.IsAdmin && IsAdministrationPage" class="content-card">
+      <p *ngIf="Page !== 'UserManagement'">{{ AdminDescription }}</p>
+      <section *ngIf="Page === 'UserManagement'" class="user-management">
+        <section
+          class="management-card role-management-section"
+          aria-labelledby="role-management-title"
+        >
+          <div class="management-card-heading">
+            <div>
+              <p class="section-eyebrow">角色管理</p>
+              <h2 id="role-management-title">角色與報表權限</h2>
+              <p class="muted">
+                角色決定使用者可使用的報表與操作權限；設定會即時更新此頁的 Mock
+                資料。
+              </p>
+            </div>
+            <button
+              type="button"
+              class="section-header-action"
+              (click)="OpenCreateRoleDialog()"
+            >
+              <span aria-hidden="true">＋</span>
+              新增角色
+            </button>
+          </div>
+          <div class="role-card-carousel">
+            <button
+              *ngIf="CanScrollRoleCardsLeft"
+              type="button"
+              class="role-carousel-nav is-previous"
+              aria-label="顯示前一組角色"
+              (click)="ScrollRoleCards(-1)"
+            >
+              <span aria-hidden="true">‹</span>
+            </button>
+            <div
+              #roleCardViewport
+              class="role-card-viewport"
+              (scroll)="UpdateRoleCardNavigation()"
+            >
+              <div class="role-card-grid" [class.has-overflow]="RoleCardHasOverflow">
+                <article *ngFor="let Role of MockRbac.Roles" class="role-card">
+                  <p class="role-card-count">
+                    {{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者
+                  </p>
+                  <h3>{{ Role.DisplayName }}</h3>
+                  <p>{{ Role.Description }}</p>
+                  <button
+                    type="button"
+                    class="role-card-action"
+                    (click)="OpenEditRoleDialog(Role.Key)"
+                  >
+                    編輯角色
+                  </button>
+                </article>
+              </div>
+            </div>
+            <button
+              *ngIf="CanScrollRoleCardsRight"
+              type="button"
+              class="role-carousel-nav is-next"
+              aria-label="顯示下一組角色"
+              (click)="ScrollRoleCards(1)"
+            >
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+        </section>
+
+        <section
+          class="management-card user-management-section"
+          aria-labelledby="user-management-title"
+        >
+          <div class="management-card-heading">
+            <div>
+              <p class="section-eyebrow">使用者管理</p>
+              <h2 id="user-management-title">使用者帳號</h2>
+              <p class="muted">
+                搜尋、篩選與維護本機 Mock 使用者的角色及啟用狀態。
+              </p>
+            </div>
+            <button
+              type="button"
+              class="section-header-action"
+              (click)="OpenCreateUserDialog()"
+            >
+              <span aria-hidden="true">＋</span>
+              建立使用者
+            </button>
+          </div>
+
+          <p *ngIf="ManagementNotice" class="mock-notice" role="status">
+            {{ ManagementNotice }}
+          </p>
+
+          <section
+            *ngIf="MockRbac.RoleChangeRequests.length"
+            class="role-change-card"
+          >
+            <h3>角色變更申請</h3>
+            <p class="muted">
+              系統管理員降職須由異動對象回應；正式環境仍必須由後端再次驗證。
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>申請人</th>
+                  <th>異動對象</th>
+                  <th>原角色</th>
+                  <th>新角色</th>
+                  <th>狀態</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let Request of MockRbac.RoleChangeRequests">
+                  <td>{{ Request.RequesterAccount }}</td>
+                  <td>{{ Request.TargetAccount }}</td>
+                  <td>
+                    {{ GetRoleNames(Request.PreviousRoles) }}
+                  </td>
+                  <td>
+                    {{ GetRoleNames(Request.RequestedRoles) }}
+                  </td>
+                  <td>
+                    <span
+                      class="request-status"
+                      [class.is-pending]="Request.Status === 'Pending'"
+                      [class.is-approved]="Request.Status === 'Approved'"
+                      [class.is-rejected]="Request.Status === 'Rejected'"
+                      >{{ Request.Status }}</span
+                    >
+                  </td>
+                  <td>
+                    <ng-container
+                      *ngIf="
+                        CanRespondToRoleChangeRequest(
+                          Request.TargetAccount,
+                          Request.Status
+                        );
+                        else waitingForResponse
+                      "
+                    >
+                      <button
+                        type="button"
+                        (click)="RespondToRoleChangeRequest(Request.Id, true)"
+                      >
+                        同意
+                      </button>
+                      <button
+                        type="button"
+                        class="secondary-button"
+                        (click)="RespondToRoleChangeRequest(Request.Id, false)"
+                      >
+                        拒絕
+                      </button>
+                    </ng-container>
+                    <ng-template #waitingForResponse
+                      >等待異動對象回應</ng-template
+                    >
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <div class="user-management-toolbar" role="search">
+            <label class="user-search-field">
+              <span class="sr-only">搜尋使用者</span>
+              <input
+                [(ngModel)]="UserSearchText"
+                placeholder="搜尋使用者帳號或名稱"
+              />
+              <svg
+                class="user-search-icon"
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                focusable="false"
+              >
+                <circle cx="11" cy="11" r="5.5"></circle>
+                <path d="m15 15 4 4"></path>
+              </svg>
+            </label>
+          </div>
+
+          <nav class="role-filter-tabs" aria-label="依角色篩選使用者">
+            <button
+              type="button"
+              [class.is-active]="UserRoleFilter === null"
+              [attr.aria-pressed]="UserRoleFilter === null"
+              (click)="SetUserRoleFilter(null)"
+            >
+              全部 ({{ MockRbac.Users.length }})
+            </button>
+            <button
+              *ngFor="let Role of MockRbac.Roles"
+              type="button"
+              [class.is-active]="UserRoleFilter === Role.Key"
+              [attr.aria-pressed]="UserRoleFilter === Role.Key"
+              (click)="SetUserRoleFilter(Role.Key)"
+            >
+              {{ Role.DisplayName }} ({{ MockRbac.GetRoleUserCount(Role.Key) }})
+            </button>
+          </nav>
+
+          <div class="table-scroll user-table-scroll">
+            <div class="user-table-content-area">
+              <table class="user-management-table">
+                <thead>
+                  <tr>
+                    <th>帳號</th>
+                    <th>名稱</th>
+                    <th>角色</th>
+                    <th class="account-status-column">啟用狀態</th>
+                    <th>建立時間</th>
+                    <th>更新時間</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    *ngFor="
+                      let User of FilteredUsers;
+                      trackBy: TrackUserByAccount
+                    "
+                  >
+                    <td>{{ User.Account }}</td>
+                    <td>{{ User.DisplayName }}</td>
+                    <td>{{ GetRoleNames(User.Roles) }}</td>
+                    <td class="account-status-column">
+                      <button
+                        type="button"
+                        class="account-status-switch"
+                        role="switch"
+                        [class.is-enabled]="User.Enabled"
+                        [disabled]="User.Account === Auth.CurrentUser?.Account"
+                        [attr.aria-checked]="User.Enabled"
+                        [attr.aria-label]="
+                          User.Account === Auth.CurrentUser?.Account
+                            ? '目前登入的使用者不可停用'
+                            : User.Enabled
+                              ? '停用 ' + User.Account
+                              : '啟用 ' + User.Account
+                        "
+                        (click)="SetUserEnabled(User.Account, !User.Enabled)"
+                      >
+                        <span class="account-status-switch-thumb"></span>
+                      </button>
+                      <span class="account-status-text">{{
+                        User.Enabled ? "啟用" : "停用"
+                      }}</span>
+                    </td>
+                    <td>{{ User.CreatedAt }}</td>
+                    <td>{{ User.UpdatedAt }}</td>
+                    <td>
+                      <button
+                        type="button"
+                        class="secondary-button"
+                        [attr.aria-label]="'編輯 ' + User.Account"
+                        title="編輯使用者"
+                        (click)="EditUser(User.Account)"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        class="secondary-button"
+                        [attr.aria-label]="'刪除 ' + User.Account"
+                        title="刪除使用者"
+                        (click)="OpenDeleteUserDialog(User.Account)"
+                      >
+                        🗑
+                      </button>
+                    </td>
+                  </tr>
+                  <tr *ngIf="!FilteredUsers.length">
+                    <td colspan="7">
+                      <div class="user-empty-state" role="status">
+                        找不到符合條件的使用者。
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section
+          *ngIf="IsCreateUserDialogOpen"
+          class="modal-backdrop"
+          (click)="CloseCreateUserDialog()"
+        >
+          <section
+            class="edit-user-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-user-title"
+            tabindex="-1"
+            (click)="$event.stopPropagation()"
+          >
+            <div class="modal-heading">
+              <div>
+                <h2 id="create-user-title">建立使用者</h2>
+                <p class="muted">請設定帳號、初始密碼、角色與啟用狀態。</p>
+              </div>
+              <button
+                type="button"
+                class="modal-close-button edit-user-close-button"
+                aria-label="關閉建立使用者視窗"
+                (click)="CloseCreateUserDialog()"
+              >
+                ×
+              </button>
+            </div>
+            <div class="form-grid edit-user-form">
+              <label
+                >使用者帳號 <input [(ngModel)]="UserDraft.Account"
+              /></label>
+              <label
+                >使用者名稱 <input [(ngModel)]="UserDraft.DisplayName"
+              /></label>
+              <label
+                >初始密碼
+                <input type="password" [(ngModel)]="UserDraft.InitialPassword"
+              /></label>
+              <div class="form-field">
+                <span class="form-field-label">所屬角色</span>
+                <label *ngFor="let Role of MockRbac.Roles">
+                  <input
+                    type="checkbox"
+                    [checked]="IsRoleSelected(UserDraft.Roles, Role.Key)"
+                    [disabled]="IsRoleOptionDisabled(UserDraft.Roles, Role.Key)"
+                    (change)="
+                      ToggleUserRole(
+                        UserDraft,
+                        Role.Key,
+                        $any($event.target).checked
+                      )
+                    "
+                  />
+                  {{ Role.DisplayName }}
+                </label>
+              </div>
+              <div class="edit-status-field">
+                <span class="form-field-label">啟用狀態</span>
+                <button
+                  type="button"
+                  class="account-status-switch"
+                  role="switch"
+                  [class.is-enabled]="UserDraft.Enabled"
+                  [attr.aria-checked]="UserDraft.Enabled"
+                  (click)="UserDraft.Enabled = !UserDraft.Enabled"
+                >
+                  <span class="account-status-switch-thumb"></span>
+                </button>
+                <span class="account-status-text">{{
+                  UserDraft.Enabled ? "啟用" : "停用"
+                }}</span>
+              </div>
+            </div>
+            <p class="muted">新帳號預設為停用，可在建立前開啟。</p>
+            <div class="modal-actions">
+              <button type="button" (click)="SaveUser()">建立使用者</button
+              ><button
+                type="button"
+                class="secondary-button"
+                (click)="CloseCreateUserDialog()"
+              >
+                取消
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <section
+          *ngIf="EditingUser"
+          class="modal-backdrop"
+          (click)="CancelEditUser()"
+        >
+          <section
+            class="edit-user-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-user-title"
+            tabindex="-1"
+            (click)="$event.stopPropagation()"
+            (keydown.escape)="CancelEditUser()"
+          >
+            <div class="modal-heading">
+              <div>
+                <h2 id="edit-user-title">編輯使用者</h2>
+                <p class="muted">
+                  管理員只能調整角色與啟用狀態；名稱與密碼由使用者本人在帳號設定修改。
+                </p>
+              </div>
+              <button
+                type="button"
+                class="modal-close-button"
+                aria-label="關閉編輯使用者視窗"
+                (click)="CancelEditUser()"
+              >
+                ×
+              </button>
+            </div>
+            <div class="form-grid edit-user-form">
+              <label
+                >使用者帳號 <input [value]="EditingAccount" disabled
+              /></label>
+              <label
+                >使用者名稱
+                <input
+                  [value]="MockRbac.GetUser(EditingAccount || '')?.DisplayName"
+                  disabled
+              /></label>
+              <div class="edit-status-field">
+                <span class="form-field-label">啟用狀態</span>
+                <button
+                  type="button"
+                  class="account-status-switch"
+                  role="switch"
+                  [class.is-enabled]="EditingUser.Enabled"
+                  [disabled]="IsEditingSelf()"
+                  [attr.aria-checked]="EditingUser.Enabled"
+                  [attr.aria-label]="
+                    IsEditingSelf()
+                      ? '目前登入的使用者不可停用'
+                      : '切換使用者啟用狀態'
+                  "
+                  (click)="EditingUser.Enabled = !EditingUser.Enabled"
+                >
+                  <span class="account-status-switch-thumb"></span>
+                </button>
+                <span class="account-status-text">{{
+                  EditingUser.Enabled ? "啟用" : "停用"
+                }}</span>
+              </div>
+            </div>
+            <div class="edit-user-role-field">
+              <span class="form-field-label">所屬角色</span>
+              <div class="edit-user-role-options" role="group" aria-label="所屬角色">
+                <label *ngFor="let Role of MockRbac.Roles" class="edit-user-role-option">
+                  <input
+                    type="checkbox"
+                    [checked]="IsRoleSelected(EditingUser.Roles, Role.Key)"
+                    [disabled]="
+                      !CanEditEditingUserRoles() ||
+                      IsRoleOptionDisabled(EditingUser.Roles, Role.Key)
+                    "
+                    (click)="
+                      ToggleEditingUserRole(
+                        Role.Key,
+                        !IsRoleSelected(EditingUser.Roles, Role.Key)
+                      )
+                    "
+                  />
+                  {{ Role.DisplayName }}
+                </label>
+              </div>
+            </div>
+            <p *ngIf="IsEditingSelf()" class="muted">
+              系統管理員不可修改自己的角色或啟用狀態。
+            </p>
+            <p
+              *ngIf="EditingAccount && IsAdminUser(EditingAccount)"
+              class="muted"
+            >
+              系統管理員降職會建立 Mock 角色變更申請，須由異動對象回應。
+            </p>
+            <div class="modal-actions">
+              <button type="button" (click)="SaveEditedUser()">儲存變更</button
+              ><button
+                type="button"
+                class="secondary-button"
+                (click)="CancelEditUser()"
+              >
+                取消
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <section
+          *ngIf="DeletingUser"
+          class="modal-backdrop"
+          (click)="CloseDeleteUserDialog()"
+        >
+          <section
+            class="edit-user-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-user-title"
+            (click)="$event.stopPropagation()"
+          >
+            <div class="modal-heading">
+              <div>
+                <h2 id="delete-user-title">刪除使用者</h2>
+                <p>確定要刪除使用者「{{ DeletingUser.Account }}」嗎？</p>
+              </div>
+              <button
+                type="button"
+                class="modal-close-button"
+                aria-label="關閉刪除使用者確認視窗"
+                (click)="CloseDeleteUserDialog()"
+              >
+                ×
+              </button>
+            </div>
+            <p class="muted">
+              Frontend Mock Only：正式刪除權限、保留與稽核規則仍需後端確認。
+            </p>
+            <div class="modal-actions">
+              <button type="button" (click)="ConfirmDeleteUser()">
+                確認刪除
+              </button>
+              <button
+                type="button"
+                class="secondary-button"
+                (click)="CloseDeleteUserDialog()"
+              >
+                取消
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <section
+          *ngIf="(IsCreateRoleDialogOpen || IsEditRoleDialogOpen) && !DeletingRole"
+          class="modal-backdrop"
+          (click)="
+            IsEditRoleDialogOpen
+              ? CloseEditRoleDialog()
+              : CloseCreateRoleDialog()
+          "
+        >
+          <section
+            class="edit-user-modal create-role-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="role-dialog-title"
+            tabindex="-1"
+            (click)="$event.stopPropagation()"
+          >
+            <div class="modal-heading">
+              <div>
+                <h2 id="role-dialog-title">
+                  {{ IsEditRoleDialogOpen ? "編輯角色" : "新增角色" }}
+                </h2>
+              </div>
+              <button
+                type="button"
+                class="modal-close-button"
+                [attr.aria-label]="
+                  IsEditRoleDialogOpen ? '關閉編輯角色視窗' : '關閉新增角色視窗'
+                "
+                (click)="
+                  IsEditRoleDialogOpen
+                    ? CloseEditRoleDialog()
+                    : CloseCreateRoleDialog()
+                "
+              >
+                ×
+              </button>
+            </div>
+            <div class="role-editor-fields">
+              <label class="role-name-field"
+                >角色名稱<input
+                  [(ngModel)]="RoleDraft.DisplayName"
+                  [readonly]="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
+                  [attr.aria-readonly]="
+                    IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)
+                  "
+                  [attr.aria-invalid]="RoleDraftError ? 'true' : null"
+                  [attr.aria-describedby]="
+                    RoleDraftError ? 'role-name-error' : null
+                  "
+                  [class.is-invalid]="RoleDraftError"
+                  (ngModelChange)="ClearRoleDraftError()"
+              /></label>
+            </div>
+            <p
+              *ngIf="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
+              class="role-name-lock-hint"
+            >
+              系統內建角色名稱不可修改。
+            </p>
+            <div class="create-role-permissions">
+              <h3>報表權限</h3>
+              <div class="table-scroll">
+                <table class="role-permission-table">
+                  <thead>
+                    <tr>
+                      <th>報表</th>
+                      <th>執行</th>
+                      <th>匯出</th>
+                      <th>列印</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let Entry of RoleDraft.Permissions">
+                      <td>{{ Entry.ReportName }}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          [ngModel]="Entry.Permission.CanExecute"
+                          (ngModelChange)="
+                            SetPermissionCanExecute(Entry, $event)
+                          "
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          [(ngModel)]="Entry.Permission.CanExportPdf"
+                          [disabled]="!Entry.Permission.CanExecute"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          [(ngModel)]="Entry.Permission.CanPrint"
+                          [disabled]="!Entry.Permission.CanExecute"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <span
+              *ngIf="RoleDraftError"
+              id="role-name-error"
+              class="field-error"
+              role="alert"
+              >{{ RoleDraftError }}</span
+            >
+            <div class="modal-actions role-modal-actions">
+              <button
+                *ngIf="IsEditRoleDialogOpen && !IsBuiltInRole(EditingRoleKey)"
+                type="button"
+                class="role-delete-button"
+                aria-label="刪除角色"
+                title="刪除角色"
+                (click)="OpenDeleteRoleDialog()"
+              >
+                <svg class="role-delete-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16m-10 4v6m4-6v6M9 7l1-3h4l1 3m-9 0 1 13h10l1-13" />
+                </svg>
+                刪除角色
+              </button>
+              <div class="role-modal-primary-actions">
+                <button
+                  type="button"
+                  (click)="IsEditRoleDialogOpen ? SaveEditedRole() : SaveRole()"
+                >
+                  {{ IsEditRoleDialogOpen ? "儲存角色" : "建立角色" }}
+                </button>
+                <button
+                  type="button"
+                  class="secondary-button"
+                  (click)="
+                    IsEditRoleDialogOpen
+                      ? CloseEditRoleDialog()
+                      : CloseCreateRoleDialog()
+                  "
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section
+          *ngIf="DeletingRole"
+          class="modal-backdrop"
+          (click)="CloseDeleteRoleDialog()"
+        >
+          <section
+            class="edit-user-modal role-delete-confirmation"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-role-title"
+            aria-describedby="delete-role-message"
+            (click)="$event.stopPropagation()"
+          >
+            <h2 id="delete-role-title">刪除角色</h2>
+            <p id="delete-role-message">
+              確定要刪除此角色嗎？
+            </p>
+            <p class="role-delete-target">角色：{{ DeletingRole.DisplayName }}</p>
+            <p class="muted">此操作將移除此角色。</p>
+            <div class="modal-actions role-modal-actions">
+              <span></span>
+              <div class="role-modal-primary-actions">
+                <button
+                  type="button"
+                  class="role-delete-button"
+                  (click)="ConfirmDeleteRole()"
+                >
+                  刪除
+                </button>
+                <button
+                  type="button"
+                  class="secondary-button"
+                  (click)="CloseDeleteRoleDialog()"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </section>
+        </section>
+      </section>
+      <section
+        *ngIf="Page === 'ReportPermission'"
+        class="permission-matrix management-section"
+      >
+        <h2>Mock 報表權限</h2>
+        <label
+          >角色
+          <select
+            [(ngModel)]="SelectedRoleKey"
+            (ngModelChange)="LoadPermissionEditor()"
+          >
+            <option *ngFor="let Role of MockRbac.Roles" [value]="Role.Key">
+              {{ Role.DisplayName }}
+            </option>
+          </select></label
+        >
+        <table>
+          <thead>
+            <tr>
+              <th>報表</th>
+              <th>執行</th>
+              <th>匯出</th>
+              <th>列印</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let Entry of EditablePermissions">
+              <td>{{ Entry.ReportName }}</td>
+              <td>
+                <input
+                  type="checkbox"
+                  [ngModel]="Entry.Permission.CanExecute"
+                  (ngModelChange)="SetPermissionCanExecute(Entry, $event)"
+                />
+              </td>
+              <td>
+                <input
+                  type="checkbox"
+                  [(ngModel)]="Entry.Permission.CanExportPdf"
+                  [disabled]="!Entry.Permission.CanExecute"
+                />
+              </td>
+              <td>
+                <input
+                  type="checkbox"
+                  [(ngModel)]="Entry.Permission.CanPrint"
+                  [disabled]="!Entry.Permission.CanExecute"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="permission-action-area">
+          <button type="button" (click)="SavePermissions()">
+            儲存 Mock 權限
+          </button>
+        </div>
+      </section>
+      <section *ngIf="Page === 'RptManagement'" class="management-section">
+        <h2>Mock RPT 報表</h2>
+        <p class="muted">
+          管理端可檢視啟用與停用報表，以及安全的 RPT 檔名；RPT
+          路徑從不提供給前端。
+        </p>
+        <div class="table-scroll">
+          <table class="report-management-table">
+            <thead>
+              <tr>
+                <th>報表名稱</th>
+                <th>分類</th>
+                <th>RPT 檔名</th>
+                <th>啟用狀態</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let Report of MockRbac.Reports">
+                <td>{{ Report.ReportName }}</td>
+                <td>{{ Report.Category }}</td>
+                <td>
+                  <code>{{ Report.FileName }}</code>
+                </td>
+                <td class="report-enabled-control">
+                  <button
+                    type="button"
+                    class="account-status-switch"
+                    role="switch"
+                    [class.is-enabled]="Report.Enabled"
+                    [attr.aria-checked]="Report.Enabled"
+                    [attr.aria-label]="
+                      Report.ReportName +
+                      (Report.Enabled
+                        ? '已啟用，點擊可停用'
+                        : '已停用，點擊可啟用')
+                    "
+                    (click)="
+                      SetReportEnabled(Report.ReportKey, !Report.Enabled)
+                    "
+                  >
+                    <span class="account-status-switch-thumb"></span>
+                  </button>
+                  <span class="account-status-text">{{
+                    Report.Enabled ? "啟用" : "停用"
+                  }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section *ngIf="Page === 'DatabaseConnection'" class="management-section">
+        <div class="management-card-heading">
+          <div>
+            <h2>Mock 資料庫連線</h2>
+            <p class="muted">
+              密碼只可在建立或變更時輸入；既有密碼、加密密文與其他 credential
+              不會回傳或保存於前端 Mock 資料。
+            </p>
+          </div>
+          <button type="button" (click)="OpenCreateDatabaseConnection()">
+            建立連線
+          </button>
+        </div>
+        <p *ngIf="DatabaseConnectionNotice" class="mock-notice" role="alert">
+          {{ DatabaseConnectionNotice }}
+        </p>
+        <div class="table-scroll">
+          <table class="database-connection-table">
+            <thead>
+              <tr>
+                <th>資料來源</th>
+                <th>主機</th>
+                <th>資料庫</th>
+                <th>帳號</th>
+                <th>類型</th>
+                <th>狀態</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let Connection of DatabaseConnections.Connections">
+                <td>{{ Connection.DataSourceName }}</td>
+                <td>{{ Connection.ServerHost }}:{{ Connection.Port }}</td>
+                <td>{{ Connection.DatabaseName }}</td>
+                <td>{{ Connection.Username }}</td>
+                <td>
+                  {{
+                    Connection.ConnectionType === "ReadOnly" ? "唯讀" : "讀寫"
+                  }}
+                </td>
+                <td>{{ Connection.Enabled ? "啟用" : "停用" }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    (click)="OpenEditDatabaseConnection(Connection.Key)"
+                  >
+                    編輯
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <section
+          *ngIf="IsDatabaseConnectionEditorOpen"
+          class="modal-backdrop"
+          (click)="CloseDatabaseConnectionEditor()"
+        >
+          <section
+            class="edit-user-modal database-connection-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="database-connection-dialog-title"
+            tabindex="-1"
+            (click)="$event.stopPropagation()"
+          >
+            <div class="modal-heading">
+              <div>
+                <h2 id="database-connection-dialog-title">
+                  {{
+                    EditingDatabaseConnectionKey
+                      ? "編輯資料庫連線"
+                      : "建立資料庫連線"
+                  }}
+                </h2>
+                <p class="muted">密碼僅用於本次輸入，絕不回填至此表單。</p>
+              </div>
+              <button
+                type="button"
+                class="modal-close-button"
+                aria-label="關閉資料庫連線視窗"
+                (click)="CloseDatabaseConnectionEditor()"
+              >
+                ×
+              </button>
+            </div>
+            <div class="form-grid database-connection-form">
+              <label
+                >資料來源名稱<input
+                  [(ngModel)]="DatabaseConnectionDraft.DataSourceName"
+              /></label>
+              <label
+                >主機<input [(ngModel)]="DatabaseConnectionDraft.ServerHost"
+              /></label>
+              <label
+                >連接埠<input
+                  [(ngModel)]="DatabaseConnectionDraft.Port"
+                  inputmode="numeric"
+              /></label>
+              <label
+                >資料庫名稱<input
+                  [(ngModel)]="DatabaseConnectionDraft.DatabaseName"
+              /></label>
+              <label
+                >資料庫帳號<input
+                  [(ngModel)]="DatabaseConnectionDraft.Username"
+              /></label>
+              <label
+                >連線類型
+                <select [(ngModel)]="DatabaseConnectionDraft.ConnectionType">
+                  <option value="ReadOnly">唯讀</option>
+                  <option value="ReadWrite">讀寫</option>
+                </select>
+              </label>
+              <label
+                >資料庫密碼
+                <input
+                  id="database-password"
+                  type="password"
+                  autocomplete="new-password"
+                  [(ngModel)]="DatabaseConnectionDraft.Password"
+                  [placeholder]="
+                    EditingDatabaseConnectionKey
+                      ? '••••••••'
+                      : '請輸入資料庫密碼'
+                  "
+                />
+              </label>
+              <div class="edit-status-field">
+                <span class="form-field-label">啟用狀態</span>
+                <button
+                  type="button"
+                  class="account-status-switch"
+                  role="switch"
+                  [class.is-enabled]="DatabaseConnectionDraft.Enabled"
+                  [attr.aria-checked]="DatabaseConnectionDraft.Enabled"
+                  (click)="
+                    DatabaseConnectionDraft.Enabled =
+                      !DatabaseConnectionDraft.Enabled
+                  "
+                >
+                  <span class="account-status-switch-thumb"></span>
+                </button>
+                <span class="account-status-text">{{
+                  DatabaseConnectionDraft.Enabled ? "啟用" : "停用"
+                }}</span>
+              </div>
+            </div>
+            <p *ngIf="EditingDatabaseConnectionKey" class="muted">
+              若不修改密碼請保持空白。
+            </p>
+            <div class="modal-actions">
+              <button type="button" (click)="SaveDatabaseConnection()">
+                {{ EditingDatabaseConnectionKey ? "儲存變更" : "建立連線" }}
+              </button>
+              <button
+                type="button"
+                class="secondary-button"
+                (click)="CloseDatabaseConnectionEditor()"
+              >
+                取消
+              </button>
+            </div>
+          </section>
+        </section>
+      </section>
+      <table
+        *ngIf="
+          Page !== 'UserManagement' &&
+          Page !== 'ReportPermission' &&
+          Page !== 'RptManagement' &&
+          Page !== 'DatabaseConnection'
+        "
+      >
         <thead>
           <tr>
             <th>Mock 項目</th>
@@ -172,12 +1323,6 @@
           </tr>
         </tbody>
       </table>
-      <section *ngIf="Page === 'ReportPermission'" class="permission-matrix">
-        <h2>MEMBER 報表權限</h2>
-        <p>
-          CanView：true　CanExecute：true　CanExportPdf：true　CanPrint：true
-        </p>
-      </section>
       <section *ngIf="Page === 'OperationLog'" class="permission-matrix">
         <p>保存期間：180 天</p>
       </section>

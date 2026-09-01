@@ -1,23 +1,68 @@
 export interface MockReport {
+  readonly ReportKey: MockReportKey;
   readonly ReportName: string;
   readonly Category: string;
   readonly Description: string;
+  readonly FileName: string;
+  readonly Enabled: boolean;
 }
 
+export type MockReportKey =
+  | 'AccountBalance'
+  | 'Activity'
+  | 'InventoryTransferHana'
+  | 'DocumentsV2WithSerialAndBatchDetails'
+  | 'ProductionOrder'
+  | 'ServiceContract';
+
+// Metadata only: no RPT file is read, copied, or bundled into the Angular application.
 export const MockReports: readonly MockReport[] = [
   {
-    ReportName: '應收帳款報表',
+    ReportKey: 'AccountBalance',
+    ReportName: 'AccountBalance',
     Category: '財務',
-    Description: '檢視客戶應收帳款與到期資訊。',
+    Description: '模擬帳戶餘額與期間結餘資訊的 ReportList Metadata。',
+    FileName: 'AccountBalance.rpt',
+    Enabled: true,
   },
   {
-    ReportName: '庫存明細',
-    Category: '倉儲',
-    Description: '檢視品項庫存、倉別與可用數量。',
+    ReportKey: 'Activity',
+    ReportName: 'Activity',
+    Category: '活動',
+    Description: '模擬活動紀錄查詢用的報表 Metadata。',
+    FileName: 'Activity.rpt',
+    Enabled: true,
   },
   {
-    ReportName: '採購進度報表',
-    Category: '採購',
-    Description: '檢視採購單與交期進度。',
+    ReportKey: 'InventoryTransferHana',
+    ReportName: 'InventoryTransfer_HANA',
+    Category: '庫存',
+    Description: '模擬 SAP HANA 庫存調撥資料的報表 Metadata。',
+    FileName: 'InventoryTransfer_HANA.rpt',
+    Enabled: true,
+  },
+  {
+    ReportKey: 'DocumentsV2WithSerialAndBatchDetails',
+    ReportName: 'Documents v2 (With Serial And Batch Details - invoice show data from delivery as well)',
+    Category: '文件與發票',
+    Description: '長名稱測試資料：模擬文件、序號、批號與由交貨單帶入發票資料的報表 Metadata。',
+    FileName: 'Documents v2 (With Serial And Batch Details - invoice show data from delivery as well).rpt',
+    Enabled: false,
+  },
+  {
+    ReportKey: 'ProductionOrder',
+    ReportName: 'ProductionOrder',
+    Category: '生產',
+    Description: '模擬生產訂單與製程進度的報表 Metadata。',
+    FileName: 'ProductionOrder.rpt',
+    Enabled: true,
+  },
+  {
+    ReportKey: 'ServiceContract',
+    ReportName: 'ServiceContract',
+    Category: '服務',
+    Description: '模擬服務合約、到期日與客戶服務狀態的報表 Metadata。',
+    FileName: 'ServiceContract.rpt',
+    Enabled: true,
   },
 ];

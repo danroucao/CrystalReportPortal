@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Visual Studio
 .vs/
 
@@ -11,3 +12,11 @@ obj/
 
 # Visual Studio Code（如果不想共用設定）
 .vscode/
+=======
+bin/
+obj/
+docs/
+test-data/
+README.md
+.git
+>>>>>>> main

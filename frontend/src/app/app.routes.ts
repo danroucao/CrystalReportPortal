@@ -32,18 +32,18 @@ export const routes: Routes = [
     title: '報表預覽｜Crystal Reports 外部報表系統',
   },
   {
+    path: 'account/settings',
+    component: DemoPortalComponent,
+    canActivate: [DemoAuthGuard],
+    data: { Page: 'AccountSettings' },
+    title: '帳號設定｜Crystal Reports 外部報表系統',
+  },
+  {
     path: 'admin/users',
     component: DemoPortalComponent,
     canActivate: [DemoAdminGuard],
     data: { Page: 'UserManagement' },
     title: '使用者管理｜Crystal Reports 外部報表系統',
-  },
-  {
-    path: 'admin/roles',
-    component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
-    data: { Page: 'RoleManagement' },
-    title: '角色管理｜Crystal Reports 外部報表系統',
   },
   {
     path: 'admin/permissions',
