@@ -16,6 +16,7 @@ obj/
 bin/
 obj/
 docs/
+.vs/
 test-data/
 README.md
 .git
