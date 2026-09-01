@@ -60,7 +60,7 @@ public class AuthService : IAuthService
             return LoginFailed("帳號或密碼錯誤");
         }
 
-        var passwordReferenceTime = user.UpdatedAt ?? user.CreatedAt;
+        var passwordReferenceTime = user.PasswordChangedAt ?? user.CreatedAt;
         if (passwordReferenceTime.ToUniversalTime().Add(PasswordLifetime) <= DateTime.UtcNow)
         {
             await WriteAuditLogAsync(user.UserId, "DENIED", null, "密碼已超過 90 天未更新");
@@ -192,8 +192,13 @@ public class AuthService : IAuthService
             return LoginFailed("帳號、目前密碼錯誤，或帳號已停用");
         }
 
+        var now = DateTime.UtcNow;
+
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-        user.UpdatedAt = DateTime.UtcNow;
+        user.PasswordChangedAt = now;
+        user.TokenVersion += 1;
+        user.UpdatedAt = now;
+
         await WriteAuditLogAsync(user.UserId, "SUCCESS", null, "密碼已更新");
         await _dbContext.SaveChangesAsync();
 
