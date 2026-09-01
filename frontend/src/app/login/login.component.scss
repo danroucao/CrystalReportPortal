@@ -25,7 +25,8 @@ h1 { margin: 0; color: #161616; font-size: 1.75rem; letter-spacing: 0.08em; }
 .intro { margin: 0.65rem 0 2rem; color: #485364; font-size: 0.875rem; }
 .field { margin-bottom: 1.25rem; }
 label { display: block; margin-bottom: 0.45rem; color: #161616; font-size: 0.875rem; font-weight: 700; }
-.required, .field-error { color: #bd1933; }
+.required-indicator, .field-error { color: #bd1933; }
+.required-indicator { display: inline-block; margin-left: 0.25rem; font-weight: 700; line-height: 1; }
 input { box-sizing: border-box; width: 100%; height: 46px; padding: 0 0.75rem; border: 1px solid #aaa69e; border-radius: 6px; color: var(--color-text); font: inherit; background: #fff; }
 input:focus-visible, .password-toggle:focus-visible, .submit-button:focus-visible { outline: 3px solid rgb(189 25 51 / 24%); outline-offset: 2px; }
 input[aria-invalid="true"] { border: 2px solid #bd1933; }

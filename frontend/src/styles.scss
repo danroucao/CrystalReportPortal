@@ -563,7 +563,13 @@ app-demo-portal .create-user-form input:not([type="checkbox"]) {
 app-demo-portal .create-user-form input[aria-invalid="true"] {
   border-color: var(--color-danger);
 }
-app-demo-portal .required-indicator,
+app-demo-portal .required-indicator {
+  color: var(--color-danger);
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
 app-demo-portal .field-error {
   color: var(--color-danger);
 }
@@ -1382,6 +1388,18 @@ app-demo-portal .preview-mock-notice {
   color: var(--color-muted);
   font-size: 0.875rem;
 }
+app-demo-portal .preview-output-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+}
+app-demo-portal .preview-output-bar .output-actions {
+  margin: 0;
+}
+app-demo-portal .preview-return-button {
+  flex: 0 0 auto;
+}
 app-demo-portal .parameter-section-heading {
   margin: 0 0 0.85rem;
   font-size: 1rem;
@@ -1616,3 +1634,189 @@ app-demo-portal .report-editor-actions { justify-content: flex-end; margin-top: 
 app-demo-portal .report-delete-dialog { width: min(28rem, 100%); }
 app-demo-portal .report-delete-target { padding: .75rem; border-radius: 5px; background: #f7f4ee; font-weight: 700; }
 @media (max-width: 760px) { app-demo-portal .report-management-page-header { align-items: flex-start; flex-direction: column; } app-demo-portal .report-management-toolbar { grid-template-columns: 1fr; } app-demo-portal .report-file-picker { align-items: flex-start; flex-direction: column; } }
+
+/* Role editor and account settings layout refinements. */
+app-demo-portal .create-role-modal {
+  box-sizing: border-box;
+  width: min(46rem, calc(100vw - 3rem));
+  padding: 2rem;
+}
+app-demo-portal .create-role-modal .modal-heading {
+  align-items: center;
+}
+app-demo-portal .create-role-modal .modal-heading h2 {
+  font-size: 1.5rem;
+}
+app-demo-portal .create-role-modal .modal-close-button {
+  width: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 0.3rem;
+  color: #fff;
+  background: var(--color-primary);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+app-demo-portal .create-role-modal .modal-close-button:hover {
+  color: #fff;
+  background: var(--color-primary-hover);
+}
+app-demo-portal .role-editor-fields {
+  display: flex;
+  align-items: end;
+  gap: 2.25rem;
+  margin: 1.8rem 0 1.5rem;
+}
+app-demo-portal .role-name-field {
+  display: grid;
+  flex: 1 1 20.5rem;
+  gap: 0.45rem;
+  max-width: 20.5rem;
+  margin: 0;
+}
+app-demo-portal .role-name-field .form-field-label {
+  display: inline-flex;
+  align-items: baseline;
+  width: max-content;
+}
+app-demo-portal .role-name-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.4rem;
+}
+app-demo-portal .role-editor-fields .role-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: end;
+  gap: 0.3rem;
+  min-height: 2.4rem;
+  padding: 0 0.75rem;
+  white-space: nowrap;
+}
+app-demo-portal .role-delete-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+app-demo-portal .create-role-permissions h3 {
+  margin: 0 0 0.8rem;
+  font-size: 1rem;
+}
+app-demo-portal .create-role-permissions .table-scroll {
+  width: 100%;
+  overflow: visible;
+}
+app-demo-portal .create-role-modal .table-scroll > .role-permission-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+app-demo-portal .role-permission-table th,
+app-demo-portal .role-permission-table td {
+  height: 2.8rem;
+  padding: 0.45rem 0.65rem;
+  vertical-align: middle;
+}
+app-demo-portal .role-permission-table th:first-child,
+app-demo-portal .role-permission-table td:first-child {
+  width: 46%;
+}
+app-demo-portal .role-permission-table th:not(:first-child),
+app-demo-portal .role-permission-table td:not(:first-child) {
+  width: 18%;
+  text-align: center;
+}
+app-demo-portal .role-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 1.5rem 0 0;
+}
+app-demo-portal .role-modal-primary-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+app-demo-portal .role-modal-primary-actions button {
+  min-height: 2.35rem;
+}
+app-demo-portal .account-settings-card {
+  padding: 1.5rem;
+}
+app-demo-portal .account-settings-card > h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+app-demo-portal .account-settings-card > .muted {
+  margin: 1rem 0 1.45rem;
+}
+app-demo-portal .account-settings-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+app-demo-portal .account-settings-form label {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .account-settings-form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0 0.65rem;
+  border: 1px solid #aaa69e;
+  border-radius: 0.35rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font: inherit;
+}
+app-demo-portal .account-settings-form input:disabled {
+  color: var(--color-muted);
+  background: #f7f5f1;
+}
+app-demo-portal .account-settings-card > button {
+  min-height: 2.35rem;
+}
+@media (max-width: 1100px) {
+  app-demo-portal .account-settings-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 620px) {
+  app-demo-portal .create-role-modal {
+    width: min(100%, calc(100% - 1rem));
+    padding: 1.25rem;
+  }
+  app-demo-portal .role-editor-fields {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  app-demo-portal .role-name-field {
+    max-width: none;
+  }
+  app-demo-portal .role-editor-fields .role-delete-button {
+    align-self: flex-start;
+  }
+  app-demo-portal .role-permission-table th,
+  app-demo-portal .role-permission-table td {
+    padding-inline: 0.35rem;
+  }
+  app-demo-portal .create-role-permissions .table-scroll {
+    overflow-x: auto;
+  }
+  app-demo-portal .create-role-modal .table-scroll > .role-permission-table {
+    min-width: 28rem;
+  }
+  app-demo-portal .account-settings-form {
+    grid-template-columns: 1fr;
+  }
+}

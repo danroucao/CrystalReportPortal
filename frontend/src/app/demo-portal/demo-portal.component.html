@@ -356,7 +356,7 @@
             >
               <legend>
                 {{ Definition.DisplayName
-                }}<span *ngIf="Definition.IsRequired" aria-hidden="true">（必填）</span>
+                }}<span *ngIf="Definition.IsRequired" class="required-indicator" aria-hidden="true">*</span>
               </legend>
               <label>
                 開始{{ Definition.DataType === 'Date' ? '日期' : '值' }}
@@ -388,8 +388,8 @@
               *ngIf="GetControlKind(Definition) === 'input'"
               class="parameter-field"
             >
-              {{ Definition.DisplayName
-              }}<span *ngIf="Definition.IsRequired" aria-hidden="true">（必填）</span>
+              <span class="form-field-label">{{ Definition.DisplayName
+              }}<span *ngIf="Definition.IsRequired" class="required-indicator" aria-hidden="true">*</span></span>
               <input
                 [type]="GetInputHtmlType(Definition)"
                 [formControlName]="Definition.ParameterName"
@@ -405,8 +405,8 @@
               *ngIf="GetControlKind(Definition) === 'textarea'"
               class="parameter-field"
             >
-              {{ Definition.DisplayName
-              }}<span *ngIf="Definition.IsRequired" aria-hidden="true">（必填）</span>
+              <span class="form-field-label">{{ Definition.DisplayName
+              }}<span *ngIf="Definition.IsRequired" class="required-indicator" aria-hidden="true">*</span></span>
               <textarea [formControlName]="Definition.ParameterName"></textarea>
               <span
                 *ngIf="GetParameterError(Definition)"
@@ -429,7 +429,7 @@
             >
               <label [for]="Definition.ParameterName">
                 {{ Definition.DisplayName
-                }}<span *ngIf="Definition.IsRequired" aria-hidden="true">（必填）</span>
+                }}<span *ngIf="Definition.IsRequired" class="required-indicator" aria-hidden="true">*</span>
               </label>
               <p
                 *ngIf="UsesLov(Definition) && GetLovStatus(Definition) === 'loading'"
@@ -513,11 +513,9 @@
       </div>
       <div class="preview-placeholder">Frontend Mock Preview</div>
       <p class="preview-mock-notice">目前為前端 Mock 預覽，正式報表內容將由後端 Crystal Reports 服務產生。</p>
-      <button type="button" class="secondary-button preview-return-button" (click)="ReturnToReportList()">
-        返回報表列表
-      </button>
-      <div class="output-actions">
-        <div *ngIf="Auth.SelectedReportCategoryPermission.CanExportPdf" class="export-dropdown">
+      <div class="preview-output-bar">
+        <div class="output-actions">
+          <div *ngIf="Auth.SelectedReportCategoryPermission.CanExportPdf" class="export-dropdown">
           <button
             type="button"
             class="export-trigger"
@@ -553,18 +551,22 @@
             </button>
           </div>
         </div>
-        <button
-          *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
-          type="button"
-          (click)="SelectOutputAction('BrowserPrint')"
-        >
-          瀏覽器列印</button
-        ><button
-          *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
-          type="button"
-          (click)="SelectOutputAction('FixedPrinterPrint')"
-        >
-          固定印表機列印
+          <button
+            *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
+            type="button"
+            (click)="SelectOutputAction('BrowserPrint')"
+          >
+            瀏覽器列印</button
+          ><button
+            *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
+            type="button"
+            (click)="SelectOutputAction('FixedPrinterPrint')"
+          >
+            固定印表機列印
+          </button>
+        </div>
+        <button type="button" class="secondary-button preview-return-button" (click)="ReturnToReportList()">
+          返回報表列表
         </button>
       </div>
       <p *ngIf="MockNotice" class="mock-notice" role="status">
@@ -572,18 +574,18 @@
       </p>
       <p class="muted">固定印表機的設定、服務與工作狀態仍為 TBD。</p>
     </section>
-    <section *ngIf="Page === 'AccountSettings'" class="content-card">
+    <section *ngIf="Page === 'AccountSettings'" class="content-card account-settings-card">
       <h2>帳號設定</h2>
       <p class="muted">
         Frontend Mock
         Only：可修改自己的使用者名稱與新密碼；目前密碼驗證與正式儲存仍需後端支援。
       </p>
-      <div class="form-grid edit-user-form">
+      <div class="account-settings-form">
         <label
           >使用者帳號 <input [value]="Auth.CurrentUser?.Account" disabled
         /></label>
         <label
-          >使用者名稱 <input [(ngModel)]="AccountSettingsDraft.DisplayName"
+          ><span class="form-field-label">使用者名稱<span class="required-indicator" aria-hidden="true">*</span></span><input [(ngModel)]="AccountSettingsDraft.DisplayName"
         /></label>
         <label
           >新密碼（可留空）
@@ -1147,7 +1149,7 @@
               </div>
             </div>
             <div class="edit-user-role-field">
-              <span class="form-field-label">所屬角色</span>
+              <span class="form-field-label">所屬角色 <span class="required-indicator" aria-hidden="true">*</span></span>
               <div class="edit-user-role-options" role="group" aria-label="所屬角色">
                 <label *ngFor="let Role of MockRbac.Roles" class="edit-user-role-option">
                   <input
@@ -1274,7 +1276,7 @@
             </div>
             <div class="role-editor-fields">
               <label class="role-name-field"
-                >角色名稱<input
+                ><span class="form-field-label">角色名稱<span class="required-indicator" aria-hidden="true">*</span></span><input
                   [(ngModel)]="RoleDraft.DisplayName"
                   [readonly]="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
                   [attr.aria-readonly]="
@@ -1287,6 +1289,19 @@
                   [class.is-invalid]="RoleDraftError"
                   (ngModelChange)="ClearRoleDraftError()"
               /></label>
+              <button
+                *ngIf="IsEditRoleDialogOpen && !IsBuiltInRole(EditingRoleKey)"
+                type="button"
+                class="role-delete-button"
+                aria-label="刪除角色"
+                title="刪除角色"
+                (click)="OpenDeleteRoleDialog()"
+              >
+                <svg class="role-delete-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16m-10 4v6m4-6v6M9 7l1-3h4l1 3m-9 0 1 13h10l1-13" />
+                </svg>
+                刪除角色
+              </button>
             </div>
             <p
               *ngIf="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
@@ -1352,19 +1367,6 @@
               >{{ RoleDraftError }}</span
             >
             <div class="modal-actions role-modal-actions">
-              <button
-                *ngIf="IsEditRoleDialogOpen && !IsBuiltInRole(EditingRoleKey)"
-                type="button"
-                class="role-delete-button"
-                aria-label="刪除角色"
-                title="刪除角色"
-                (click)="OpenDeleteRoleDialog()"
-              >
-                <svg class="role-delete-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h16m-10 4v6m4-6v6M9 7l1-3h4l1 3m-9 0 1 13h10l1-13" />
-                </svg>
-                刪除角色
-              </button>
               <div class="role-modal-primary-actions">
                 <button
                   type="button"
@@ -1601,23 +1603,23 @@
             </div>
             <div class="form-grid database-connection-form">
               <label
-                >資料來源名稱<input
+                ><span class="form-field-label">資料來源名稱<span class="required-indicator" aria-hidden="true">*</span></span><input
                   [(ngModel)]="DatabaseConnectionDraft.DataSourceName"
               /></label>
               <label
-                >主機<input [(ngModel)]="DatabaseConnectionDraft.ServerHost"
+                ><span class="form-field-label">主機<span class="required-indicator" aria-hidden="true">*</span></span><input [(ngModel)]="DatabaseConnectionDraft.ServerHost"
               /></label>
               <label
-                >連接埠<input
+                ><span class="form-field-label">連接埠<span class="required-indicator" aria-hidden="true">*</span></span><input
                   [(ngModel)]="DatabaseConnectionDraft.Port"
                   inputmode="numeric"
               /></label>
               <label
-                >資料庫名稱<input
+                ><span class="form-field-label">資料庫名稱<span class="required-indicator" aria-hidden="true">*</span></span><input
                   [(ngModel)]="DatabaseConnectionDraft.DatabaseName"
               /></label>
               <label
-                >資料庫帳號<input
+                ><span class="form-field-label">資料庫帳號<span class="required-indicator" aria-hidden="true">*</span></span><input
                   [(ngModel)]="DatabaseConnectionDraft.Username"
               /></label>
               <label
@@ -1628,7 +1630,7 @@
                 </select>
               </label>
               <label
-                >資料庫密碼
+                ><span class="form-field-label">資料庫密碼<span *ngIf="!EditingDatabaseConnectionKey" class="required-indicator" aria-hidden="true">*</span></span>
                 <input
                   id="database-password"
                   type="password"
@@ -1712,10 +1714,10 @@
           <button type="button" class="modal-close-button" aria-label="關閉報表編輯視窗" (click)="CloseReportEditor()">×</button>
         </div>
         <form class="report-editor-form" (ngSubmit)="SaveReport()" novalidate>
-          <label for="report-editor-name">報表名稱（必填）
+          <label for="report-editor-name"><span class="form-field-label">報表名稱<span class="required-indicator" aria-hidden="true">*</span></span>
             <input id="report-editor-name" name="reportName" [(ngModel)]="ReportEditorDraft.ReportName" [attr.aria-invalid]="ReportEditorError && !ReportEditorDraft.ReportName.trim() ? 'true' : null" />
           </label>
-          <label for="report-editor-category">分類（必填）
+          <label for="report-editor-category"><span class="form-field-label">分類<span class="required-indicator" aria-hidden="true">*</span></span>
             <select id="report-editor-category" name="reportCategory" [(ngModel)]="ReportEditorDraft.Category" [attr.aria-invalid]="ReportEditorError && !ReportEditorDraft.Category ? 'true' : null">
               <option value="" disabled>選擇分類</option>
               <option *ngFor="let Category of ReportManagementCategories" [value]="Category">{{ Category }}</option>
@@ -1729,7 +1731,7 @@
             <span class="account-status-text">{{ ReportEditorDraft.Enabled ? '啟用' : '停用' }}</span>
           </div>
           <div class="report-file-field">
-            <span class="form-field-label">RPT 檔案{{ EditingReportKey ? '' : '（必填）' }}</span>
+            <span class="form-field-label">RPT 檔案<span *ngIf="!EditingReportKey" class="required-indicator" aria-hidden="true">*</span></span>
             <p *ngIf="EditingReportKey" class="current-report-file">目前 RPT 檔案：{{ SelectedReportFileName }}</p>
             <label class="report-file-picker" for="report-editor-file">
               <span>{{ EditingReportKey ? '選擇新 RPT 檔案（選填）' : '拖曳或選擇檔案上傳' }}</span>
