@@ -3,6 +3,14 @@
   "WorkspaceRootPath": "C:\\CrystalReportPortal\\ReportSystem.Api\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{11C2EA37-2458-7C05-9B5E-665C21CBD09E}|ReportSystem.Api.csproj|c:\\crystalreportportal\\reportsystem.api\\data\\reportsystemdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{11C2EA37-2458-7C05-9B5E-665C21CBD09E}|ReportSystem.Api.csproj|solutionrelative:data\\reportsystemdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{11C2EA37-2458-7C05-9B5E-665C21CBD09E}|ReportSystem.Api.csproj|c:\\crystalreportportal\\reportsystem.api\\models\\user.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{11C2EA37-2458-7C05-9B5E-665C21CBD09E}|ReportSystem.Api.csproj|solutionrelative:models\\user.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{11C2EA37-2458-7C05-9B5E-665C21CBD09E}|ReportSystem.Api.csproj|c:\\crystalreportportal\\reportsystem.api\\reportsystem.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}",
       "RelativeMoniker": "D:0:0:{11C2EA37-2458-7C05-9B5E-665C21CBD09E}|ReportSystem.Api.csproj|solutionrelative:reportsystem.api.http||{5703B403-55E7-4C63-8C88-A8F52C7A45C5}"
     },
@@ -26,11 +34,37 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ReportSystemDbContext.cs",
+              "DocumentMoniker": "C:\\CrystalReportPortal\\ReportSystem.Api\\Data\\ReportSystemDbContext.cs",
+              "RelativeDocumentMoniker": "Data\\ReportSystemDbContext.cs",
+              "ToolTip": "C:\\CrystalReportPortal\\ReportSystem.Api\\Data\\ReportSystemDbContext.cs",
+              "RelativeToolTip": "Data\\ReportSystemDbContext.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAAAQBAABDAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-01T06:34:52.6Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "User.cs",
+              "DocumentMoniker": "C:\\CrystalReportPortal\\ReportSystem.Api\\Models\\User.cs",
+              "RelativeDocumentMoniker": "Models\\User.cs",
+              "ToolTip": "C:\\CrystalReportPortal\\ReportSystem.Api\\Models\\User.cs",
+              "RelativeToolTip": "Models\\User.cs",
+              "ViewState": "AgIAABUAAAAAAAAAAAA5wCEAAAA0AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-01T06:32:38.667Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
               "Title": "DatabaseHealthController.cs.cs",
               "DocumentMoniker": "C:\\CrystalReportPortal\\ReportSystem.Api\\Controllers\\DatabaseHealthController.cs.cs",
               "RelativeDocumentMoniker": "Controllers\\DatabaseHealthController.cs.cs",
@@ -38,12 +72,11 @@
               "RelativeToolTip": "Controllers\\DatabaseHealthController.cs.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-31T08:01:00.723Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-31T08:01:00.723Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "AuthController.cs",
               "DocumentMoniker": "C:\\CrystalReportPortal\\ReportSystem.Api\\Controllers\\AuthController.cs",
               "RelativeDocumentMoniker": "Controllers\\AuthController.cs",
@@ -51,12 +84,11 @@
               "RelativeToolTip": "Controllers\\AuthController.cs",
               "ViewState": "AgIAACgAAAAAAAAAAAAUwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-08-31T08:00:54.769Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-08-31T08:00:54.769Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "AuthService.cs",
               "DocumentMoniker": "C:\\CrystalReportPortal\\ReportSystem.Api\\Services\\AuthService.cs",
               "RelativeDocumentMoniker": "Services\\AuthService.cs",
@@ -68,7 +100,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 2,
               "Title": "ReportSystem.Api.http",
               "DocumentMoniker": "C:\\CrystalReportPortal\\ReportSystem.Api\\ReportSystem.Api.http",
               "RelativeDocumentMoniker": "ReportSystem.Api.http",

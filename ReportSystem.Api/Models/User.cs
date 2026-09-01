@@ -28,4 +28,8 @@ public partial class User
     public virtual ICollection<Report> ReportUpdatedByNavigations { get; set; } = new List<Report>();
 
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+
+    public int TokenVersion { get; set; }
+
+    public DateTime? PasswordChangedAt { get; set; }
 }
