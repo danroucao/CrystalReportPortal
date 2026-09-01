@@ -19,6 +19,10 @@ public partial class User
 
     public DateTime? UpdatedAt { get; set; }
 
+    public int TokenVersion { get; set; }
+
+    public DateTime? PasswordChangedAt { get; set; }
+
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 
     public virtual ICollection<Report> ReportCreatedByNavigations { get; set; } = new List<Report>();
@@ -29,7 +33,4 @@ public partial class User
 
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
 
-    public int TokenVersion { get; set; }
-
-    public DateTime? PasswordChangedAt { get; set; }
 }
