@@ -1,7 +1,21 @@
 <main class="login-page">
-  <section class="login-card" aria-labelledby="login-title">
-    <h1 id="login-title">登入</h1>
-    <p class="intro">請使用您的帳號登入系統。</p>
+  <header class="login-header">
+    <div class="login-brand-bar">
+      <div class="login-brand">
+        <span class="login-brand-mark" aria-hidden="true">CR</span>
+        <div>
+          <strong>Crystal Reports 外部報表系統</strong>
+          <span>安全登入入口</span>
+        </div>
+      </div>
+      <span class="login-support">系統支援</span>
+    </div>
+  </header>
+
+  <div class="login-page-content">
+    <section class="login-card" aria-labelledby="login-title">
+      <h1 id="login-title">登入</h1>
+      <p class="intro">請使用您的帳號登入系統。</p>
 
     <form
       [formGroup]="loginForm"
@@ -62,7 +76,7 @@
       aria-labelledby="demo-accounts-title"
     >
       <h2 id="demo-accounts-title">本機 Demo 測試帳號</h2>
-      <p>僅供本機開發與展示使用，禁止用於正式環境。</p>
+      <p>僅供本機開發與展示使用，正式環境不顯示。</p>
       <table>
         <thead>
           <tr>
@@ -72,18 +86,23 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let DemoAccount of Auth.DemoUsers">
-            <td>{{ DemoAccount.Account }}</td>
-            <td>{{ DemoAccount.Password }}</td>
-            <td>{{ DemoAccount.Role }}</td>
+          <tr>
+            <td>user&#64;example.com</td>
+            <td>user123</td>
+            <td>一般使用者</td>
+          </tr>
+          <tr>
+            <td>admin&#64;example.com</td>
+            <td>admin123</td>
+            <td>系統管理員</td>
           </tr>
         </tbody>
       </table>
     </section>
-    <p class="preview-note">
-      目前為本機 Mock 驗證：帳密不會送出或儲存；正式環境將改由 ASP.NET Core Login API、Session 與 RBAC 負責。
-    </p>
-  </section>
+    </section>
+  </div>
+
+  <footer class="login-footer">版本資訊與支援服務方式待後端實裝</footer>
 
   <section *ngIf="notice" class="notification-modal-backdrop" role="presentation">
     <div

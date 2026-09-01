@@ -18,7 +18,6 @@ export interface MockRole {
 }
 
 export interface MockReportPermission {
-  CanView: boolean;
   CanExecute: boolean;
   CanExportPdf: boolean;
   CanPrint: boolean;
@@ -35,13 +34,13 @@ const AllManagementPermissions: readonly MockManagementPermission[] = [
   'ReportParameterSetting', 'DatabaseConnection', 'OperationLog',
 ];
 
-const FullPermission = (): MockReportPermission => ({ CanView: true, CanExecute: true, CanExportPdf: true, CanPrint: true });
-const NoPermission = (): MockReportPermission => ({ CanView: false, CanExecute: false, CanExportPdf: false, CanPrint: false });
+const FullPermission = (): MockReportPermission => ({ CanExecute: true, CanExportPdf: true, CanPrint: true });
+const NoPermission = (): MockReportPermission => ({ CanExecute: false, CanExportPdf: false, CanPrint: false });
 
 export const MockRoles: readonly MockRole[] = [
   { Key: 'ADMIN', DisplayName: '系統管理者', Description: '可檢視一般報表與所有現有管理 UI。', ManagementPermissions: AllManagementPermissions },
   { Key: 'FINANCE', DisplayName: '財務人員', Description: '可使用財務類已授權報表。', ManagementPermissions: [] },
-  { Key: 'PURCHASING', DisplayName: '採購人員', Description: '可使用採購類已授權報表。', ManagementPermissions: [] },
+  { Key: 'PURCHASE', DisplayName: '採購人員', Description: '可使用採購類已授權報表。', ManagementPermissions: [] },
   { Key: 'WAREHOUSE', DisplayName: '倉管人員', Description: '可使用倉儲類已授權報表。', ManagementPermissions: [] },
 ];
 
@@ -54,7 +53,7 @@ export const InitialMockRoleReportPermissions: Readonly<Record<string, Record<Mo
     AccountBalance: FullPermission(), Activity: FullPermission(), InventoryTransferHana: NoPermission(),
     DocumentsV2WithSerialAndBatchDetails: NoPermission(), ProductionOrder: NoPermission(), ServiceContract: NoPermission(),
   },
-  PURCHASING: {
+  PURCHASE: {
     AccountBalance: NoPermission(), Activity: NoPermission(), InventoryTransferHana: NoPermission(),
     DocumentsV2WithSerialAndBatchDetails: FullPermission(), ProductionOrder: FullPermission(), ServiceContract: NoPermission(),
   },

@@ -8,7 +8,7 @@ import { MockRbacService } from './mock-rbac.service';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private CurrentMockUser: MockUser | null = null;
-  private ActiveRoleOverride: MockRoleKey | null = null;
+  private ActiveRolesOverride: readonly MockRoleKey[] | null = null;
 
   constructor(private readonly MockRbac: MockRbacService) {}
 
@@ -29,42 +29,42 @@ export class AuthService {
   }
 
   get IsAdmin(): boolean {
-    return this.ActiveRoleKey === 'ADMIN';
+    return this.CurrentMockUser?.Roles.includes('ADMIN') ?? false;
   }
 
-  get CanSwitchDemoRole(): boolean { return this.CurrentMockUser?.Role === 'ADMIN'; }
-  get ActiveRoleKey(): MockRoleKey | null { return this.ActiveRoleOverride ?? this.CurrentMockUser?.Role ?? null; }
-  get ActiveRole(): MockRole | null { return this.ActiveRoleKey ? this.MockRbac.GetRole(this.ActiveRoleKey) : null; }
+  get CanSwitchDemoRole(): boolean { return this.IsAdmin; }
+  get ActiveRoles(): readonly MockRoleKey[] { return this.ActiveRolesOverride ?? this.CurrentMockUser?.Roles ?? []; }
+  get ActiveRoleNames(): string { return this.ActiveRoles.map((Role) => this.MockRbac.GetRole(Role)?.DisplayName ?? Role).join('、'); }
   get DemoRoles(): readonly MockRole[] { return this.MockRbac.Roles; }
-  get AccessibleReports(): readonly MockReport[] { return this.ActiveRoleKey ? this.MockRbac.GetAccessibleReports(this.ActiveRoleKey) : []; }
-  get SelectedReport(): MockReport | null { return this.ActiveRoleKey ? this.MockRbac.GetSelectedReport(this.ActiveRoleKey) : null; }
+  get AccessibleReports(): readonly MockReport[] { return this.MockRbac.GetAccessibleReports(this.ActiveRoles); }
+  get SelectedReport(): MockReport | null { return this.MockRbac.GetSelectedReport(this.ActiveRoles); }
 
   Login(Account: string, Password: string): boolean {
     const AuthenticatedUser = this.MockRbac.Authenticate(Account, Password);
     this.CurrentMockUser = AuthenticatedUser;
-    this.ActiveRoleOverride = null;
+    this.ActiveRolesOverride = null;
     return AuthenticatedUser !== null;
   }
 
   Logout(): void {
     this.CurrentMockUser = null;
-    this.ActiveRoleOverride = null;
+    this.ActiveRolesOverride = null;
   }
 
   RefreshCurrentUser(PreviousAccount: string, CurrentAccount: string): void {
     if (this.CurrentMockUser?.Account !== PreviousAccount) return;
     this.CurrentMockUser = this.MockRbac.GetUser(CurrentAccount);
-    if (this.CurrentMockUser?.Role !== 'ADMIN') this.ActiveRoleOverride = null;
+    if (!this.IsAdmin) this.ActiveRolesOverride = null;
   }
 
-  SwitchDemoRole(Role: MockRoleKey): void { if (this.CanSwitchDemoRole) this.ActiveRoleOverride = Role; }
+  SwitchDemoRole(Role: MockRoleKey): void { if (this.CanSwitchDemoRole) this.ActiveRolesOverride = [Role]; }
   SelectReport(ReportKey: MockReportKey): void { this.MockRbac.SelectReport(ReportKey); }
 
   get ReportPermission(): MockReportPermission {
-    return this.ActiveRoleKey && this.SelectedReport ? this.MockRbac.GetReportPermission(this.ActiveRoleKey, this.SelectedReport.ReportKey) : { CanView: false, CanExecute: false, CanExportPdf: false, CanPrint: false };
+    return this.SelectedReport ? this.MockRbac.GetEffectiveReportPermission(this.ActiveRoles, this.SelectedReport.ReportKey) : { CanExecute: false, CanExportPdf: false, CanPrint: false };
   }
 
   HasManagementPermission(Permission: MockManagementPermission): boolean {
-    return this.ActiveRoleKey ? this.MockRbac.HasManagementPermission(this.ActiveRoleKey, Permission) : false;
+    return this.IsAdmin && this.MockRbac.HasManagementPermission('ADMIN', Permission);
   }
 }

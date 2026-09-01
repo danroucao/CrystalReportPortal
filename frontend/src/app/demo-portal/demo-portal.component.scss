@@ -103,19 +103,11 @@ button:hover {
 }
 .portal-main {
   min-width: 0;
-  padding: 2rem;
+  padding: 1.5rem 2rem 2rem;
 }
 .portal-main h1 {
-  margin: 1rem 0;
+  margin: 0 0 1rem;
   font-size: 1.6rem;
-}
-.demo-banner {
-  margin: 0;
-  padding: 0.75rem 1rem;
-  border-left: 4px solid var(--color-secondary);
-  color: #674a1f;
-  background: #fdf7ea;
-  font-size: 0.8125rem;
 }
 .content-card {
   padding: 1.5rem;

@@ -49,3 +49,106 @@ input:disabled { cursor: wait; background: #f4f1ec; }
 .demo-accounts td:nth-child(2) { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .preview-note { margin: 1.1rem 0 0; color: #485364; font-size: 0.75rem; line-height: 1.6; }
 @media (max-width: 480px) { .login-page { padding: 0.5rem 0.75rem; } .login-card { padding: 2rem 1.25rem 1.5rem; } }
+
+/* Login shell aligned with the approved portal entry layout. */
+.login-page {
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  padding: 0;
+  background: #f6f6f5;
+}
+.login-header {
+  flex: 0 0 auto;
+  min-height: 68px;
+  background: #fff;
+}
+.login-brand-bar {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 2rem;
+  border-top: 4px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-border);
+}
+.login-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-text);
+}
+.login-brand-mark {
+  display: grid;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 4px;
+  color: #fff;
+  background: var(--color-primary);
+  font-size: 0.625rem;
+  font-weight: 800;
+}
+.login-brand strong,
+.login-brand span:not(.login-brand-mark) { display: block; }
+.login-brand strong {
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.login-brand span:not(.login-brand-mark),
+.login-support { color: var(--color-muted); font-size: 0.75rem; }
+.login-support {
+  flex: 0 0 auto;
+  line-height: 1.25;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.login-page-content {
+  display: grid;
+  flex: 1 1 auto;
+  place-items: center;
+  padding: 1.75rem 1.125rem;
+}
+.login-card {
+  width: min(100%, 429px);
+  padding: 1.8rem 1.65rem 1.65rem;
+  border-radius: 7px;
+  box-shadow: 0 8px 22px rgb(32 32 31 / 9%);
+}
+.login-card h1 { font-size: 1.65rem; letter-spacing: 0.06em; }
+.login-card .intro { margin: 0.5rem 0 1.65rem; color: #66645f; font-size: 0.825rem; }
+.login-card .field { margin-bottom: 1.1rem; }
+.login-card label { margin-bottom: 0.45rem; font-size: 0.825rem; }
+.login-card input { height: 42px; padding: 0 0.7rem; border-radius: 5px; font-size: 0.825rem; }
+.login-card .password-toggle { min-width: 3.5rem; height: 2.2rem; font-size: 0.77rem; }
+.login-card .field-error { min-height: 1.2rem; margin-top: 0.35rem; text-align: left; font-size: 0.715rem; }
+.login-card .submit-button { min-height: 44px; border-radius: 5px; font-size: 0.825rem; }
+.login-card .demo-accounts { margin-top: 1.2rem; padding-top: 1rem; }
+.login-card .demo-accounts h2 { font-size: 0.825rem; }
+.login-card .demo-accounts p { margin: 0.35rem 0 0.65rem; font-size: 0.68rem; }
+.login-card .demo-accounts table { font-size: 0.68rem; }
+.login-card .demo-accounts th,
+.login-card .demo-accounts td { padding: 0.4rem 0.35rem; }
+.login-card .demo-accounts table { table-layout: fixed; }
+.login-card .demo-accounts th:nth-child(1),
+.login-card .demo-accounts td:nth-child(1) { width: 47%; }
+.login-card .demo-accounts th:nth-child(2),
+.login-card .demo-accounts td:nth-child(2) { width: 23%; }
+.login-card .demo-accounts td:nth-child(3) { white-space: nowrap; }
+.login-card .preview-note { margin-top: 1rem; font-size: 0.68rem; }
+.login-footer { padding: 0.4rem 1rem 0.55rem; color: #8a8883; font-size: 0.58rem; text-align: center; }
+
+@media (max-width: 480px) {
+  .login-page { padding: 0; }
+  .login-brand-bar { padding-right: 0.85rem; padding-left: 0.85rem; }
+  .login-page-content { padding: 1rem 0.75rem; }
+  .login-card { padding: 1.55rem 1.2rem; }
+}

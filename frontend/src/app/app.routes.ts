@@ -32,6 +32,13 @@ export const routes: Routes = [
     title: '報表預覽｜Crystal Reports 外部報表系統',
   },
   {
+    path: 'account/settings',
+    component: DemoPortalComponent,
+    canActivate: [DemoAuthGuard],
+    data: { Page: 'AccountSettings' },
+    title: '帳號設定｜Crystal Reports 外部報表系統',
+  },
+  {
     path: 'admin/users',
     component: DemoPortalComponent,
     canActivate: [DemoAdminGuard],
