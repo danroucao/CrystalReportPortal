@@ -49,6 +49,31 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        var userIdText = User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
+
+        if (!long.TryParse(userIdText, out var userId))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "無法取得目前登入者"
+            });
+        }
+
+        await _authService.LogoutAsync(userId);
+
+        return Ok(new
+        {
+            success = true,
+            message = "登出成功，舊 Token 已失效"
+        });
+    }
+
+    [Authorize]
     [HttpGet("me")]
     public IActionResult GetCurrentUser()
     {

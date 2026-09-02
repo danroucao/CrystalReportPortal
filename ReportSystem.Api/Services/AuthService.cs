@@ -12,6 +12,7 @@ namespace ReportSystem.Api.Services;
 public class AuthService : IAuthService
 {
     private const string LoginAction = "LOGIN";
+    private const string LogoutAction = "LOGOUT";
     private const int MaximumFailedLogins = 5;
     private static readonly TimeSpan LockWindow = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan PasswordLifetime = TimeSpan.FromDays(90);
@@ -59,7 +60,7 @@ public class AuthService : IAuthService
             return LoginFailed("帳號或密碼錯誤");
         }
 
-        var passwordReferenceTime = user.UpdatedAt ?? user.CreatedAt;
+        var passwordReferenceTime = user.PasswordChangedAt ?? user.CreatedAt;
         if (passwordReferenceTime.ToUniversalTime().Add(PasswordLifetime) <= DateTime.UtcNow)
         {
             await WriteAuditLogAsync(user.UserId, "DENIED", null, "密碼已超過 90 天未更新");
@@ -90,11 +91,12 @@ public class AuthService : IAuthService
             _configuration.GetValue<int>("Jwt:ExpireMinutes");
 
         var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new(ClaimTypes.Name, user.UserName),
-            new("EmployeeNo", user.EmployeeNo)
-        };
+{
+    new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+    new(ClaimTypes.Name, user.UserName),
+    new("EmployeeNo", user.EmployeeNo),
+    new("TokenVersion", user.TokenVersion.ToString())
+};
 
         claims.AddRange(
             roles.Select(role => new Claim(ClaimTypes.Role, role)));
@@ -136,6 +138,30 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task LogoutAsync(long userId)
+    {
+        var user = await _dbContext.Users.SingleOrDefaultAsync(
+            candidate => candidate.UserId == userId);
+
+        if (user == null)
+        {
+            return;
+        }
+
+        user.TokenVersion += 1;
+
+        _dbContext.AuditLogs.Add(new AuditLog
+        {
+            UserId = user.UserId,
+            Action = LogoutAction,
+            Result = "SUCCESS",
+            Details = "使用者登出，舊 Token 已失效",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _dbContext.SaveChangesAsync();
+    }
+
     private static LoginResponse LoginFailed(string message)
     {
         return new LoginResponse
@@ -166,8 +192,13 @@ public class AuthService : IAuthService
             return LoginFailed("帳號、目前密碼錯誤，或帳號已停用");
         }
 
+        var now = DateTime.UtcNow;
+
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-        user.UpdatedAt = DateTime.UtcNow;
+        user.PasswordChangedAt = now;
+        user.TokenVersion += 1;
+        user.UpdatedAt = now;
+
         await WriteAuditLogAsync(user.UserId, "SUCCESS", null, "密碼已更新");
         await _dbContext.SaveChangesAsync();
 
