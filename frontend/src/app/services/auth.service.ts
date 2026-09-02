@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 
-import { MockManagementPermission, MockReportPermission, MockRole, MockRoleKey } from '../mock/mock-permissions';
+import { MockCategoryPermission, MockManagementPermission, MockRole, MockRoleKey } from '../mock/mock-permissions';
 import { MockReport, MockReportKey } from '../mock/mock-reports';
 import { MockUser } from '../mock/mock-users';
-import { MockRbacService } from './mock-rbac.service';
+import { MockRbacService, MockReportSearchCriteria } from './mock-rbac.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -38,17 +38,22 @@ export class AuthService {
   get DemoRoles(): readonly MockRole[] { return this.MockRbac.Roles; }
   get AccessibleReports(): readonly MockReport[] { return this.MockRbac.GetAccessibleReports(this.ActiveRoles); }
   get SelectedReport(): MockReport | null { return this.MockRbac.GetSelectedReport(this.ActiveRoles); }
+  get SelectedReportSearchCriteria(): MockReportSearchCriteria | null {
+    return this.MockRbac.GetSelectedReportSearchCriteria();
+  }
 
   Login(Account: string, Password: string): boolean {
     const AuthenticatedUser = this.MockRbac.Authenticate(Account, Password);
     this.CurrentMockUser = AuthenticatedUser;
     this.ActiveRolesOverride = null;
+    this.MockRbac.ClearSelectedReport();
     return AuthenticatedUser !== null;
   }
 
   Logout(): void {
     this.CurrentMockUser = null;
     this.ActiveRolesOverride = null;
+    this.MockRbac.ClearSelectedReport();
   }
 
   RefreshCurrentUser(PreviousAccount: string, CurrentAccount: string): void {
@@ -58,10 +63,18 @@ export class AuthService {
   }
 
   SwitchDemoRole(Role: MockRoleKey): void { if (this.CanSwitchDemoRole) this.ActiveRolesOverride = [Role]; }
-  SelectReport(ReportKey: MockReportKey): void { this.MockRbac.SelectReport(ReportKey); }
+  SelectReport(
+    ReportKey: MockReportKey,
+    SearchCriteria: MockReportSearchCriteria | null = null,
+  ): void { this.MockRbac.SelectReport(ReportKey, SearchCriteria); }
 
-  get ReportPermission(): MockReportPermission {
-    return this.SelectedReport ? this.MockRbac.GetEffectiveReportPermission(this.ActiveRoles, this.SelectedReport.ReportKey) : { CanExecute: false, CanExportPdf: false, CanPrint: false };
+  get SelectedReportCategoryPermission(): MockCategoryPermission {
+    return this.SelectedReport
+      ? this.MockRbac.GetEffectiveCategoryPermission(
+          this.ActiveRoles,
+          this.SelectedReport.Category,
+        )
+      : { CanExecute: false, CanExportPdf: false, CanPrint: false };
   }
 
   HasManagementPermission(Permission: MockManagementPermission): boolean {

@@ -15,14 +15,14 @@ export const routes: Routes = [
     component: DemoPortalComponent,
     canActivate: [DemoAuthGuard],
     data: { Page: 'ReportList' },
-    title: '我的報表｜Crystal Reports 外部報表系統',
+    title: '收藏的報表｜Crystal Reports 外部報表系統',
   },
   {
     path: 'reports/parameters',
     component: DemoPortalComponent,
     canActivate: [DemoAuthGuard],
     data: { Page: 'ReportParameter' },
-    title: '報表條件｜Crystal Reports 外部報表系統',
+    title: '報表搜尋 / 報表條件｜Crystal Reports 外部報表系統',
   },
   {
     path: 'reports/preview',
@@ -46,25 +46,11 @@ export const routes: Routes = [
     title: '使用者管理｜Crystal Reports 外部報表系統',
   },
   {
-    path: 'admin/permissions',
-    component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
-    data: { Page: 'ReportPermission' },
-    title: '報表權限｜Crystal Reports 外部報表系統',
-  },
-  {
     path: 'admin/reports',
     component: DemoPortalComponent,
     canActivate: [DemoAdminGuard],
     data: { Page: 'RptManagement' },
-    title: 'RPT 管理｜Crystal Reports 外部報表系統',
-  },
-  {
-    path: 'admin/parameters',
-    component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
-    data: { Page: 'ReportParameterSetting' },
-    title: '報表參數設定｜Crystal Reports 外部報表系統',
+    title: '報表管理｜Crystal Reports 外部報表系統',
   },
   {
     path: 'admin/database-connections',
