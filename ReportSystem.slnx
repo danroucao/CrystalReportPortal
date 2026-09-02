@@ -1,3 +1,3 @@
 <Solution>
-  <Project Path="ReportSystem.Api/ReportSystem.Api.csproj" />
+  <Project Path="backend/ReportSystem.Api/ReportSystem.Api.csproj" />
 </Solution>
