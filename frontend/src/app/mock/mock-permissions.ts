@@ -1,3 +1,5 @@
+import type { MockReportCategoryId } from './mock-report-categories';
+
 export type MockRoleKey = string;
 
 export type MockManagementPermission =
@@ -20,7 +22,8 @@ export interface MockCategoryPermission {
 }
 
 export interface MockCategoryPermissionEntry {
-  readonly Category: string;
+  readonly CategoryId: MockReportCategoryId;
+  readonly CategoryName: string;
   Permission: MockCategoryPermission;
 }
 
@@ -40,17 +43,19 @@ export const MockRoles: readonly MockRole[] = [
 ];
 
 // Permission rows are intentionally keyed by report category, never by an individual report.
-export const InitialMockRoleCategoryPermissions: Readonly<Record<string, Record<string, MockCategoryPermission>>> = {
+export const InitialMockRoleCategoryPermissions: Readonly<
+  Record<string, Readonly<Record<MockReportCategoryId, MockCategoryPermission>>>
+> = {
   FINANCE: {
-    '財務': FullPermission(),
-    '活動': FullPermission(),
+    FINANCE: FullPermission(),
+    ACTIVITY: FullPermission(),
   },
   PURCHASE: {
-    '文件與發票': FullPermission(),
-    '生產': FullPermission(),
+    DOCUMENT_INVOICE: FullPermission(),
+    PRODUCTION: FullPermission(),
   },
   WAREHOUSE: {
-    '庫存': FullPermission(),
+    INVENTORY: FullPermission(),
   },
 };
 

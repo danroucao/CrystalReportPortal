@@ -30,7 +30,8 @@ import {
   MockRole,
   MockRoleKey,
 } from '../mock/mock-permissions';
-import { MockReport, MockReportKey } from '../mock/mock-reports';
+import { MockReportCategory } from '../mock/mock-report-categories';
+import { MockReportKey, MockReportReadModel } from '../mock/mock-reports';
 import { AuthService } from '../services/auth.service';
 import {
   MockAccountSettingsDraft,
@@ -89,12 +90,13 @@ type ReportManagementSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
 type ReportManagementSortDirection = 'asc' | 'desc';
 
 interface ParameterReportCategoryTab {
-  readonly Category: string;
+  readonly CategoryId: string;
+  readonly CategoryName: string;
   readonly Count: number;
 }
 
 interface ParameterReportSearchState {
-  readonly Category: string;
+  readonly CategoryId: string;
   readonly SearchText: string;
   readonly SortField: ParameterReportSortField | null;
   readonly SortDirection: ParameterReportSortDirection;
@@ -104,7 +106,7 @@ interface ParameterReportSearchState {
 
 interface ReportEditorDraft {
   ReportName: string;
-  Category: string;
+  CategoryId: string;
   Enabled: boolean;
 }
 
@@ -132,6 +134,7 @@ interface CreatedUserCredentials {
 })
 export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly PaginationPageSize = 10;
+  readonly AllCategoryFilterValue = 'ALL';
   readonly Auth = inject(AuthService);
   readonly MockRbac = inject(MockRbacService);
   readonly ReportParameters = inject(MockReportParameterService);
@@ -141,9 +144,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
 
   readonly Page = this.route.snapshot.data['Page'] as DemoPortalPage;
-  SelectedFavoriteCategory = '全部';
+  SelectedFavoriteCategoryId = this.AllCategoryFilterValue;
   FavoriteSearchText = '';
-  SelectedParameterReportCategory = '全部';
+  SelectedParameterReportCategoryId = this.AllCategoryFilterValue;
   IsFavoriteReportSortActive = false;
   FavoriteReportSortField: FavoriteReportSortField = 'LastUsedAt';
   FavoriteReportSortDirection: FavoriteReportSortDirection = 'desc';
@@ -210,14 +213,25 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   ReportManagementStartDate = '';
   ReportManagementEndDate = '';
   ReportManagementDateNotice = '';
-  ReportManagementCategory = '全部';
+  ReportManagementCategoryId = this.AllCategoryFilterValue;
   ReportManagementSearchText = '';
   ReportManagementSortField: ReportManagementSortField | null = null;
   ReportManagementSortDirection: ReportManagementSortDirection = 'asc';
   ReportManagementCurrentPage = 1;
+  IsCategoryManagementDialogOpen = false;
+  NewCategoryName = '';
+  CategoryCreateError = '';
+  EditingCategoryId: string | null = null;
+  EditingCategoryName = '';
+  CategoryEditError = '';
+  DeletingCategory: MockReportCategory | null = null;
+  CategoryDeleteError = '';
   IsUploadReportDialogOpen = false;
+  IsReportCategoryQuickAddOpen = false;
+  QuickAddCategoryName = '';
+  QuickAddCategoryError = '';
   EditingReportKey: MockReportKey | null = null;
-  DeletingReport: MockReport | null = null;
+  DeletingReport: MockReportReadModel | null = null;
   ReportEditorDraft: ReportEditorDraft = this.CreateReportEditorDraft();
   SelectedReportFileName = '';
   ReportEditorError = '';
@@ -294,8 +308,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       : [];
   }
 
-  get FavoriteReportCategories(): readonly string[] {
-    return [...new Set(this.FavoriteReports.map(({ Report }) => Report.Category))];
+  get FavoriteReportCategories() {
+    return this.MockRbac.GetReportFilterCategories(this.Auth.ActiveRoles);
   }
 
   get DisplayedFavoriteReports(): readonly MockFavoriteReport[] {
@@ -304,8 +318,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.FavoriteReports
       .filter(
         ({ Report }) =>
-          (this.SelectedFavoriteCategory === '全部' ||
-            Report.Category === this.SelectedFavoriteCategory) &&
+          (this.SelectedFavoriteCategoryId === this.AllCategoryFilterValue ||
+            Report.CategoryId === this.SelectedFavoriteCategoryId) &&
           (!SearchText ||
             Report.ReportName.toLocaleLowerCase('zh-Hant').includes(SearchText) ||
             Report.Description.toLocaleLowerCase('zh-Hant').includes(SearchText)),
@@ -335,8 +349,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
-  SetFavoriteCategory(Category: string): void {
-    this.SelectedFavoriteCategory = Category;
+  SetFavoriteCategory(CategoryId: string): void {
+    this.SelectedFavoriteCategoryId = CategoryId;
   }
 
   ToggleFavoriteReportNameSort(): void {
@@ -393,12 +407,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (
-      this.SelectedFavoriteCategory !== '全部' &&
-      !this.FavoriteReports.some(
-        ({ Report }) => Report.Category === this.SelectedFavoriteCategory,
+      this.SelectedFavoriteCategoryId !== this.AllCategoryFilterValue &&
+      !this.FavoriteReportCategories.some(
+        (Category) => Category.CategoryId === this.SelectedFavoriteCategoryId,
       )
     ) {
-      this.SelectedFavoriteCategory = '全部';
+      this.SelectedFavoriteCategoryId = this.AllCategoryFilterValue;
     }
     this.ShowSuccessToast(`已取消收藏「${Favorite.Report.ReportName}」。`);
   }
@@ -429,23 +443,29 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get ParameterReportCategoryTabs(): readonly ParameterReportCategoryTab[] {
     const Reports = this.ParameterAccessibleReports;
-    const Categories = [...new Set(Reports.map((Report) => Report.Category))];
     return [
-      { Category: '全部', Count: Reports.length },
-      ...Categories.map((Category) => ({
-        Category,
-        Count: Reports.filter((Report) => Report.Category === Category).length,
+      {
+        CategoryId: this.AllCategoryFilterValue,
+        CategoryName: '全部',
+        Count: Reports.length,
+      },
+      ...this.MockRbac.GetReportFilterCategories(this.Auth.ActiveRoles).map((Category) => ({
+        CategoryId: Category.CategoryId,
+        CategoryName: Category.CategoryName,
+        Count: Reports.filter(
+          (Report) => Report.CategoryId === Category.CategoryId,
+        ).length,
       })),
     ];
   }
 
-  SetParameterReportCategory(Category: string): void {
-    this.SelectedParameterReportCategory = Category;
+  SetParameterReportCategory(CategoryId: string): void {
+    this.SelectedParameterReportCategoryId = CategoryId;
     this.ResetParameterReportPagination();
   }
 
-  get ParameterReportCategories(): readonly string[] {
-    return this.ParameterReportCategoryTabs.slice(1).map((Tab) => Tab.Category);
+  get ParameterReportCategories() {
+    return this.ParameterReportCategoryTabs.slice(1);
   }
 
   get ParameterReportDateValidationMessage(): string {
@@ -473,10 +493,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     const SearchText = this.ParameterReportSearchText.trim().toLocaleLowerCase();
     const Reports = this.ParameterAccessibleReports.filter(
       (Report) =>
-        (this.SelectedParameterReportCategory === '全部' ||
-          Report.Category === this.SelectedParameterReportCategory) &&
+        (this.SelectedParameterReportCategoryId === this.AllCategoryFilterValue ||
+          Report.CategoryId === this.SelectedParameterReportCategoryId) &&
         (!SearchText ||
-          `${Report.ReportName} ${Report.Category} ${Report.Description}`
+          `${Report.ReportName} ${Report.CategoryName} ${Report.Description}`
             .toLocaleLowerCase()
             .includes(SearchText)),
     );
@@ -1115,6 +1135,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('document:keydown.escape')
   CloseEditUserOnEscape(): void {
     if (this.IsExportMenuOpen) this.IsExportMenuOpen = false;
+    else if (this.DeletingCategory) this.CloseDeleteCategoryDialog();
+    else if (this.IsCategoryManagementDialogOpen)
+      this.CloseCategoryManagementDialog();
+    else if (this.IsReportCategoryQuickAddOpen)
+      this.CloseReportCategoryQuickAdd();
     else if (this.IsUploadReportDialogOpen) this.CloseReportEditor();
     else if (this.DeletingReport) this.CloseDeleteReportDialog();
     else if (this.EditingUser) this.CancelEditUser();
@@ -1146,16 +1171,30 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ShowSuccessToast(Enabled ? '報表已在 Mock 資料中啟用。' : '報表已在 Mock 資料中停用。');
   }
 
-  get ReportManagementCategories(): readonly string[] {
-    return this.MockRbac.ReportCategories;
+  get ReportManagementCategories() {
+    return this.MockRbac.GetReportManagementCategories();
   }
 
-  get DisplayedManagedReports(): readonly MockReport[] {
+  get CategoryManagementCategories(): readonly MockReportCategory[] {
+    const Categories = this.MockRbac.GetCategories();
+    return [
+      ...Categories.filter((Category) => !Category.IsSystemReserved),
+      ...Categories.filter((Category) => Category.IsSystemReserved),
+    ];
+  }
+
+  get ReportEditorCategories() {
+    return this.MockRbac.GetReportEditorCategories(
+      this.ReportEditorDraft.CategoryId,
+    );
+  }
+
+  get DisplayedManagedReports(): readonly MockReportReadModel[] {
     const SearchText = this.ReportManagementSearchText.trim().toLocaleLowerCase();
     const Reports = this.MockRbac.Reports.filter(
       (Report) =>
-        (this.ReportManagementCategory === '全部' ||
-          Report.Category === this.ReportManagementCategory) &&
+        (this.ReportManagementCategoryId === this.AllCategoryFilterValue ||
+          Report.CategoryId === this.ReportManagementCategoryId) &&
         (!SearchText ||
           `${Report.ReportName} ${Report.Description}`
             .toLocaleLowerCase()
@@ -1185,7 +1224,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.GetPageNumbers(this.ReportManagementTotalPages);
   }
 
-  get PagedManagedReports(): readonly MockReport[] {
+  get PagedManagedReports(): readonly MockReportReadModel[] {
     return this.GetPagedItems(
       this.DisplayedManagedReports,
       this.ReportManagementCurrentPage,
@@ -1223,8 +1262,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       : 'descending';
   }
 
-  SetReportManagementCategory(Category: string): void {
-    this.ReportManagementCategory = Category;
+  SetReportManagementCategory(CategoryId: string): void {
+    this.ReportManagementCategoryId = CategoryId;
     this.ResetReportManagementPagination();
   }
 
@@ -1264,12 +1303,131 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  OpenCategoryManagementDialog(): void {
+    if (!this.Auth.IsAdmin) return;
+    this.NewCategoryName = '';
+    this.CategoryCreateError = '';
+    this.CancelCategoryEdit();
+    this.CategoryDeleteError = '';
+    this.IsCategoryManagementDialogOpen = true;
+  }
+
+  CloseCategoryManagementDialog(): void {
+    this.IsCategoryManagementDialogOpen = false;
+    this.NewCategoryName = '';
+    this.CategoryCreateError = '';
+    this.CancelCategoryEdit();
+    this.CategoryDeleteError = '';
+  }
+
+  CreateManagedCategory(): void {
+    if (!this.Auth.IsAdmin) return;
+    const Result = this.MockRbac.CreateCategory(this.NewCategoryName);
+    const Messages: Record<Exclude<typeof Result.Status, 'created'>, string> = {
+      'invalid-name': '請輸入分類名稱。',
+      'duplicate-name': '分類名稱已存在，請使用其他名稱。',
+      'system-reserved-name': '此名稱為系統保留分類，不可建立。',
+    };
+    if (Result.Status !== 'created') {
+      this.CategoryCreateError = Messages[Result.Status];
+      return;
+    }
+    this.NewCategoryName = '';
+    this.CategoryCreateError = '';
+    this.ShowSuccessToast(`新增報表分類「${Result.Category.CategoryName}」成功！`);
+  }
+
+  StartCategoryEdit(Category: MockReportCategory): void {
+    if (!this.Auth.IsAdmin || Category.IsSystemReserved) return;
+    this.EditingCategoryId = Category.CategoryId;
+    this.EditingCategoryName = Category.CategoryName;
+    this.CategoryEditError = '';
+  }
+
+  CancelCategoryEdit(): void {
+    this.EditingCategoryId = null;
+    this.EditingCategoryName = '';
+    this.CategoryEditError = '';
+  }
+
+  SaveCategoryEdit(): void {
+    if (!this.Auth.IsAdmin || !this.EditingCategoryId) return;
+    const Result = this.MockRbac.RenameCategory(
+      this.EditingCategoryId,
+      this.EditingCategoryName,
+    );
+    const Messages: Record<Exclude<typeof Result.Status, 'renamed'>, string> = {
+      'not-found': '找不到要編輯的報表分類。',
+      'invalid-name': '請輸入分類名稱。',
+      'duplicate-name': '分類名稱已存在，請使用其他名稱。',
+      'system-reserved': '系統保留分類不可重新命名。',
+    };
+    if (Result.Status !== 'renamed') {
+      this.CategoryEditError = Messages[Result.Status];
+      return;
+    }
+    this.CancelCategoryEdit();
+    this.ShowSuccessToast(`報表分類已更新為「${Result.Category.CategoryName}」。`);
+  }
+
+  OpenDeleteCategoryDialog(CategoryId: string): void {
+    if (!this.Auth.IsAdmin) return;
+    const Category = this.MockRbac
+      .GetCategories()
+      .find((Entry) => Entry.CategoryId === CategoryId);
+    if (!Category || Category.IsSystemReserved) return;
+    this.CategoryDeleteError = '';
+    this.DeletingCategory = Category;
+  }
+
+  CloseDeleteCategoryDialog(): void {
+    this.DeletingCategory = null;
+    this.CategoryDeleteError = '';
+  }
+
+  ConfirmDeleteCategory(): void {
+    if (!this.Auth.IsAdmin || !this.DeletingCategory) return;
+    const CategoryId = this.DeletingCategory.CategoryId;
+    const Result = this.MockRbac.DeleteCategory(CategoryId);
+    const Messages: Record<Exclude<typeof Result.Status, 'deleted'>, string> = {
+      'not-found': '找不到要刪除的報表分類。',
+      'system-reserved': '系統保留分類不可刪除。',
+    };
+    if (Result.Status !== 'deleted') {
+      this.CategoryDeleteError = Messages[Result.Status];
+      return;
+    }
+    if (this.ReportManagementCategoryId === CategoryId) {
+      this.SetReportManagementCategory(this.AllCategoryFilterValue);
+    }
+    if (this.EditingCategoryId === CategoryId) this.CancelCategoryEdit();
+    this.CloseDeleteCategoryDialog();
+    this.ShowSuccessToast(
+      Result.MovedReportCount
+        ? `分類「${Result.DeletedCategoryName}」已刪除。${Result.MovedReportCount} 份報表已移至「未分類」，請重新設定報表分類。`
+        : `分類「${Result.DeletedCategoryName}」已刪除。`,
+    );
+  }
+
+  GetCategoryUsageCount(CategoryId: string): number {
+    return this.MockRbac.GetCategoryUsageCount(CategoryId) ?? 0;
+  }
+
+  GetCategoryUsageLabel(Category: MockReportCategory): string {
+    const UsageCount = this.GetCategoryUsageCount(Category.CategoryId);
+    if (Category.IsSystemReserved && UsageCount > 0) {
+      return `${UsageCount} 份報表待重新分類`;
+    }
+    return `${UsageCount} 份報表使用中`;
+  }
+
   OpenUploadReportDialog(): void {
     this.EditingReportKey = null;
     this.ReportEditorDraft = this.CreateReportEditorDraft();
     this.SelectedReportFileName = '';
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
+    this.CloseReportCategoryQuickAdd();
     this.IsUploadReportDialogOpen = true;
   }
 
@@ -1279,12 +1437,13 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.EditingReportKey = Report.ReportKey;
     this.ReportEditorDraft = {
       ReportName: Report.ReportName,
-      Category: Report.Category,
+      CategoryId: Report.CategoryId,
       Enabled: Report.Enabled,
     };
     this.SelectedReportFileName = Report.FileName;
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
+    this.CloseReportCategoryQuickAdd();
     this.IsUploadReportDialogOpen = true;
   }
 
@@ -1295,6 +1454,38 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.SelectedReportFileName = '';
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
+    this.CloseReportCategoryQuickAdd();
+  }
+
+  OpenReportCategoryQuickAdd(): void {
+    if (!this.Auth.IsAdmin || !this.IsUploadReportDialogOpen || this.EditingReportKey)
+      return;
+    this.QuickAddCategoryName = '';
+    this.QuickAddCategoryError = '';
+    this.IsReportCategoryQuickAddOpen = true;
+  }
+
+  CloseReportCategoryQuickAdd(): void {
+    this.IsReportCategoryQuickAddOpen = false;
+    this.QuickAddCategoryName = '';
+    this.QuickAddCategoryError = '';
+  }
+
+  CreateReportCategoryQuickAdd(): void {
+    if (!this.Auth.IsAdmin || !this.IsReportCategoryQuickAddOpen) return;
+    const Result = this.MockRbac.CreateCategory(this.QuickAddCategoryName);
+    const Messages: Record<Exclude<typeof Result.Status, 'created'>, string> = {
+      'invalid-name': '請輸入報表分類名稱。',
+      'duplicate-name': '此報表分類已存在。',
+      'system-reserved-name': '此名稱為系統保留分類，不可建立。',
+    };
+    if (Result.Status !== 'created') {
+      this.QuickAddCategoryError = Messages[Result.Status];
+      return;
+    }
+    this.ReportEditorDraft.CategoryId = Result.Category.CategoryId;
+    this.CloseReportCategoryQuickAdd();
+    this.ShowSuccessToast(`新增報表分類「${Result.Category.CategoryName}」成功！`);
   }
 
   OnReportFileSelected(Event: Event): void {
@@ -1322,12 +1513,16 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     const IsEditing = this.EditingReportKey !== null;
     const IsSaved = IsEditing
       ? this.MockRbac.UpdateReport(this.EditingReportKey!, {
-          ...this.ReportEditorDraft,
+          ReportName: this.ReportEditorDraft.ReportName,
+          CategoryId: this.ReportEditorDraft.CategoryId,
+          Enabled: this.ReportEditorDraft.Enabled,
           FileName: this.SelectedReportFileName,
         })
       : Boolean(
           this.MockRbac.CreateReport({
-            ...this.ReportEditorDraft,
+            ReportName: this.ReportEditorDraft.ReportName,
+            CategoryId: this.ReportEditorDraft.CategoryId,
+            Enabled: this.ReportEditorDraft.Enabled,
             FileName: this.SelectedReportFileName,
           }),
         );
@@ -1569,6 +1764,13 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  TrackByCategoryPermissionEntry(
+    _Index: number,
+    Entry: MockCategoryPermissionEntry,
+  ): string {
+    return Entry.CategoryId;
+  }
+
   SaveAccountSettings(): void {
     const CurrentUser = this.Auth.CurrentUser;
     if (!CurrentUser) return;
@@ -1620,7 +1822,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private CreateReportEditorDraft(): ReportEditorDraft {
     return {
       ReportName: '',
-      Category: '',
+      CategoryId: '',
       Enabled: false,
     };
   }
@@ -1632,7 +1834,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.ReportEditorDraft.ReportName.trim()) {
       return '請輸入報表名稱。';
     }
-    if (!this.ReportEditorDraft.Category) {
+    if (!this.ReportEditorDraft.CategoryId) {
       return '請選擇報表分類。';
     }
     if (!this.EditingReportKey && !this.SelectedReportFileName) {
@@ -1961,7 +2163,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private CreateParameterSearchState(): ParameterReportSearchState {
     return {
-      Category: this.SelectedParameterReportCategory,
+      CategoryId: this.SelectedParameterReportCategoryId,
       SearchText: this.ParameterReportSearchText,
       SortField: this.ParameterReportSortField,
       SortDirection: this.ParameterReportSortDirection,
@@ -2010,7 +2212,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private RestoreParameterSearchState(State: unknown): void {
     const SearchState = this.ToParameterSearchState(State);
     if (!SearchState) return;
-    this.SelectedParameterReportCategory = SearchState.Category;
+    this.SelectedParameterReportCategoryId = SearchState.CategoryId;
     this.ParameterReportSearchText = SearchState.SearchText;
     this.ParameterReportSortField = SearchState.SortField;
     this.ParameterReportSortDirection = SearchState.SortDirection;
@@ -2022,7 +2224,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!State || typeof State !== 'object') return null;
     const Value = State as Partial<ParameterReportSearchState>;
     if (
-      typeof Value.Category !== 'string' ||
+      typeof Value.CategoryId !== 'string' ||
       typeof Value.SearchText !== 'string' ||
       (Value.SortField !== null &&
         Value.SortField !== 'ReportName' &&
@@ -2035,7 +2237,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       return null;
     }
     return {
-      Category: Value.Category,
+      CategoryId: Value.CategoryId,
       SearchText: Value.SearchText,
       SortField: Value.SortField,
       SortDirection: Value.SortDirection,

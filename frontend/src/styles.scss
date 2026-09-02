@@ -1650,6 +1650,28 @@ app-demo-portal .parameter-form button:disabled {
 app-demo-portal .report-management { display: grid; gap: 1rem; }
 app-demo-portal .report-management-page-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 app-demo-portal .report-management-page-header h1 { margin-bottom: 0; }
+app-demo-portal .report-management-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .75rem; }
+app-demo-portal .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+app-demo-portal .category-management-modal { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; width: min(46rem, 100%); max-height: min(42rem, calc(100vh - 3rem)); overflow: hidden; }
+app-demo-portal .category-create-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: end; padding: 1rem 0; border-bottom: 1px solid var(--color-border); }
+app-demo-portal .category-create-form label, app-demo-portal .category-management-name { display: grid; gap: .4rem; min-width: 0; }
+app-demo-portal .category-create-form input, app-demo-portal .category-management-name input { width: 100%; min-height: 38px; padding: .5rem .65rem; border: 1px solid var(--color-border); border-radius: 5px; color: var(--color-text); background: var(--color-surface); font: inherit; }
+app-demo-portal .category-create-form .field-error { grid-column: 1 / -1; margin: 0; }
+app-demo-portal .category-management-list { min-height: 0; padding: 1rem 0; overflow-y: auto; }
+app-demo-portal .category-management-list h3 { margin: 0 0 .6rem; font-size: 1rem; }
+app-demo-portal .category-management-row { display: grid; grid-template-columns: minmax(9rem, 1fr) 10rem 8.5rem; gap: .75rem; align-items: center; padding: .8rem 0; border-bottom: 1px solid var(--color-border); }
+app-demo-portal .category-management-row.is-editing { align-items: start; }
+app-demo-portal .category-management-name { font-weight: 700; }
+app-demo-portal .category-management-name .field-error { margin: 0; }
+app-demo-portal .category-management-usage, app-demo-portal .category-system-reserved { color: var(--color-muted); font-size: .8125rem; white-space: nowrap; }
+app-demo-portal .category-management-action-slot { display: flex; align-items: center; justify-content: center; min-height: 34px; }
+app-demo-portal .category-system-reserved { font-weight: 700; }
+app-demo-portal .category-management-actions { display: flex; justify-content: center; gap: .5rem; }
+app-demo-portal .category-management-actions button { min-height: 34px; padding: 0 .65rem; }
+app-demo-portal .category-management-close-action { margin-top: 0; padding-top: 1rem; border-top: 1px solid var(--color-border); }
+app-demo-portal .category-delete-dialog { width: min(32rem, 100%); }
+app-demo-portal .category-delete-dialog p { margin: .75rem 0 0; }
+app-demo-portal .category-delete-actions { margin-top: 1.5rem; }
 app-demo-portal .report-editor-form > label, app-demo-portal .report-file-field { display: grid; gap: .4rem; color: var(--color-muted); font-size: .8125rem; font-weight: 700; }
 app-demo-portal .report-editor-form input, app-demo-portal .report-editor-form select { width: 100%; min-height: 38px; padding: .5rem .65rem; border: 1px solid var(--color-border); border-radius: 5px; color: var(--color-text); background: var(--color-surface); }
 app-demo-portal .report-date-tbd { margin: -.5rem 0 0; color: var(--color-muted); font-size: .75rem; }
@@ -1671,6 +1693,14 @@ app-demo-portal .report-row-actions .secondary-button { min-width: 2rem; min-hei
 app-demo-portal .report-management-empty { padding: 1.5rem; text-align: center; color: var(--color-muted); }
 app-demo-portal .report-editor-modal { width: min(32rem, 100%); padding: 1.35rem; }
 app-demo-portal .report-editor-form { display: grid; gap: 1rem; }
+app-demo-portal .report-editor-category-field { display: flex; align-items: end; gap: .75rem; }
+app-demo-portal .report-editor-category-field > label { display: grid; flex: 1 1 auto; gap: .4rem; min-width: 0; color: var(--color-muted); font-size: .8125rem; font-weight: 700; }
+app-demo-portal .report-category-quick-add-trigger { flex: 0 0 auto; min-height: 38px; }
+app-demo-portal .report-category-quick-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: end; padding: .75rem; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); }
+app-demo-portal .report-category-quick-add label { display: grid; gap: .4rem; min-width: 0; color: var(--color-muted); font-size: .8125rem; font-weight: 700; }
+app-demo-portal .report-category-quick-add input { width: 100%; min-height: 38px; padding: .5rem .65rem; border: 1px solid var(--color-border); border-radius: 5px; color: var(--color-text); background: var(--color-surface); font: inherit; }
+app-demo-portal .report-category-quick-add-actions { display: flex; gap: .5rem; }
+app-demo-portal .report-category-quick-add .field-error { grid-column: 1 / -1; margin: 0; }
 app-demo-portal .report-editor-enabled { align-self: auto; min-height: 0; }
 app-demo-portal .report-file-field { gap: .55rem; }
 app-demo-portal .report-file-picker { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 4.25rem; padding: .75rem; border: 1px dashed var(--color-border); border-radius: 6px; color: var(--color-text); background: #faf9f6; cursor: pointer; }
@@ -1679,7 +1709,7 @@ app-demo-portal .current-report-file, app-demo-portal .selected-report-file { ma
 app-demo-portal .report-editor-actions { justify-content: flex-end; margin-top: .25rem; }
 app-demo-portal .report-delete-dialog { width: min(28rem, 100%); }
 app-demo-portal .report-delete-target { padding: .75rem; border-radius: 5px; background: #f7f4ee; font-weight: 700; }
-@media (max-width: 760px) { app-demo-portal .report-management-page-header { align-items: flex-start; flex-direction: column; } app-demo-portal .report-file-picker { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 760px) { app-demo-portal .report-management-page-header { align-items: flex-start; flex-direction: column; } app-demo-portal .report-management-header-actions { width: 100%; } app-demo-portal .report-management-header-actions button { flex: 1 1 0; } app-demo-portal .category-create-form, app-demo-portal .category-management-row, app-demo-portal .report-category-quick-add { grid-template-columns: 1fr; } app-demo-portal .category-management-row { gap: .45rem; } app-demo-portal .category-management-action-slot, app-demo-portal .category-management-actions { justify-content: flex-start; } app-demo-portal .report-editor-category-field { align-items: stretch; flex-direction: column; gap: .5rem; } app-demo-portal .report-category-quick-add-actions { justify-content: flex-end; } app-demo-portal .report-file-picker { align-items: flex-start; flex-direction: column; } }
 
 @media (max-width: 1000px) {
   app-demo-portal .parameter-search-toolbar,

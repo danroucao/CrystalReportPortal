@@ -1,12 +1,18 @@
+import type { MockReportCategoryId } from './mock-report-categories';
+
 export interface MockReport {
   readonly ReportKey: MockReportKey;
   readonly ReportName: string;
-  readonly Category: string;
+  readonly CategoryId: MockReportCategoryId;
   readonly Description: string;
   readonly FileName: string;
   readonly Enabled: boolean;
   readonly CreatedAt: string;
   readonly UpdatedAt: string;
+}
+
+export interface MockReportReadModel extends MockReport {
+  readonly CategoryName: string;
 }
 
 export type MockReportKey =
@@ -30,7 +36,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'AccountBalance',
     ReportName: 'AccountBalance',
-    Category: '財務',
+    CategoryId: 'FINANCE',
     Description: '模擬帳戶餘額與期間結餘資訊的 ReportList Metadata。',
     FileName: 'AccountBalance.rpt',
     Enabled: true,
@@ -40,7 +46,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'MonthlyRevenue',
     ReportName: 'MonthlyRevenue',
-    Category: '財務',
+    CategoryId: 'FINANCE',
     Description: '新增至財務分類的月營收報表，用於驗證分類權限自動套用。',
     FileName: 'MonthlyRevenue.rpt',
     Enabled: true,
@@ -50,7 +56,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'Activity',
     ReportName: 'Activity',
-    Category: '活動',
+    CategoryId: 'ACTIVITY',
     Description: '模擬活動紀錄查詢用的報表 Metadata。',
     FileName: 'Activity.rpt',
     Enabled: true,
@@ -60,7 +66,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'InventoryTransferHana',
     ReportName: 'InventoryTransfer_HANA',
-    Category: '庫存',
+    CategoryId: 'INVENTORY',
     Description: '模擬 SAP HANA 庫存調撥資料的報表 Metadata。',
     FileName: 'InventoryTransfer_HANA.rpt',
     Enabled: true,
@@ -70,7 +76,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'DocumentsV2WithSerialAndBatchDetails',
     ReportName: 'Documents v2 (With Serial And Batch Details - invoice show data from delivery as well)',
-    Category: '文件與發票',
+    CategoryId: 'DOCUMENT_INVOICE',
     Description: '長名稱測試資料：模擬文件、序號、批號與由交貨單帶入發票資料的報表 Metadata。',
     FileName: 'Documents v2 (With Serial And Batch Details - invoice show data from delivery as well).rpt',
     Enabled: false,
@@ -80,7 +86,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'ProductionOrder',
     ReportName: 'ProductionOrder',
-    Category: '生產',
+    CategoryId: 'PRODUCTION',
     Description: '模擬生產訂單與製程進度的報表 Metadata。',
     FileName: 'ProductionOrder.rpt',
     Enabled: true,
@@ -90,7 +96,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'ServiceContract',
     ReportName: 'ServiceContract',
-    Category: '服務',
+    CategoryId: 'SERVICE',
     Description: '模擬服務合約、到期日與客戶服務狀態的報表 Metadata。',
     FileName: 'ServiceContract.rpt',
     Enabled: true,
@@ -100,7 +106,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'ActivityAttendance',
     ReportName: 'ActivityAttendance',
-    Category: '活動',
+    CategoryId: 'ACTIVITY',
     Description: '模擬活動參與紀錄與出席統計的報表 Metadata。',
     FileName: 'ActivityAttendance.rpt',
     Enabled: true,
@@ -110,7 +116,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'CampaignPerformance',
     ReportName: 'CampaignPerformance',
-    Category: '活動',
+    CategoryId: 'ACTIVITY',
     Description: '模擬行銷活動成效、回應率與來源分布的報表 Metadata。',
     FileName: 'CampaignPerformance.rpt',
     Enabled: true,
@@ -120,7 +126,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'InventoryAging',
     ReportName: 'InventoryAging',
-    Category: '庫存',
+    CategoryId: 'INVENTORY',
     Description: '模擬庫齡、庫存周轉與待處理品項的報表 Metadata。',
     FileName: 'InventoryAging.rpt',
     Enabled: true,
@@ -130,7 +136,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'ProductionYield',
     ReportName: 'ProductionYield',
-    Category: '生產',
+    CategoryId: 'PRODUCTION',
     Description: '模擬生產良率、工序耗時與異常批次的報表 Metadata。',
     FileName: 'ProductionYield.rpt',
     Enabled: true,
@@ -140,7 +146,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'ServiceTicketSummary',
     ReportName: 'ServiceTicketSummary',
-    Category: '服務',
+    CategoryId: 'SERVICE',
     Description: '模擬服務案件處理時效與客戶滿意度的報表 Metadata。',
     FileName: 'ServiceTicketSummary.rpt',
     Enabled: true,
@@ -150,7 +156,7 @@ export const MockReports: readonly MockReport[] = [
   {
     ReportKey: 'DocumentArchive',
     ReportName: 'DocumentArchive',
-    Category: '文件與發票',
+    CategoryId: 'DOCUMENT_INVOICE',
     Description: '模擬文件歸檔、發票狀態與附件完整性的報表 Metadata。',
     FileName: 'DocumentArchive.rpt',
     Enabled: true,

@@ -1,7 +1,20 @@
 import { Injectable } from '@angular/core';
 
 import { MockAuthenticationProvider } from '../mock/mock-authentication.provider';
-import { MockReport, MockReportKey, MockReports } from '../mock/mock-reports';
+import {
+  MockReportCategories,
+  SystemUncategorizedCategoryId,
+} from '../mock/mock-report-categories';
+import type {
+  MockReportCategory,
+  MockReportCategoryId,
+} from '../mock/mock-report-categories';
+import {
+  MockReport,
+  MockReportKey,
+  MockReportReadModel,
+  MockReports,
+} from '../mock/mock-reports';
 import {
   EmptyMockCategoryPermission,
   FullMockCategoryPermission,
@@ -60,9 +73,14 @@ export interface MockRoleChangeRequest {
 }
 
 export interface MockFavoriteReport {
-  readonly Report: MockReport;
+  readonly Report: MockReportReadModel;
   readonly LastUsedAt: string | null;
 }
+
+type MockCategoryPermissionRecord = Record<
+  MockReportCategoryId,
+  MockCategoryPermission
+>;
 
 export interface MockReportSearchCriteria {
   readonly StartDate: string;
@@ -92,11 +110,44 @@ export type MockRoleChangeResponseResult =
   | 'not-pending'
   | 'minimum-admins';
 
+export type MockCreateCategoryResult =
+  | { Status: 'created'; Category: MockReportCategory }
+  | {
+      Status: 'invalid-name' | 'duplicate-name' | 'system-reserved-name';
+      Category: null;
+    };
+
+export type MockRenameCategoryResult =
+  | { Status: 'renamed'; Category: MockReportCategory }
+  | {
+      Status:
+        | 'not-found'
+        | 'invalid-name'
+        | 'duplicate-name'
+        | 'system-reserved';
+      Category: null;
+    };
+
+export type MockDeleteCategoryResult =
+  | {
+      Status: 'deleted';
+      DeletedCategoryName: string;
+      MovedReportCount: number;
+    }
+  | {
+      Status: 'not-found' | 'system-reserved';
+      DeletedCategoryName: null;
+      MovedReportCount: 0;
+    };
+
 @Injectable({ providedIn: 'root' })
 export class MockRbacService {
   private readonly MinimumAdminCount = 3;
   private readonly UsersStore: MockUserCredential[] = MockAuthenticationProvider.GetInitialUsers().map((User) => this.CloneCredential(User));
   private readonly RoleStore: MockRole[] = MockRoles.map((Role) => ({ ...Role, ManagementPermissions: [...Role.ManagementPermissions] }));
+  private readonly CategoryStore: MockReportCategory[] = MockReportCategories.map(
+    (Category) => ({ ...Category }),
+  );
   private readonly ReportStore: MockReport[] = MockReports.map((Report) => ({ ...Report }));
   private readonly FavoriteReportStore: Record<
     string,
@@ -105,8 +156,9 @@ export class MockRbacService {
   private readonly RoleChangeRequestsStore: MockRoleChangeRequest[] = [];
   private NextRoleChangeRequestId = 1;
   private NextCustomRoleSequence = 1;
+  private NextCustomCategorySequence = 1;
   private NextUploadedReportSequence = 1;
-  private readonly PermissionStore: Record<string, Record<string, MockCategoryPermission>> = this.CloneInitialPermissions();
+  private readonly PermissionStore: Record<string, MockCategoryPermissionRecord> = this.CloneInitialPermissions();
   private SelectedReportKey: MockReportKey | null = null;
   private SelectedReportSearchCriteria: MockReportSearchCriteria | null = null;
 
@@ -117,8 +169,114 @@ export class MockRbacService {
   }
   get AdminCount(): number { return this.UsersStore.filter((User) => User.Roles.includes('ADMIN')).length; }
   get Roles(): readonly MockRole[] { return this.RoleStore.map((Role) => ({ ...Role, ManagementPermissions: [...Role.ManagementPermissions] })); }
-  get Reports(): readonly MockReport[] { return this.ReportStore.map((Report) => ({ ...Report })); }
-  get ReportCategories(): readonly string[] { return this.GetReportCategories(); }
+  get Reports(): readonly MockReportReadModel[] {
+    return this.ReportStore.map((Report) => this.ToReportReadModel(Report));
+  }
+
+  GetCategories(): readonly MockReportCategory[] {
+    return this.CategoryStore.map((Category) => ({ ...Category }));
+  }
+
+  GetCategoryUsageCount(CategoryId: string): number | null {
+    return this.IsValidCategoryId(CategoryId)
+      ? this.ReportStore.filter((Report) => Report.CategoryId === CategoryId)
+          .length
+      : null;
+  }
+
+  CreateCategory(CategoryName: string): MockCreateCategoryResult {
+    const Name = CategoryName.trim();
+    if (!Name) return { Status: 'invalid-name', Category: null };
+
+    const ExistingCategory = this.GetStoredCategoryByName(Name);
+    if (ExistingCategory?.IsSystemReserved) {
+      return { Status: 'system-reserved-name', Category: null };
+    }
+    if (ExistingCategory) return { Status: 'duplicate-name', Category: null };
+
+    const Category: MockReportCategory = {
+      CategoryId: this.GetNextCustomCategoryId(),
+      CategoryName: Name,
+      IsSystemReserved: false,
+    };
+    this.CategoryStore.push(Category);
+    return { Status: 'created', Category: { ...Category } };
+  }
+
+  RenameCategory(
+    CategoryId: string,
+    CategoryName: string,
+  ): MockRenameCategoryResult {
+    const Category = this.GetStoredCategory(CategoryId);
+    if (!Category) return { Status: 'not-found', Category: null };
+    if (Category.IsSystemReserved) {
+      return { Status: 'system-reserved', Category: null };
+    }
+
+    const Name = CategoryName.trim();
+    if (!Name) return { Status: 'invalid-name', Category: null };
+    const ExistingCategory = this.GetStoredCategoryByName(Name);
+    if (ExistingCategory && ExistingCategory.CategoryId !== CategoryId) {
+      return { Status: 'duplicate-name', Category: null };
+    }
+
+    const CategoryIndex = this.CategoryStore.findIndex(
+      (Entry) => Entry.CategoryId === CategoryId,
+    );
+    const RenamedCategory: MockReportCategory = {
+      ...Category,
+      CategoryName: Name,
+    };
+    this.CategoryStore[CategoryIndex] = RenamedCategory;
+    return { Status: 'renamed', Category: { ...RenamedCategory } };
+  }
+
+  DeleteCategory(CategoryId: string): MockDeleteCategoryResult {
+    const Category = this.GetStoredCategory(CategoryId);
+    if (!Category) {
+      return {
+        Status: 'not-found',
+        DeletedCategoryName: null,
+        MovedReportCount: 0,
+      };
+    }
+    if (Category.IsSystemReserved) {
+      return {
+        Status: 'system-reserved',
+        DeletedCategoryName: null,
+        MovedReportCount: 0,
+      };
+    }
+
+    const MovedReports = this.ReportStore.filter(
+      (Report) => Report.CategoryId === CategoryId,
+    );
+    if (MovedReports.length) {
+      const Timestamp = this.GetTimestamp();
+      this.ReportStore.forEach((Report, Index) => {
+        if (Report.CategoryId !== CategoryId) return;
+        this.ReportStore[Index] = {
+          ...Report,
+          CategoryId: SystemUncategorizedCategoryId,
+          UpdatedAt: Timestamp,
+        };
+      });
+    }
+
+    Object.values(this.PermissionStore).forEach((Permissions) => {
+      delete Permissions[CategoryId];
+    });
+    this.CategoryStore.splice(
+      this.CategoryStore.findIndex((Entry) => Entry.CategoryId === CategoryId),
+      1,
+    );
+
+    return {
+      Status: 'deleted',
+      DeletedCategoryName: Category.CategoryName,
+      MovedReportCount: MovedReports.length,
+    };
+  }
 
   GetRoleUserCount(RoleKey: MockRoleKey): number {
     return this.UsersStore.filter((User) => User.Roles.includes(RoleKey)).length;
@@ -282,26 +440,26 @@ export class MockRbacService {
     }
   }
 
-  GetReport(ReportKey: MockReportKey): MockReport | null {
+  GetReport(ReportKey: MockReportKey): MockReportReadModel | null {
     const Report = this.ReportStore.find((Entry) => Entry.ReportKey === ReportKey);
-    return Report ? { ...Report } : null;
+    return Report ? this.ToReportReadModel(Report) : null;
   }
 
   CreateReport(Draft: {
     ReportName: string;
-    Category: string;
+    CategoryId: string;
     Enabled: boolean;
     FileName: string;
-  }): MockReport | null {
+  }): MockReportReadModel | null {
     const ReportName = Draft.ReportName.trim();
-    const Category = Draft.Category.trim();
+    const CategoryId = Draft.CategoryId.trim();
     const FileName = Draft.FileName.trim();
-    if (!ReportName || !Category || !FileName) return null;
+    if (!ReportName || !this.IsValidCategoryId(CategoryId) || !FileName) return null;
     const Timestamp = this.GetTimestamp();
     const Report: MockReport = {
       ReportKey: `UploadedReport${this.NextUploadedReportSequence++}` as MockReportKey,
       ReportName,
-      Category,
+      CategoryId,
       Description: '前端 Mock 上傳的報表。',
       FileName,
       Enabled: Draft.Enabled,
@@ -309,25 +467,31 @@ export class MockRbacService {
       UpdatedAt: Timestamp,
     };
     this.ReportStore.push(Report);
-    return { ...Report };
+    return this.ToReportReadModel(Report);
   }
 
   UpdateReport(
     ReportKey: MockReportKey,
     Draft: {
       ReportName: string;
-      Category: string;
+      CategoryId: string;
       Enabled: boolean;
       FileName?: string;
     },
   ): boolean {
     const ReportIndex = this.ReportStore.findIndex((Report) => Report.ReportKey === ReportKey);
-    if (ReportIndex < 0 || !Draft.ReportName.trim() || !Draft.Category.trim()) return false;
+    if (
+      ReportIndex < 0 ||
+      !Draft.ReportName.trim() ||
+      !this.IsValidCategoryId(Draft.CategoryId.trim())
+    ) {
+      return false;
+    }
     const Current = this.ReportStore[ReportIndex];
     this.ReportStore[ReportIndex] = {
       ...Current,
       ReportName: Draft.ReportName.trim(),
-      Category: Draft.Category.trim(),
+      CategoryId: Draft.CategoryId.trim(),
       Enabled: Draft.Enabled,
       FileName: Draft.FileName?.trim() || Current.FileName,
       UpdatedAt: this.GetTimestamp(),
@@ -346,15 +510,21 @@ export class MockRbacService {
     return true;
   }
 
-  GetAccessibleReports(Roles: readonly MockRoleKey[]): readonly MockReport[] {
+  GetAccessibleReports(Roles: readonly MockRoleKey[]): readonly MockReportReadModel[] {
+    const NormalizedRoles = this.NormalizeRoles(Roles);
     return this.ReportStore
       .filter(
         (Report) =>
           Report.Enabled &&
-          this.IsValidCategory(Report.Category) &&
-          this.GetEffectiveCategoryPermission(Roles, Report.Category).CanExecute,
+          this.IsValidCategoryId(Report.CategoryId) &&
+          (!this.IsSystemReservedCategory(Report.CategoryId) ||
+            NormalizedRoles.includes('ADMIN')) &&
+          this.GetEffectiveCategoryPermission(
+            NormalizedRoles,
+            Report.CategoryId,
+          ).CanExecute,
       )
-      .map((Report) => ({ ...Report }));
+      .map((Report) => this.ToReportReadModel(Report));
   }
 
   GetFavoriteReports(
@@ -396,20 +566,26 @@ export class MockRbacService {
     if (Favorite?.IsFavorite) Favorite.LastUsedAt = new Date().toISOString();
   }
 
-  GetCategoryPermission(Role: MockRoleKey, Category: string): MockCategoryPermission {
+  GetCategoryPermission(Role: MockRoleKey, CategoryId: string): MockCategoryPermission {
+    if (
+      !this.IsValidCategoryId(CategoryId) ||
+      (this.IsSystemReservedCategory(CategoryId) && Role !== 'ADMIN')
+    ) {
+      return EmptyMockCategoryPermission();
+    }
     if (Role === 'ADMIN') return FullMockCategoryPermission();
     return {
-      ...(this.PermissionStore[Role]?.[Category] ?? EmptyMockCategoryPermission()),
+      ...(this.PermissionStore[Role]?.[CategoryId] ?? EmptyMockCategoryPermission()),
     };
   }
 
   GetEffectiveCategoryPermission(
     Roles: readonly MockRoleKey[],
-    Category: string,
+    CategoryId: string,
   ): MockCategoryPermission {
-    if (!this.IsValidCategory(Category)) return EmptyMockCategoryPermission();
+    if (!this.IsValidCategoryId(CategoryId)) return EmptyMockCategoryPermission();
     return this.NormalizeRoles(Roles).reduce<MockCategoryPermission>((Effective, Role) => {
-      const Permission = this.GetCategoryPermission(Role, Category);
+      const Permission = this.GetCategoryPermission(Role, CategoryId);
       return {
         CanExecute: Effective.CanExecute || Permission.CanExecute,
         CanExportPdf: Effective.CanExportPdf || Permission.CanExportPdf,
@@ -419,15 +595,17 @@ export class MockRbacService {
   }
 
   GetCategoryPermissionEntries(Role: MockRoleKey): MockCategoryPermissionEntry[] {
-    return this.GetReportCategories().map((Category) => ({
-      Category,
-      Permission: this.GetCategoryPermission(Role, Category),
+    return this.GetPermissionCategories().map((Category) => ({
+      CategoryId: Category.CategoryId,
+      CategoryName: Category.CategoryName,
+      Permission: this.GetCategoryPermission(Role, Category.CategoryId),
     }));
   }
 
   GetEmptyCategoryPermissionEntries(): MockCategoryPermissionEntry[] {
-    return this.GetReportCategories().map((Category) => ({
-      Category,
+    return this.GetPermissionCategories().map((Category) => ({
+      CategoryId: Category.CategoryId,
+      CategoryName: Category.CategoryName,
       Permission: EmptyMockCategoryPermission(),
     }));
   }
@@ -455,7 +633,7 @@ export class MockRbacService {
       ? { ...this.SelectedReportSearchCriteria }
       : null;
   }
-  GetSelectedReport(Roles: readonly MockRoleKey[]): MockReport | null {
+  GetSelectedReport(Roles: readonly MockRoleKey[]): MockReportReadModel | null {
     const Reports = this.GetAccessibleReports(Roles);
     return Reports.find((Report) => Report.ReportKey === this.SelectedReportKey) ?? null;
   }
@@ -464,20 +642,22 @@ export class MockRbacService {
     return Permission.CanExecute ? { ...Permission } : EmptyMockCategoryPermission();
   }
 
-  private CloneInitialPermissions(): Record<string, Record<string, MockCategoryPermission>> {
+  private CloneInitialPermissions(): Record<string, MockCategoryPermissionRecord> {
     return Object.fromEntries(
       Object.entries(InitialMockRoleCategoryPermissions).map(
         ([Role, Permissions]) => [
           Role,
           Object.fromEntries(
-            Object.entries(Permissions).map(([Category, Permission]) => [
-              Category,
-              this.NormalizePermission(Permission),
-            ]),
+            Object.entries(Permissions)
+              .filter(([CategoryId]) => this.IsValidCategoryId(CategoryId))
+              .map(([CategoryId, Permission]) => [
+                CategoryId,
+                this.NormalizePermission(Permission),
+              ]),
           ),
         ],
       ),
-    ) as Record<string, Record<string, MockCategoryPermission>>;
+    ) as Record<string, MockCategoryPermissionRecord>;
   }
 
   private CreateInitialFavoriteStore(): Record<
@@ -508,29 +688,96 @@ export class MockRbacService {
 
   private ToCategoryPermissionRecord(
     Entries: readonly MockCategoryPermissionEntry[],
-  ): Record<string, MockCategoryPermission> {
+  ): MockCategoryPermissionRecord {
     return Object.fromEntries(
       Entries
-        .filter((Entry) => this.IsValidCategory(Entry.Category))
+        .filter(
+          (Entry) =>
+            this.IsValidCategoryId(Entry.CategoryId) &&
+            !this.IsSystemReservedCategory(Entry.CategoryId),
+        )
         .map((Entry) => [
-          Entry.Category,
+          Entry.CategoryId,
           this.NormalizePermission(Entry.Permission),
         ]),
-    ) as Record<string, MockCategoryPermission>;
+    ) as MockCategoryPermissionRecord;
   }
 
-  private GetReportCategories(): string[] {
-    return [
-      ...new Set(
-        this.ReportStore
-          .map((Report) => Report.Category.trim())
-          .filter((Category) => this.IsValidCategory(Category)),
-      ),
-    ];
+  GetReportFilterCategories(
+    Roles: readonly MockRoleKey[],
+  ): readonly MockReportCategory[] {
+    return this.CategoryStore.filter(
+      (Category) =>
+        !Category.IsSystemReserved &&
+        this.GetEffectiveCategoryPermission(Roles, Category.CategoryId).CanExecute,
+    ).map((Category) => ({ ...Category }));
   }
 
-  private IsValidCategory(Category: string): boolean {
-    return Boolean(Category.trim());
+  GetReportManagementCategories(): readonly MockReportCategory[] {
+    return this.GetCategories();
+  }
+
+  GetReportEditorCategories(
+    CurrentCategoryId = '',
+  ): readonly MockReportCategory[] {
+    return this.CategoryStore.filter(
+      (Category) =>
+        !Category.IsSystemReserved || Category.CategoryId === CurrentCategoryId,
+    ).map((Category) => ({ ...Category }));
+  }
+
+  private GetPermissionCategories(): readonly MockReportCategory[] {
+    return this.CategoryStore.filter(
+      (Category) => !Category.IsSystemReserved,
+    );
+  }
+
+  private GetCategoryName(CategoryId: MockReportCategoryId): string {
+    return this.GetStoredCategory(CategoryId)?.CategoryName ?? '未知分類';
+  }
+
+  private IsValidCategoryId(CategoryId: string): CategoryId is MockReportCategoryId {
+    return this.GetStoredCategory(CategoryId) !== null;
+  }
+
+  private IsSystemReservedCategory(CategoryId: MockReportCategoryId): boolean {
+    return this.GetStoredCategory(CategoryId)?.IsSystemReserved === true;
+  }
+
+  private GetStoredCategory(CategoryId: string): MockReportCategory | null {
+    return (
+      this.CategoryStore.find((Category) => Category.CategoryId === CategoryId) ??
+      null
+    );
+  }
+
+  private GetStoredCategoryByName(CategoryName: string): MockReportCategory | null {
+    const NormalizedName = this.NormalizeCategoryName(CategoryName);
+    return (
+      this.CategoryStore.find(
+        (Category) =>
+          this.NormalizeCategoryName(Category.CategoryName) === NormalizedName,
+      ) ?? null
+    );
+  }
+
+  private GetNextCustomCategoryId(): MockReportCategoryId {
+    let CategoryId = '';
+    do {
+      CategoryId = `CUSTOM_CATEGORY_${this.NextCustomCategorySequence++}`;
+    } while (this.GetStoredCategory(CategoryId));
+    return CategoryId;
+  }
+
+  private NormalizeCategoryName(CategoryName: string): string {
+    return CategoryName.trim().toLocaleLowerCase('zh-Hant');
+  }
+
+  private ToReportReadModel(Report: MockReport): MockReportReadModel {
+    return {
+      ...Report,
+      CategoryName: this.GetCategoryName(Report.CategoryId),
+    };
   }
 
   private ToReadModel({ Password: _, Roles, ...User }: MockUserCredential): MockUser {

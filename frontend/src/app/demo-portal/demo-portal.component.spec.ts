@@ -243,7 +243,8 @@ describe('DemoPortalComponent', () => {
     expect(
       fixture.nativeElement.querySelector('#favorite-report-category'),
     ).not.toBeNull();
-    expect(component.FavoriteReportCategories).toContain('財務');
+    expect(component.FavoriteReportCategories.map((Category) => Category.CategoryId)).toContain('FINANCE');
+    expect(component.FavoriteReportCategories.map((Category) => Category.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
     expect(fixture.nativeElement.textContent).not.toContain('最近使用報表');
     expect(fixture.nativeElement.textContent).not.toContain('常用報表');
     expect(fixture.nativeElement.textContent).not.toContain('Documents v2 (With Serial And Batch Details - invoice show data from delivery as well)');
@@ -260,12 +261,12 @@ describe('DemoPortalComponent', () => {
       fixture.nativeElement.querySelectorAll('.favorite-report-table th')[2]?.querySelector('button'),
     ).toBeNull();
 
-    component.SetFavoriteCategory('財務');
+    component.SetFavoriteCategory('FINANCE');
     component.FavoriteSearchText = 'Account';
     expect(component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName)).toEqual(['AccountBalance']);
     component.FavoriteSearchText = 'no-match';
     expect(component.DisplayedFavoriteReports).toHaveSize(0);
-    component.SetFavoriteCategory('全部');
+    component.SetFavoriteCategory(component.AllCategoryFilterValue);
     component.FavoriteSearchText = 'Account';
     expect(component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName)).toEqual([
       'AccountBalance',
@@ -376,13 +377,14 @@ describe('DemoPortalComponent', () => {
           !Icon.classList.contains('is-descending'),
       ),
     ).toBeTrue();
-    expect(component.ParameterReportCategories).toContain('財務');
-    component.SetParameterReportCategory('財務');
+    expect(component.ParameterReportCategories.map((Category) => Category.CategoryId)).toContain('FINANCE');
+    expect(component.ParameterReportCategories.map((Category) => Category.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
+    component.SetParameterReportCategory('FINANCE');
     expect(component.DisplayedParameterReports.map((Report) => Report.ReportName)).toEqual([
       'AccountBalance',
       'MonthlyRevenue',
     ]);
-    component.SetParameterReportCategory('全部');
+    component.SetParameterReportCategory(component.AllCategoryFilterValue);
     expect(Host.textContent).not.toContain('RptFileName');
     expect(Host.textContent).not.toContain('RptFilePath');
 
@@ -471,6 +473,7 @@ describe('DemoPortalComponent', () => {
 
   it('redirects direct ReportPreview access without a selected report to ReportParameter', () => {
     const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
       snapshot: { data: { Page: string } };
     };
@@ -590,6 +593,13 @@ describe('DemoPortalComponent', () => {
     expect(Host.textContent).not.toContain('AccountBalance.rpt');
     expect(Host.textContent).toContain('停用');
     expect(Host.textContent).toContain('開始日期（TBD）');
+    expect(component.ReportManagementCategories.map((Category) => Category.CategoryId)).toContain('MARKETING');
+    expect(component.ReportManagementCategories.map((Category) => Category.CategoryId)).toContain('SYSTEM_UNCATEGORIZED');
+    expect(
+      Array.from(
+        Host.querySelectorAll<HTMLSelectElement>('#report-management-category option'),
+      ).map((Option) => Option.value),
+    ).toContain('MARKETING');
 
     const FirstSwitch = Table.querySelector<HTMLButtonElement>('[role="switch"]')!;
     expect(FirstSwitch.getAttribute('aria-checked')).toBe('false');
@@ -601,10 +611,12 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
     expect(Host.querySelector('.report-editor-modal')).not.toBeNull();
     expect(component.ReportEditorDraft.Enabled).toBeFalse();
+    expect(component.ReportEditorCategories.map((Category) => Category.CategoryId)).toContain('MARKETING');
+    expect(component.ReportEditorCategories.map((Category) => Category.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
     component.SaveReport();
     expect(component.ReportEditorError).toBe('請輸入報表名稱。');
     component.ReportEditorDraft.ReportName = 'Mock Upload';
-    component.ReportEditorDraft.Category = '財務';
+    component.ReportEditorDraft.CategoryId = 'FINANCE';
     component.SaveReport();
     expect(component.ReportEditorError).toBe('請選擇 RPT 報表檔案。');
 
@@ -625,6 +637,17 @@ describe('DemoPortalComponent', () => {
     expect(component.MockRbac.Reports.some((Report) => Report.ReportName === 'Mock Upload')).toBeTrue();
     expect(Host.textContent).not.toContain('Mock Upload.rpt');
 
+    const ReservedReport = component.MockRbac.CreateReport({
+      ReportName: 'Needs recategorization',
+      CategoryId: 'SYSTEM_UNCATEGORIZED',
+      Enabled: true,
+      FileName: 'NeedsRecategorization.rpt',
+    })!;
+    component.OpenEditReportDialog(ReservedReport.ReportKey);
+    fixture.detectChanges();
+    expect(component.ReportEditorDraft.CategoryId).toBe('SYSTEM_UNCATEGORIZED');
+    expect(component.ReportEditorCategories.map((Category) => Category.CategoryId)).toContain('SYSTEM_UNCATEGORIZED');
+
     const Uploaded = component.MockRbac.Reports.find((Report) => Report.ReportName === 'Mock Upload')!;
     component.OpenEditReportDialog(Uploaded.ReportKey);
     fixture.detectChanges();
@@ -634,6 +657,196 @@ describe('DemoPortalComponent', () => {
     expect(Host.textContent).toContain('確定要刪除此報表嗎？');
     component.ConfirmDeleteReport();
     expect(component.MockRbac.GetReport(Uploaded.ReportKey)).toBeNull();
+  });
+
+  it('quickly adds a category from the upload modal without resetting the upload draft', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'RptManagement';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    const Host = fixture.nativeElement as HTMLElement;
+    component.OpenUploadReportDialog();
+    component.ReportEditorDraft = {
+      ReportName: '保留中的上傳草稿',
+      CategoryId: 'FINANCE',
+      Enabled: true,
+    };
+    component.SelectedReportFileName = 'DraftReport.rpt';
+    fixture.detectChanges();
+
+    expect(Host.querySelector('.report-category-quick-add-trigger')).not.toBeNull();
+    expect(
+      Array.from(
+        Host.querySelectorAll<HTMLSelectElement>('#report-editor-category option'),
+      ).map((Option) => Option.value),
+    ).not.toContain('SYSTEM_UNCATEGORIZED');
+
+    component.OpenReportCategoryQuickAdd();
+    fixture.detectChanges();
+    expect(component.IsReportCategoryQuickAddOpen).toBeTrue();
+    expect(Host.querySelector('.report-category-quick-add')).not.toBeNull();
+
+    component.QuickAddCategoryName = '   ';
+    component.CreateReportCategoryQuickAdd();
+    expect(component.QuickAddCategoryError).toBe('請輸入報表分類名稱。');
+    component.QuickAddCategoryName = '財務';
+    component.CreateReportCategoryQuickAdd();
+    expect(component.QuickAddCategoryError).toBe('此報表分類已存在。');
+    component.QuickAddCategoryName = '未分類';
+    component.CreateReportCategoryQuickAdd();
+    expect(component.QuickAddCategoryError).toBe('此名稱為系統保留分類，不可建立。');
+
+    component.QuickAddCategoryName = '快速新增分類';
+    component.CreateReportCategoryQuickAdd();
+    const QuickAddCategory = component.ReportEditorCategories.find(
+      (Category) => Category.CategoryName === '快速新增分類',
+    )!;
+    expect(component.ReportEditorDraft.CategoryId).toBe(QuickAddCategory.CategoryId);
+    expect(component.ReportEditorDraft.ReportName).toBe('保留中的上傳草稿');
+    expect(component.ReportEditorDraft.Enabled).toBeTrue();
+    expect(component.SelectedReportFileName).toBe('DraftReport.rpt');
+    expect(component.IsUploadReportDialogOpen).toBeTrue();
+    expect(component.IsReportCategoryQuickAddOpen).toBeFalse();
+    expect(component.SuccessToastMessage).toBe('新增報表分類「快速新增分類」成功！');
+
+    component.OpenReportCategoryQuickAdd();
+    component.QuickAddCategoryName = '取消的分類';
+    component.CloseReportCategoryQuickAdd();
+    expect(component.IsUploadReportDialogOpen).toBeTrue();
+    expect(component.ReportEditorDraft.ReportName).toBe('保留中的上傳草稿');
+    expect(component.ReportEditorDraft.CategoryId).toBe(QuickAddCategory.CategoryId);
+    expect(component.ReportEditorDraft.Enabled).toBeTrue();
+    expect(component.SelectedReportFileName).toBe('DraftReport.rpt');
+
+    Auth.Logout();
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    fixture.detectChanges();
+    expect(Host.querySelector('.report-category-quick-add-trigger')).toBeNull();
+    component.OpenReportCategoryQuickAdd();
+    expect(component.IsReportCategoryQuickAddOpen).toBeFalse();
+  });
+
+  it('lets only an administrator manage report categories through the modal', () => {
+    const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'RptManagement';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    const Host = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+
+    expect(
+      Array.from(Host.querySelectorAll('button')).some(
+        (Button) => Button.textContent?.trim() === '管理分類',
+      ),
+    ).toBeTrue();
+    component.OpenCategoryManagementDialog();
+    fixture.detectChanges();
+    expect(Host.querySelector('.category-management-modal')).not.toBeNull();
+    expect(Host.textContent).toContain('未分類');
+    expect(Host.textContent).not.toContain('待分類 / 未分類');
+    expect(component.CategoryManagementCategories.at(-1)?.CategoryId).toBe(
+      'SYSTEM_UNCATEGORIZED',
+    );
+    const ReservedCategoryRow = Array.from(
+      Host.querySelectorAll<HTMLElement>('.category-management-row'),
+    ).at(-1)!;
+    expect(
+      ReservedCategoryRow.querySelector('.category-management-usage')?.textContent,
+    ).toContain('0 份報表使用中');
+    expect(
+      ReservedCategoryRow.querySelector(
+        '.category-management-action-slot .category-system-reserved',
+      )?.textContent,
+    ).toContain('系統保留');
+    expect(Host.querySelector('[title="編輯分類"]')?.textContent).toContain('✎');
+    expect(Host.querySelector('[title="刪除分類"]')?.textContent).toContain('🗑');
+    expect(
+      Host.querySelectorAll('.category-system-reserved ~ .category-management-actions').length,
+    ).toBe(0);
+
+    component.NewCategoryName = '   ';
+    component.CreateManagedCategory();
+    expect(component.CategoryCreateError).toBe('請輸入分類名稱。');
+    component.NewCategoryName = '臨時分類';
+    component.CreateManagedCategory();
+    expect(component.CategoryManagementCategories.some((Category) => Category.CategoryName === '臨時分類')).toBeTrue();
+    expect(component.CategoryManagementCategories.at(-1)?.CategoryId).toBe(
+      'SYSTEM_UNCATEGORIZED',
+    );
+    expect(component.CategoryManagementCategories.at(-2)?.CategoryName).toBe(
+      '臨時分類',
+    );
+    expect(component.SuccessToastMessage).toBe('新增報表分類「臨時分類」成功！');
+
+    const TemporaryCategory = component.CategoryManagementCategories.find(
+      (Category) => Category.CategoryName === '臨時分類',
+    )!;
+    component.StartCategoryEdit(TemporaryCategory);
+    component.EditingCategoryName = '暫存分類';
+    component.SaveCategoryEdit();
+    expect(
+      component.CategoryManagementCategories.some(
+        (Category) => Category.CategoryName === '暫存分類',
+      ),
+    ).toBeTrue();
+
+    const RenamedCategory = component.CategoryManagementCategories.find(
+      (Category) => Category.CategoryName === '暫存分類',
+    )!;
+    component.OpenDeleteCategoryDialog(RenamedCategory.CategoryId);
+    fixture.detectChanges();
+    expect(Host.textContent).toContain('確定要刪除報表分類「暫存分類」嗎？');
+    component.CloseDeleteCategoryDialog();
+    expect(MockRbac.GetCategories().some((Category) => Category.CategoryId === RenamedCategory.CategoryId)).toBeTrue();
+    component.OpenDeleteCategoryDialog(RenamedCategory.CategoryId);
+    component.ConfirmDeleteCategory();
+    expect(MockRbac.GetCategories().some((Category) => Category.CategoryId === RenamedCategory.CategoryId)).toBeFalse();
+
+    const FinanceReportKeys = MockRbac.Reports
+      .filter((Report) => Report.CategoryId === 'FINANCE')
+      .map((Report) => Report.ReportKey);
+    component.OpenDeleteCategoryDialog('FINANCE');
+    fixture.detectChanges();
+    expect(Host.textContent).toContain('若刪除此分類，這些報表將自動移至「未分類」。');
+    component.ConfirmDeleteCategory();
+    expect(
+      FinanceReportKeys.every(
+        (ReportKey) =>
+          MockRbac.GetReport(ReportKey)?.CategoryId === 'SYSTEM_UNCATEGORIZED',
+      ),
+    ).toBeTrue();
+    expect(component.SuccessToastMessage).toContain('2 份報表已移至「未分類」');
+
+    const ReservedCategory = MockRbac.GetCategories().find(
+      (Category) => Category.CategoryId === 'SYSTEM_UNCATEGORIZED',
+    )!;
+    component.StartCategoryEdit(ReservedCategory);
+    component.OpenDeleteCategoryDialog(ReservedCategory.CategoryId);
+    expect(component.EditingCategoryId).toBeNull();
+    expect(component.DeletingCategory).toBeNull();
+
+    component.CloseCategoryManagementDialog();
+    Auth.Logout();
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    fixture.detectChanges();
+    expect(
+      Array.from(Host.querySelectorAll('button')).some(
+        (Button) => Button.textContent?.trim() === '管理分類',
+      ),
+    ).toBeFalse();
+    component.OpenCategoryManagementDialog();
+    expect(component.IsCategoryManagementDialogOpen).toBeFalse();
   });
 
   it('paginates the filtered report search list and resets to page one after search changes', () => {
@@ -1164,6 +1377,8 @@ describe('DemoPortalComponent', () => {
     const component = fixture.componentInstance;
 
     component.OpenCreateRoleDialog();
+    expect(component.RoleDraft.Permissions.map((Entry) => Entry.CategoryId)).toContain('MARKETING');
+    expect(component.RoleDraft.Permissions.map((Entry) => Entry.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
     component.RoleDraft.DisplayName = '業務人員';
     component.RoleDraft.Permissions[0].Permission.CanExecute = true;
     component.SaveRole();

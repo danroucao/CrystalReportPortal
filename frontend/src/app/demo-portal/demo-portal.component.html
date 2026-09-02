@@ -79,13 +79,23 @@
       class="report-management-page-header"
     >
       <h1>{{ PageTitle }}</h1>
-      <button
-        type="button"
-        class="section-header-action"
-        (click)="OpenUploadReportDialog()"
-      >
-        <span aria-hidden="true">＋</span>上傳報表
-      </button>
+      <div class="report-management-header-actions">
+        <button
+          *ngIf="Auth.IsAdmin"
+          type="button"
+          class="secondary-button"
+          (click)="OpenCategoryManagementDialog()"
+        >
+          管理分類
+        </button>
+        <button
+          type="button"
+          class="section-header-action"
+          (click)="OpenUploadReportDialog()"
+        >
+          <span aria-hidden="true">＋</span>上傳報表
+        </button>
+      </div>
     </div>
     <ng-template #DefaultPageTitle
       ><h1>{{ PageTitle }}</h1></ng-template
@@ -96,15 +106,15 @@
           報表分類
           <select
             id="favorite-report-category"
-            [(ngModel)]="SelectedFavoriteCategory"
+            [(ngModel)]="SelectedFavoriteCategoryId"
             (ngModelChange)="SetFavoriteCategory($event)"
           >
-            <option value="全部">全部</option>
+            <option [value]="AllCategoryFilterValue">全部</option>
             <option
               *ngFor="let Category of FavoriteReportCategories"
-              [value]="Category"
+              [value]="Category.CategoryId"
             >
-              {{ Category }}
+              {{ Category.CategoryName }}
             </option>
           </select>
         </label>
@@ -201,7 +211,7 @@
                 </button>
               </td>
               <td class="report-name-cell">{{ Favorite.Report.ReportName }}</td>
-              <td>{{ Favorite.Report.Category }}</td>
+              <td>{{ Favorite.Report.CategoryName }}</td>
               <td>{{ FormatFavoriteLastUsedAt(Favorite.LastUsedAt) }}</td>
               <td>
                 <button
@@ -251,15 +261,15 @@
               報表分類
               <select
                 id="parameter-report-category"
-                [(ngModel)]="SelectedParameterReportCategory"
+                [(ngModel)]="SelectedParameterReportCategoryId"
                 (ngModelChange)="SetParameterReportCategory($event)"
               >
-                <option value="全部">全部</option>
+                <option [value]="AllCategoryFilterValue">全部</option>
                 <option
                   *ngFor="let Category of ParameterReportCategories"
-                  [value]="Category"
+                  [value]="Category.CategoryId"
                 >
-                  {{ Category }}
+                  {{ Category.CategoryName }}
                 </option>
               </select>
             </label>
@@ -426,7 +436,7 @@
                   </button>
                 </td>
                 <td class="report-name-cell">{{ Report.ReportName }}</td>
-                <td>{{ Report.Category }}</td>
+                <td>{{ Report.CategoryName }}</td>
                 <td class="parameter-report-description">
                   {{ Report.Description }}
                 </td>
@@ -496,7 +506,7 @@
             <p class="selected-parameter-report-label">已選擇報表</p>
             <h2>
               {{ Auth.SelectedReport?.ReportName }} /
-              {{ Auth.SelectedReport?.Category }}
+              {{ Auth.SelectedReport?.CategoryName }}
             </h2>
           </div>
           <button
@@ -731,7 +741,7 @@
         <dl>
           <div>
             <dt>報表分類</dt>
-            <dd>{{ Report.Category }}</dd>
+            <dd>{{ Report.CategoryName }}</dd>
           </div>
           <ng-container *ngIf="Auth.SelectedReportSearchCriteria as Criteria">
             <div>
@@ -1724,8 +1734,10 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr *ngFor="let Entry of RoleDraft.Permissions">
-                      <td>{{ Entry.Category }}</td>
+                    <tr
+                      *ngFor="let Entry of RoleDraft.Permissions; trackBy: TrackByCategoryPermissionEntry"
+                    >
+                      <td>{{ Entry.CategoryName }}</td>
                       <td>
                         <input
                           type="checkbox"
@@ -1866,15 +1878,15 @@
             >報表分類
             <select
               id="report-management-category"
-              [(ngModel)]="ReportManagementCategory"
+              [(ngModel)]="ReportManagementCategoryId"
               (ngModelChange)="SetReportManagementCategory($event)"
             >
-              <option value="全部">全部</option>
+              <option [value]="AllCategoryFilterValue">全部</option>
               <option
                 *ngFor="let Category of ReportManagementCategories"
-                [value]="Category"
+                [value]="Category.CategoryId"
               >
-                {{ Category }}
+                {{ Category.CategoryName }}
               </option>
             </select>
           </label>
@@ -1996,7 +2008,7 @@
                 <td class="report-management-name" [title]="Report.ReportName">
                   <span>{{ Report.ReportName }}</span>
                 </td>
-                <td>{{ Report.Category }}</td>
+                <td>{{ Report.CategoryName }}</td>
                 <td
                   class="report-management-description"
                   [title]="Report.Description"
@@ -2363,29 +2375,69 @@
               "
             />
           </label>
-          <label for="report-editor-category"
-            ><span class="form-field-label"
-              >報表分類<span class="required-indicator" aria-hidden="true"
-                >*</span
-              ></span
-            >
-            <select
-              id="report-editor-category"
-              name="reportCategory"
-              [(ngModel)]="ReportEditorDraft.Category"
-              [attr.aria-invalid]="
-                ReportEditorError && !ReportEditorDraft.Category ? 'true' : null
-              "
-            >
-              <option value="" disabled>選擇報表分類</option>
-              <option
-                *ngFor="let Category of ReportManagementCategories"
-                [value]="Category"
+          <div class="report-editor-category-field">
+            <label for="report-editor-category"
+              ><span class="form-field-label"
+                >報表分類<span class="required-indicator" aria-hidden="true"
+                  >*</span
+                ></span
               >
-                {{ Category }}
-              </option>
-            </select>
-          </label>
+              <select
+                id="report-editor-category"
+                name="reportCategory"
+                [(ngModel)]="ReportEditorDraft.CategoryId"
+                [attr.aria-invalid]="
+                  ReportEditorError && !ReportEditorDraft.CategoryId ? 'true' : null
+                "
+              >
+                <option value="" disabled>選擇報表分類</option>
+                <option
+                  *ngFor="let Category of ReportEditorCategories"
+                  [value]="Category.CategoryId"
+                >
+                  {{ Category.CategoryName }}
+                </option>
+              </select>
+            </label>
+            <button
+              *ngIf="Auth.IsAdmin && !EditingReportKey"
+              type="button"
+              class="secondary-button report-category-quick-add-trigger"
+              (click)="OpenReportCategoryQuickAdd()"
+            >
+              <span aria-hidden="true">＋</span> 新增分類
+            </button>
+          </div>
+          <div
+            *ngIf="IsReportCategoryQuickAddOpen"
+            class="report-category-quick-add"
+            role="group"
+            aria-labelledby="report-category-quick-add-label"
+          >
+            <label for="report-category-quick-add-name">
+              <span id="report-category-quick-add-label" class="form-field-label"
+                >分類名稱<span class="required-indicator" aria-hidden="true"
+                  >*</span
+                ></span
+              >
+              <input
+                id="report-category-quick-add-name"
+                name="quickAddCategoryName"
+                [(ngModel)]="QuickAddCategoryName"
+                (ngModelChange)="QuickAddCategoryError = ''"
+                (keydown.enter)="$event.preventDefault(); CreateReportCategoryQuickAdd()"
+                placeholder="請輸入新分類名稱"
+                [attr.aria-invalid]="QuickAddCategoryError ? 'true' : null"
+              />
+            </label>
+            <div class="report-category-quick-add-actions">
+              <button type="button" (click)="CreateReportCategoryQuickAdd()">新增</button>
+              <button type="button" class="secondary-button" (click)="CloseReportCategoryQuickAdd()">取消</button>
+            </div>
+            <p *ngIf="QuickAddCategoryError" class="field-error" role="alert">
+              {{ QuickAddCategoryError }}
+            </p>
+          </div>
           <div class="edit-status-field report-editor-enabled">
             <span class="form-field-label">啟用狀態</span>
             <button
@@ -2448,6 +2500,158 @@
             </button>
           </div>
         </form>
+      </section>
+    </section>
+    <section
+      *ngIf="IsCategoryManagementDialogOpen"
+      class="modal-backdrop"
+      (click)="CloseCategoryManagementDialog()"
+    >
+      <section
+        class="edit-user-modal category-management-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="category-management-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-heading">
+          <h2 id="category-management-title">報表分類管理</h2>
+          <button
+            type="button"
+            class="modal-close-button"
+            aria-label="關閉報表分類管理視窗"
+            (click)="CloseCategoryManagementDialog()"
+          >
+            ×
+          </button>
+        </div>
+        <form
+          class="category-create-form"
+          (ngSubmit)="CreateManagedCategory()"
+          novalidate
+        >
+          <label for="new-category-name">
+            <span class="form-field-label"
+              >分類名稱<span class="required-indicator" aria-hidden="true"
+                >*</span
+              ></span
+            >
+            <input
+              id="new-category-name"
+              name="newCategoryName"
+              [(ngModel)]="NewCategoryName"
+              (ngModelChange)="CategoryCreateError = ''"
+              placeholder="請輸入新分類名稱"
+              [attr.aria-invalid]="CategoryCreateError ? 'true' : null"
+            />
+          </label>
+          <button type="submit"><span aria-hidden="true">＋</span> 新增分類</button>
+          <p *ngIf="CategoryCreateError" class="field-error" role="alert">
+            {{ CategoryCreateError }}
+          </p>
+        </form>
+        <section class="category-management-list" aria-labelledby="existing-categories-title">
+          <h3 id="existing-categories-title">既有分類</h3>
+          <div
+            *ngFor="let Category of CategoryManagementCategories"
+            class="category-management-row"
+            [class.is-editing]="EditingCategoryId === Category.CategoryId"
+          >
+            <div class="category-management-name">
+              <ng-container *ngIf="EditingCategoryId === Category.CategoryId; else CategoryName">
+                <label [attr.for]="'category-edit-' + Category.CategoryId" class="visually-hidden">分類名稱</label>
+                <input
+                  [id]="'category-edit-' + Category.CategoryId"
+                  name="editingCategoryName"
+                  [(ngModel)]="EditingCategoryName"
+                  (ngModelChange)="CategoryEditError = ''"
+                  [attr.aria-invalid]="CategoryEditError ? 'true' : null"
+                />
+                <p *ngIf="CategoryEditError" class="field-error" role="alert">
+                  {{ CategoryEditError }}
+                </p>
+              </ng-container>
+              <ng-template #CategoryName>{{ Category.CategoryName }}</ng-template>
+            </div>
+            <span class="category-management-usage">{{ GetCategoryUsageLabel(Category) }}</span>
+            <div class="category-management-action-slot">
+              <span *ngIf="Category.IsSystemReserved" class="category-system-reserved">系統保留</span>
+              <div *ngIf="!Category.IsSystemReserved" class="category-management-actions">
+                <ng-container *ngIf="EditingCategoryId === Category.CategoryId; else CategoryActions">
+                  <button type="button" (click)="SaveCategoryEdit()">儲存</button>
+                  <button type="button" class="secondary-button" (click)="CancelCategoryEdit()">取消</button>
+                </ng-container>
+                <ng-template #CategoryActions>
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    [attr.aria-label]="'編輯 ' + Category.CategoryName"
+                    title="編輯分類"
+                    (click)="StartCategoryEdit(Category)"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    [attr.aria-label]="'刪除 ' + Category.CategoryName"
+                    title="刪除分類"
+                    (click)="OpenDeleteCategoryDialog(Category.CategoryId)"
+                  >
+                    🗑
+                  </button>
+                </ng-template>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div class="modal-actions category-management-close-action">
+          <button type="button" class="secondary-button" (click)="CloseCategoryManagementDialog()">關閉</button>
+        </div>
+      </section>
+    </section>
+    <section
+      *ngIf="DeletingCategory"
+      class="modal-backdrop"
+      (click)="CloseDeleteCategoryDialog()"
+    >
+      <section
+        class="edit-user-modal category-delete-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-category-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="modal-heading">
+          <h2 id="delete-category-title">
+            {{ GetCategoryUsageCount(DeletingCategory.CategoryId) ? '刪除分類：' + DeletingCategory.CategoryName : '刪除報表分類' }}
+          </h2>
+          <button
+            type="button"
+            class="modal-close-button"
+            aria-label="關閉刪除報表分類確認視窗"
+            (click)="CloseDeleteCategoryDialog()"
+          >
+            ×
+          </button>
+        </div>
+        <ng-container *ngIf="GetCategoryUsageCount(DeletingCategory.CategoryId) as UsageCount">
+          <p>「{{ DeletingCategory.CategoryName }}」目前仍有 {{ UsageCount }} 份報表使用中。</p>
+          <p>若刪除此分類，這些報表將自動移至「未分類」。</p>
+          <p class="muted">刪除完成後，請重新替這些報表設定正確分類。</p>
+        </ng-container>
+        <p *ngIf="!GetCategoryUsageCount(DeletingCategory.CategoryId)">
+          確定要刪除報表分類「{{ DeletingCategory.CategoryName }}」嗎？
+        </p>
+        <p *ngIf="CategoryDeleteError" class="field-error" role="alert">
+          {{ CategoryDeleteError }}
+        </p>
+        <div class="modal-actions category-delete-actions">
+          <button type="button" class="role-delete-button" (click)="ConfirmDeleteCategory()">
+            {{ GetCategoryUsageCount(DeletingCategory.CategoryId) ? '確認移動並刪除' : '確認刪除' }}
+          </button>
+          <button type="button" class="secondary-button" (click)="CloseDeleteCategoryDialog()">取消</button>
+        </div>
       </section>
     </section>
     <section

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 import { MockCategoryPermission, MockManagementPermission, MockRole, MockRoleKey } from '../mock/mock-permissions';
-import { MockReport, MockReportKey } from '../mock/mock-reports';
+import { MockReportKey, MockReportReadModel } from '../mock/mock-reports';
 import { MockUser } from '../mock/mock-users';
 import { MockRbacService, MockReportSearchCriteria } from './mock-rbac.service';
 
@@ -36,8 +36,12 @@ export class AuthService {
   get ActiveRoles(): readonly MockRoleKey[] { return this.ActiveRolesOverride ?? this.CurrentMockUser?.Roles ?? []; }
   get ActiveRoleNames(): string { return this.ActiveRoles.map((Role) => this.MockRbac.GetRole(Role)?.DisplayName ?? Role).join('、'); }
   get DemoRoles(): readonly MockRole[] { return this.MockRbac.Roles; }
-  get AccessibleReports(): readonly MockReport[] { return this.MockRbac.GetAccessibleReports(this.ActiveRoles); }
-  get SelectedReport(): MockReport | null { return this.MockRbac.GetSelectedReport(this.ActiveRoles); }
+  get AccessibleReports(): readonly MockReportReadModel[] {
+    return this.MockRbac.GetAccessibleReports(this.ActiveRoles);
+  }
+  get SelectedReport(): MockReportReadModel | null {
+    return this.MockRbac.GetSelectedReport(this.ActiveRoles);
+  }
   get SelectedReportSearchCriteria(): MockReportSearchCriteria | null {
     return this.MockRbac.GetSelectedReportSearchCriteria();
   }
@@ -72,7 +76,7 @@ export class AuthService {
     return this.SelectedReport
       ? this.MockRbac.GetEffectiveCategoryPermission(
           this.ActiveRoles,
-          this.SelectedReport.Category,
+          this.SelectedReport.CategoryId,
         )
       : { CanExecute: false, CanExportPdf: false, CanPrint: false };
   }

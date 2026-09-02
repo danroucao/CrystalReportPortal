@@ -3,6 +3,10 @@ import {
   MockRoleDraft,
   MockUserDraft,
 } from './mock-rbac.service';
+import {
+  IsMockReportCategoryId,
+  SystemUncategorizedCategoryId,
+} from '../mock/mock-report-categories';
 
 describe('MockRbacService', () => {
   let Service: MockRbacService;
@@ -29,27 +33,28 @@ describe('MockRbacService', () => {
   });
 
   it('calculates a union of category permissions across ordinary roles', () => {
-    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], '庫存')).toEqual({
+    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], 'INVENTORY')).toEqual({
       CanExecute: true,
       CanExportPdf: true,
       CanPrint: true,
     });
-    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], '生產').CanExecute).toBeTrue();
-    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], '財務').CanExecute).toBeFalse();
+    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], 'PRODUCTION').CanExecute).toBeTrue();
+    expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], 'FINANCE').CanExecute).toBeFalse();
   });
 
   it('automatically grants a newly added report when its category is already executable', () => {
     const FinanceReports = Service.GetAccessibleReports(['FINANCE']);
 
     expect(FinanceReports.map((Report) => Report.ReportKey)).toContain('MonthlyRevenue');
-    expect(Service.GetCategoryPermission('FINANCE', '財務').CanExecute).toBeTrue();
+    expect(Service.GetCategoryPermission('FINANCE', 'FINANCE').CanExecute).toBeTrue();
   });
 
   it('keeps SystemAdmin category permissions fully allowed without persisted checkbox state', () => {
     expect(Service.GetCategoryPermissionEntries('ADMIN')).toEqual(
       jasmine.arrayContaining([
         jasmine.objectContaining({
-          Category: '財務',
+          CategoryId: 'FINANCE',
+          CategoryName: '財務',
           Permission: { CanExecute: true, CanExportPdf: true, CanPrint: true },
         }),
       ]),
@@ -89,12 +94,12 @@ describe('MockRbacService', () => {
 
   it('clears output permissions whenever CanExecute is removed', () => {
     const Entries = Service.GetCategoryPermissionEntries('FINANCE');
-    const Entry = Entries.find((Permission) => Permission.Category === '財務')!;
+    const Entry = Entries.find((Permission) => Permission.CategoryId === 'FINANCE')!;
     Entry.Permission = { CanExecute: false, CanExportPdf: true, CanPrint: true };
 
     Service.SaveCategoryPermissions('FINANCE', Entries);
 
-    expect(Service.GetCategoryPermission('FINANCE', '財務')).toEqual({
+    expect(Service.GetCategoryPermission('FINANCE', 'FINANCE')).toEqual({
       CanExecute: false,
       CanExportPdf: false,
       CanPrint: false,
@@ -115,7 +120,7 @@ describe('MockRbacService', () => {
     const CreatedRole = Service.CreateRole(Draft);
 
     expect(CreatedRole?.DisplayName).toBe('業務人員');
-    expect(Service.GetCategoryPermission(CreatedRole!.Key, Permissions[0].Category)).toEqual(Permissions[0].Permission);
+    expect(Service.GetCategoryPermission(CreatedRole!.Key, Permissions[0].CategoryId)).toEqual(Permissions[0].Permission);
     expect(Service.CreateRole(Draft)).toBeNull();
   });
 
@@ -155,12 +160,180 @@ describe('MockRbacService', () => {
 
   it('keeps all reports in management while excluding disabled reports from the normal report list', () => {
     expect(Service.Reports).toHaveSize(13);
-    expect(Service.Reports.every((Report) => Report.ReportKey && Report.FileName && Report.Category && Report.Description)).toBeTrue();
+    expect(Service.Reports.every((Report) => Report.ReportKey && Report.FileName && Report.CategoryId && Report.CategoryName && Report.Description)).toBeTrue();
     expect(Service.GetAccessibleReports(['ADMIN']).some((Report) => Report.ReportKey === 'DocumentsV2WithSerialAndBatchDetails')).toBeFalse();
 
     Service.SetReportEnabled('DocumentsV2WithSerialAndBatchDetails', true);
 
     expect(Service.GetAccessibleReports(['ADMIN']).some((Report) => Report.ReportKey === 'DocumentsV2WithSerialAndBatchDetails')).toBeTrue();
+  });
+
+  it('uses only CategoryIds that exist in the Category Master', () => {
+    expect(Service.Reports.every((Report) => IsMockReportCategoryId(Report.CategoryId))).toBeTrue();
+    expect(Service.CreateReport({
+      ReportName: 'Invalid category',
+      CategoryId: 'UNKNOWN_CATEGORY',
+      Enabled: true,
+      FileName: 'InvalidCategory.rpt',
+    })).toBeNull();
+  });
+
+  it('uses Category Master entries for filter and report-editor options, including zero-report categories', () => {
+    expect(Service.GetReportFilterCategories(['ADMIN']).map(
+      (Category) => Category.CategoryId,
+    )).toContain('MARKETING');
+    expect(Service.GetReportFilterCategories(['ADMIN']).map(
+      (Category) => Category.CategoryId,
+    )).not.toContain(SystemUncategorizedCategoryId);
+    expect(Service.GetReportManagementCategories().map(
+      (Category) => Category.CategoryId,
+    )).toEqual(jasmine.arrayContaining(['MARKETING', SystemUncategorizedCategoryId]));
+    expect(Service.GetReportEditorCategories().map(
+      (Category) => Category.CategoryId,
+    )).toContain('MARKETING');
+    expect(Service.GetReportEditorCategories().map(
+      (Category) => Category.CategoryId,
+    )).not.toContain(SystemUncategorizedCategoryId);
+  });
+
+  it('creates an empty category with an immutable generated CategoryId and no ordinary-role permission', () => {
+    const Result = Service.CreateCategory('  業務分析  ');
+
+    expect(Result.Status).toBe('created');
+    if (Result.Status !== 'created') return;
+    expect(Result.Category).toEqual({
+      CategoryId: 'CUSTOM_CATEGORY_1',
+      CategoryName: '業務分析',
+      IsSystemReserved: false,
+    });
+    expect(Service.GetCategoryUsageCount(Result.Category.CategoryId)).toBe(0);
+    expect(Service.GetCategories()).toEqual(
+      jasmine.arrayContaining([Result.Category]),
+    );
+    expect(Service.GetCategoryPermission('FINANCE', Result.Category.CategoryId)).toEqual({
+      CanExecute: false,
+      CanExportPdf: false,
+      CanPrint: false,
+    });
+  });
+
+  it('rejects empty, duplicate, and system-reserved category names', () => {
+    expect(Service.CreateCategory('   ').Status).toBe('invalid-name');
+    expect(Service.CreateCategory(' 財務 ').Status).toBe('duplicate-name');
+    expect(Service.CreateCategory('未分類').Status).toBe(
+      'system-reserved-name',
+    );
+  });
+
+  it('renames a regular category without changing report or permission CategoryIds', () => {
+    const Before = Service.GetCategoryPermission('FINANCE', 'FINANCE');
+    const Result = Service.RenameCategory('FINANCE', '財務報表');
+
+    expect(Result.Status).toBe('renamed');
+    if (Result.Status !== 'renamed') return;
+    expect(Result.Category.CategoryId).toBe('FINANCE');
+    expect(Result.Category.CategoryName).toBe('財務報表');
+    expect(
+      Service.Reports.filter((Report) => Report.ReportKey === 'AccountBalance')[0]
+        .CategoryId,
+    ).toBe('FINANCE');
+    expect(Service.GetCategoryPermission('FINANCE', 'FINANCE')).toEqual(Before);
+    expect(Service.GetReport('AccountBalance')?.CategoryName).toBe('財務報表');
+  });
+
+  it('rejects a rename of the system-reserved category', () => {
+    expect(
+      Service.RenameCategory(SystemUncategorizedCategoryId, '重新命名').Status,
+    ).toBe('system-reserved');
+  });
+
+  it('deletes an empty category and removes its role permission reference', () => {
+    const Created = Service.CreateCategory('暫存分類');
+    if (Created.Status !== 'created') {
+      fail('應建立暫存分類');
+      return;
+    }
+    const CreatedCategory = Created.Category;
+    const Entries = Service.GetCategoryPermissionEntries('FINANCE');
+    const Entry = Entries.find(
+      (Permission) => Permission.CategoryId === CreatedCategory.CategoryId,
+    )!;
+    Entry.Permission = { CanExecute: true, CanExportPdf: true, CanPrint: true };
+    Service.SaveCategoryPermissions('FINANCE', Entries);
+
+    const Result = Service.DeleteCategory(CreatedCategory.CategoryId);
+    const PermissionStore = (
+      Service as unknown as {
+        PermissionStore: Record<string, Record<string, unknown>>;
+      }
+    ).PermissionStore;
+
+    expect(Result).toEqual({
+      Status: 'deleted',
+      DeletedCategoryName: '暫存分類',
+      MovedReportCount: 0,
+    });
+    expect(Service.GetCategories().some(
+      (Category) => Category.CategoryId === CreatedCategory.CategoryId,
+    )).toBeFalse();
+    expect(PermissionStore['FINANCE'][CreatedCategory.CategoryId]).toBeUndefined();
+  });
+
+  it('moves reports to the reserved category, clears permissions, and deletes a used category', () => {
+    const Result = Service.DeleteCategory('FINANCE');
+    const PermissionStore = (
+      Service as unknown as {
+        PermissionStore: Record<string, Record<string, unknown>>;
+      }
+    ).PermissionStore;
+
+    expect(Result).toEqual({
+      Status: 'deleted',
+      DeletedCategoryName: '財務',
+      MovedReportCount: 2,
+    });
+    expect(Service.Reports.filter(
+      (Report) => ['AccountBalance', 'MonthlyRevenue'].includes(Report.ReportKey),
+    ).every(
+      (Report) => Report.CategoryId === SystemUncategorizedCategoryId,
+    )).toBeTrue();
+    expect(Service.GetCategories().some(
+      (Category) => Category.CategoryId === 'FINANCE',
+    )).toBeFalse();
+    expect(PermissionStore['FINANCE']['FINANCE']).toBeUndefined();
+  });
+
+  it('rejects deletion of the system-reserved category', () => {
+    expect(Service.DeleteCategory(SystemUncategorizedCategoryId)).toEqual({
+      Status: 'system-reserved',
+      DeletedCategoryName: null,
+      MovedReportCount: 0,
+    });
+  });
+
+  it('excludes the reserved category from ordinary-role permissions and report visibility', () => {
+    const Report = Service.CreateReport({
+      ReportName: 'Needs recategorization',
+      CategoryId: SystemUncategorizedCategoryId,
+      Enabled: true,
+      FileName: 'NeedsRecategorization.rpt',
+    });
+
+    expect(Report).not.toBeNull();
+    expect(Service.GetCategoryPermissionEntries('FINANCE').some(
+      (Entry) => Entry.CategoryId === SystemUncategorizedCategoryId,
+    )).toBeFalse();
+    expect(Service.GetCategoryPermission('FINANCE', SystemUncategorizedCategoryId)).toEqual({
+      CanExecute: false,
+      CanExportPdf: false,
+      CanPrint: false,
+    });
+    expect(Service.GetAccessibleReports(['FINANCE']).some(
+      (Entry) => Entry.ReportKey === Report!.ReportKey,
+    )).toBeFalse();
+    expect(Service.GetAccessibleReports(['ADMIN']).some(
+      (Entry) => Entry.ReportKey === Report!.ReportKey,
+    )).toBeTrue();
   });
 
   it('keeps passwords out of user read models and lets only the user change their own name and Mock password', () => {
