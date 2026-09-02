@@ -94,6 +94,7 @@ export type MockRoleChangeResponseResult =
 
 @Injectable({ providedIn: 'root' })
 export class MockRbacService {
+  private readonly MinimumAdminCount = 3;
   private readonly UsersStore: MockUserCredential[] = MockAuthenticationProvider.GetInitialUsers().map((User) => this.CloneCredential(User));
   private readonly RoleStore: MockRole[] = MockRoles.map((Role) => ({ ...Role, ManagementPermissions: [...Role.ManagementPermissions] }));
   private readonly ReportStore: MockReport[] = MockReports.map((Report) => ({ ...Report }));
@@ -166,7 +167,7 @@ export class MockRbacService {
     const IsAdminDemotion = ExistingUser.Roles.includes('ADMIN') && !Roles.includes('ADMIN');
     if (IsAdminDemotion) {
       if (RequesterAccount === OriginalAccount) return 'self-role-change-not-allowed';
-      if (this.AdminCount <= 1) return 'minimum-admins';
+      if (this.AdminCount <= this.MinimumAdminCount) return 'minimum-admins';
       if (this.RoleChangeRequestsStore.some((Request) => Request.TargetAccount === OriginalAccount && Request.Status === 'Pending')) return 'pending-request-exists';
       this.RoleChangeRequestsStore.push({
         Id: this.NextRoleChangeRequestId++,
@@ -200,7 +201,7 @@ export class MockRbacService {
   DeleteUser(Account: string): MockDeleteUserResult {
     const UserIndex = this.UsersStore.findIndex((User) => User.Account === Account);
     if (UserIndex < 0) return 'not-found';
-    if (this.UsersStore[UserIndex].Roles.includes('ADMIN') && this.AdminCount <= 1) return 'minimum-admins';
+    if (this.UsersStore[UserIndex].Roles.includes('ADMIN') && this.AdminCount <= this.MinimumAdminCount) return 'minimum-admins';
     this.UsersStore.splice(UserIndex, 1);
     return 'deleted';
   }
@@ -210,7 +211,7 @@ export class MockRbacService {
     if (!Request) return 'not-found';
     if (Request.Status !== 'Pending') return 'not-pending';
     if (Request.TargetAccount !== ResponderAccount) return 'not-target';
-    if (Approve && Request.PreviousRoles.includes('ADMIN') && !Request.RequestedRoles.includes('ADMIN') && this.AdminCount <= 1) return 'minimum-admins';
+    if (Approve && Request.PreviousRoles.includes('ADMIN') && !Request.RequestedRoles.includes('ADMIN') && this.AdminCount <= this.MinimumAdminCount) return 'minimum-admins';
     if (Approve) {
       const Target = this.UsersStore.find((User) => User.Account === Request.TargetAccount);
       if (!Target) return 'not-found';

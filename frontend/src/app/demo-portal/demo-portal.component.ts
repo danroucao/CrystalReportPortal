@@ -81,13 +81,12 @@ type MockParameterFormValue =
   | { Start: string | number | null; End: string | number | null }
   | null;
 
-type ParameterReportSortField = 'ReportName' | 'Category';
+type ParameterReportSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
 type ParameterReportSortDirection = 'asc' | 'desc';
-
-interface FavoriteCategoryTab {
-  readonly Category: string;
-  readonly Count: number;
-}
+type FavoriteReportSortField = 'ReportName' | 'LastUsedAt';
+type FavoriteReportSortDirection = 'asc' | 'desc';
+type ReportManagementSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
+type ReportManagementSortDirection = 'asc' | 'desc';
 
 interface ParameterReportCategoryTab {
   readonly Category: string;
@@ -111,6 +110,7 @@ interface ReportEditorDraft {
 
 type CreateUserField = 'Account' | 'DisplayName' | 'InitialPassword' | 'Roles';
 type CreateUserValidationErrors = Partial<Record<CreateUserField, string>>;
+type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
 
 interface CreatedUserCredentials {
   readonly Account: string;
@@ -142,8 +142,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   readonly Page = this.route.snapshot.data['Page'] as DemoPortalPage;
   SelectedFavoriteCategory = '全部';
+  FavoriteSearchText = '';
   SelectedParameterReportCategory = '全部';
-  FavoriteLastUsedSortDirection: 'asc' | 'desc' = 'desc';
+  IsFavoriteReportSortActive = false;
+  FavoriteReportSortField: FavoriteReportSortField = 'LastUsedAt';
+  FavoriteReportSortDirection: FavoriteReportSortDirection = 'desc';
   ParameterReportStartDate = '';
   ParameterReportEndDate = '';
   ParameterReportDateNotice = '';
@@ -170,13 +173,17 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     { Label: '文字檔', FormatKey: 'Text', Enabled: true, MockOnly: true, RequiresBackendConfirmation: true },
   ];
   ManagementNotice = '';
+  readonly AdminMinimumCountErrorMessage =
+    '系統管理員不得少於3位，請先新增/ 任命新的系統管理員後再試 !!';
   EditingAccount: string | null = null;
   UserDraft: MockUserDraft = this.CreateUserDraft();
   CreateUserValidationErrors: CreateUserValidationErrors = {};
   CreatedUserCredentials: CreatedUserCredentials | null = null;
   CreatedUserCopyNotice = '';
   EditingUser: MockUserEditDraft | null = null;
+  EditUserValidationErrors: EditUserValidationErrors = {};
   DeletingUser: MockUser | null = null;
+  DeleteUserError = '';
   AccountSettingsDraft: MockAccountSettingsDraft = this.CreateAccountSettingsDraft();
   AccountSettingsConfirmation = '';
   AccountSettingsNotice = '';
@@ -199,12 +206,14 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.CreateDatabaseConnectionDraft();
   EditingDatabaseConnectionKey: string | null = null;
   IsDatabaseConnectionEditorOpen = false;
-  DatabaseConnectionNotice = '';
+  DatabaseConnectionFormError = '';
   ReportManagementStartDate = '';
   ReportManagementEndDate = '';
   ReportManagementDateNotice = '';
   ReportManagementCategory = '全部';
   ReportManagementSearchText = '';
+  ReportManagementSortField: ReportManagementSortField | null = null;
+  ReportManagementSortDirection: ReportManagementSortDirection = 'asc';
   ReportManagementCurrentPage = 1;
   IsUploadReportDialogOpen = false;
   EditingReportKey: MockReportKey | null = null;
@@ -285,28 +294,31 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       : [];
   }
 
-  get FavoriteCategoryTabs(): readonly FavoriteCategoryTab[] {
-    const FavoriteReports = this.FavoriteReports;
-    const Categories = [...new Set(FavoriteReports.map(({ Report }) => Report.Category))];
-    return [
-      { Category: '全部', Count: FavoriteReports.length },
-      ...Categories.map((Category) => ({
-        Category,
-        Count: FavoriteReports.filter(({ Report }) => Report.Category === Category)
-          .length,
-      })),
-    ];
+  get FavoriteReportCategories(): readonly string[] {
+    return [...new Set(this.FavoriteReports.map(({ Report }) => Report.Category))];
   }
 
   get DisplayedFavoriteReports(): readonly MockFavoriteReport[] {
-    const Direction = this.FavoriteLastUsedSortDirection === 'asc' ? 1 : -1;
+    const Direction = this.FavoriteReportSortDirection === 'asc' ? 1 : -1;
+    const SearchText = this.FavoriteSearchText.trim().toLocaleLowerCase('zh-Hant');
     return this.FavoriteReports
       .filter(
         ({ Report }) =>
-          this.SelectedFavoriteCategory === '全部' ||
-          Report.Category === this.SelectedFavoriteCategory,
+          (this.SelectedFavoriteCategory === '全部' ||
+            Report.Category === this.SelectedFavoriteCategory) &&
+          (!SearchText ||
+            Report.ReportName.toLocaleLowerCase('zh-Hant').includes(SearchText) ||
+            Report.Description.toLocaleLowerCase('zh-Hant').includes(SearchText)),
       )
       .sort((Left, Right) => {
+        if (this.FavoriteReportSortField === 'ReportName') {
+          return (
+            Left.Report.ReportName.localeCompare(
+              Right.Report.ReportName,
+              'zh-Hant',
+            ) * Direction
+          );
+        }
         if (!Left.LastUsedAt && !Right.LastUsedAt) {
           return Left.Report.ReportName.localeCompare(
             Right.Report.ReportName,
@@ -327,19 +339,41 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.SelectedFavoriteCategory = Category;
   }
 
+  ToggleFavoriteReportNameSort(): void {
+    this.ToggleFavoriteReportSort('ReportName');
+  }
+
   ToggleFavoriteLastUsedSort(): void {
-    this.FavoriteLastUsedSortDirection =
-      this.FavoriteLastUsedSortDirection === 'asc' ? 'desc' : 'asc';
+    this.ToggleFavoriteReportSort('LastUsedAt');
   }
 
-  GetFavoriteLastUsedSortIndicator(): string {
-    return this.FavoriteLastUsedSortDirection === 'asc' ? '↑' : '↓';
+  GetFavoriteReportSortIndicator(Field: FavoriteReportSortField): '↕' | '↑' | '↓' {
+    if (!this.IsFavoriteReportSortActive || this.FavoriteReportSortField !== Field) {
+      return '↕';
+    }
+    return this.FavoriteReportSortDirection === 'asc' ? '↑' : '↓';
   }
 
-  GetFavoriteLastUsedAriaSort(): 'ascending' | 'descending' {
-    return this.FavoriteLastUsedSortDirection === 'asc'
+  GetFavoriteReportAriaSort(
+    Field: FavoriteReportSortField,
+  ): 'none' | 'ascending' | 'descending' {
+    if (!this.IsFavoriteReportSortActive || this.FavoriteReportSortField !== Field) {
+      return 'none';
+    }
+    return this.FavoriteReportSortDirection === 'asc'
       ? 'ascending'
       : 'descending';
+  }
+
+  private ToggleFavoriteReportSort(Field: FavoriteReportSortField): void {
+    if (this.FavoriteReportSortField === Field) {
+      this.FavoriteReportSortDirection =
+        this.FavoriteReportSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.FavoriteReportSortField = Field;
+      this.FavoriteReportSortDirection = 'asc';
+    }
+    this.IsFavoriteReportSortActive = true;
   }
 
   FormatFavoriteLastUsedAt(LastUsedAt: string | null): string {
@@ -360,8 +394,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (
       this.SelectedFavoriteCategory !== '全部' &&
-      !this.FavoriteCategoryTabs.some(
-        (Tab) => Tab.Category === this.SelectedFavoriteCategory,
+      !this.FavoriteReports.some(
+        ({ Report }) => Report.Category === this.SelectedFavoriteCategory,
       )
     ) {
       this.SelectedFavoriteCategory = '全部';
@@ -450,10 +484,16 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const SortField = this.ParameterReportSortField;
     const Direction = this.ParameterReportSortDirection === 'asc' ? 1 : -1;
-    return [...Reports].sort(
-      (Left, Right) =>
-        Left[SortField].localeCompare(Right[SortField], 'zh-Hant') * Direction,
-    );
+    return [...Reports].sort((Left, Right) => {
+      if (SortField === 'ReportName') {
+        return Left.ReportName.localeCompare(Right.ReportName, 'zh-Hant') * Direction;
+      }
+      return (
+        (new Date(Left[SortField]).getTime() -
+          new Date(Right[SortField]).getTime()) *
+        Direction
+      );
+    });
   }
 
   get HasParameterReportSearchText(): boolean {
@@ -812,6 +852,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       Roles: [...User.Roles],
       Enabled: User.Enabled,
     };
+    this.EditUserValidationErrors = {};
   }
 
   SaveUser(): void {
@@ -915,6 +956,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   ToggleEditingUserRole(RoleKey: MockRoleKey, IsSelected: boolean): void {
     if (!this.EditingUser || !this.CanEditEditingUserRoles()) return;
     this.ToggleUserRole(this.EditingUser, RoleKey, IsSelected);
+    delete this.EditUserValidationErrors.Roles;
   }
 
   IsAdminUser(Account: string | null): boolean {
@@ -923,25 +965,38 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   OpenDeleteUserDialog(Account: string): void {
     this.DeletingUser = this.MockRbac.GetUser(Account);
+    this.DeleteUserError = '';
   }
 
   CloseDeleteUserDialog(): void {
     this.DeletingUser = null;
+    this.DeleteUserError = '';
   }
 
   ConfirmDeleteUser(): void {
     if (!this.DeletingUser) return;
     const Account = this.DeletingUser.Account;
+    if (
+      this.DeletingUser.Roles.includes('ADMIN') &&
+      this.MockRbac.AdminCount <= 3
+    ) {
+      this.DeleteUserError = this.AdminMinimumCountErrorMessage;
+      return;
+    }
     const Result = this.MockRbac.DeleteUser(Account);
     const Messages: Record<string, string> = {
       deleted: 'Mock 使用者已刪除。',
-      'minimum-admins': '系統至少必須保留 1 位系統管理員，無法刪除最後一位管理員。',
+      'minimum-admins': this.AdminMinimumCountErrorMessage,
       'not-found': '找不到要刪除的使用者。',
     };
-    this.ManagementNotice = Messages[Result];
-    if (Result === 'deleted') this.EnsureUserPagination();
+    if (Result !== 'deleted') {
+      this.DeleteUserError = Messages[Result];
+      return;
+    }
+    this.EnsureUserPagination();
     this.CloseDeleteUserDialog();
-    if (Result === 'deleted' && Account === this.Auth.CurrentUser?.Account) {
+    this.ShowSuccessToast(Messages['deleted']);
+    if (Account === this.Auth.CurrentUser?.Account) {
       this.Auth.Logout();
       void this.router.navigate(['/login']);
     }
@@ -999,6 +1054,22 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.EditingAccount || !this.EditingUser || !this.Auth.CurrentUser)
       return;
     const OriginalAccount = this.EditingAccount;
+    const OriginalUser = this.MockRbac.GetUser(OriginalAccount);
+    this.EditUserValidationErrors = {};
+    if (!this.EditingUser.Roles.length) {
+      this.EditUserValidationErrors = { Roles: '請至少選擇一個角色。' };
+      return;
+    }
+    if (
+      OriginalUser?.Roles.includes('ADMIN') &&
+      !this.EditingUser.Roles.includes('ADMIN') &&
+      this.MockRbac.AdminCount <= 3
+    ) {
+      this.EditUserValidationErrors = {
+        Roles: this.AdminMinimumCountErrorMessage,
+      };
+      return;
+    }
     const Result = this.MockRbac.SaveUserEdit(
       OriginalAccount,
       this.EditingUser,
@@ -1009,28 +1080,36 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       'role-change-requested':
         '系統管理員角色變更申請已建立，等待異動對象同意或拒絕。',
       'self-role-change-not-allowed': '系統管理員不可修改自己的角色。',
-      'minimum-admins': '系統至少必須保留 1 位系統管理員，無法建立此角色變更。',
+      'minimum-admins': this.AdminMinimumCountErrorMessage,
       'pending-request-exists': '此使用者已有待處理的角色變更申請。',
       'duplicate-account': '帳號已存在，請使用其他帳號。',
       'self-disable-not-allowed': '目前登入的使用者不可將自己停用。',
       invalid: '請至少選擇一個角色。',
       'not-found': '找不到要編輯的使用者。',
     };
-    this.ManagementNotice = Messages[Result];
-    if (Result === 'updated' || Result === 'role-change-requested') {
-      if (Result === 'updated') this.EnsureUserPagination();
-      if (Result === 'updated') this.ShowSuccessToast('使用者資料已更新。');
-      this.Auth.RefreshCurrentUser(
-        OriginalAccount,
-        OriginalAccount,
-      );
-      this.CancelEditUser();
+    if (Result === 'invalid' || Result === 'minimum-admins') {
+      this.EditUserValidationErrors = { Roles: Messages[Result] };
+      return;
     }
+    if (Result !== 'updated' && Result !== 'role-change-requested') {
+      this.EditUserValidationErrors = { Form: Messages[Result] };
+      return;
+    }
+    if (Result === 'updated') this.EnsureUserPagination();
+    this.ShowSuccessToast(
+      Result === 'updated' ? '使用者資料已更新。' : Messages[Result],
+    );
+    this.Auth.RefreshCurrentUser(
+      OriginalAccount,
+      OriginalAccount,
+    );
+    this.CancelEditUser();
   }
 
   CancelEditUser(): void {
     this.EditingAccount = null;
     this.EditingUser = null;
+    this.EditUserValidationErrors = {};
   }
 
   @HostListener('document:keydown.escape')
@@ -1073,7 +1152,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get DisplayedManagedReports(): readonly MockReport[] {
     const SearchText = this.ReportManagementSearchText.trim().toLocaleLowerCase();
-    return this.MockRbac.Reports.filter(
+    const Reports = this.MockRbac.Reports.filter(
       (Report) =>
         (this.ReportManagementCategory === '全部' ||
           Report.Category === this.ReportManagementCategory) &&
@@ -1082,6 +1161,20 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
             .toLocaleLowerCase()
             .includes(SearchText)),
     );
+    if (!this.ReportManagementSortField) return Reports;
+
+    const SortField = this.ReportManagementSortField;
+    const Direction = this.ReportManagementSortDirection === 'asc' ? 1 : -1;
+    return [...Reports].sort((Left, Right) => {
+      if (SortField === 'ReportName') {
+        return Left.ReportName.localeCompare(Right.ReportName, 'zh-Hant') * Direction;
+      }
+      return (
+        (new Date(Left[SortField]).getTime() -
+          new Date(Right[SortField]).getTime()) *
+        Direction
+      );
+    });
   }
 
   get ReportManagementTotalPages(): number {
@@ -1101,6 +1194,33 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   OnReportManagementSearchChange(): void {
     this.ResetReportManagementPagination();
+  }
+
+  ToggleReportManagementSort(Field: ReportManagementSortField): void {
+    this.ResetReportManagementPagination();
+    if (this.ReportManagementSortField === Field) {
+      this.ReportManagementSortDirection =
+        this.ReportManagementSortDirection === 'asc' ? 'desc' : 'asc';
+      return;
+    }
+    this.ReportManagementSortField = Field;
+    this.ReportManagementSortDirection = 'asc';
+  }
+
+  GetReportManagementSortIndicator(
+    Field: ReportManagementSortField,
+  ): '↕' | '↑' | '↓' {
+    if (this.ReportManagementSortField !== Field) return '↕';
+    return this.ReportManagementSortDirection === 'asc' ? '↑' : '↓';
+  }
+
+  GetReportManagementAriaSort(
+    Field: ReportManagementSortField,
+  ): 'none' | 'ascending' | 'descending' {
+    if (this.ReportManagementSortField !== Field) return 'none';
+    return this.ReportManagementSortDirection === 'asc'
+      ? 'ascending'
+      : 'descending';
   }
 
   SetReportManagementCategory(Category: string): void {
@@ -1241,7 +1361,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   OpenCreateDatabaseConnection(): void {
     this.EditingDatabaseConnectionKey = null;
     this.DatabaseConnectionDraft = this.CreateDatabaseConnectionDraft();
-    this.DatabaseConnectionNotice = '';
+    this.DatabaseConnectionFormError = '';
     this.IsDatabaseConnectionEditorOpen = true;
   }
 
@@ -1259,7 +1379,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       Enabled: Connection.Enabled,
       Password: '',
     };
-    this.DatabaseConnectionNotice = '';
+    this.DatabaseConnectionFormError = '';
     this.IsDatabaseConnectionEditorOpen = true;
   }
 
@@ -1267,9 +1387,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.IsDatabaseConnectionEditorOpen = false;
     this.EditingDatabaseConnectionKey = null;
     this.DatabaseConnectionDraft = this.CreateDatabaseConnectionDraft();
+    this.DatabaseConnectionFormError = '';
   }
 
   SaveDatabaseConnection(): void {
+    this.DatabaseConnectionFormError = '';
     const IsEditing = this.EditingDatabaseConnectionKey !== null;
     const IsSaved = IsEditing
       ? this.DatabaseConnections.Update(
@@ -1278,7 +1400,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
         )
       : this.DatabaseConnections.Create(this.DatabaseConnectionDraft);
     if (!IsSaved) {
-      this.DatabaseConnectionNotice = IsEditing
+      this.DatabaseConnectionFormError = IsEditing
         ? '請確認資料來源、主機、連接埠、資料庫與帳號。'
         : '建立連線時請填寫資料來源、主機、連接埠、資料庫、帳號與密碼。';
       return;
@@ -1308,7 +1430,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
         '角色變更申請已在 Mock 資料中核准。正式環境仍須由後端再次驗證。',
       rejected: '角色變更申請已拒絕，原角色維持不變。',
       'not-target': '只有角色異動對象可以回應此申請。',
-      'minimum-admins': '系統至少必須保留 1 位系統管理員，無法核准此角色變更。',
+      'minimum-admins': this.AdminMinimumCountErrorMessage,
       'not-pending': '此申請已處理。',
       'not-found': '找不到此角色變更申請。',
     };
@@ -1904,7 +2026,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       typeof Value.SearchText !== 'string' ||
       (Value.SortField !== null &&
         Value.SortField !== 'ReportName' &&
-        Value.SortField !== 'Category') ||
+        Value.SortField !== 'CreatedAt' &&
+        Value.SortField !== 'UpdatedAt') ||
       (Value.SortDirection !== 'asc' && Value.SortDirection !== 'desc') ||
       typeof Value.StartDate !== 'string' ||
       typeof Value.EndDate !== 'string'

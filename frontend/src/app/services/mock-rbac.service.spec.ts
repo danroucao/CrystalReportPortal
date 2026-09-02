@@ -197,9 +197,20 @@ describe('MockRbacService', () => {
     expect(Updated.UpdatedAt).not.toBe(Before.UpdatedAt);
   });
 
-  it('keeps exactly one SystemAdmin and requires the affected Admin to confirm a requested demotion', () => {
+  it('keeps at least three SystemAdmins and requires the affected Admin to confirm a permitted demotion', () => {
     const Demotion = { Roles: ['FINANCE'], Enabled: false };
+    const AdditionalAdmin: MockUserDraft = {
+      Account: 'admin4@example.com',
+      DisplayName: '系統管理員 D',
+      InitialPassword: 'admin456',
+      Roles: ['ADMIN'],
+      Enabled: true,
+    };
 
+    expect(Service.SaveUserEdit('admin2@example.com', Demotion, 'admin@example.com')).toBe('minimum-admins');
+    expect(Service.DeleteUser('admin3@example.com')).toBe('minimum-admins');
+    expect(Service.CreateUser(AdditionalAdmin)).toBeTrue();
+    expect(Service.AdminCount).toBe(4);
     expect(Service.SaveUserEdit('admin2@example.com', Demotion, 'admin@example.com')).toBe('role-change-requested');
     const Request = Service.RoleChangeRequests[0];
     expect(Service.GetUser('admin2@example.com')?.Roles).toEqual(['ADMIN']);
@@ -213,8 +224,7 @@ describe('MockRbacService', () => {
     expect(Service.GetUser('admin2@example.com')?.Roles).toEqual(['FINANCE']);
     expect(Service.GetUser('admin2@example.com')?.Enabled).toBeFalse();
 
-    expect(Service.DeleteUser('admin3@example.com')).toBe('deleted');
-    expect(Service.AdminCount).toBe(1);
+    expect(Service.AdminCount).toBe(3);
     expect(Service.SaveUserEdit('admin@example.com', Demotion, 'admin2@example.com')).toBe('minimum-admins');
     expect(Service.DeleteUser('admin@example.com')).toBe('minimum-admins');
   });

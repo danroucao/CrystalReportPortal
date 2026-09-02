@@ -234,26 +234,61 @@ describe('DemoPortalComponent', () => {
 
     expect(fixture.nativeElement.querySelectorAll('.favorite-report-table tbody tr').length).toBe(5);
     expect(component.FavoriteReports).toHaveSize(5);
-    expect(component.FavoriteCategoryTabs).toEqual([
-      { Category: '全部', Count: 5 },
-      { Category: '財務', Count: 1 },
-      { Category: '活動', Count: 1 },
-      { Category: '庫存', Count: 1 },
-      { Category: '生產', Count: 1 },
-      { Category: '服務', Count: 1 },
-    ]);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        '#favorite-report-search',
+      ),
+    ).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.favorite-category-tabs')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('#favorite-report-category'),
+    ).not.toBeNull();
+    expect(component.FavoriteReportCategories).toContain('財務');
     expect(fixture.nativeElement.textContent).not.toContain('最近使用報表');
     expect(fixture.nativeElement.textContent).not.toContain('常用報表');
     expect(fixture.nativeElement.textContent).not.toContain('Documents v2 (With Serial And Batch Details - invoice show data from delivery as well)');
     expect(fixture.nativeElement.textContent).not.toContain('AccountBalance.rpt');
     expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('收藏');
-    expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('最近使用日期 ↓');
+    expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('最近使用日期');
+    expect(
+      fixture.nativeElement.querySelector('.favorite-report-name-sort-button .sort-indicator')?.classList,
+    ).not.toContain('is-descending');
+    expect(
+      fixture.nativeElement.querySelector('.favorite-report-name-sort-button')?.closest('th')?.classList,
+    ).not.toContain('is-sorted');
+    expect(
+      fixture.nativeElement.querySelectorAll('.favorite-report-table th')[2]?.querySelector('button'),
+    ).toBeNull();
 
     component.SetFavoriteCategory('財務');
+    component.FavoriteSearchText = 'Account';
     expect(component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName)).toEqual(['AccountBalance']);
+    component.FavoriteSearchText = 'no-match';
+    expect(component.DisplayedFavoriteReports).toHaveSize(0);
     component.SetFavoriteCategory('全部');
+    component.FavoriteSearchText = 'Account';
+    expect(component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName)).toEqual([
+      'AccountBalance',
+    ]);
+    component.FavoriteSearchText = 'no-match';
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('找不到符合條件的報表。');
+    component.FavoriteSearchText = '';
+    component.ToggleFavoriteReportNameSort();
+    fixture.detectChanges();
+    expect(component.GetFavoriteReportSortIndicator('ReportName')).toBe('↑');
+    expect(
+      fixture.nativeElement.querySelector('.favorite-report-name-sort-button')?.closest('th')?.classList,
+    ).toContain('is-sorted');
+    expect(
+      fixture.nativeElement.querySelector('.favorite-last-used-sort-button')?.closest('th')?.classList,
+    ).not.toContain('is-sorted');
     component.ToggleFavoriteLastUsedSort();
-    expect(component.GetFavoriteLastUsedSortIndicator()).toBe('↑');
+    fixture.detectChanges();
+    expect(component.GetFavoriteReportSortIndicator('LastUsedAt')).toBe('↑');
+    expect(
+      fixture.nativeElement.querySelector('.favorite-last-used-sort-button')?.closest('th')?.classList,
+    ).toContain('is-sorted');
     expect(component.DisplayedFavoriteReports.at(-1)?.Report.ReportName).toBe('InventoryTransfer_HANA');
 
     component.SelectReportByKey('AccountBalance');
@@ -326,12 +361,21 @@ describe('DemoPortalComponent', () => {
       Array.from(Host.querySelectorAll('.parameter-report-table th')).map((Header) =>
         Header.textContent?.replace(/[↕↑↓]/g, '').trim(),
       ),
-    ).toEqual(['收藏', '報表名稱', '分類', '說明', '操作']);
+    ).toEqual(['收藏', '報表名稱', '報表分類', '說明', '建立時間', '更新時間', '操作']);
     expect(component.DisplayedParameterReports).toHaveSize(12);
     expect(Host.querySelector<HTMLInputElement>('#parameter-report-start-date')?.type).toBe('date');
     expect(Host.querySelector<HTMLInputElement>('#parameter-report-end-date')?.type).toBe('date');
     expect(Host.querySelector<HTMLSelectElement>('#parameter-report-category')).not.toBeNull();
     expect(Host.querySelector('.parameter-search-field svg')).not.toBeNull();
+    expect(
+      Array.from(
+        Host.querySelectorAll<SVGElement>('.sortable-table-header .sort-indicator'),
+      ).every(
+        (Icon) =>
+          !Icon.classList.contains('is-ascending') &&
+          !Icon.classList.contains('is-descending'),
+      ),
+    ).toBeTrue();
     expect(component.ParameterReportCategories).toContain('財務');
     component.SetParameterReportCategory('財務');
     expect(component.DisplayedParameterReports.map((Report) => Report.ReportName)).toEqual([
@@ -348,7 +392,11 @@ describe('DemoPortalComponent', () => {
       'AccountBalance',
     ]);
     component.ToggleParameterReportSort('ReportName');
+    fixture.detectChanges();
     expect(component.GetParameterReportSortIndicator('ReportName')).toBe('↑');
+    expect(
+      Host.querySelector('.sortable-table-header .sort-indicator')?.classList,
+    ).toContain('is-ascending');
     expect(component.ParameterReportSearchText).toBe('Account');
     expect(
       Host.querySelector<HTMLButtonElement>('.parameter-favorite-button')?.getAttribute('aria-label'),
@@ -361,14 +409,29 @@ describe('DemoPortalComponent', () => {
 
     component.ParameterReportSearchText = '';
     component.ToggleParameterReportSort('ReportName');
+    fixture.detectChanges();
     expect(component.GetParameterReportSortIndicator('ReportName')).toBe('↓');
+    expect(
+      Host.querySelector('.sortable-table-header .sort-indicator')?.classList,
+    ).toContain('is-descending');
     expect(component.DisplayedParameterReports.map((Report) => Report.ReportName)).toEqual([
       ...component.ParameterAccessibleReports,
     ]
       .map((Report) => Report.ReportName)
       .sort((Left, Right) => Right.localeCompare(Left, 'zh-Hant')));
-    component.ToggleParameterReportSort('Category');
-    expect(component.GetParameterReportSortIndicator('Category')).toBe('↑');
+    component.ToggleParameterReportSort('CreatedAt');
+    fixture.detectChanges();
+    expect(component.GetParameterReportSortIndicator('CreatedAt')).toBe('↑');
+    const SortableHeaders = Host.querySelectorAll<HTMLTableCellElement>(
+      '.parameter-report-table th[aria-sort]',
+    );
+    expect(SortableHeaders[0].classList).not.toContain('is-sorted');
+    expect(SortableHeaders[1].classList).toContain('is-sorted');
+    component.ToggleParameterReportSort('UpdatedAt');
+    fixture.detectChanges();
+    expect(component.GetParameterReportSortIndicator('UpdatedAt')).toBe('↑');
+    expect(SortableHeaders[1].classList).not.toContain('is-sorted');
+    expect(SortableHeaders[2].classList).toContain('is-sorted');
 
     component.SelectReportForPreview('AccountBalance');
     expect(Auth.SelectedReport?.ReportKey).toBe('AccountBalance');
@@ -487,7 +550,42 @@ describe('DemoPortalComponent', () => {
     expect(Table.querySelectorAll('tbody tr').length).toBe(10);
     expect(
       Array.from(Table.querySelectorAll('th')).map((Header) => Header.textContent?.trim()),
-    ).toEqual(['報表名稱', '分類', '說明', '啟用狀態', '建立時間', '更新時間', '操作']);
+    ).toEqual(['報表名稱', '報表分類', '說明', '啟用狀態', '建立時間', '更新時間', '操作']);
+    expect(Table.querySelectorAll('.sortable-table-header')).toHaveSize(3);
+    expect(Table.querySelectorAll('th')[1]?.querySelector('button')).toBeNull();
+    component.ToggleReportManagementSort('ReportName');
+    fixture.detectChanges();
+    expect(component.GetReportManagementSortIndicator('ReportName')).toBe('↑');
+    expect(component.DisplayedManagedReports.map((Report) => Report.ReportName)).toEqual(
+      [...component.DisplayedManagedReports]
+        .map((Report) => Report.ReportName)
+        .sort((Left, Right) => Left.localeCompare(Right, 'zh-Hant')),
+    );
+    expect(
+      Table.querySelector('.report-management-name-sort-button')?.closest('th')?.classList,
+    ).toContain('is-sorted');
+    component.ToggleReportManagementSort('CreatedAt');
+    fixture.detectChanges();
+    expect(component.GetReportManagementSortIndicator('CreatedAt')).toBe('↑');
+    expect(component.DisplayedManagedReports.map((Report) => Report.CreatedAt)).toEqual(
+      [...component.DisplayedManagedReports]
+        .map((Report) => Report.CreatedAt)
+        .sort(),
+    );
+    expect(
+      Table.querySelector('.report-management-name-sort-button')?.closest('th')?.classList,
+    ).not.toContain('is-sorted');
+    component.ToggleReportManagementSort('UpdatedAt');
+    fixture.detectChanges();
+    expect(component.GetReportManagementSortIndicator('UpdatedAt')).toBe('↑');
+    expect(component.DisplayedManagedReports.map((Report) => Report.UpdatedAt)).toEqual(
+      [...component.DisplayedManagedReports]
+        .map((Report) => Report.UpdatedAt)
+        .sort(),
+    );
+    component.ToggleReportManagementSort('UpdatedAt');
+    fixture.detectChanges();
+    expect(component.GetReportManagementSortIndicator('UpdatedAt')).toBe('↓');
     expect(Table.querySelectorAll('[role="switch"]').length).toBe(10);
     expect(Host.textContent).not.toContain('AccountBalance.rpt');
     expect(Host.textContent).toContain('停用');
@@ -935,6 +1033,7 @@ describe('DemoPortalComponent', () => {
       '目前登入的使用者不可將自己停用。',
     );
 
+    fixture.componentInstance.ManagementNotice = '';
     fixture.componentInstance.EditUser('admin@example.com');
     fixture.detectChanges();
     const EditingUserSwitch = (
@@ -948,9 +1047,114 @@ describe('DemoPortalComponent', () => {
     fixture.componentInstance.SaveEditedUser();
 
     expect(MockRbac.GetUser('admin@example.com')?.Enabled).toBeTrue();
-    expect(fixture.componentInstance.ManagementNotice).toBe(
-      '目前登入的使用者不可將自己停用。',
+    expect(fixture.componentInstance.EditUserValidationErrors).toEqual({
+      Form: '目前登入的使用者不可將自己停用。',
+    });
+    expect(fixture.componentInstance.EditingUser).not.toBeNull();
+    expect(fixture.componentInstance.ManagementNotice).toBe('');
+  });
+
+  it('keeps the EditUser modal open and clears the local required-role error after a role change', () => {
+    const Auth = TestBed.inject(AuthService);
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    component.EditUser('user@example.com');
+    component.EditingUser!.Roles = [];
+    component.SaveEditedUser();
+    fixture.detectChanges();
+
+    expect(component.EditingUser).not.toBeNull();
+    expect(component.EditUserValidationErrors.Roles).toBe('請至少選擇一個角色。');
+    expect(component.ManagementNotice).toBe('');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.edit-user-modal #edit-user-roles-error',
+      )?.textContent,
+    ).toContain('請至少選擇一個角色。');
+
+    component.ToggleEditingUserRole('FINANCE', true);
+
+    expect(component.EditUserValidationErrors.Roles).toBeUndefined();
+  });
+
+  it('keeps the EditUser modal open and shows the administrator minimum error below roles', () => {
+    const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    component.EditUser('admin2@example.com');
+    component.EditingUser!.Roles = ['FINANCE'];
+    component.SaveEditedUser();
+    fixture.detectChanges();
+
+    expect(MockRbac.AdminCount).toBe(3);
+    expect(MockRbac.GetUser('admin2@example.com')?.Roles).toEqual(['ADMIN']);
+    expect(component.EditingUser).not.toBeNull();
+    expect(component.EditUserValidationErrors.Roles).toBe(
+      '系統管理員不得少於3位，請先新增/ 任命新的系統管理員後再試 !!',
     );
+    expect(component.ManagementNotice).toBe('');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.edit-user-modal #edit-user-roles-error',
+      )?.textContent,
+    ).toContain(component.EditUserValidationErrors.Roles);
+  });
+
+  it('keeps the DeleteUser modal open and shows the administrator minimum error locally', () => {
+    const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    component.OpenDeleteUserDialog('admin2@example.com');
+    component.ConfirmDeleteUser();
+    fixture.detectChanges();
+
+    expect(MockRbac.AdminCount).toBe(3);
+    expect(component.DeletingUser?.Account).toBe('admin2@example.com');
+    expect(component.DeleteUserError).toBe(
+      '系統管理員不得少於3位，請先新增/ 任命新的系統管理員後再試 !!',
+    );
+    expect(component.ManagementNotice).toBe('');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[aria-labelledby="delete-user-title"] .field-error',
+      )?.textContent,
+    ).toContain(component.DeleteUserError);
+  });
+
+  it('keeps the database connection modal open and renders required-field errors locally', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'DatabaseConnection';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    component.OpenCreateDatabaseConnection();
+    component.SaveDatabaseConnection();
+    fixture.detectChanges();
+
+    expect(component.IsDatabaseConnectionEditorOpen).toBeTrue();
+    expect(component.DatabaseConnectionFormError).toBe(
+      '建立連線時請填寫資料來源、主機、連接埠、資料庫、帳號與密碼。',
+    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '.database-connection-modal .field-error',
+      )?.textContent,
+    ).toContain(component.DatabaseConnectionFormError);
+
+    component.CloseDatabaseConnectionEditor();
+    expect(component.DatabaseConnectionFormError).toBe('');
   });
 
   it('creates a role from the UserManagement dialog state and makes it available in role cards', () => {
