@@ -4,6 +4,7 @@ using CrystalReportPortal.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CrystalReportPortal.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902081927_AddDatabaseDefaults")]
+    partial class AddDatabaseDefaults
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -563,11 +566,6 @@ namespace CrystalReportPortal.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("UserId"));
 
-                    b.Property<string>("Account")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -583,16 +581,10 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true, "DF_Users_IsEnabled");
 
-                    b.Property<DateTime?>("PasswordChangedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
-
-                    b.Property<int>("TokenVersion")
-                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -603,9 +595,6 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("UserId");
-
-                    b.HasIndex("Account")
-                        .IsUnique();
 
                     b.HasIndex("EmployeeNo")
                         .IsUnique();
@@ -651,7 +640,7 @@ namespace CrystalReportPortal.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("CrystalReportPortal.Api.Entities.User", "User")
-                        .WithMany("AuditLogs")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -703,7 +692,7 @@ namespace CrystalReportPortal.Api.Migrations
                         .IsRequired();
 
                     b.HasOne("CrystalReportPortal.Api.Entities.User", "Creator")
-                        .WithMany("CreatedReports")
+                        .WithMany()
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -715,7 +704,7 @@ namespace CrystalReportPortal.Api.Migrations
                         .IsRequired();
 
                     b.HasOne("CrystalReportPortal.Api.Entities.User", "Updater")
-                        .WithMany("UpdatedReports")
+                        .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -737,7 +726,7 @@ namespace CrystalReportPortal.Api.Migrations
                         .IsRequired();
 
                     b.HasOne("CrystalReportPortal.Api.Entities.User", "User")
-                        .WithMany("ReportExecutions")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -845,14 +834,6 @@ namespace CrystalReportPortal.Api.Migrations
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.User", b =>
                 {
-                    b.Navigation("AuditLogs");
-
-                    b.Navigation("CreatedReports");
-
-                    b.Navigation("ReportExecutions");
-
-                    b.Navigation("UpdatedReports");
-
                     b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618

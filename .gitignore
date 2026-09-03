@@ -1,23 +1,56 @@
-<<<<<<< HEAD
-# Visual Studio
+# ==============================
+# Visual Studio / .NET
+# ==============================
+
 .vs/
+**/.vs/
 
-# Build results
-bin/
-obj/
+**/bin/
+**/obj/
 
-# User-specific files
 *.user
 *.suo
 
-# Visual Studio Code（如果不想共用設定）
-.vscode/
-=======
-bin/
-obj/
-docs/
-.vs/
-test-data/
-README.md
-.git
->>>>>>> main
+
+# ==============================
+# Angular / Node
+# ==============================
+
+**/node_modules/
+**/dist/
+**/.angular/cache/
+
+
+# ==============================
+# Logs
+# ==============================
+
+*.log
+
+
+# ==============================
+# Environment / Secrets
+# ==============================
+
+.env
+.env.*
+
+
+# ==============================
+# Crystal Report runtime output
+# ==============================
+
+reports/Output/
+
+# Backend runtime uploaded reports
+backend/CrystalReportPortal.Api/reports/
+
+# Local Crystal export test request
+crystal-service/export-request.json
+
+
+# ==============================
+# Temporary project files
+# ==============================
+
+tree.txt
