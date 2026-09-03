@@ -111,7 +111,9 @@ export class LoginComponent implements OnInit {
         this.Notifications.ShowSuccess('登入成功！');
 
         void this.router.navigate([
-          this.Auth.IsAdmin ? '/admin/reports' : '/reports',
+          this.Auth.IsAdmin
+            ? '/admin/reports'
+            : '/reports',
         ]);
       },
 
@@ -119,12 +121,10 @@ export class LoginComponent implements OnInit {
         this.isSubmitting = false;
         this.loginForm.enable();
 
-        if (error.status === 401) {
-          this.notice = 'credential-error';
-          return;
-        }
-
-        if (error.status === 403) {
+        if (
+          error.status === 401 ||
+          error.status === 403
+        ) {
           this.notice = 'credential-error';
           return;
         }

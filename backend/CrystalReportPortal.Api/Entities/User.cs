@@ -18,6 +18,10 @@ public class User
 
     public DateTime? UpdatedAt { get; set; }
 
+    public int TokenVersion { get; set; }
+
+    public DateTime? PasswordChangedAt { get; set; }
+
     public ICollection<UserRole> UserRoles { get; set; }
         = new List<UserRole>();
 

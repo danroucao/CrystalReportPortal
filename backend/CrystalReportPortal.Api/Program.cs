@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,6 +60,51 @@ builder.Services
 
                 ClockSkew = TimeSpan.Zero
             };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userIdText = context.Principal?
+                    .FindFirst(ClaimTypes.NameIdentifier)?
+                    .Value;
+
+                var tokenVersionText = context.Principal?
+                    .FindFirst("TokenVersion")?
+                    .Value;
+
+                if (!long.TryParse(
+                        userIdText,
+                        out var userId) ||
+                    !int.TryParse(
+                        tokenVersionText,
+                        out var tokenVersion))
+                {
+                    context.Fail("Token 格式錯誤");
+                    return;
+                }
+
+                var dbContext =
+                    context.HttpContext
+                        .RequestServices
+                        .GetRequiredService<AppDbContext>();
+
+                var user =
+                    await dbContext.Users
+                        .AsNoTracking()
+                        .SingleOrDefaultAsync(
+                            candidate =>
+                                candidate.UserId == userId);
+
+                if (user == null ||
+                    !user.IsEnabled ||
+                    user.TokenVersion != tokenVersion)
+                {
+                    context.Fail(
+                        "Token 已失效或帳號已停用");
+                }
+            }
+        };
     });
 
 builder.Services.AddAuthorization();

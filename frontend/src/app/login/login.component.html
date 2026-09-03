@@ -23,7 +23,7 @@
       [attr.aria-busy]="isSubmitting"
     >
       <div class="field">
-        <label for="account">帳號 <span class="required">（必填）</span></label>
+        <label for="account">帳號 <span class="required-indicator" aria-hidden="true">*</span></label>
         <input
           id="account"
           type="text"
@@ -39,7 +39,7 @@
       </div>
 
       <div class="field">
-        <label for="password">密碼 <span class="required">（必填）</span></label>
+        <label for="password">密碼 <span class="required-indicator" aria-hidden="true">*</span></label>
         <div class="password-row">
           <input
             id="password"

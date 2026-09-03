@@ -2,14 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
-import {
-  MockManagementPermission,
-  MockReportPermission,
-  MockRole,
-  MockRoleKey,
-} from '../mock/mock-permissions';
+import { MockCategoryPermission, MockManagementPermission, MockRole, MockRoleKey } from '../mock/mock-permissions';
 import { MockReport, MockReportKey } from '../mock/mock-reports';
-import { MockRbacService } from './mock-rbac.service';
+import { MockRbacService, MockReportSearchCriteria } from './mock-rbac.service';
 import { API_BASE_URL } from './api.config';
 
 export interface LoginRequest {
@@ -69,106 +64,136 @@ export class AuthService {
   }
 
   get IsAuthenticated(): boolean {
-    return this.CurrentLoginUser !== null && this.Token !== null;
+    return (
+      this.CurrentLoginUser !== null &&
+      this.Token !== null
+    );
   }
 
   get IsAdmin(): boolean {
-    return this.CurrentLoginUser?.roles.includes('ADMIN') ?? false;
+    return (
+      this.CurrentLoginUser?.roles.includes('ADMIN') ??
+      false
+    );
   }
 
   get AccessToken(): string | null {
     return this.Token;
   }
 
-Login(Account: string, Password: string): Observable<LoginResponse> {
-  const request: LoginRequest = {
-    account: Account,
-    password: Password,
-  };
+  Login(
+    Account: string,
+    Password: string,
+  ): Observable<LoginResponse> {
+    const request: LoginRequest = {
+      account: Account,
+      password: Password,
+    };
 
-  return this.Http
-    .post<LoginResponse>(`${this.ApiUrl}/login`, request)
-    .pipe(
-      tap((response) => {
-        if (
-          !response.success ||
-          !response.token ||
-          !response.user
-        ) {
-          return;
-        }
+    return this.Http
+      .post<LoginResponse>(
+        `${this.ApiUrl}/login`,
+        request,
+      )
+      .pipe(
+        tap((response) => {
+          if (
+            !response.success ||
+            !response.token ||
+            !response.user
+          ) {
+            return;
+          }
 
-        const user: LoginUser = {
-          ...response.user,
+          const user: LoginUser = {
+            ...response.user,
 
-          Account: response.user.account,
-          DisplayName: response.user.userName,
-          Roles: response.user.roles as MockRoleKey[],
-        };
+            Account: response.user.account,
+            DisplayName: response.user.userName,
+            Roles:
+              response.user.roles as MockRoleKey[],
+          };
 
-        this.Token = response.token;
-        this.CurrentLoginUser = user;
-        this.ActiveRolesOverride = null;
+          this.Token = response.token;
+          this.CurrentLoginUser = user;
+          this.ActiveRolesOverride = null;
 
-        sessionStorage.setItem(
-          'crystal-report-token',
-          response.token,
-        );
+          this.MockRbac.ClearSelectedReport();
 
-        sessionStorage.setItem(
-          'crystal-report-user',
-          JSON.stringify(user),
-        );
-      }),
-    );
-}
+          sessionStorage.setItem(
+            'crystal-report-token',
+            response.token,
+          );
+
+          sessionStorage.setItem(
+            'crystal-report-user',
+            JSON.stringify(user),
+          );
+        }),
+      );
+  }
 
   Logout(): void {
     this.Token = null;
     this.CurrentLoginUser = null;
     this.ActiveRolesOverride = null;
 
-    sessionStorage.removeItem('crystal-report-token');
-    sessionStorage.removeItem('crystal-report-user');
+    this.MockRbac.ClearSelectedReport();
+
+    sessionStorage.removeItem(
+      'crystal-report-token',
+    );
+
+    sessionStorage.removeItem(
+      'crystal-report-user',
+    );
   }
 
   RefreshCurrentUser(
-  PreviousAccount: string,
-  CurrentAccount: string,
-): void {
-  if (this.CurrentLoginUser?.Account !== PreviousAccount) {
-    return;
+    PreviousAccount: string,
+    CurrentAccount: string,
+  ): void {
+    if (
+      this.CurrentLoginUser?.Account !==
+      PreviousAccount
+    ) {
+      return;
+    }
+
+    const mockUser =
+      this.MockRbac.GetUser(CurrentAccount);
+
+    if (!mockUser) {
+      return;
+    }
+
+    this.CurrentLoginUser = {
+      ...this.CurrentLoginUser,
+      Account: mockUser.Account,
+      DisplayName: mockUser.DisplayName,
+      Roles: mockUser.Roles,
+    };
+
+    if (!this.IsAdmin) {
+      this.ActiveRolesOverride = null;
+    }
+
+    sessionStorage.setItem(
+      'crystal-report-user',
+      JSON.stringify(this.CurrentLoginUser),
+    );
   }
-
-  const mockUser = this.MockRbac.GetUser(CurrentAccount);
-
-  if (!mockUser) {
-    return;
-  }
-
-  this.CurrentLoginUser = {
-    ...this.CurrentLoginUser,
-    Account: mockUser.Account,
-    DisplayName: mockUser.DisplayName,
-    Roles: mockUser.Roles,
-  };
-
-  if (!this.IsAdmin) {
-    this.ActiveRolesOverride = null;
-  }
-
-  sessionStorage.setItem(
-    'crystal-report-user',
-    JSON.stringify(this.CurrentLoginUser),
-  );
-}
 
   private RestoreSession(): void {
     const token =
-      sessionStorage.getItem('crystal-report-token');
+      sessionStorage.getItem(
+        'crystal-report-token',
+      );
 
     const userJson =
-      sessionStorage.getItem('crystal-report-user');
+      sessionStorage.getItem(
+        'crystal-report-user',
+      );
 
     if (!token || !userJson) {
       return;
@@ -183,7 +208,7 @@ Login(Account: string, Password: string): Observable<LoginResponse> {
     }
   }
 
-  // ===== 隞乩??急?靽? Mock RBAC =====
+  // ===== 暫時保留的 Mock RBAC 相容功能 =====
 
   get CanSwitchDemoRole(): boolean {
     return this.IsAdmin;
@@ -201,17 +226,18 @@ Login(Account: string, Password: string): Observable<LoginResponse> {
     return this.ActiveRoles
       .map(
         (role) =>
-          this.MockRbac.GetRole(role)?.DisplayName ??
-          role,
+          this.MockRbac.GetRole(role)
+            ?.DisplayName ?? role,
       )
-      .join(', ');
+      .join('、');
   }
 
   get DemoRoles(): readonly MockRole[] {
     return this.MockRbac.Roles;
   }
 
-  get AccessibleReports(): readonly MockReport[] {
+  get AccessibleReports():
+    readonly MockReport[] {
     return this.MockRbac.GetAccessibleReports(
       this.ActiveRoles,
     );
@@ -223,22 +249,37 @@ Login(Account: string, Password: string): Observable<LoginResponse> {
     );
   }
 
+  get SelectedReportSearchCriteria():
+    MockReportSearchCriteria | null {
+    return this.MockRbac
+      .GetSelectedReportSearchCriteria();
+  }
+
   SwitchDemoRole(Role: MockRoleKey): void {
     if (this.CanSwitchDemoRole) {
       this.ActiveRolesOverride = [Role];
     }
   }
 
-  SelectReport(ReportKey: MockReportKey): void {
-    this.MockRbac.SelectReport(ReportKey);
+  SelectReport(
+    ReportKey: MockReportKey,
+    SearchCriteria:
+      MockReportSearchCriteria | null = null,
+  ): void {
+    this.MockRbac.SelectReport(
+      ReportKey,
+      SearchCriteria,
+    );
   }
 
-  get ReportPermission(): MockReportPermission {
+  get SelectedReportCategoryPermission():
+    MockCategoryPermission {
     return this.SelectedReport
-      ? this.MockRbac.GetEffectiveReportPermission(
-          this.ActiveRoles,
-          this.SelectedReport.ReportKey,
-        )
+      ? this.MockRbac
+          .GetEffectiveCategoryPermission(
+            this.ActiveRoles,
+            this.SelectedReport.Category,
+          )
       : {
           CanExecute: false,
           CanExportPdf: false,
