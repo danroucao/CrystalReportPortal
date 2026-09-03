@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text;
 using CrystalReportPortal.Api.Dtos;
 
 namespace CrystalReportPortal.Api.Services;
@@ -43,13 +44,11 @@ public class CrystalProcessService : ICrystalProcessService
         var startInfo = new ProcessStartInfo
         {
             FileName = exePath,
-
             UseShellExecute = false,
-
             RedirectStandardOutput = true,
-
             RedirectStandardError = true,
-
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
             CreateNoWindow = true
         };
 

@@ -123,19 +123,6 @@ public class ReportsController : ControllerBase
     }
 
     [Authorize(Roles = "ADMIN")]
-    [HttpGet("test-crystal-parameters")]
-    public async Task<IActionResult> TestCrystalParameters()
-    {
-        var rptPath =
-            @"C:\GitHub\CrystalReportPortal\reports\參數練習-零售銷售明細.rpt";
-
-        var result = await _crystalProcessService
-            .GetParametersAsync(rptPath);
-
-        return Ok(result);
-    }
-
-    [Authorize(Roles = "ADMIN")]
     [HttpPost("{reportId:long}/rpt")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadRpt(
