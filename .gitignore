@@ -1,27 +1,56 @@
-# Visual Studio
+# ==============================
+# Visual Studio / .NET
+# ==============================
+
 .vs/
 **/.vs/
 
-# Build output
-bin/
-obj/
 **/bin/
 **/obj/
 
-# Visual Studio user files
 *.user
 *.suo
 
+
+# ==============================
 # Angular / Node
+# ==============================
+
 **/node_modules/
 **/dist/
+**/.angular/cache/
 
+
+# ==============================
 # Logs
+# ==============================
+
 *.log
 
-# Environment
+
+# ==============================
+# Environment / Secrets
+# ==============================
+
 .env
 .env.*
 
-# Generated report output
+
+# ==============================
+# Crystal Report runtime output
+# ==============================
+
 reports/Output/
+
+# Backend runtime uploaded reports
+backend/CrystalReportPortal.Api/reports/
+
+# Local Crystal export test request
+crystal-service/export-request.json
+
+
+# ==============================
+# Temporary project files
+# ==============================
+
+tree.txt
