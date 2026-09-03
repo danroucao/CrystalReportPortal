@@ -123,7 +123,7 @@
           <input
             id="favorite-report-search"
             [(ngModel)]="FavoriteSearchText"
-            placeholder="輸入報表名稱或說明"
+            placeholder="輸入報表名稱或報表說明"
           />
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <circle cx="10.8" cy="10.8" r="5.8"></circle>
@@ -131,10 +131,7 @@
           </svg>
         </label>
       </div>
-      <div
-        *ngIf="FavoriteReports.length; else EmptyFavoriteReports"
-        class="table-scroll"
-      >
+      <div class="table-scroll">
         <table class="report-list-table favorite-report-table">
           <thead>
             <tr>
@@ -142,7 +139,10 @@
               <th
                 scope="col"
                 [attr.aria-sort]="GetFavoriteReportAriaSort('ReportName')"
-                [class.is-sorted]="IsFavoriteReportSortActive && FavoriteReportSortField === 'ReportName'"
+                [class.is-sorted]="
+                  IsFavoriteReportSortActive &&
+                  FavoriteReportSortField === 'ReportName'
+                "
               >
                 <button
                   type="button"
@@ -152,8 +152,12 @@
                   報表名稱
                   <svg
                     class="sort-indicator"
-                    [class.is-ascending]="GetFavoriteReportSortIndicator('ReportName') === '↑'"
-                    [class.is-descending]="GetFavoriteReportSortIndicator('ReportName') === '↓'"
+                    [class.is-ascending]="
+                      GetFavoriteReportSortIndicator('ReportName') === '↑'
+                    "
+                    [class.is-descending]="
+                      GetFavoriteReportSortIndicator('ReportName') === '↓'
+                    "
                     viewBox="0 0 16 24"
                     aria-hidden="true"
                   >
@@ -165,8 +169,41 @@
               <th>報表分類</th>
               <th
                 scope="col"
+                [attr.aria-sort]="GetFavoriteReportAriaSort('FavoritedAt')"
+                [class.is-sorted]="
+                  IsFavoriteReportSortActive &&
+                  FavoriteReportSortField === 'FavoritedAt'
+                "
+              >
+                <button
+                  type="button"
+                  class="favorite-sort-button favorite-at-sort-button"
+                  (click)="ToggleFavoriteAtSort()"
+                >
+                  收藏時間
+                  <svg
+                    class="sort-indicator"
+                    [class.is-ascending]="
+                      GetFavoriteReportSortIndicator('FavoritedAt') === '↑'
+                    "
+                    [class.is-descending]="
+                      GetFavoriteReportSortIndicator('FavoritedAt') === '↓'
+                    "
+                    viewBox="0 0 16 24"
+                    aria-hidden="true"
+                  >
+                    <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                    <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                  </svg>
+                </button>
+              </th>
+              <th
+                scope="col"
                 [attr.aria-sort]="GetFavoriteReportAriaSort('LastUsedAt')"
-                [class.is-sorted]="IsFavoriteReportSortActive && FavoriteReportSortField === 'LastUsedAt'"
+                [class.is-sorted]="
+                  IsFavoriteReportSortActive &&
+                  FavoriteReportSortField === 'LastUsedAt'
+                "
               >
                 <button
                   type="button"
@@ -176,8 +213,12 @@
                   最近使用日期
                   <svg
                     class="sort-indicator"
-                    [class.is-ascending]="GetFavoriteReportSortIndicator('LastUsedAt') === '↑'"
-                    [class.is-descending]="GetFavoriteReportSortIndicator('LastUsedAt') === '↓'"
+                    [class.is-ascending]="
+                      GetFavoriteReportSortIndicator('LastUsedAt') === '↑'
+                    "
+                    [class.is-descending]="
+                      GetFavoriteReportSortIndicator('LastUsedAt') === '↓'
+                    "
                     viewBox="0 0 16 24"
                     aria-hidden="true"
                   >
@@ -210,8 +251,12 @@
                   </svg>
                 </button>
               </td>
-              <td class="report-name-cell">{{ Favorite.Report.ReportName }}</td>
+              <td
+                class="report-name-cell"
+                [title]="Favorite.Report.ReportName"
+              >{{ Favorite.Report.ReportName }}</td>
               <td>{{ Favorite.Report.CategoryName }}</td>
+              <td>{{ FormatFavoriteAt(Favorite.FavoritedAt) }}</td>
               <td>{{ FormatFavoriteLastUsedAt(Favorite.LastUsedAt) }}</td>
               <td>
                 <button
@@ -223,16 +268,17 @@
               </td>
             </tr>
             <tr *ngIf="!DisplayedFavoriteReports.length">
-              <td colspan="5" class="favorite-empty-state">
-                找不到符合條件的報表。
+              <td colspan="6" class="favorite-empty-state">
+                {{
+                  FavoriteReports.length
+                    ? "找不到符合條件的報表。"
+                    : "目前沒有收藏的報表。"
+                }}
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <ng-template #EmptyFavoriteReports>
-        <p class="favorite-empty-state">目前沒有收藏的報表。</p>
-      </ng-template>
     </section>
     <section *ngIf="Page === 'ReportParameter'" class="content-card">
       <ng-container *ngIf="!IsReportParameterMode; else ParameterFormMode">
@@ -280,8 +326,8 @@
               id="parameter-report-search"
               [(ngModel)]="ParameterReportSearchText"
               (ngModelChange)="OnParameterReportSearchChange()"
-              placeholder="輸入報表名稱或說明"
-              aria-label="輸入報表名稱或說明"
+              placeholder="輸入報表名稱或報表說明"
+              aria-label="輸入報表名稱或報表說明"
             />
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="10.8" cy="10.8" r="5.8"></circle>
@@ -331,12 +377,15 @@
                       aria-hidden="true"
                     >
                       <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
                     </svg>
                   </button>
                 </th>
                 <th>報表分類</th>
-                <th scope="col">說明</th>
+                <th scope="col">報表說明</th>
                 <th
                   scope="col"
                   [attr.aria-sort]="GetParameterReportAriaSort('CreatedAt')"
@@ -360,7 +409,10 @@
                       aria-hidden="true"
                     >
                       <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
                     </svg>
                   </button>
                 </th>
@@ -387,7 +439,10 @@
                       aria-hidden="true"
                     >
                       <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
                     </svg>
                   </button>
                 </th>
@@ -435,13 +490,22 @@
                     </svg>
                   </button>
                 </td>
-                <td class="report-name-cell">{{ Report.ReportName }}</td>
+                <td class="report-name-cell" [title]="Report.ReportName">
+                  {{ Report.ReportName }}
+                </td>
                 <td>{{ Report.CategoryName }}</td>
-                <td class="parameter-report-description">
+                <td
+                  class="parameter-report-description"
+                  [title]="Report.Description"
+                >
                   {{ Report.Description }}
                 </td>
-                <td class="parameter-report-timestamp">{{ Report.CreatedAt }}</td>
-                <td class="parameter-report-timestamp">{{ Report.UpdatedAt }}</td>
+                <td class="parameter-report-timestamp">
+                  {{ Report.CreatedAt }}
+                </td>
+                <td class="parameter-report-timestamp">
+                  {{ Report.UpdatedAt }}
+                </td>
                 <td>
                   <button
                     type="button"
@@ -756,9 +820,9 @@
         </dl>
       </div>
       <div class="preview-placeholder">Frontend Mock Preview</div>
-      <p class="preview-mock-notice">
+      <!-- <p class="preview-mock-notice">
         目前為前端 Mock 預覽，正式報表內容將由後端 Crystal Reports 服務產生。
-      </p>
+      </p> -->
       <div class="preview-output-bar">
         <div class="output-actions">
           <div
@@ -829,17 +893,17 @@
       <p *ngIf="MockNotice" class="mock-notice" role="status">
         {{ MockNotice }}
       </p>
-      <p class="muted">固定印表機的設定、服務與工作狀態仍為 TBD。</p>
+      <!-- <p class="muted">固定印表機的設定、服務與工作狀態仍為 TBD。</p> -->
     </section>
     <section
       *ngIf="Page === 'AccountSettings'"
       class="content-card account-settings-card"
     >
       <h2>帳號設定</h2>
-      <p class="muted">
+      <!-- <p class="muted">
         Frontend Mock
         Only：可修改自己的使用者名稱與新密碼；目前密碼驗證與正式儲存仍需後端支援。
-      </p>
+      </p> -->
       <div class="account-settings-form">
         <label
           >使用者帳號 <input [value]="Auth.CurrentUser?.Account" disabled
@@ -878,12 +942,12 @@
         >
           <div class="management-card-heading">
             <div>
-              <p class="section-eyebrow">角色管理</p>
+              <!-- <p class="section-eyebrow">角色管理</p> -->
               <h2 id="role-management-title">角色與報表權限</h2>
-              <p class="muted">
+              <!-- <p class="muted">
                 角色決定使用者可使用的報表與操作權限；設定會即時更新此頁的 Mock
                 資料。
-              </p>
+              </p> -->
             </div>
             <button
               type="button"
@@ -946,11 +1010,11 @@
         >
           <div class="management-card-heading">
             <div>
-              <p class="section-eyebrow">使用者管理</p>
+              <!-- <p class="section-eyebrow">使用者管理</p> -->
               <h2 id="user-management-title">使用者帳號</h2>
-              <p class="muted">
+              <!-- <p class="muted">
                 搜尋、篩選與維護本機 Mock 使用者的角色及啟用狀態。
-              </p>
+              </p> -->
             </div>
             <button
               type="button"
@@ -972,7 +1036,7 @@
           >
             <h3>角色變更申請</h3>
             <p class="muted">
-              系統管理員降職須由異動對象回應；正式環境仍必須由後端再次驗證。
+              系統管理員降職須由異動對象回應。
             </p>
             <table>
               <thead>
@@ -1095,7 +1159,9 @@
                   <tr
                     *ngFor="let User of PagedUsers; trackBy: TrackUserByAccount"
                   >
-                    <td>{{ User.Account }}</td>
+                    <td class="user-account-cell" [title]="User.Account">
+                      <span>{{ User.Account }}</span>
+                    </td>
                     <td>{{ User.DisplayName }}</td>
                     <td>{{ GetRoleNames(User.Roles) }}</td>
                     <td class="account-status-column">
@@ -1371,7 +1437,7 @@
                     UserDraft.Enabled ? "啟用" : "停用"
                   }}</span>
                 </div>
-                <p class="muted">新帳號預設為停用，可在建立前開啟。</p>
+                <!-- <p class="muted">新帳號預設為停用，可在建立前開啟。</p> -->
               </div>
 
               <div class="modal-actions create-user-actions">
@@ -1402,7 +1468,7 @@
             <div class="created-user-success-icon" aria-hidden="true">✓</div>
             <h2 id="created-user-success-title">新增使用者成功</h2>
             <p id="created-user-success-description">
-              請複製下方密碼並傳送給新的使用者進行登入。
+              請複製下方資訊，並傳送給使用者進行登入。
             </p>
             <section
               class="created-user-credentials"
@@ -1566,7 +1632,7 @@
               *ngIf="EditingAccount && IsAdminUser(EditingAccount)"
               class="muted"
             >
-              系統管理員降職會建立 Mock 角色變更申請，須由異動對象回應。
+              系統管理員降職會建立角色變更申請，須由異動對象回應。
             </p>
             <div class="modal-actions">
               <button type="button" (click)="SaveEditedUser()">儲存變更</button
@@ -1608,7 +1674,8 @@
               </button>
             </div>
             <p class="muted">
-              Frontend Mock Only：正式刪除權限、保留與稽核規則仍需後端確認。
+              此操作無法復原，請確認是否繼續？
+              <!-- Frontend Mock Only：正式刪除權限、保留與稽核規則仍需後端確認。 -->
             </p>
             <p *ngIf="DeleteUserError" class="field-error" role="alert">
               {{ DeleteUserError }}
@@ -1735,7 +1802,10 @@
                   </thead>
                   <tbody>
                     <tr
-                      *ngFor="let Entry of RoleDraft.Permissions; trackBy: TrackByCategoryPermissionEntry"
+                      *ngFor="
+                        let Entry of RoleDraft.Permissions;
+                        trackBy: TrackByCategoryPermissionEntry
+                      "
                     >
                       <td>{{ Entry.CategoryName }}</td>
                       <td>
@@ -1896,7 +1966,7 @@
               id="report-management-search"
               [(ngModel)]="ReportManagementSearchText"
               (ngModelChange)="OnReportManagementSearchChange()"
-              placeholder="輸入報表名稱或說明"
+              placeholder="輸入報表名稱或報表說明"
             />
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <circle cx="10.8" cy="10.8" r="5.8"></circle>
@@ -1941,18 +2011,25 @@
                     報表名稱
                     <svg
                       class="sort-indicator"
-                      [class.is-ascending]="GetReportManagementSortIndicator('ReportName') === '↑'"
-                      [class.is-descending]="GetReportManagementSortIndicator('ReportName') === '↓'"
+                      [class.is-ascending]="
+                        GetReportManagementSortIndicator('ReportName') === '↑'
+                      "
+                      [class.is-descending]="
+                        GetReportManagementSortIndicator('ReportName') === '↓'
+                      "
                       viewBox="0 0 16 24"
                       aria-hidden="true"
                     >
                       <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
                     </svg>
                   </button>
                 </th>
                 <th>報表分類</th>
-                <th>說明</th>
+                <th>報表說明</th>
                 <th>啟用狀態</th>
                 <th
                   scope="col"
@@ -1967,13 +2044,20 @@
                     建立時間
                     <svg
                       class="sort-indicator"
-                      [class.is-ascending]="GetReportManagementSortIndicator('CreatedAt') === '↑'"
-                      [class.is-descending]="GetReportManagementSortIndicator('CreatedAt') === '↓'"
+                      [class.is-ascending]="
+                        GetReportManagementSortIndicator('CreatedAt') === '↑'
+                      "
+                      [class.is-descending]="
+                        GetReportManagementSortIndicator('CreatedAt') === '↓'
+                      "
                       viewBox="0 0 16 24"
                       aria-hidden="true"
                     >
                       <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
                     </svg>
                   </button>
                 </th>
@@ -1990,13 +2074,20 @@
                     更新時間
                     <svg
                       class="sort-indicator"
-                      [class.is-ascending]="GetReportManagementSortIndicator('UpdatedAt') === '↑'"
-                      [class.is-descending]="GetReportManagementSortIndicator('UpdatedAt') === '↓'"
+                      [class.is-ascending]="
+                        GetReportManagementSortIndicator('UpdatedAt') === '↑'
+                      "
+                      [class.is-descending]="
+                        GetReportManagementSortIndicator('UpdatedAt') === '↓'
+                      "
                       viewBox="0 0 16 24"
                       aria-hidden="true"
                     >
                       <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
                     </svg>
                   </button>
                 </th>
@@ -2375,6 +2466,25 @@
               "
             />
           </label>
+          <label class="report-editor-description-field" for="report-editor-description">
+            <span class="form-field-label"
+              >報表說明<span class="required-indicator" aria-hidden="true"
+                >*</span
+              ></span
+            >
+            <textarea
+              id="report-editor-description"
+              name="reportDescription"
+              [(ngModel)]="ReportEditorDraft.Description"
+              rows="3"
+              placeholder="請輸入報表說明"
+              [attr.aria-invalid]="
+                ReportEditorError && !ReportEditorDraft.Description.trim()
+                  ? 'true'
+                  : null
+              "
+            ></textarea>
+          </label>
           <div class="report-editor-category-field">
             <label for="report-editor-category"
               ><span class="form-field-label"
@@ -2387,7 +2497,9 @@
                 name="reportCategory"
                 [(ngModel)]="ReportEditorDraft.CategoryId"
                 [attr.aria-invalid]="
-                  ReportEditorError && !ReportEditorDraft.CategoryId ? 'true' : null
+                  ReportEditorError && !ReportEditorDraft.CategoryId
+                    ? 'true'
+                    : null
                 "
               >
                 <option value="" disabled>選擇報表分類</option>
@@ -2415,7 +2527,9 @@
             aria-labelledby="report-category-quick-add-label"
           >
             <label for="report-category-quick-add-name">
-              <span id="report-category-quick-add-label" class="form-field-label"
+              <span
+                id="report-category-quick-add-label"
+                class="form-field-label"
                 >分類名稱<span class="required-indicator" aria-hidden="true"
                   >*</span
                 ></span
@@ -2425,14 +2539,24 @@
                 name="quickAddCategoryName"
                 [(ngModel)]="QuickAddCategoryName"
                 (ngModelChange)="QuickAddCategoryError = ''"
-                (keydown.enter)="$event.preventDefault(); CreateReportCategoryQuickAdd()"
+                (keydown.enter)="
+                  $event.preventDefault(); CreateReportCategoryQuickAdd()
+                "
                 placeholder="請輸入新分類名稱"
                 [attr.aria-invalid]="QuickAddCategoryError ? 'true' : null"
               />
             </label>
             <div class="report-category-quick-add-actions">
-              <button type="button" (click)="CreateReportCategoryQuickAdd()">新增</button>
-              <button type="button" class="secondary-button" (click)="CloseReportCategoryQuickAdd()">取消</button>
+              <button type="button" (click)="CreateReportCategoryQuickAdd()">
+                新增
+              </button>
+              <button
+                type="button"
+                class="secondary-button"
+                (click)="CloseReportCategoryQuickAdd()"
+              >
+                取消
+              </button>
             </div>
             <p *ngIf="QuickAddCategoryError" class="field-error" role="alert">
               {{ QuickAddCategoryError }}
@@ -2545,12 +2669,17 @@
               [attr.aria-invalid]="CategoryCreateError ? 'true' : null"
             />
           </label>
-          <button type="submit"><span aria-hidden="true">＋</span> 新增分類</button>
+          <button type="submit">
+            <span aria-hidden="true">＋</span> 新增分類
+          </button>
           <p *ngIf="CategoryCreateError" class="field-error" role="alert">
             {{ CategoryCreateError }}
           </p>
         </form>
-        <section class="category-management-list" aria-labelledby="existing-categories-title">
+        <section
+          class="category-management-list"
+          aria-labelledby="existing-categories-title"
+        >
           <h3 id="existing-categories-title">既有分類</h3>
           <div
             *ngFor="let Category of CategoryManagementCategories"
@@ -2558,8 +2687,17 @@
             [class.is-editing]="EditingCategoryId === Category.CategoryId"
           >
             <div class="category-management-name">
-              <ng-container *ngIf="EditingCategoryId === Category.CategoryId; else CategoryName">
-                <label [attr.for]="'category-edit-' + Category.CategoryId" class="visually-hidden">分類名稱</label>
+              <ng-container
+                *ngIf="
+                  EditingCategoryId === Category.CategoryId;
+                  else CategoryName
+                "
+              >
+                <label
+                  [attr.for]="'category-edit-' + Category.CategoryId"
+                  class="visually-hidden"
+                  >分類名稱</label
+                >
                 <input
                   [id]="'category-edit-' + Category.CategoryId"
                   name="editingCategoryName"
@@ -2571,15 +2709,39 @@
                   {{ CategoryEditError }}
                 </p>
               </ng-container>
-              <ng-template #CategoryName>{{ Category.CategoryName }}</ng-template>
+              <ng-template #CategoryName>{{
+                Category.CategoryName
+              }}</ng-template>
             </div>
-            <span class="category-management-usage">{{ GetCategoryUsageLabel(Category) }}</span>
+            <span class="category-management-usage">{{
+              GetCategoryUsageLabel(Category)
+            }}</span>
             <div class="category-management-action-slot">
-              <span *ngIf="Category.IsSystemReserved" class="category-system-reserved">系統保留</span>
-              <div *ngIf="!Category.IsSystemReserved" class="category-management-actions">
-                <ng-container *ngIf="EditingCategoryId === Category.CategoryId; else CategoryActions">
-                  <button type="button" (click)="SaveCategoryEdit()">儲存</button>
-                  <button type="button" class="secondary-button" (click)="CancelCategoryEdit()">取消</button>
+              <span
+                *ngIf="Category.IsSystemReserved"
+                class="category-system-reserved"
+                >系統保留</span
+              >
+              <div
+                *ngIf="!Category.IsSystemReserved"
+                class="category-management-actions"
+              >
+                <ng-container
+                  *ngIf="
+                    EditingCategoryId === Category.CategoryId;
+                    else CategoryActions
+                  "
+                >
+                  <button type="button" (click)="SaveCategoryEdit()">
+                    儲存
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    (click)="CancelCategoryEdit()"
+                  >
+                    取消
+                  </button>
                 </ng-container>
                 <ng-template #CategoryActions>
                   <button
@@ -2606,7 +2768,13 @@
           </div>
         </section>
         <div class="modal-actions category-management-close-action">
-          <button type="button" class="secondary-button" (click)="CloseCategoryManagementDialog()">關閉</button>
+          <button
+            type="button"
+            class="secondary-button"
+            (click)="CloseCategoryManagementDialog()"
+          >
+            關閉
+          </button>
         </div>
       </section>
     </section>
@@ -2624,7 +2792,11 @@
       >
         <div class="modal-heading">
           <h2 id="delete-category-title">
-            {{ GetCategoryUsageCount(DeletingCategory.CategoryId) ? '刪除分類：' + DeletingCategory.CategoryName : '刪除報表分類' }}
+            {{
+              GetCategoryUsageCount(DeletingCategory.CategoryId)
+                ? "刪除分類：" + DeletingCategory.CategoryName
+                : "刪除報表分類"
+            }}
           </h2>
           <button
             type="button"
@@ -2635,8 +2807,15 @@
             ×
           </button>
         </div>
-        <ng-container *ngIf="GetCategoryUsageCount(DeletingCategory.CategoryId) as UsageCount">
-          <p>「{{ DeletingCategory.CategoryName }}」目前仍有 {{ UsageCount }} 份報表使用中。</p>
+        <ng-container
+          *ngIf="
+            GetCategoryUsageCount(DeletingCategory.CategoryId) as UsageCount
+          "
+        >
+          <p>
+            「{{ DeletingCategory.CategoryName }}」目前仍有
+            {{ UsageCount }} 份報表使用中。
+          </p>
           <p>若刪除此分類，這些報表將自動移至「未分類」。</p>
           <p class="muted">刪除完成後，請重新替這些報表設定正確分類。</p>
         </ng-container>
@@ -2647,10 +2826,24 @@
           {{ CategoryDeleteError }}
         </p>
         <div class="modal-actions category-delete-actions">
-          <button type="button" class="role-delete-button" (click)="ConfirmDeleteCategory()">
-            {{ GetCategoryUsageCount(DeletingCategory.CategoryId) ? '確認移動並刪除' : '確認刪除' }}
+          <button
+            type="button"
+            class="role-delete-button"
+            (click)="ConfirmDeleteCategory()"
+          >
+            {{
+              GetCategoryUsageCount(DeletingCategory.CategoryId)
+                ? "確認移動並刪除"
+                : "確認刪除"
+            }}
           </button>
-          <button type="button" class="secondary-button" (click)="CloseDeleteCategoryDialog()">取消</button>
+          <button
+            type="button"
+            class="secondary-button"
+            (click)="CloseDeleteCategoryDialog()"
+          >
+            取消
+          </button>
         </div>
       </section>
     </section>

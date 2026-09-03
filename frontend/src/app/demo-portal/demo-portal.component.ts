@@ -84,7 +84,7 @@ type MockParameterFormValue =
 
 type ParameterReportSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
 type ParameterReportSortDirection = 'asc' | 'desc';
-type FavoriteReportSortField = 'ReportName' | 'LastUsedAt';
+type FavoriteReportSortField = 'ReportName' | 'FavoritedAt' | 'LastUsedAt';
 type FavoriteReportSortDirection = 'asc' | 'desc';
 type ReportManagementSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
 type ReportManagementSortDirection = 'asc' | 'desc';
@@ -106,6 +106,7 @@ interface ParameterReportSearchState {
 
 interface ReportEditorDraft {
   ReportName: string;
+  Description: string;
   CategoryId: string;
   Enabled: boolean;
 }
@@ -333,17 +334,25 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
             ) * Direction
           );
         }
-        if (!Left.LastUsedAt && !Right.LastUsedAt) {
+        const LeftTimestamp =
+          this.FavoriteReportSortField === 'FavoritedAt'
+            ? Left.FavoritedAt
+            : Left.LastUsedAt;
+        const RightTimestamp =
+          this.FavoriteReportSortField === 'FavoritedAt'
+            ? Right.FavoritedAt
+            : Right.LastUsedAt;
+        if (!LeftTimestamp && !RightTimestamp) {
           return Left.Report.ReportName.localeCompare(
             Right.Report.ReportName,
             'zh-Hant',
           );
         }
-        if (!Left.LastUsedAt) return 1;
-        if (!Right.LastUsedAt) return -1;
+        if (!LeftTimestamp) return 1;
+        if (!RightTimestamp) return -1;
         return (
-          (new Date(Left.LastUsedAt).getTime() -
-            new Date(Right.LastUsedAt).getTime()) *
+          (new Date(LeftTimestamp).getTime() -
+            new Date(RightTimestamp).getTime()) *
           Direction
         );
       });
@@ -355,6 +364,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ToggleFavoriteReportNameSort(): void {
     this.ToggleFavoriteReportSort('ReportName');
+  }
+
+  ToggleFavoriteAtSort(): void {
+    this.ToggleFavoriteReportSort('FavoritedAt');
   }
 
   ToggleFavoriteLastUsedSort(): void {
@@ -398,6 +411,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${DateValue.getFullYear()}/${Pad(DateValue.getMonth() + 1)}/${Pad(
       DateValue.getDate(),
     )} ${Pad(DateValue.getHours())}:${Pad(DateValue.getMinutes())}`;
+  }
+
+  FormatFavoriteAt(FavoritedAt: string | null): string {
+    if (!FavoritedAt) return '—';
+    return this.FormatFavoriteLastUsedAt(FavoritedAt);
   }
 
   RemoveFavoriteReport(Favorite: MockFavoriteReport): void {
@@ -1437,6 +1455,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.EditingReportKey = Report.ReportKey;
     this.ReportEditorDraft = {
       ReportName: Report.ReportName,
+      Description: Report.Description,
       CategoryId: Report.CategoryId,
       Enabled: Report.Enabled,
     };
@@ -1514,6 +1533,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     const IsSaved = IsEditing
       ? this.MockRbac.UpdateReport(this.EditingReportKey!, {
           ReportName: this.ReportEditorDraft.ReportName,
+          Description: this.ReportEditorDraft.Description,
           CategoryId: this.ReportEditorDraft.CategoryId,
           Enabled: this.ReportEditorDraft.Enabled,
           FileName: this.SelectedReportFileName,
@@ -1521,6 +1541,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       : Boolean(
           this.MockRbac.CreateReport({
             ReportName: this.ReportEditorDraft.ReportName,
+            Description: this.ReportEditorDraft.Description,
             CategoryId: this.ReportEditorDraft.CategoryId,
             Enabled: this.ReportEditorDraft.Enabled,
             FileName: this.SelectedReportFileName,
@@ -1822,6 +1843,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private CreateReportEditorDraft(): ReportEditorDraft {
     return {
       ReportName: '',
+      Description: '',
       CategoryId: '',
       Enabled: false,
     };
@@ -1833,6 +1855,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (!this.ReportEditorDraft.ReportName.trim()) {
       return '請輸入報表名稱。';
+    }
+    if (!this.ReportEditorDraft.Description.trim()) {
+      return '請輸入報表說明。';
     }
     if (!this.ReportEditorDraft.CategoryId) {
       return '請選擇報表分類。';

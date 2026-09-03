@@ -171,7 +171,15 @@ describe('MockRbacService', () => {
   it('uses only CategoryIds that exist in the Category Master', () => {
     expect(Service.Reports.every((Report) => IsMockReportCategoryId(Report.CategoryId))).toBeTrue();
     expect(Service.CreateReport({
+      ReportName: 'Missing description',
+      Description: '   ',
+      CategoryId: 'FINANCE',
+      Enabled: true,
+      FileName: 'MissingDescription.rpt',
+    })).toBeNull();
+    expect(Service.CreateReport({
       ReportName: 'Invalid category',
+      Description: '無效分類的報表。',
       CategoryId: 'UNKNOWN_CATEGORY',
       Enabled: true,
       FileName: 'InvalidCategory.rpt',
@@ -314,6 +322,7 @@ describe('MockRbacService', () => {
   it('excludes the reserved category from ordinary-role permissions and report visibility', () => {
     const Report = Service.CreateReport({
       ReportName: 'Needs recategorization',
+      Description: '需要重新分類的報表。',
       CategoryId: SystemUncategorizedCategoryId,
       Enabled: true,
       FileName: 'NeedsRecategorization.rpt',

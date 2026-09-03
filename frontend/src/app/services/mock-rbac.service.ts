@@ -74,6 +74,7 @@ export interface MockRoleChangeRequest {
 
 export interface MockFavoriteReport {
   readonly Report: MockReportReadModel;
+  readonly FavoritedAt: string | null;
   readonly LastUsedAt: string | null;
 }
 
@@ -89,6 +90,7 @@ export interface MockReportSearchCriteria {
 
 interface MockFavoriteReportState {
   IsFavorite: boolean;
+  FavoritedAt: string | null;
   LastUsedAt: string | null;
 }
 
@@ -447,20 +449,22 @@ export class MockRbacService {
 
   CreateReport(Draft: {
     ReportName: string;
+    Description: string;
     CategoryId: string;
     Enabled: boolean;
     FileName: string;
   }): MockReportReadModel | null {
     const ReportName = Draft.ReportName.trim();
+    const Description = Draft.Description.trim();
     const CategoryId = Draft.CategoryId.trim();
     const FileName = Draft.FileName.trim();
-    if (!ReportName || !this.IsValidCategoryId(CategoryId) || !FileName) return null;
+    if (!ReportName || !Description || !this.IsValidCategoryId(CategoryId) || !FileName) return null;
     const Timestamp = this.GetTimestamp();
     const Report: MockReport = {
       ReportKey: `UploadedReport${this.NextUploadedReportSequence++}` as MockReportKey,
       ReportName,
       CategoryId,
-      Description: '前端 Mock 上傳的報表。',
+      Description,
       FileName,
       Enabled: Draft.Enabled,
       CreatedAt: Timestamp,
@@ -474,6 +478,7 @@ export class MockRbacService {
     ReportKey: MockReportKey,
     Draft: {
       ReportName: string;
+      Description: string;
       CategoryId: string;
       Enabled: boolean;
       FileName?: string;
@@ -483,6 +488,7 @@ export class MockRbacService {
     if (
       ReportIndex < 0 ||
       !Draft.ReportName.trim() ||
+      !Draft.Description.trim() ||
       !this.IsValidCategoryId(Draft.CategoryId.trim())
     ) {
       return false;
@@ -491,6 +497,7 @@ export class MockRbacService {
     this.ReportStore[ReportIndex] = {
       ...Current,
       ReportName: Draft.ReportName.trim(),
+      Description: Draft.Description.trim(),
       CategoryId: Draft.CategoryId.trim(),
       Enabled: Draft.Enabled,
       FileName: Draft.FileName?.trim() || Current.FileName,
@@ -536,6 +543,7 @@ export class MockRbacService {
       .filter((Report) => Favorites[Report.ReportKey]?.IsFavorite)
       .map((Report) => ({
         Report,
+        FavoritedAt: Favorites[Report.ReportKey]?.FavoritedAt ?? null,
         LastUsedAt: Favorites[Report.ReportKey]?.LastUsedAt ?? null,
       }));
   }
@@ -556,8 +564,13 @@ export class MockRbacService {
       this.FavoriteReportStore[Account] ?? (this.FavoriteReportStore[Account] = {});
     const Favorite =
       Favorites[ReportKey] ??
-      (Favorites[ReportKey] = { IsFavorite: false, LastUsedAt: null });
+      (Favorites[ReportKey] = {
+        IsFavorite: false,
+        FavoritedAt: null,
+        LastUsedAt: null,
+      });
     Favorite.IsFavorite = !Favorite.IsFavorite;
+    if (Favorite.IsFavorite) Favorite.FavoritedAt = new Date().toISOString();
     return Favorite.IsFavorite;
   }
 
@@ -681,7 +694,7 @@ export class MockRbacService {
     return Object.fromEntries(
       this.ReportStore.map((Report) => [
         Report.ReportKey,
-        { IsFavorite: false, LastUsedAt: null },
+        { IsFavorite: false, FavoritedAt: null, LastUsedAt: null },
       ]),
     ) as Partial<Record<MockReportKey, MockFavoriteReportState>>;
   }

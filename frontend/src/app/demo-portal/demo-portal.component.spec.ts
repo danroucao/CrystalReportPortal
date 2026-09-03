@@ -96,6 +96,13 @@ describe('DemoPortalComponent', () => {
       (fixture.nativeElement as HTMLElement).querySelectorAll('.user-management-table th'),
     ).map((Header) => Header.textContent?.trim());
     expect(Headers).toEqual(['帳號', '名稱', '角色', '啟用狀態', '建立時間', '更新時間', '操作']);
+    const FirstAccount = component.PagedUsers[0].Account;
+    expect(
+      fixture.nativeElement.querySelector('.user-account-cell')?.getAttribute('title'),
+    ).toBe(FirstAccount);
+    expect(
+      fixture.nativeElement.querySelector('.user-account-cell > span')?.textContent?.trim(),
+    ).toBe(FirstAccount);
     expect(fixture.nativeElement.querySelector('[aria-label="編輯 user@example.com"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[aria-label="刪除 user@example.com"]')).not.toBeNull();
 
@@ -250,7 +257,12 @@ describe('DemoPortalComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Documents v2 (With Serial And Batch Details - invoice show data from delivery as well)');
     expect(fixture.nativeElement.textContent).not.toContain('AccountBalance.rpt');
     expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('收藏');
+    expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('收藏時間');
     expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('最近使用日期');
+    expect(component.DisplayedFavoriteReports[0].FavoritedAt).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('.favorite-report-table .report-name-cell')?.getAttribute('title'),
+    ).toBe(component.DisplayedFavoriteReports[0].Report.ReportName);
     expect(
       fixture.nativeElement.querySelector('.favorite-report-name-sort-button .sort-indicator')?.classList,
     ).not.toContain('is-descending');
@@ -284,6 +296,12 @@ describe('DemoPortalComponent', () => {
     expect(
       fixture.nativeElement.querySelector('.favorite-last-used-sort-button')?.closest('th')?.classList,
     ).not.toContain('is-sorted');
+    component.ToggleFavoriteAtSort();
+    fixture.detectChanges();
+    expect(component.GetFavoriteReportSortIndicator('FavoritedAt')).toBe('↑');
+    expect(
+      fixture.nativeElement.querySelector('.favorite-at-sort-button')?.closest('th')?.classList,
+    ).toContain('is-sorted');
     component.ToggleFavoriteLastUsedSort();
     fixture.detectChanges();
     expect(component.GetFavoriteReportSortIndicator('LastUsedAt')).toBe('↑');
@@ -306,7 +324,7 @@ describe('DemoPortalComponent', () => {
     expect(MockRbac.GetFavoriteReports('user@example.com', ['FINANCE'])).toHaveSize(2);
   });
 
-  it('filters favorites through existing report access and renders a table-free empty state', () => {
+  it('filters favorites through existing report access and keeps table headers for an empty state', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
@@ -330,7 +348,8 @@ describe('DemoPortalComponent', () => {
     );
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.favorite-report-table')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.favorite-report-table')).not.toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.favorite-report-table th').length).toBe(6);
     expect(fixture.nativeElement.querySelector('.favorite-empty-state')?.textContent).toContain(
       '目前沒有收藏的報表。',
     );
@@ -362,7 +381,13 @@ describe('DemoPortalComponent', () => {
       Array.from(Host.querySelectorAll('.parameter-report-table th')).map((Header) =>
         Header.textContent?.replace(/[↕↑↓]/g, '').trim(),
       ),
-    ).toEqual(['收藏', '報表名稱', '報表分類', '說明', '建立時間', '更新時間', '操作']);
+    ).toEqual(['收藏', '報表名稱', '報表分類', '報表說明', '建立時間', '更新時間', '操作']);
+    expect(Host.querySelector('.parameter-report-table .report-name-cell')?.getAttribute('title')).toBe(
+      component.PagedParameterReports[0].ReportName,
+    );
+    expect(Host.querySelector('.parameter-report-description')?.getAttribute('title')).toBe(
+      component.PagedParameterReports[0].Description,
+    );
     expect(component.DisplayedParameterReports).toHaveSize(12);
     expect(Host.querySelector<HTMLInputElement>('#parameter-report-start-date')?.type).toBe('date');
     expect(Host.querySelector<HTMLInputElement>('#parameter-report-end-date')?.type).toBe('date');
@@ -553,7 +578,13 @@ describe('DemoPortalComponent', () => {
     expect(Table.querySelectorAll('tbody tr').length).toBe(10);
     expect(
       Array.from(Table.querySelectorAll('th')).map((Header) => Header.textContent?.trim()),
-    ).toEqual(['報表名稱', '報表分類', '說明', '啟用狀態', '建立時間', '更新時間', '操作']);
+    ).toEqual(['報表名稱', '報表分類', '報表說明', '啟用狀態', '建立時間', '更新時間', '操作']);
+    expect(Table.querySelector('.report-management-name')?.getAttribute('title')).toBe(
+      component.PagedManagedReports[0].ReportName,
+    );
+    expect(Table.querySelector('.report-management-description')?.getAttribute('title')).toBe(
+      component.PagedManagedReports[0].Description,
+    );
     expect(Table.querySelectorAll('.sortable-table-header')).toHaveSize(3);
     expect(Table.querySelectorAll('th')[1]?.querySelector('button')).toBeNull();
     component.ToggleReportManagementSort('ReportName');
@@ -610,6 +641,7 @@ describe('DemoPortalComponent', () => {
     component.OpenUploadReportDialog();
     fixture.detectChanges();
     expect(Host.querySelector('.report-editor-modal')).not.toBeNull();
+    expect(Host.querySelector<HTMLTextAreaElement>('#report-editor-description')?.rows).toBe(3);
     expect(component.ReportEditorDraft.Enabled).toBeFalse();
     expect(component.ReportEditorCategories.map((Category) => Category.CategoryId)).toContain('MARKETING');
     expect(component.ReportEditorCategories.map((Category) => Category.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
@@ -617,6 +649,9 @@ describe('DemoPortalComponent', () => {
     expect(component.ReportEditorError).toBe('請輸入報表名稱。');
     component.ReportEditorDraft.ReportName = 'Mock Upload';
     component.ReportEditorDraft.CategoryId = 'FINANCE';
+    component.SaveReport();
+    expect(component.ReportEditorError).toBe('請輸入報表說明。');
+    component.ReportEditorDraft.Description = 'Mock Upload 報表說明';
     component.SaveReport();
     expect(component.ReportEditorError).toBe('請選擇 RPT 報表檔案。');
 
@@ -635,10 +670,12 @@ describe('DemoPortalComponent', () => {
     component.SaveReport();
     fixture.detectChanges();
     expect(component.MockRbac.Reports.some((Report) => Report.ReportName === 'Mock Upload')).toBeTrue();
+    expect(component.MockRbac.Reports.find((Report) => Report.ReportName === 'Mock Upload')?.Description).toBe('Mock Upload 報表說明');
     expect(Host.textContent).not.toContain('Mock Upload.rpt');
 
     const ReservedReport = component.MockRbac.CreateReport({
       ReportName: 'Needs recategorization',
+      Description: '需要重新分類的報表。',
       CategoryId: 'SYSTEM_UNCATEGORIZED',
       Enabled: true,
       FileName: 'NeedsRecategorization.rpt',
@@ -652,6 +689,10 @@ describe('DemoPortalComponent', () => {
     component.OpenEditReportDialog(Uploaded.ReportKey);
     fixture.detectChanges();
     expect(Host.textContent).toContain('目前 RPT 檔案：Mock Upload.rpt');
+    expect(component.ReportEditorDraft.Description).toBe('Mock Upload 報表說明');
+    component.ReportEditorDraft.Description = '更新後的報表說明';
+    component.SaveReport();
+    expect(component.MockRbac.GetReport(Uploaded.ReportKey)?.Description).toBe('更新後的報表說明');
     component.OpenDeleteReportDialog(Uploaded.ReportKey);
     fixture.detectChanges();
     expect(Host.textContent).toContain('確定要刪除此報表嗎？');
@@ -673,6 +714,7 @@ describe('DemoPortalComponent', () => {
     component.OpenUploadReportDialog();
     component.ReportEditorDraft = {
       ReportName: '保留中的上傳草稿',
+      Description: '保留中的上傳草稿說明',
       CategoryId: 'FINANCE',
       Enabled: true,
     };
@@ -708,6 +750,7 @@ describe('DemoPortalComponent', () => {
     )!;
     expect(component.ReportEditorDraft.CategoryId).toBe(QuickAddCategory.CategoryId);
     expect(component.ReportEditorDraft.ReportName).toBe('保留中的上傳草稿');
+    expect(component.ReportEditorDraft.Description).toBe('保留中的上傳草稿說明');
     expect(component.ReportEditorDraft.Enabled).toBeTrue();
     expect(component.SelectedReportFileName).toBe('DraftReport.rpt');
     expect(component.IsUploadReportDialogOpen).toBeTrue();
@@ -719,6 +762,7 @@ describe('DemoPortalComponent', () => {
     component.CloseReportCategoryQuickAdd();
     expect(component.IsUploadReportDialogOpen).toBeTrue();
     expect(component.ReportEditorDraft.ReportName).toBe('保留中的上傳草稿');
+    expect(component.ReportEditorDraft.Description).toBe('保留中的上傳草稿說明');
     expect(component.ReportEditorDraft.CategoryId).toBe(QuickAddCategory.CategoryId);
     expect(component.ReportEditorDraft.Enabled).toBeTrue();
     expect(component.SelectedReportFileName).toBe('DraftReport.rpt');
