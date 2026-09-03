@@ -10,6 +10,10 @@ public class AppDbContext : DbContext
     {
     }
 
+    // =========================
+    // DbSets
+    // =========================
+
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
@@ -28,6 +32,10 @@ public class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Printer> Printers => Set<Printer>();
 
+    // =========================
+    // Model Configuration
+    // =========================
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -37,19 +45,23 @@ public class AppDbContext : DbContext
         ConfigureUserRoles(modelBuilder);
 
         ConfigureReportCategories(modelBuilder);
-        ConfigureReports(modelBuilder);
-        ConfigureRoleReportPermissions(modelBuilder);
-
         ConfigureReportDataSources(modelBuilder);
         ConfigureDataSourceCredentials(modelBuilder);
+
+        ConfigureReports(modelBuilder);
+        ConfigureRoleReportPermissions(modelBuilder);
 
         ConfigureReportParameters(modelBuilder);
         ConfigureParameterLovConfigs(modelBuilder);
 
         ConfigureReportExecutions(modelBuilder);
-        ConfigureAuditLogs(modelBuilder);
         ConfigurePrinters(modelBuilder);
+        ConfigureAuditLogs(modelBuilder);
     }
+
+    // =========================================================
+    // Users
+    // =========================================================
 
     private static void ConfigureUsers(ModelBuilder modelBuilder)
     {
@@ -62,8 +74,15 @@ public class AppDbContext : DbContext
             entity.HasIndex(x => x.EmployeeNo)
                 .IsUnique();
 
+            entity.HasIndex(x => x.Account)
+                .IsUnique();
+
             entity.Property(x => x.EmployeeNo)
                 .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(x => x.Account)
+                .HasMaxLength(255)
                 .IsRequired();
 
             entity.Property(x => x.UserName)
@@ -75,16 +94,24 @@ public class AppDbContext : DbContext
                 .IsRequired();
 
             entity.Property(x => x.IsEnabled)
+                .HasDefaultValue(true, "DF_Users_IsEnabled")
                 .IsRequired();
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_Users_CreatedAt")
                 .IsRequired();
 
             entity.Property(x => x.UpdatedAt)
                 .HasColumnType("datetime2");
         });
     }
+
+    // =========================================================
+    // Roles
+    // =========================================================
 
     private static void ConfigureRoles(ModelBuilder modelBuilder)
     {
@@ -109,16 +136,24 @@ public class AppDbContext : DbContext
                 .HasMaxLength(500);
 
             entity.Property(x => x.IsEnabled)
+                .HasDefaultValue(true, "DF_Roles_IsEnabled")
                 .IsRequired();
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_Roles_CreatedAt")
                 .IsRequired();
 
             entity.Property(x => x.UpdatedAt)
                 .HasColumnType("datetime2");
         });
     }
+
+    // =========================================================
+    // UserRoles
+    // =========================================================
 
     private static void ConfigureUserRoles(ModelBuilder modelBuilder)
     {
@@ -134,6 +169,9 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_UserRoles_CreatedAt")
                 .IsRequired();
 
             entity.HasOne(x => x.User)
@@ -147,6 +185,10 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
+
+    // =========================================================
+    // ReportCategories
+    // =========================================================
 
     private static void ConfigureReportCategories(ModelBuilder modelBuilder)
     {
@@ -167,16 +209,115 @@ public class AppDbContext : DbContext
                 .IsRequired();
 
             entity.Property(x => x.IsEnabled)
+                .HasDefaultValue(
+                    true,
+                    "DF_ReportCategories_IsEnabled")
                 .IsRequired();
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_ReportCategories_CreatedAt")
                 .IsRequired();
 
             entity.Property(x => x.UpdatedAt)
                 .HasColumnType("datetime2");
         });
     }
+
+    // =========================================================
+    // ReportDataSources
+    // =========================================================
+
+    private static void ConfigureReportDataSources(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ReportDataSource>(entity =>
+        {
+            entity.ToTable("ReportDataSources");
+
+            entity.HasKey(x => x.DataSourceId);
+
+            entity.Property(x => x.DataSourceName)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(x => x.ServerHost)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(x => x.Port)
+                .HasDefaultValue(
+                    1433,
+                    "DF_ReportDataSources_Port")
+                .IsRequired();
+
+            entity.Property(x => x.DatabaseName)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(x => x.IsEnabled)
+                .HasDefaultValue(
+                    true,
+                    "DF_ReportDataSources_IsEnabled")
+                .IsRequired();
+
+            entity.Property(x => x.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_ReportDataSources_CreatedAt")
+                .IsRequired();
+
+            entity.Property(x => x.UpdatedAt)
+                .HasColumnType("datetime2");
+        });
+    }
+
+    // =========================================================
+    // DataSourceCredentials
+    // =========================================================
+
+    private static void ConfigureDataSourceCredentials(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<DataSourceCredential>(entity =>
+        {
+            entity.ToTable("DataSourceCredentials");
+
+            entity.HasKey(x => x.CredentialId);
+
+            entity.Property(x => x.CredentialType)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(x => x.Username)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(x => x.EncryptedPassword)
+                .HasColumnType("nvarchar(max)")
+                .IsRequired();
+
+            entity.Property(x => x.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_DataSourceCredentials_CreatedAt")
+                .IsRequired();
+
+            entity.Property(x => x.UpdatedAt)
+                .HasColumnType("datetime2");
+
+            entity.HasOne(x => x.DataSource)
+                .WithMany(x => x.Credentials)
+                .HasForeignKey(x => x.DataSourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    // =========================================================
+    // Reports
+    // =========================================================
 
     private static void ConfigureReports(ModelBuilder modelBuilder)
     {
@@ -213,10 +354,16 @@ public class AppDbContext : DbContext
                 .IsRequired();
 
             entity.Property(x => x.IsEnabled)
+                .HasDefaultValue(
+                    true,
+                    "DF_Reports_IsEnabled")
                 .IsRequired();
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_Reports_CreatedAt")
                 .IsRequired();
 
             entity.Property(x => x.UpdatedAt)
@@ -233,18 +380,23 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(x => x.Creator)
-                .WithMany()
+                .WithMany(x => x.CreatedReports)
                 .HasForeignKey(x => x.CreatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(x => x.Updater)
-                .WithMany()
+                .WithMany(x => x.UpdatedReports)
                 .HasForeignKey(x => x.UpdatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
 
-    private static void ConfigureRoleReportPermissions(ModelBuilder modelBuilder)
+    // =========================================================
+    // RoleReportPermissions
+    // =========================================================
+
+    private static void ConfigureRoleReportPermissions(
+        ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<RoleReportPermission>(entity =>
         {
@@ -267,6 +419,9 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_RoleReportPermissions_CreatedAt")
                 .IsRequired();
 
             entity.Property(x => x.UpdatedAt)
@@ -284,76 +439,12 @@ public class AppDbContext : DbContext
         });
     }
 
-    private static void ConfigureReportDataSources(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<ReportDataSource>(entity =>
-        {
-            entity.ToTable("ReportDataSources");
+    // =========================================================
+    // ReportParameters
+    // =========================================================
 
-            entity.HasKey(x => x.DataSourceId);
-
-            entity.Property(x => x.DataSourceName)
-                .HasMaxLength(100)
-                .IsRequired();
-
-            entity.Property(x => x.ServerHost)
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.Property(x => x.Port)
-                .IsRequired();
-
-            entity.Property(x => x.DatabaseName)
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.Property(x => x.IsEnabled)
-                .IsRequired();
-
-            entity.Property(x => x.CreatedAt)
-                .HasColumnType("datetime2")
-                .IsRequired();
-
-            entity.Property(x => x.UpdatedAt)
-                .HasColumnType("datetime2");
-        });
-    }
-
-    private static void ConfigureDataSourceCredentials(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<DataSourceCredential>(entity =>
-        {
-            entity.ToTable("DataSourceCredentials");
-
-            entity.HasKey(x => x.CredentialId);
-
-            entity.Property(x => x.CredentialType)
-                .HasMaxLength(20)
-                .IsRequired();
-
-            entity.Property(x => x.Username)
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.Property(x => x.EncryptedPassword)
-                .HasColumnType("nvarchar(max)")
-                .IsRequired();
-
-            entity.Property(x => x.CreatedAt)
-                .HasColumnType("datetime2")
-                .IsRequired();
-
-            entity.Property(x => x.UpdatedAt)
-                .HasColumnType("datetime2");
-
-            entity.HasOne(x => x.DataSource)
-                .WithMany(x => x.Credentials)
-                .HasForeignKey(x => x.DataSourceId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-    }
-
-    private static void ConfigureReportParameters(ModelBuilder modelBuilder)
+    private static void ConfigureReportParameters(
+        ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ReportParameter>(entity =>
         {
@@ -391,6 +482,9 @@ public class AppDbContext : DbContext
                 .IsRequired();
 
             entity.Property(x => x.IsVisible)
+                .HasDefaultValue(
+                    true,
+                    "DF_ReportParameters_IsVisible")
                 .IsRequired();
 
             entity.Property(x => x.DefaultValue)
@@ -404,6 +498,9 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_ReportParameters_CreatedAt")
                 .IsRequired();
 
             entity.Property(x => x.UpdatedAt)
@@ -416,7 +513,12 @@ public class AppDbContext : DbContext
         });
     }
 
-    private static void ConfigureParameterLovConfigs(ModelBuilder modelBuilder)
+    // =========================================================
+    // ParameterLovConfigs
+    // =========================================================
+
+    private static void ConfigureParameterLovConfigs(
+        ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ParameterLovConfig>(entity =>
         {
@@ -441,6 +543,9 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_ParameterLovConfigs_CreatedAt")
                 .IsRequired();
 
             entity.Property(x => x.UpdatedAt)
@@ -448,7 +553,8 @@ public class AppDbContext : DbContext
 
             entity.HasOne(x => x.Parameter)
                 .WithOne(x => x.LovConfig)
-                .HasForeignKey<ParameterLovConfig>(x => x.ParameterId)
+                .HasForeignKey<ParameterLovConfig>(
+                    x => x.ParameterId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(x => x.DataSource)
@@ -458,7 +564,12 @@ public class AppDbContext : DbContext
         });
     }
 
-    private static void ConfigureReportExecutions(ModelBuilder modelBuilder)
+    // =========================================================
+    // ReportExecutions
+    // =========================================================
+
+    private static void ConfigureReportExecutions(
+        ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ReportExecution>(entity =>
         {
@@ -467,7 +578,10 @@ public class AppDbContext : DbContext
             entity.HasKey(x => x.ExecutionId);
 
             entity.Property(x => x.ExecutionId)
-                .HasColumnType("uniqueidentifier");
+                .HasColumnType("uniqueidentifier")
+                .HasDefaultValueSql(
+                    "(newsequentialid())",
+                    "DF_ReportExecutions_ExecutionId");
 
             entity.Property(x => x.ParametersJson)
                 .HasColumnType("nvarchar(max)");
@@ -478,6 +592,9 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.StartedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_ReportExecutions_StartedAt")
                 .IsRequired();
 
             entity.Property(x => x.CompletedAt)
@@ -492,13 +609,60 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(x => x.User)
-                .WithMany()
+                .WithMany(x => x.ReportExecutions)
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
 
-    private static void ConfigureAuditLogs(ModelBuilder modelBuilder)
+    // =========================================================
+    // Printers
+    // =========================================================
+
+    private static void ConfigurePrinters(
+        ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Printer>(entity =>
+        {
+            entity.ToTable("Printers");
+
+            entity.HasKey(x => x.PrinterId);
+
+            entity.Property(x => x.PrinterName)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.Property(x => x.DisplayName)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(x => x.Description)
+                .HasMaxLength(500);
+
+            entity.Property(x => x.IsEnabled)
+                .HasDefaultValue(
+                    true,
+                    "DF_Printers_IsEnabled")
+                .IsRequired();
+
+            entity.Property(x => x.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_Printers_CreatedAt")
+                .IsRequired();
+
+            entity.Property(x => x.UpdatedAt)
+                .HasColumnType("datetime2");
+        });
+    }
+
+    // =========================================================
+    // AuditLogs
+    // =========================================================
+
+    private static void ConfigureAuditLogs(
+        ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AuditLog>(entity =>
         {
@@ -522,12 +686,10 @@ public class AppDbContext : DbContext
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
+                .HasDefaultValueSql(
+                    "(sysdatetime())",
+                    "DF_AuditLogs_CreatedAt")
                 .IsRequired();
-
-            entity.HasOne(x => x.User)
-                .WithMany()
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(x => x.Report)
                 .WithMany(x => x.AuditLogs)
@@ -543,37 +705,11 @@ public class AppDbContext : DbContext
                 .WithMany(x => x.AuditLogs)
                 .HasForeignKey(x => x.PrinterId)
                 .OnDelete(DeleteBehavior.Restrict);
-        });
-    }
 
-    private static void ConfigurePrinters(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<Printer>(entity =>
-        {
-            entity.ToTable("Printers");
-
-            entity.HasKey(x => x.PrinterId);
-
-            entity.Property(x => x.PrinterName)
-                .HasMaxLength(500)
-                .IsRequired();
-
-            entity.Property(x => x.DisplayName)
-                .HasMaxLength(200)
-                .IsRequired();
-
-            entity.Property(x => x.Description)
-                .HasMaxLength(500);
-
-            entity.Property(x => x.IsEnabled)
-                .IsRequired();
-
-            entity.Property(x => x.CreatedAt)
-                .HasColumnType("datetime2")
-                .IsRequired();
-
-            entity.Property(x => x.UpdatedAt)
-                .HasColumnType("datetime2");
+            entity.HasOne(x => x.User)
+                .WithMany(x => x.AuditLogs)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

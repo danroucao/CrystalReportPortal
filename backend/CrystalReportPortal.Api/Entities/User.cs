@@ -6,6 +6,8 @@ public class User
 
     public string EmployeeNo { get; set; } = null!;
 
+    public string Account { get; set; } = null!;
+
     public string UserName { get; set; } = null!;
 
     public string PasswordHash { get; set; } = null!;
@@ -16,8 +18,18 @@ public class User
 
     public DateTime? UpdatedAt { get; set; }
 
-
-    // Navigation Property
     public ICollection<UserRole> UserRoles { get; set; }
         = new List<UserRole>();
+
+    public ICollection<AuditLog> AuditLogs { get; set; }
+        = new List<AuditLog>();
+
+    public ICollection<ReportExecution> ReportExecutions { get; set; }
+        = new List<ReportExecution>();
+
+    public ICollection<Report> CreatedReports { get; set; }
+        = new List<Report>();
+
+    public ICollection<Report> UpdatedReports { get; set; }
+        = new List<Report>();
 }
