@@ -92,25 +92,45 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    if (!this.Auth.IsDemoAuthenticationEnabled) {
-      this.notice = 'demo-unavailable';
-      return;
-    }
-
     this.isSubmitting = true;
     this.loginForm.disable();
 
-    // Local Demo only: AuthService can later be replaced by the ASP.NET Core Login API implementation.
-    window.setTimeout(() => {
-      this.isSubmitting = false;
-      this.loginForm.enable();
-      if (!this.Auth.Login(this.account.value, this.password.value)) {
-        this.notice = 'credential-error';
-        return;
-      }
+    this.Auth.Login(
+      this.account.value,
+      this.password.value,
+    ).subscribe({
+      next: (response) => {
+        this.isSubmitting = false;
+        this.loginForm.enable();
 
-      this.Notifications.ShowSuccess('登入成功！');
-      void this.router.navigate(['/reports']);
-    }, 700);
+        if (!response.success) {
+          this.notice = 'credential-error';
+          return;
+        }
+
+        this.Notifications.ShowSuccess('登入成功！');
+
+        void this.router.navigate([
+          this.Auth.IsAdmin ? '/admin/reports' : '/reports',
+        ]);
+      },
+
+      error: (error) => {
+        this.isSubmitting = false;
+        this.loginForm.enable();
+
+        if (error.status === 401) {
+          this.notice = 'credential-error';
+          return;
+        }
+
+        if (error.status === 403) {
+          this.notice = 'credential-error';
+          return;
+        }
+
+        this.notice = 'service-error';
+      },
+    });
   }
 }
