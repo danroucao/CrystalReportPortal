@@ -11,12 +11,12 @@
     </div>
   </header>
   <aside class="portal-nav" aria-label="系統導覽">
-    <p class="nav-group-title">一般使用者功能</p>
+    <p class="nav-group-title">一般功能</p>
     <a
       routerLink="/reports/parameters"
       routerLinkActive="active"
       [routerLinkActiveOptions]="{ exact: true }"
-      >報表搜尋 / 報表條件</a
+      >所有報表</a
     >
     <!-- ReportParameter -->
     <a
@@ -251,10 +251,9 @@
                   </svg>
                 </button>
               </td>
-              <td
-                class="report-name-cell"
-                [title]="Favorite.Report.ReportName"
-              >{{ Favorite.Report.ReportName }}</td>
+              <td class="report-name-cell" [title]="Favorite.Report.ReportName">
+                {{ Favorite.Report.ReportName }}
+              </td>
               <td>{{ Favorite.Report.CategoryName }}</td>
               <td>{{ FormatFavoriteAt(Favorite.FavoritedAt) }}</td>
               <td>{{ FormatFavoriteLastUsedAt(Favorite.LastUsedAt) }}</td>
@@ -530,7 +529,7 @@
         <nav
           *ngIf="ParameterReportTotalPages > 1"
           class="list-pagination"
-          aria-label="報表搜尋分頁"
+          aria-label="所有報表分頁"
         >
           <button
             type="button"
@@ -1035,9 +1034,7 @@
             class="role-change-card"
           >
             <h3>角色變更申請</h3>
-            <p class="muted">
-              系統管理員降職須由異動對象回應。
-            </p>
+            <p class="muted">系統管理員降職須由異動對象回應。</p>
             <table>
               <thead>
                 <tr>
@@ -2466,7 +2463,10 @@
               "
             />
           </label>
-          <label class="report-editor-description-field" for="report-editor-description">
+          <label
+            class="report-editor-description-field"
+            for="report-editor-description"
+          >
             <span class="form-field-label"
               >報表說明<span class="required-indicator" aria-hidden="true"
                 >*</span

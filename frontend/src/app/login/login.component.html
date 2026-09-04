@@ -17,94 +17,114 @@
       <h1 id="login-title">登入</h1>
       <p class="intro">請使用您的帳號登入系統。</p>
 
-    <form
-      [formGroup]="loginForm"
-      (ngSubmit)="submit()"
-      [attr.aria-busy]="isSubmitting"
-    >
-      <div class="field">
-        <label for="account">帳號 <span class="required-indicator" aria-hidden="true">*</span></label>
-        <input
-          id="account"
-          type="text"
-          formControlName="account"
-          autocomplete="username"
-          aria-describedby="account-error"
-          [attr.aria-invalid]="submitted && account.invalid ? 'true' : null"
-          (input)="clearNotice()"
-        />
-        <small id="account-error" class="field-error" *ngIf="submitted && account.invalid">
-          請輸入帳號。
-        </small>
-      </div>
-
-      <div class="field">
-        <label for="password">密碼 <span class="required-indicator" aria-hidden="true">*</span></label>
-        <div class="password-row">
+      <form
+        [formGroup]="loginForm"
+        (ngSubmit)="submit()"
+        [attr.aria-busy]="isSubmitting"
+      >
+        <div class="field">
+          <label for="account"
+            >帳號
+            <span class="required-indicator" aria-hidden="true">*</span></label
+          >
           <input
-            id="password"
-            [type]="passwordVisible ? 'text' : 'password'"
-            formControlName="password"
-            autocomplete="current-password"
-            aria-describedby="password-error"
-            [attr.aria-invalid]="submitted && password.invalid ? 'true' : null"
+            id="account"
+            type="text"
+            formControlName="account"
+            autocomplete="username"
+            aria-describedby="account-error"
+            [attr.aria-invalid]="submitted && account.invalid ? 'true' : null"
             (input)="clearNotice()"
           />
-          <button
-            class="password-toggle"
-            type="button"
-            [attr.aria-label]="passwordVisible ? '隱藏密碼' : '顯示密碼'"
-            (click)="togglePassword()"
+          <small
+            id="account-error"
+            class="field-error"
+            *ngIf="submitted && account.invalid"
           >
-            {{ passwordVisible ? '隱藏' : '顯示' }}
-          </button>
+            請輸入帳號。
+          </small>
         </div>
-        <small id="password-error" class="field-error" *ngIf="submitted && password.invalid">
-          請輸入密碼。
-        </small>
-      </div>
 
-      <button class="submit-button" type="submit" [disabled]="isSubmitting">
-        <span class="spinner" *ngIf="isSubmitting" aria-hidden="true"></span>
-        {{ isSubmitting ? '登入中…' : '登入' }}
-      </button>
-    </form>
+        <div class="field">
+          <label for="password"
+            >密碼
+            <span class="required-indicator" aria-hidden="true">*</span></label
+          >
+          <div class="password-row">
+            <input
+              id="password"
+              [type]="passwordVisible ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="current-password"
+              aria-describedby="password-error"
+              [attr.aria-invalid]="
+                submitted && password.invalid ? 'true' : null
+              "
+              (input)="clearNotice()"
+            />
+            <button
+              class="password-toggle"
+              type="button"
+              [attr.aria-label]="passwordVisible ? '隱藏密碼' : '顯示密碼'"
+              (click)="togglePassword()"
+            >
+              {{ passwordVisible ? "隱藏" : "顯示" }}
+            </button>
+          </div>
+          <small
+            id="password-error"
+            class="field-error"
+            *ngIf="submitted && password.invalid"
+          >
+            請輸入密碼。
+          </small>
+        </div>
 
-    <section
-      *ngIf="Auth.IsDemoAuthenticationEnabled"
-      class="demo-accounts"
-      aria-labelledby="demo-accounts-title"
-    >
-      <h2 id="demo-accounts-title">本機 Demo 測試帳號</h2>
-      <p>僅供本機開發與展示使用，正式環境不顯示。</p>
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">帳號</th>
-            <th scope="col">密碼</th>
-            <th scope="col">角色</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>user&#64;example.com</td>
-            <td>user123</td>
-            <td>一般使用者</td>
-          </tr>
-          <tr>
-            <td>admin&#64;example.com</td>
-            <td>admin123</td>
-            <td>系統管理員</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+        <button class="submit-button" type="submit" [disabled]="isSubmitting">
+          <span class="spinner" *ngIf="isSubmitting" aria-hidden="true"></span>
+          {{ isSubmitting ? "登入中…" : "登入" }}
+        </button>
+      </form>
+
+      <section
+        *ngIf="Auth.IsDemoAuthenticationEnabled"
+        class="demo-accounts"
+        aria-labelledby="demo-accounts-title"
+      >
+        <h2 id="demo-accounts-title">本機 Demo 測試帳號</h2>
+        <p>僅供本機開發與展示使用，正式環境不顯示。</p>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">帳號</th>
+              <th scope="col">密碼</th>
+              <th scope="col">角色</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>user&#64;example.com</td>
+              <td>user123</td>
+              <td>一般使用者</td>
+            </tr>
+            <tr>
+              <td>admin&#64;example.com</td>
+              <td>admin123</td>
+              <td>系統管理員</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </section>
   </div>
 
   <footer class="login-footer">版本資訊與支援服務方式待後端實裝</footer>
 
-  <section *ngIf="notice" class="notification-modal-backdrop" role="presentation">
+  <section
+    *ngIf="notice"
+    class="notification-modal-backdrop"
+    role="presentation"
+  >
     <div
       class="notification-modal notification-modal--error"
       role="alertdialog"
@@ -114,13 +134,23 @@
     >
       <h2 id="login-notice-title">登入提示</h2>
       <p id="login-notice-message">{{ noticeMessage }}</p>
-      <button type="button" class="notification-modal__button" autofocus (click)="clearNotice()">
+      <button
+        type="button"
+        class="notification-modal__button"
+        autofocus
+        (click)="clearNotice()"
+      >
         確認
       </button>
     </div>
   </section>
 
-  <div *ngIf="Notifications.SuccessMessage" class="success-toast" role="status" aria-live="polite">
+  <div
+    *ngIf="Notifications.SuccessMessage"
+    class="success-toast"
+    role="status"
+    aria-live="polite"
+  >
     <span aria-hidden="true">✓</span>
     {{ Notifications.SuccessMessage }}
   </div>

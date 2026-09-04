@@ -43,7 +43,9 @@ describe('DemoPortalComponent', () => {
     const fixture = TestBed.createComponent(DemoPortalComponent);
     fixture.detectChanges();
 
-    const Header = fixture.nativeElement.querySelector('.account-summary') as HTMLElement;
+    const Header = fixture.nativeElement.querySelector(
+      '.account-summary',
+    ) as HTMLElement;
     expect(Header.textContent).toContain(Auth.CurrentUser?.DisplayName);
     expect(Header.textContent).toContain(Auth.ActiveRoleNames);
     expect(Header.querySelector('.role-switcher')).toBeNull();
@@ -93,22 +95,46 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     const Headers = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('.user-management-table th'),
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '.user-management-table th',
+      ),
     ).map((Header) => Header.textContent?.trim());
-    expect(Headers).toEqual(['帳號', '名稱', '角色', '啟用狀態', '建立時間', '更新時間', '操作']);
+    expect(Headers).toEqual([
+      '帳號',
+      '名稱',
+      '角色',
+      '啟用狀態',
+      '建立時間',
+      '更新時間',
+      '操作',
+    ]);
     const FirstAccount = component.PagedUsers[0].Account;
     expect(
-      fixture.nativeElement.querySelector('.user-account-cell')?.getAttribute('title'),
+      fixture.nativeElement
+        .querySelector('.user-account-cell')
+        ?.getAttribute('title'),
     ).toBe(FirstAccount);
     expect(
-      fixture.nativeElement.querySelector('.user-account-cell > span')?.textContent?.trim(),
+      fixture.nativeElement
+        .querySelector('.user-account-cell > span')
+        ?.textContent?.trim(),
     ).toBe(FirstAccount);
-    expect(fixture.nativeElement.querySelector('[aria-label="編輯 user@example.com"]')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('[aria-label="刪除 user@example.com"]')).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        '[aria-label="編輯 user@example.com"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        '[aria-label="刪除 user@example.com"]',
+      ),
+    ).not.toBeNull();
 
     component.OpenDeleteUserDialog('warehouse@example.com');
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('確定要刪除使用者「warehouse@example.com」嗎？');
+    expect(fixture.nativeElement.textContent).toContain(
+      '確定要刪除使用者「warehouse@example.com」嗎？',
+    );
     component.ConfirmDeleteUser();
     expect(MockRbac.GetUser('warehouse@example.com')).toBeNull();
   });
@@ -121,11 +147,20 @@ describe('DemoPortalComponent', () => {
     component.EditUser('warehouse@example.com');
     fixture.detectChanges();
 
-    const Inputs = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('.edit-user-modal input');
+    const Inputs = (
+      fixture.nativeElement as HTMLElement
+    ).querySelectorAll<HTMLInputElement>('.edit-user-modal input');
     expect(Inputs[0].disabled).toBeTrue();
     expect(Inputs[1].disabled).toBeTrue();
-    expect(fixture.nativeElement.querySelector('.edit-user-modal input[type="password"]')).toBeNull();
-    expect((component.EditingUser as unknown as { DisplayName?: string }).DisplayName).toBeUndefined();
+    expect(
+      fixture.nativeElement.querySelector(
+        '.edit-user-modal input[type="password"]',
+      ),
+    ).toBeNull();
+    expect(
+      (component.EditingUser as unknown as { DisplayName?: string })
+        .DisplayName,
+    ).toBeUndefined();
   });
 
   it('updates the EditUser role draft from native checkbox clicks and saves only on confirmation', () => {
@@ -139,7 +174,9 @@ describe('DemoPortalComponent', () => {
 
     const RoleCheckbox = (RoleName: string) => {
       const Option = Array.from(
-        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLLabelElement>('.edit-user-role-option'),
+        (
+          fixture.nativeElement as HTMLElement
+        ).querySelectorAll<HTMLLabelElement>('.edit-user-role-option'),
       ).find((Entry) => Entry.textContent?.includes(RoleName))!;
       return Option.querySelector<HTMLInputElement>('input')!;
     };
@@ -152,7 +189,11 @@ describe('DemoPortalComponent', () => {
 
     RoleCheckbox('倉管人員').click();
     fixture.detectChanges();
-    expect(component.EditingUser?.Roles).toEqual(['FINANCE', 'PURCHASE', 'WAREHOUSE']);
+    expect(component.EditingUser?.Roles).toEqual([
+      'FINANCE',
+      'PURCHASE',
+      'WAREHOUSE',
+    ]);
 
     RoleCheckbox('財務人員').click();
     fixture.detectChanges();
@@ -174,7 +215,10 @@ describe('DemoPortalComponent', () => {
     expect(component.EditingUser?.Roles).toEqual(['FINANCE', 'PURCHASE']);
 
     component.SaveEditedUser();
-    expect(MockRbac.GetUser('user@example.com')?.Roles).toEqual(['FINANCE', 'PURCHASE']);
+    expect(MockRbac.GetUser('user@example.com')?.Roles).toEqual([
+      'FINANCE',
+      'PURCHASE',
+    ]);
     expect(component.SuccessToastMessage).toBe('使用者資料已更新。');
 
     component.EditUser('user@example.com');
@@ -201,7 +245,9 @@ describe('DemoPortalComponent', () => {
     expect(Auth.CurrentUser?.DisplayName).toBe('財務本人設定');
     expect(Auth.CurrentUser?.Roles).toEqual(['FINANCE']);
     expect(Auth.CurrentUser?.Enabled).toBeTrue();
-    expect(MockRbac.Authenticate('user@example.com', 'self-service-password')).not.toBeNull();
+    expect(
+      MockRbac.Authenticate('user@example.com', 'self-service-password'),
+    ).not.toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Frontend Mock Only');
   });
 
@@ -230,7 +276,12 @@ describe('DemoPortalComponent', () => {
       MockRbac.ToggleFavoriteReport('user@example.com', ReportKey),
     );
     (
-      ['AccountBalance', 'Activity', 'ProductionOrder', 'ServiceContract'] as const
+      [
+        'AccountBalance',
+        'Activity',
+        'ProductionOrder',
+        'ServiceContract',
+      ] as const
     ).forEach((ReportKey) =>
       MockRbac.RecordReportExecution('admin@example.com', ReportKey),
     );
@@ -239,76 +290,120 @@ describe('DemoPortalComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll('.favorite-report-table tbody tr').length).toBe(5);
+    expect(
+      fixture.nativeElement.querySelectorAll('.favorite-report-table tbody tr')
+        .length,
+    ).toBe(5);
     expect(component.FavoriteReports).toHaveSize(5);
     expect(
       (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
         '#favorite-report-search',
       ),
     ).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.favorite-category-tabs')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('.favorite-category-tabs'),
+    ).toBeNull();
     expect(
       fixture.nativeElement.querySelector('#favorite-report-category'),
     ).not.toBeNull();
-    expect(component.FavoriteReportCategories.map((Category) => Category.CategoryId)).toContain('FINANCE');
-    expect(component.FavoriteReportCategories.map((Category) => Category.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
+    expect(
+      component.FavoriteReportCategories.map((Category) => Category.CategoryId),
+    ).toContain('FINANCE');
+    expect(
+      component.FavoriteReportCategories.map((Category) => Category.CategoryId),
+    ).not.toContain('SYSTEM_UNCATEGORIZED');
     expect(fixture.nativeElement.textContent).not.toContain('最近使用報表');
     expect(fixture.nativeElement.textContent).not.toContain('常用報表');
-    expect(fixture.nativeElement.textContent).not.toContain('Documents v2 (With Serial And Batch Details - invoice show data from delivery as well)');
-    expect(fixture.nativeElement.textContent).not.toContain('AccountBalance.rpt');
-    expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('收藏');
-    expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('收藏時間');
-    expect(fixture.nativeElement.querySelector('.favorite-report-table th')?.parentElement?.textContent).toContain('最近使用日期');
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'Documents v2 (With Serial And Batch Details - invoice show data from delivery as well)',
+    );
+    expect(fixture.nativeElement.textContent).not.toContain(
+      'AccountBalance.rpt',
+    );
+    expect(
+      fixture.nativeElement.querySelector('.favorite-report-table th')
+        ?.parentElement?.textContent,
+    ).toContain('收藏');
+    expect(
+      fixture.nativeElement.querySelector('.favorite-report-table th')
+        ?.parentElement?.textContent,
+    ).toContain('收藏時間');
+    expect(
+      fixture.nativeElement.querySelector('.favorite-report-table th')
+        ?.parentElement?.textContent,
+    ).toContain('最近使用日期');
     expect(component.DisplayedFavoriteReports[0].FavoritedAt).not.toBeNull();
     expect(
-      fixture.nativeElement.querySelector('.favorite-report-table .report-name-cell')?.getAttribute('title'),
+      fixture.nativeElement
+        .querySelector('.favorite-report-table .report-name-cell')
+        ?.getAttribute('title'),
     ).toBe(component.DisplayedFavoriteReports[0].Report.ReportName);
     expect(
-      fixture.nativeElement.querySelector('.favorite-report-name-sort-button .sort-indicator')?.classList,
+      fixture.nativeElement.querySelector(
+        '.favorite-report-name-sort-button .sort-indicator',
+      )?.classList,
     ).not.toContain('is-descending');
     expect(
-      fixture.nativeElement.querySelector('.favorite-report-name-sort-button')?.closest('th')?.classList,
+      fixture.nativeElement
+        .querySelector('.favorite-report-name-sort-button')
+        ?.closest('th')?.classList,
     ).not.toContain('is-sorted');
     expect(
-      fixture.nativeElement.querySelectorAll('.favorite-report-table th')[2]?.querySelector('button'),
+      fixture.nativeElement
+        .querySelectorAll('.favorite-report-table th')[2]
+        ?.querySelector('button'),
     ).toBeNull();
 
     component.SetFavoriteCategory('FINANCE');
     component.FavoriteSearchText = 'Account';
-    expect(component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName)).toEqual(['AccountBalance']);
+    expect(
+      component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName),
+    ).toEqual(['AccountBalance']);
     component.FavoriteSearchText = 'no-match';
     expect(component.DisplayedFavoriteReports).toHaveSize(0);
     component.SetFavoriteCategory(component.AllCategoryFilterValue);
     component.FavoriteSearchText = 'Account';
-    expect(component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName)).toEqual([
-      'AccountBalance',
-    ]);
+    expect(
+      component.DisplayedFavoriteReports.map(({ Report }) => Report.ReportName),
+    ).toEqual(['AccountBalance']);
     component.FavoriteSearchText = 'no-match';
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('找不到符合條件的報表。');
+    expect(fixture.nativeElement.textContent).toContain(
+      '找不到符合條件的報表。',
+    );
     component.FavoriteSearchText = '';
     component.ToggleFavoriteReportNameSort();
     fixture.detectChanges();
     expect(component.GetFavoriteReportSortIndicator('ReportName')).toBe('↑');
     expect(
-      fixture.nativeElement.querySelector('.favorite-report-name-sort-button')?.closest('th')?.classList,
+      fixture.nativeElement
+        .querySelector('.favorite-report-name-sort-button')
+        ?.closest('th')?.classList,
     ).toContain('is-sorted');
     expect(
-      fixture.nativeElement.querySelector('.favorite-last-used-sort-button')?.closest('th')?.classList,
+      fixture.nativeElement
+        .querySelector('.favorite-last-used-sort-button')
+        ?.closest('th')?.classList,
     ).not.toContain('is-sorted');
     component.ToggleFavoriteAtSort();
     fixture.detectChanges();
     expect(component.GetFavoriteReportSortIndicator('FavoritedAt')).toBe('↑');
     expect(
-      fixture.nativeElement.querySelector('.favorite-at-sort-button')?.closest('th')?.classList,
+      fixture.nativeElement
+        .querySelector('.favorite-at-sort-button')
+        ?.closest('th')?.classList,
     ).toContain('is-sorted');
     component.ToggleFavoriteLastUsedSort();
     fixture.detectChanges();
     expect(component.GetFavoriteReportSortIndicator('LastUsedAt')).toBe('↑');
     expect(
-      fixture.nativeElement.querySelector('.favorite-last-used-sort-button')?.closest('th')?.classList,
+      fixture.nativeElement
+        .querySelector('.favorite-last-used-sort-button')
+        ?.closest('th')?.classList,
     ).toContain('is-sorted');
-    expect(component.DisplayedFavoriteReports.at(-1)?.Report.ReportName).toBe('InventoryTransfer_HANA');
+    expect(component.DisplayedFavoriteReports.at(-1)?.Report.ReportName).toBe(
+      'InventoryTransfer_HANA',
+    );
 
     component.SelectReportByKey('AccountBalance');
     expect(Auth.SelectedReport?.ReportKey).toBe('AccountBalance');
@@ -321,7 +416,9 @@ describe('DemoPortalComponent', () => {
     );
     fixture.detectChanges();
     expect(component.FavoriteReports).toHaveSize(4);
-    expect(MockRbac.GetFavoriteReports('user@example.com', ['FINANCE'])).toHaveSize(2);
+    expect(
+      MockRbac.GetFavoriteReports('user@example.com', ['FINANCE']),
+    ).toHaveSize(2);
   });
 
   it('filters favorites through existing report access and keeps table headers for an empty state', () => {
@@ -339,20 +436,25 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     MockRbac.SetReportEnabled('AccountBalance', false);
-    expect(component.FavoriteReports.map(({ Report }) => Report.ReportKey)).not.toContain(
-      'AccountBalance',
-    );
+    expect(
+      component.FavoriteReports.map(({ Report }) => Report.ReportKey),
+    ).not.toContain('AccountBalance');
 
     [...component.FavoriteReports].forEach((Favorite) =>
       component.RemoveFavoriteReport(Favorite),
     );
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.favorite-report-table')).not.toBeNull();
-    expect(fixture.nativeElement.querySelectorAll('.favorite-report-table th').length).toBe(6);
-    expect(fixture.nativeElement.querySelector('.favorite-empty-state')?.textContent).toContain(
-      '目前沒有收藏的報表。',
-    );
+    expect(
+      fixture.nativeElement.querySelector('.favorite-report-table'),
+    ).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelectorAll('.favorite-report-table th')
+        .length,
+    ).toBe(6);
+    expect(
+      fixture.nativeElement.querySelector('.favorite-empty-state')?.textContent,
+    ).toContain('目前沒有收藏的報表。');
   });
 
   it('provides report search, single-column sorting, selection, and return on the ReportParameter page', () => {
@@ -371,53 +473,81 @@ describe('DemoPortalComponent', () => {
     const Host = fixture.nativeElement as HTMLElement;
 
     expect(component.IsReportParameterMode).toBeFalse();
-    expect(Host.querySelector('h1')?.textContent).toContain('報表搜尋 / 報表條件');
+    expect(Host.querySelector('h1')?.textContent).toContain('所有報表');
     expect(
       Array.from(Host.querySelectorAll('.portal-nav > a')).map((Link) =>
         Link.textContent?.trim(),
       ),
-    ).toEqual(['報表搜尋 / 報表條件', '收藏的報表', '帳號設定']);
+    ).toEqual(['所有報表', '收藏的報表', '帳號設定']);
     expect(
-      Array.from(Host.querySelectorAll('.parameter-report-table th')).map((Header) =>
-        Header.textContent?.replace(/[↕↑↓]/g, '').trim(),
+      Array.from(Host.querySelectorAll('.parameter-report-table th')).map(
+        (Header) => Header.textContent?.replace(/[↕↑↓]/g, '').trim(),
       ),
-    ).toEqual(['收藏', '報表名稱', '報表分類', '報表說明', '建立時間', '更新時間', '操作']);
-    expect(Host.querySelector('.parameter-report-table .report-name-cell')?.getAttribute('title')).toBe(
-      component.PagedParameterReports[0].ReportName,
-    );
-    expect(Host.querySelector('.parameter-report-description')?.getAttribute('title')).toBe(
-      component.PagedParameterReports[0].Description,
-    );
+    ).toEqual([
+      '收藏',
+      '報表名稱',
+      '報表分類',
+      '報表說明',
+      '建立時間',
+      '更新時間',
+      '操作',
+    ]);
+    expect(
+      Host.querySelector(
+        '.parameter-report-table .report-name-cell',
+      )?.getAttribute('title'),
+    ).toBe(component.PagedParameterReports[0].ReportName);
+    expect(
+      Host.querySelector('.parameter-report-description')?.getAttribute(
+        'title',
+      ),
+    ).toBe(component.PagedParameterReports[0].Description);
     expect(component.DisplayedParameterReports).toHaveSize(12);
-    expect(Host.querySelector<HTMLInputElement>('#parameter-report-start-date')?.type).toBe('date');
-    expect(Host.querySelector<HTMLInputElement>('#parameter-report-end-date')?.type).toBe('date');
-    expect(Host.querySelector<HTMLSelectElement>('#parameter-report-category')).not.toBeNull();
+    expect(
+      Host.querySelector<HTMLInputElement>('#parameter-report-start-date')
+        ?.type,
+    ).toBe('date');
+    expect(
+      Host.querySelector<HTMLInputElement>('#parameter-report-end-date')?.type,
+    ).toBe('date');
+    expect(
+      Host.querySelector<HTMLSelectElement>('#parameter-report-category'),
+    ).not.toBeNull();
     expect(Host.querySelector('.parameter-search-field svg')).not.toBeNull();
     expect(
       Array.from(
-        Host.querySelectorAll<SVGElement>('.sortable-table-header .sort-indicator'),
+        Host.querySelectorAll<SVGElement>(
+          '.sortable-table-header .sort-indicator',
+        ),
       ).every(
         (Icon) =>
           !Icon.classList.contains('is-ascending') &&
           !Icon.classList.contains('is-descending'),
       ),
     ).toBeTrue();
-    expect(component.ParameterReportCategories.map((Category) => Category.CategoryId)).toContain('FINANCE');
-    expect(component.ParameterReportCategories.map((Category) => Category.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
+    expect(
+      component.ParameterReportCategories.map(
+        (Category) => Category.CategoryId,
+      ),
+    ).toContain('FINANCE');
+    expect(
+      component.ParameterReportCategories.map(
+        (Category) => Category.CategoryId,
+      ),
+    ).not.toContain('SYSTEM_UNCATEGORIZED');
     component.SetParameterReportCategory('FINANCE');
-    expect(component.DisplayedParameterReports.map((Report) => Report.ReportName)).toEqual([
-      'AccountBalance',
-      'MonthlyRevenue',
-    ]);
+    expect(
+      component.DisplayedParameterReports.map((Report) => Report.ReportName),
+    ).toEqual(['AccountBalance', 'MonthlyRevenue']);
     component.SetParameterReportCategory(component.AllCategoryFilterValue);
     expect(Host.textContent).not.toContain('RptFileName');
     expect(Host.textContent).not.toContain('RptFilePath');
 
     component.ParameterReportSearchText = 'Account';
     fixture.detectChanges();
-    expect(component.DisplayedParameterReports.map((Report) => Report.ReportName)).toEqual([
-      'AccountBalance',
-    ]);
+    expect(
+      component.DisplayedParameterReports.map((Report) => Report.ReportName),
+    ).toEqual(['AccountBalance']);
     component.ToggleParameterReportSort('ReportName');
     fixture.detectChanges();
     expect(component.GetParameterReportSortIndicator('ReportName')).toBe('↑');
@@ -426,12 +556,16 @@ describe('DemoPortalComponent', () => {
     ).toContain('is-ascending');
     expect(component.ParameterReportSearchText).toBe('Account');
     expect(
-      Host.querySelector<HTMLButtonElement>('.parameter-favorite-button')?.getAttribute('aria-label'),
+      Host.querySelector<HTMLButtonElement>(
+        '.parameter-favorite-button',
+      )?.getAttribute('aria-label'),
     ).toContain('收藏 AccountBalance');
     component.ToggleFavoriteReport('AccountBalance');
     fixture.detectChanges();
     expect(
-      Host.querySelector<HTMLButtonElement>('.parameter-favorite-button')?.getAttribute('aria-label'),
+      Host.querySelector<HTMLButtonElement>(
+        '.parameter-favorite-button',
+      )?.getAttribute('aria-label'),
     ).toContain('取消收藏 AccountBalance');
 
     component.ParameterReportSearchText = '';
@@ -441,11 +575,13 @@ describe('DemoPortalComponent', () => {
     expect(
       Host.querySelector('.sortable-table-header .sort-indicator')?.classList,
     ).toContain('is-descending');
-    expect(component.DisplayedParameterReports.map((Report) => Report.ReportName)).toEqual([
-      ...component.ParameterAccessibleReports,
-    ]
-      .map((Report) => Report.ReportName)
-      .sort((Left, Right) => Right.localeCompare(Left, 'zh-Hant')));
+    expect(
+      component.DisplayedParameterReports.map((Report) => Report.ReportName),
+    ).toEqual(
+      [...component.ParameterAccessibleReports]
+        .map((Report) => Report.ReportName)
+        .sort((Left, Right) => Right.localeCompare(Left, 'zh-Hant')),
+    );
     component.ToggleParameterReportSort('CreatedAt');
     fixture.detectChanges();
     expect(component.GetParameterReportSortIndicator('CreatedAt')).toBe('↑');
@@ -471,7 +607,9 @@ describe('DemoPortalComponent', () => {
     component.ParameterReportEndDate = '2026-09-05';
     component.OnParameterReportDateChange();
     expect(component.ParameterReportEndDate).toBe('2026-09-10');
-    expect(component.ParameterReportDateValidationMessage).toContain('結束日期不得早於開始日期');
+    expect(component.ParameterReportDateValidationMessage).toContain(
+      '結束日期不得早於開始日期',
+    );
     component.SelectReportForPreview('AccountBalance');
     expect(Auth.SelectedReport?.ReportKey).toBe('AccountBalance');
     expect(Auth.SelectedReportSearchCriteria).toEqual({
@@ -551,14 +689,18 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
     component.ParameterReportSearchText = 'no-match';
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('找不到符合條件的報表。');
+    expect(fixture.nativeElement.textContent).toContain(
+      '找不到符合條件的報表。',
+    );
 
     component.ParameterReportSearchText = '';
     MockRbac.Reports.forEach((Report) =>
       MockRbac.SetReportEnabled(Report.ReportKey, false),
     );
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('目前沒有可使用的報表。');
+    expect(fixture.nativeElement.textContent).toContain(
+      '目前沒有可使用的報表。',
+    );
   });
 
   it('manages reports with a modal-only RPT filename in RptManagement', () => {
@@ -574,45 +716,67 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     const Host = fixture.nativeElement as HTMLElement;
-    const Table = Host.querySelector('.report-management-table') as HTMLTableElement;
+    const Table = Host.querySelector(
+      '.report-management-table',
+    ) as HTMLTableElement;
     expect(Table.querySelectorAll('tbody tr').length).toBe(10);
     expect(
-      Array.from(Table.querySelectorAll('th')).map((Header) => Header.textContent?.trim()),
-    ).toEqual(['報表名稱', '報表分類', '報表說明', '啟用狀態', '建立時間', '更新時間', '操作']);
-    expect(Table.querySelector('.report-management-name')?.getAttribute('title')).toBe(
-      component.PagedManagedReports[0].ReportName,
-    );
-    expect(Table.querySelector('.report-management-description')?.getAttribute('title')).toBe(
-      component.PagedManagedReports[0].Description,
-    );
+      Array.from(Table.querySelectorAll('th')).map((Header) =>
+        Header.textContent?.trim(),
+      ),
+    ).toEqual([
+      '報表名稱',
+      '報表分類',
+      '報表說明',
+      '啟用狀態',
+      '建立時間',
+      '更新時間',
+      '操作',
+    ]);
+    expect(
+      Table.querySelector('.report-management-name')?.getAttribute('title'),
+    ).toBe(component.PagedManagedReports[0].ReportName);
+    expect(
+      Table.querySelector('.report-management-description')?.getAttribute(
+        'title',
+      ),
+    ).toBe(component.PagedManagedReports[0].Description);
     expect(Table.querySelectorAll('.sortable-table-header')).toHaveSize(3);
     expect(Table.querySelectorAll('th')[1]?.querySelector('button')).toBeNull();
     component.ToggleReportManagementSort('ReportName');
     fixture.detectChanges();
     expect(component.GetReportManagementSortIndicator('ReportName')).toBe('↑');
-    expect(component.DisplayedManagedReports.map((Report) => Report.ReportName)).toEqual(
+    expect(
+      component.DisplayedManagedReports.map((Report) => Report.ReportName),
+    ).toEqual(
       [...component.DisplayedManagedReports]
         .map((Report) => Report.ReportName)
         .sort((Left, Right) => Left.localeCompare(Right, 'zh-Hant')),
     );
     expect(
-      Table.querySelector('.report-management-name-sort-button')?.closest('th')?.classList,
+      Table.querySelector('.report-management-name-sort-button')?.closest('th')
+        ?.classList,
     ).toContain('is-sorted');
     component.ToggleReportManagementSort('CreatedAt');
     fixture.detectChanges();
     expect(component.GetReportManagementSortIndicator('CreatedAt')).toBe('↑');
-    expect(component.DisplayedManagedReports.map((Report) => Report.CreatedAt)).toEqual(
+    expect(
+      component.DisplayedManagedReports.map((Report) => Report.CreatedAt),
+    ).toEqual(
       [...component.DisplayedManagedReports]
         .map((Report) => Report.CreatedAt)
         .sort(),
     );
     expect(
-      Table.querySelector('.report-management-name-sort-button')?.closest('th')?.classList,
+      Table.querySelector('.report-management-name-sort-button')?.closest('th')
+        ?.classList,
     ).not.toContain('is-sorted');
     component.ToggleReportManagementSort('UpdatedAt');
     fixture.detectChanges();
     expect(component.GetReportManagementSortIndicator('UpdatedAt')).toBe('↑');
-    expect(component.DisplayedManagedReports.map((Report) => Report.UpdatedAt)).toEqual(
+    expect(
+      component.DisplayedManagedReports.map((Report) => Report.UpdatedAt),
+    ).toEqual(
       [...component.DisplayedManagedReports]
         .map((Report) => Report.UpdatedAt)
         .sort(),
@@ -624,15 +788,26 @@ describe('DemoPortalComponent', () => {
     expect(Host.textContent).not.toContain('AccountBalance.rpt');
     expect(Host.textContent).toContain('停用');
     expect(Host.textContent).toContain('開始日期（TBD）');
-    expect(component.ReportManagementCategories.map((Category) => Category.CategoryId)).toContain('MARKETING');
-    expect(component.ReportManagementCategories.map((Category) => Category.CategoryId)).toContain('SYSTEM_UNCATEGORIZED');
+    expect(
+      component.ReportManagementCategories.map(
+        (Category) => Category.CategoryId,
+      ),
+    ).toContain('MARKETING');
+    expect(
+      component.ReportManagementCategories.map(
+        (Category) => Category.CategoryId,
+      ),
+    ).toContain('SYSTEM_UNCATEGORIZED');
     expect(
       Array.from(
-        Host.querySelectorAll<HTMLSelectElement>('#report-management-category option'),
+        Host.querySelectorAll<HTMLSelectElement>(
+          '#report-management-category option',
+        ),
       ).map((Option) => Option.value),
     ).toContain('MARKETING');
 
-    const FirstSwitch = Table.querySelector<HTMLButtonElement>('[role="switch"]')!;
+    const FirstSwitch =
+      Table.querySelector<HTMLButtonElement>('[role="switch"]')!;
     expect(FirstSwitch.getAttribute('aria-checked')).toBe('false');
     FirstSwitch.click();
     fixture.detectChanges();
@@ -641,10 +816,17 @@ describe('DemoPortalComponent', () => {
     component.OpenUploadReportDialog();
     fixture.detectChanges();
     expect(Host.querySelector('.report-editor-modal')).not.toBeNull();
-    expect(Host.querySelector<HTMLTextAreaElement>('#report-editor-description')?.rows).toBe(3);
+    expect(
+      Host.querySelector<HTMLTextAreaElement>('#report-editor-description')
+        ?.rows,
+    ).toBe(3);
     expect(component.ReportEditorDraft.Enabled).toBeFalse();
-    expect(component.ReportEditorCategories.map((Category) => Category.CategoryId)).toContain('MARKETING');
-    expect(component.ReportEditorCategories.map((Category) => Category.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
+    expect(
+      component.ReportEditorCategories.map((Category) => Category.CategoryId),
+    ).toContain('MARKETING');
+    expect(
+      component.ReportEditorCategories.map((Category) => Category.CategoryId),
+    ).not.toContain('SYSTEM_UNCATEGORIZED');
     component.SaveReport();
     expect(component.ReportEditorError).toBe('請輸入報表名稱。');
     component.ReportEditorDraft.ReportName = 'Mock Upload';
@@ -659,7 +841,9 @@ describe('DemoPortalComponent', () => {
     Object.defineProperty(InvalidInput, 'files', {
       value: { item: () => new File(['mock'], 'Mock Upload.pdf') },
     });
-    component.OnReportFileSelected({ target: InvalidInput } as unknown as Event);
+    component.OnReportFileSelected({
+      target: InvalidInput,
+    } as unknown as Event);
     expect(component.ReportEditorError).toBe('僅允許上傳 .rpt 報表檔案。');
 
     const Input = document.createElement('input');
@@ -669,8 +853,16 @@ describe('DemoPortalComponent', () => {
     component.OnReportFileSelected({ target: Input } as unknown as Event);
     component.SaveReport();
     fixture.detectChanges();
-    expect(component.MockRbac.Reports.some((Report) => Report.ReportName === 'Mock Upload')).toBeTrue();
-    expect(component.MockRbac.Reports.find((Report) => Report.ReportName === 'Mock Upload')?.Description).toBe('Mock Upload 報表說明');
+    expect(
+      component.MockRbac.Reports.some(
+        (Report) => Report.ReportName === 'Mock Upload',
+      ),
+    ).toBeTrue();
+    expect(
+      component.MockRbac.Reports.find(
+        (Report) => Report.ReportName === 'Mock Upload',
+      )?.Description,
+    ).toBe('Mock Upload 報表說明');
     expect(Host.textContent).not.toContain('Mock Upload.rpt');
 
     const ReservedReport = component.MockRbac.CreateReport({
@@ -683,16 +875,24 @@ describe('DemoPortalComponent', () => {
     component.OpenEditReportDialog(ReservedReport.ReportKey);
     fixture.detectChanges();
     expect(component.ReportEditorDraft.CategoryId).toBe('SYSTEM_UNCATEGORIZED');
-    expect(component.ReportEditorCategories.map((Category) => Category.CategoryId)).toContain('SYSTEM_UNCATEGORIZED');
+    expect(
+      component.ReportEditorCategories.map((Category) => Category.CategoryId),
+    ).toContain('SYSTEM_UNCATEGORIZED');
 
-    const Uploaded = component.MockRbac.Reports.find((Report) => Report.ReportName === 'Mock Upload')!;
+    const Uploaded = component.MockRbac.Reports.find(
+      (Report) => Report.ReportName === 'Mock Upload',
+    )!;
     component.OpenEditReportDialog(Uploaded.ReportKey);
     fixture.detectChanges();
     expect(Host.textContent).toContain('目前 RPT 檔案：Mock Upload.rpt');
-    expect(component.ReportEditorDraft.Description).toBe('Mock Upload 報表說明');
+    expect(component.ReportEditorDraft.Description).toBe(
+      'Mock Upload 報表說明',
+    );
     component.ReportEditorDraft.Description = '更新後的報表說明';
     component.SaveReport();
-    expect(component.MockRbac.GetReport(Uploaded.ReportKey)?.Description).toBe('更新後的報表說明');
+    expect(component.MockRbac.GetReport(Uploaded.ReportKey)?.Description).toBe(
+      '更新後的報表說明',
+    );
     component.OpenDeleteReportDialog(Uploaded.ReportKey);
     fixture.detectChanges();
     expect(Host.textContent).toContain('確定要刪除此報表嗎？');
@@ -721,10 +921,14 @@ describe('DemoPortalComponent', () => {
     component.SelectedReportFileName = 'DraftReport.rpt';
     fixture.detectChanges();
 
-    expect(Host.querySelector('.report-category-quick-add-trigger')).not.toBeNull();
+    expect(
+      Host.querySelector('.report-category-quick-add-trigger'),
+    ).not.toBeNull();
     expect(
       Array.from(
-        Host.querySelectorAll<HTMLSelectElement>('#report-editor-category option'),
+        Host.querySelectorAll<HTMLSelectElement>(
+          '#report-editor-category option',
+        ),
       ).map((Option) => Option.value),
     ).not.toContain('SYSTEM_UNCATEGORIZED');
 
@@ -741,29 +945,41 @@ describe('DemoPortalComponent', () => {
     expect(component.QuickAddCategoryError).toBe('此報表分類已存在。');
     component.QuickAddCategoryName = '未分類';
     component.CreateReportCategoryQuickAdd();
-    expect(component.QuickAddCategoryError).toBe('此名稱為系統保留分類，不可建立。');
+    expect(component.QuickAddCategoryError).toBe(
+      '此名稱為系統保留分類，不可建立。',
+    );
 
     component.QuickAddCategoryName = '快速新增分類';
     component.CreateReportCategoryQuickAdd();
     const QuickAddCategory = component.ReportEditorCategories.find(
       (Category) => Category.CategoryName === '快速新增分類',
     )!;
-    expect(component.ReportEditorDraft.CategoryId).toBe(QuickAddCategory.CategoryId);
+    expect(component.ReportEditorDraft.CategoryId).toBe(
+      QuickAddCategory.CategoryId,
+    );
     expect(component.ReportEditorDraft.ReportName).toBe('保留中的上傳草稿');
-    expect(component.ReportEditorDraft.Description).toBe('保留中的上傳草稿說明');
+    expect(component.ReportEditorDraft.Description).toBe(
+      '保留中的上傳草稿說明',
+    );
     expect(component.ReportEditorDraft.Enabled).toBeTrue();
     expect(component.SelectedReportFileName).toBe('DraftReport.rpt');
     expect(component.IsUploadReportDialogOpen).toBeTrue();
     expect(component.IsReportCategoryQuickAddOpen).toBeFalse();
-    expect(component.SuccessToastMessage).toBe('新增報表分類「快速新增分類」成功！');
+    expect(component.SuccessToastMessage).toBe(
+      '新增報表分類「快速新增分類」成功！',
+    );
 
     component.OpenReportCategoryQuickAdd();
     component.QuickAddCategoryName = '取消的分類';
     component.CloseReportCategoryQuickAdd();
     expect(component.IsUploadReportDialogOpen).toBeTrue();
     expect(component.ReportEditorDraft.ReportName).toBe('保留中的上傳草稿');
-    expect(component.ReportEditorDraft.Description).toBe('保留中的上傳草稿說明');
-    expect(component.ReportEditorDraft.CategoryId).toBe(QuickAddCategory.CategoryId);
+    expect(component.ReportEditorDraft.Description).toBe(
+      '保留中的上傳草稿說明',
+    );
+    expect(component.ReportEditorDraft.CategoryId).toBe(
+      QuickAddCategory.CategoryId,
+    );
     expect(component.ReportEditorDraft.Enabled).toBeTrue();
     expect(component.SelectedReportFileName).toBe('DraftReport.rpt');
 
@@ -806,17 +1022,24 @@ describe('DemoPortalComponent', () => {
       Host.querySelectorAll<HTMLElement>('.category-management-row'),
     ).at(-1)!;
     expect(
-      ReservedCategoryRow.querySelector('.category-management-usage')?.textContent,
+      ReservedCategoryRow.querySelector('.category-management-usage')
+        ?.textContent,
     ).toContain('0 份報表使用中');
     expect(
       ReservedCategoryRow.querySelector(
         '.category-management-action-slot .category-system-reserved',
       )?.textContent,
     ).toContain('系統保留');
-    expect(Host.querySelector('[title="編輯分類"]')?.textContent).toContain('✎');
-    expect(Host.querySelector('[title="刪除分類"]')?.textContent).toContain('🗑');
+    expect(Host.querySelector('[title="編輯分類"]')?.textContent).toContain(
+      '✎',
+    );
+    expect(Host.querySelector('[title="刪除分類"]')?.textContent).toContain(
+      '🗑',
+    );
     expect(
-      Host.querySelectorAll('.category-system-reserved ~ .category-management-actions').length,
+      Host.querySelectorAll(
+        '.category-system-reserved ~ .category-management-actions',
+      ).length,
     ).toBe(0);
 
     component.NewCategoryName = '   ';
@@ -824,14 +1047,20 @@ describe('DemoPortalComponent', () => {
     expect(component.CategoryCreateError).toBe('請輸入分類名稱。');
     component.NewCategoryName = '臨時分類';
     component.CreateManagedCategory();
-    expect(component.CategoryManagementCategories.some((Category) => Category.CategoryName === '臨時分類')).toBeTrue();
+    expect(
+      component.CategoryManagementCategories.some(
+        (Category) => Category.CategoryName === '臨時分類',
+      ),
+    ).toBeTrue();
     expect(component.CategoryManagementCategories.at(-1)?.CategoryId).toBe(
       'SYSTEM_UNCATEGORIZED',
     );
     expect(component.CategoryManagementCategories.at(-2)?.CategoryName).toBe(
       '臨時分類',
     );
-    expect(component.SuccessToastMessage).toBe('新增報表分類「臨時分類」成功！');
+    expect(component.SuccessToastMessage).toBe(
+      '新增報表分類「臨時分類」成功！',
+    );
 
     const TemporaryCategory = component.CategoryManagementCategories.find(
       (Category) => Category.CategoryName === '臨時分類',
@@ -852,17 +1081,27 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
     expect(Host.textContent).toContain('確定要刪除報表分類「暫存分類」嗎？');
     component.CloseDeleteCategoryDialog();
-    expect(MockRbac.GetCategories().some((Category) => Category.CategoryId === RenamedCategory.CategoryId)).toBeTrue();
+    expect(
+      MockRbac.GetCategories().some(
+        (Category) => Category.CategoryId === RenamedCategory.CategoryId,
+      ),
+    ).toBeTrue();
     component.OpenDeleteCategoryDialog(RenamedCategory.CategoryId);
     component.ConfirmDeleteCategory();
-    expect(MockRbac.GetCategories().some((Category) => Category.CategoryId === RenamedCategory.CategoryId)).toBeFalse();
+    expect(
+      MockRbac.GetCategories().some(
+        (Category) => Category.CategoryId === RenamedCategory.CategoryId,
+      ),
+    ).toBeFalse();
 
-    const FinanceReportKeys = MockRbac.Reports
-      .filter((Report) => Report.CategoryId === 'FINANCE')
-      .map((Report) => Report.ReportKey);
+    const FinanceReportKeys = MockRbac.Reports.filter(
+      (Report) => Report.CategoryId === 'FINANCE',
+    ).map((Report) => Report.ReportKey);
     component.OpenDeleteCategoryDialog('FINANCE');
     fixture.detectChanges();
-    expect(Host.textContent).toContain('若刪除此分類，這些報表將自動移至「未分類」。');
+    expect(Host.textContent).toContain(
+      '若刪除此分類，這些報表將自動移至「未分類」。',
+    );
     component.ConfirmDeleteCategory();
     expect(
       FinanceReportKeys.every(
@@ -907,7 +1146,9 @@ describe('DemoPortalComponent', () => {
 
     expect(component.ParameterReportTotalPages).toBe(2);
     expect(component.PagedParameterReports).toHaveSize(10);
-    expect(fixture.nativeElement.querySelectorAll('.list-pagination button').length).toBe(4);
+    expect(
+      fixture.nativeElement.querySelectorAll('.list-pagination button').length,
+    ).toBe(4);
 
     component.NextParameterReportPage();
     expect(component.ParameterReportCurrentPage).toBe(2);
@@ -980,13 +1221,19 @@ describe('DemoPortalComponent', () => {
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    component.OpenEditDatabaseConnection(component.DatabaseConnections.Connections[0].Key);
+    component.OpenEditDatabaseConnection(
+      component.DatabaseConnections.Connections[0].Key,
+    );
     fixture.detectChanges();
 
-    const PasswordInput = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#database-password');
+    const PasswordInput = (
+      fixture.nativeElement as HTMLElement
+    ).querySelector<HTMLInputElement>('#database-password');
     expect(PasswordInput?.value).toBe('');
     expect(PasswordInput?.placeholder).toBe('••••••••');
-    expect(fixture.nativeElement.textContent).toContain('若不修改密碼請保持空白。');
+    expect(fixture.nativeElement.textContent).toContain(
+      '若不修改密碼請保持空白。',
+    );
   });
 
   it('uses localized category permission labels in the EditRole dialog', () => {
@@ -1020,8 +1267,12 @@ describe('DemoPortalComponent', () => {
 
     const Host = fixture.nativeElement as HTMLElement;
     expect(Host.textContent).not.toContain('報表權限管理');
-    expect(Host.querySelectorAll('.role-permission-table input:disabled').length).toBeGreaterThan(0);
-    expect(Host.textContent).toContain('系統管理員擁有所有報表分類權限，設定為唯讀。');
+    expect(
+      Host.querySelectorAll('.role-permission-table input:disabled').length,
+    ).toBeGreaterThan(0);
+    expect(Host.textContent).toContain(
+      '系統管理員擁有所有報表分類權限，設定為唯讀。',
+    );
   });
 
   it('opens the export menu, closes it after selection, and shows the selected Mock format', () => {
@@ -1036,7 +1287,9 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     const Host = fixture.nativeElement as HTMLElement;
-    const Trigger = Host.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!;
+    const Trigger = Host.querySelector<HTMLButtonElement>(
+      '[aria-haspopup="menu"]',
+    )!;
     expect(Trigger.textContent).toContain('匯出');
     expect(Trigger.getAttribute('aria-expanded')).toBe('false');
 
@@ -1044,7 +1297,9 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
     expect(Trigger.getAttribute('aria-expanded')).toBe('true');
     expect(
-      Array.from(Host.querySelectorAll('[role="menuitem"]')).map((Item) => Item.textContent?.trim()),
+      Array.from(Host.querySelectorAll('[role="menuitem"]')).map((Item) =>
+        Item.textContent?.trim(),
+      ),
     ).toEqual(['PDF', 'Excel', 'Word', 'CSV', 'RTF', '文字檔']);
 
     document.dispatchEvent(new MouseEvent('click'));
@@ -1059,7 +1314,7 @@ describe('DemoPortalComponent', () => {
     Trigger.click();
     fixture.detectChanges();
 
-    (Host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[1]).click();
+    Host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[1].click();
     fixture.detectChanges();
     expect(Host.querySelector('[role="menu"]')).toBeNull();
     expect(Host.querySelector('.mock-notice')?.textContent).toContain(
@@ -1083,10 +1338,11 @@ describe('DemoPortalComponent', () => {
     component.SelectReportForParameters('AccountBalance');
     fixture.detectChanges();
 
-    expect(component.VisibleReportParameters.map((Definition) => Definition.ParameterName)).toEqual([
-      'PostingDate',
-      'CustomerCode',
-    ]);
+    expect(
+      component.VisibleReportParameters.map(
+        (Definition) => Definition.ParameterName,
+      ),
+    ).toEqual(['PostingDate', 'CustomerCode']);
     expect(fixture.nativeElement.textContent).not.toContain('UserCode@');
 
     const PostingDate = component.ReportParameterForm.get(
@@ -1126,7 +1382,11 @@ describe('DemoPortalComponent', () => {
     component.SelectReportForParameters('Activity');
     fixture.detectChanges();
 
-    expect(component.VisibleReportParameters.map((Definition) => Definition.DisplayName)).toEqual([
+    expect(
+      component.VisibleReportParameters.map(
+        (Definition) => Definition.DisplayName,
+      ),
+    ).toEqual([
       '活動時間',
       '關鍵字',
       '備註',
@@ -1136,7 +1396,9 @@ describe('DemoPortalComponent', () => {
     ]);
     expect(component.ReportParameterForm.get('ResultLimit')!.value).toBe(100);
     expect(component.ReportParameterForm.get('MinimumAmount')!.value).toBe(0.5);
-    expect(component.ReportParameterForm.get('IncludeInactive')!.value).toBeFalse();
+    expect(
+      component.ReportParameterForm.get('IncludeInactive')!.value,
+    ).toBeFalse();
 
     const Host = fixture.nativeElement as HTMLElement;
     expect(Host.querySelector('input[type="datetime-local"]')).not.toBeNull();
@@ -1167,11 +1429,13 @@ describe('DemoPortalComponent', () => {
     expect(Navigate).not.toHaveBeenCalled();
 
     (
-      component.ReportParameterForm.get(
-        'ItemCodes',
-      ) as unknown as FormControl<string[]>
+      component.ReportParameterForm.get('ItemCodes') as unknown as FormControl<
+        string[]
+      >
     ).setValue(['A-100', 'B-200']);
-    const Quantity = component.ReportParameterForm.get('Quantity') as unknown as FormGroup;
+    const Quantity = component.ReportParameterForm.get(
+      'Quantity',
+    ) as unknown as FormGroup;
     Quantity.get('Start')!.setValue(10);
     Quantity.get('End')!.setValue(10);
     expect(component.CanGenerateReport).toBeTrue();
@@ -1223,7 +1487,9 @@ describe('DemoPortalComponent', () => {
     component.RetryLov(component.VisibleReportParameters[1]);
     fixture.detectChanges();
     expect(Host.textContent).not.toContain('無法載入選項，請重試。');
-    expect(ParameterService.GetLovStatus('AccountBalance', 'CustomerCode')).toBe('success');
+    expect(
+      ParameterService.GetLovStatus('AccountBalance', 'CustomerCode'),
+    ).toBe('success');
   });
 
   it('redirects an administrator to reports after approving their own demotion', () => {
@@ -1323,7 +1589,9 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     expect(component.EditingUser).not.toBeNull();
-    expect(component.EditUserValidationErrors.Roles).toBe('請至少選擇一個角色。');
+    expect(component.EditUserValidationErrors.Roles).toBe(
+      '請至少選擇一個角色。',
+    );
     expect(component.ManagementNotice).toBe('');
     expect(
       (fixture.nativeElement as HTMLElement).querySelector(
@@ -1421,8 +1689,12 @@ describe('DemoPortalComponent', () => {
     const component = fixture.componentInstance;
 
     component.OpenCreateRoleDialog();
-    expect(component.RoleDraft.Permissions.map((Entry) => Entry.CategoryId)).toContain('MARKETING');
-    expect(component.RoleDraft.Permissions.map((Entry) => Entry.CategoryId)).not.toContain('SYSTEM_UNCATEGORIZED');
+    expect(
+      component.RoleDraft.Permissions.map((Entry) => Entry.CategoryId),
+    ).toContain('MARKETING');
+    expect(
+      component.RoleDraft.Permissions.map((Entry) => Entry.CategoryId),
+    ).not.toContain('SYSTEM_UNCATEGORIZED');
     component.RoleDraft.DisplayName = '業務人員';
     component.RoleDraft.Permissions[0].Permission.CanExecute = true;
     component.SaveRole();
@@ -1431,7 +1703,9 @@ describe('DemoPortalComponent', () => {
     expect(component.IsCreateRoleDialogOpen).toBeFalse();
     expect(component.SuccessToastMessage).toBe('新增角色「業務人員」，成功！');
     expect(fixture.nativeElement.textContent).toContain('業務人員');
-    expect(fixture.nativeElement.textContent).toContain('前端 Mock 建立的自訂角色。');
+    expect(fixture.nativeElement.textContent).toContain(
+      '前端 Mock 建立的自訂角色。',
+    );
     expect(
       fixture.nativeElement.querySelectorAll('.role-filter-tabs button').length,
     ).toBe(component.MockRbac.Roles.length + 1);
@@ -1467,7 +1741,9 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     const Host = fixture.nativeElement as HTMLElement;
-    const NameInput = Host.querySelector<HTMLInputElement>('.role-name-field input')!;
+    const NameInput = Host.querySelector<HTMLInputElement>(
+      '.role-name-field input',
+    )!;
     expect(NameInput.readOnly).toBeTrue();
     expect(Host.querySelector('.role-description-field')).toBeNull();
     expect(Host.querySelector('[aria-label="刪除角色"]')).toBeNull();
@@ -1487,7 +1763,9 @@ describe('DemoPortalComponent', () => {
     component.OpenCreateRoleDialog();
     component.RoleDraft.DisplayName = 'admin123';
     component.SaveRole();
-    const RoleKey = MockRbac.Roles.find((Role) => Role.DisplayName === 'admin123')!.Key;
+    const RoleKey = MockRbac.Roles.find(
+      (Role) => Role.DisplayName === 'admin123',
+    )!.Key;
 
     component.OpenEditRoleDialog(RoleKey);
     component.RoleDraft.DisplayName = '取消後不應套用';
@@ -1497,9 +1775,15 @@ describe('DemoPortalComponent', () => {
     component.OpenEditRoleDialog(RoleKey);
     fixture.detectChanges();
     expect(
-      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.role-name-field input')!.readOnly,
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        '.role-name-field input',
+      )!.readOnly,
     ).toBeFalse();
-    expect((fixture.nativeElement as HTMLElement).querySelector('[aria-label="刪除角色"]')).not.toBeNull();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector(
+        '[aria-label="刪除角色"]',
+      ),
+    ).not.toBeNull();
 
     component.OpenDeleteRoleDialog();
     expect(component.DeletingRole?.Key).toBe(RoleKey);
@@ -1535,7 +1819,9 @@ describe('DemoPortalComponent', () => {
     expect(RoleTabButtons.length).toBe(MockRbac.Roles.length + 1);
 
     const Role = MockRbac.Roles[0];
-    const RoleUsers = MockRbac.Users.filter((User) => User.Roles.includes(Role.Key));
+    const RoleUsers = MockRbac.Users.filter((User) =>
+      User.Roles.includes(Role.Key),
+    );
     component.SetUserRoleFilter(Role.Key);
     expect(component.FilteredUsers).toEqual(RoleUsers);
 
@@ -1560,17 +1846,24 @@ describe('DemoPortalComponent', () => {
     component.UserDraft.Roles = [];
     component.ToggleUserRole(component.UserDraft, 'PURCHASE', true);
     component.SaveUser();
-    expect(MockRbac.GetUser('role-flow@example.com')?.Roles).toEqual(['PURCHASE']);
+    expect(MockRbac.GetUser('role-flow@example.com')?.Roles).toEqual([
+      'PURCHASE',
+    ]);
 
     component.EditUser('role-flow@example.com');
     component.ToggleUserRole(component.EditingUser!, 'WAREHOUSE', true);
     component.SaveEditedUser();
-    expect(MockRbac.GetUser('role-flow@example.com')?.Roles).toEqual(['PURCHASE', 'WAREHOUSE']);
+    expect(MockRbac.GetUser('role-flow@example.com')?.Roles).toEqual([
+      'PURCHASE',
+      'WAREHOUSE',
+    ]);
 
     component.EditUser('role-flow@example.com');
     component.ToggleUserRole(component.EditingUser!, 'ADMIN', true);
     expect(component.EditingUser?.Roles).toEqual(['ADMIN']);
-    expect(component.IsRoleOptionDisabled(component.EditingUser!.Roles, 'FINANCE')).toBeTrue();
+    expect(
+      component.IsRoleOptionDisabled(component.EditingUser!.Roles, 'FINANCE'),
+    ).toBeTrue();
     component.ToggleUserRole(component.EditingUser!, 'FINANCE', true);
     component.SaveEditedUser();
     expect(MockRbac.GetUser('role-flow@example.com')?.Roles).toEqual(['ADMIN']);
@@ -1594,7 +1887,9 @@ describe('DemoPortalComponent', () => {
       return Option.querySelector<HTMLInputElement>('input')!;
     };
     expect(Host.querySelector('.create-user-modal')).not.toBeNull();
-    expect(Host.querySelectorAll('.create-user-identity-fields input').length).toBe(2);
+    expect(
+      Host.querySelectorAll('.create-user-identity-fields input').length,
+    ).toBe(2);
     expect(component.UserDraft.Enabled).toBeFalse();
 
     component.SaveUser();
@@ -1611,15 +1906,23 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
     CreateRoleCheckbox('WAREHOUSE').click();
     fixture.detectChanges();
-    expect(component.UserDraft.Roles).toEqual(['FINANCE', 'PURCHASE', 'WAREHOUSE']);
+    expect(component.UserDraft.Roles).toEqual([
+      'FINANCE',
+      'PURCHASE',
+      'WAREHOUSE',
+    ]);
 
     CreateRoleCheckbox('ADMIN').click();
     fixture.detectChanges();
     expect(component.UserDraft.Roles).toEqual(['ADMIN']);
-    expect(component.IsRoleOptionDisabled(component.UserDraft.Roles, 'FINANCE')).toBeTrue();
+    expect(
+      component.IsRoleOptionDisabled(component.UserDraft.Roles, 'FINANCE'),
+    ).toBeTrue();
     CreateRoleCheckbox('ADMIN').click();
     fixture.detectChanges();
-    expect(component.IsRoleOptionDisabled(component.UserDraft.Roles, 'FINANCE')).toBeFalse();
+    expect(
+      component.IsRoleOptionDisabled(component.UserDraft.Roles, 'FINANCE'),
+    ).toBeFalse();
 
     component.UserDraft.Account = 'created-multi-role@example.com';
     component.UserDraft.DisplayName = '多角色建立測試';
@@ -1657,9 +1960,9 @@ describe('DemoPortalComponent', () => {
       InitialPassword: 'initial-password-123',
     });
     expect(MockRbac.GetUser('created-credentials@example.com')).not.toBeNull();
-    expect(Host.querySelector('.created-user-success-modal')?.textContent).toContain(
-      'created-credentials@example.com',
-    );
+    expect(
+      Host.querySelector('.created-user-success-modal')?.textContent,
+    ).toContain('created-credentials@example.com');
     expect(Host.querySelector('.created-user-copy-button')).not.toBeNull();
 
     component.CloseCreatedUserSuccessModal();
@@ -1751,14 +2054,30 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     const Host = fixture.nativeElement as HTMLElement;
-    const RoleSection = Host.querySelector('[aria-labelledby="role-management-title"]')!;
-    const UserSection = Host.querySelector('[aria-labelledby="user-management-title"]')!;
-    const RoleCreateAction = RoleSection.querySelector<HTMLButtonElement>('.management-card-heading button')!;
-    const UserCreateAction = UserSection.querySelector<HTMLButtonElement>('.management-card-heading button')!;
+    const RoleSection = Host.querySelector(
+      '[aria-labelledby="role-management-title"]',
+    )!;
+    const UserSection = Host.querySelector(
+      '[aria-labelledby="user-management-title"]',
+    )!;
+    const RoleCreateAction = RoleSection.querySelector<HTMLButtonElement>(
+      '.management-card-heading button',
+    )!;
+    const UserCreateAction = UserSection.querySelector<HTMLButtonElement>(
+      '.management-card-heading button',
+    )!;
 
-    expect(RoleSection.querySelector('.role-card-grid .section-header-action')).toBeNull();
-    expect(UserSection.querySelector('.user-management-toolbar .section-header-action')).toBeNull();
-    expect(RoleSection.querySelectorAll('.role-card > p:not(.role-card-count)')).toHaveSize(0);
+    expect(
+      RoleSection.querySelector('.role-card-grid .section-header-action'),
+    ).toBeNull();
+    expect(
+      UserSection.querySelector(
+        '.user-management-toolbar .section-header-action',
+      ),
+    ).toBeNull();
+    expect(
+      RoleSection.querySelectorAll('.role-card > p:not(.role-card-count)'),
+    ).toHaveSize(0);
 
     RoleCreateAction.click();
     expect(component.IsCreateRoleDialogOpen).toBeTrue();

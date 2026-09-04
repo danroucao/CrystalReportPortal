@@ -163,18 +163,56 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   ReportParameterDefinitions: MockReportParameterDefinition[] = [];
   ReportParameterForm = new FormGroup({});
   readonly ParameterRangeErrors: Record<string, string> = {};
-  LastMockExecutionParameters: Readonly<Record<string, MockParameterFormValue>> | null =
-    null;
+  LastMockExecutionParameters: Readonly<
+    Record<string, MockParameterFormValue>
+  > | null = null;
   MockNotice = '';
   IsExportMenuOpen = false;
-  private ReturnToParameterSearchState: ParameterReportSearchState | null = null;
+  private ReturnToParameterSearchState: ParameterReportSearchState | null =
+    null;
   readonly ExportOptions: readonly MockExportOption[] = [
-    { Label: 'PDF', FormatKey: 'Pdf', Enabled: true, MockOnly: true, RequiresBackendConfirmation: false },
-    { Label: 'Excel', FormatKey: 'Excel', Enabled: true, MockOnly: true, RequiresBackendConfirmation: true },
-    { Label: 'Word', FormatKey: 'Word', Enabled: true, MockOnly: true, RequiresBackendConfirmation: true },
-    { Label: 'CSV', FormatKey: 'Csv', Enabled: true, MockOnly: true, RequiresBackendConfirmation: true },
-    { Label: 'RTF', FormatKey: 'Rtf', Enabled: true, MockOnly: true, RequiresBackendConfirmation: true },
-    { Label: '文字檔', FormatKey: 'Text', Enabled: true, MockOnly: true, RequiresBackendConfirmation: true },
+    {
+      Label: 'PDF',
+      FormatKey: 'Pdf',
+      Enabled: true,
+      MockOnly: true,
+      RequiresBackendConfirmation: false,
+    },
+    {
+      Label: 'Excel',
+      FormatKey: 'Excel',
+      Enabled: true,
+      MockOnly: true,
+      RequiresBackendConfirmation: true,
+    },
+    {
+      Label: 'Word',
+      FormatKey: 'Word',
+      Enabled: true,
+      MockOnly: true,
+      RequiresBackendConfirmation: true,
+    },
+    {
+      Label: 'CSV',
+      FormatKey: 'Csv',
+      Enabled: true,
+      MockOnly: true,
+      RequiresBackendConfirmation: true,
+    },
+    {
+      Label: 'RTF',
+      FormatKey: 'Rtf',
+      Enabled: true,
+      MockOnly: true,
+      RequiresBackendConfirmation: true,
+    },
+    {
+      Label: '文字檔',
+      FormatKey: 'Text',
+      Enabled: true,
+      MockOnly: true,
+      RequiresBackendConfirmation: true,
+    },
   ];
   ManagementNotice = '';
   readonly AdminMinimumCountErrorMessage =
@@ -188,7 +226,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   EditUserValidationErrors: EditUserValidationErrors = {};
   DeletingUser: MockUser | null = null;
   DeleteUserError = '';
-  AccountSettingsDraft: MockAccountSettingsDraft = this.CreateAccountSettingsDraft();
+  AccountSettingsDraft: MockAccountSettingsDraft =
+    this.CreateAccountSettingsDraft();
   AccountSettingsConfirmation = '';
   AccountSettingsNotice = '';
   UserSearchText = '';
@@ -248,7 +287,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       this.RestoreParameterSearchState(
         NavigationState?.['ParameterSearchState'],
       );
-      this.ParameterReportSelectionNotice = NavigationState?.['ReportSelectionRequired']
+      this.ParameterReportSelectionNotice = NavigationState?.[
+        'ReportSelectionRequired'
+      ]
         ? '請先選擇報表。'
         : '';
     }
@@ -265,8 +306,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.IsReportParameterMode =
       this.Page === 'ReportParameter' &&
-      this.router.getCurrentNavigation()?.extras.state?.['OpenReportParameters'] ===
-        true;
+      this.router.getCurrentNavigation()?.extras.state?.[
+        'OpenReportParameters'
+      ] === true;
     if (this.IsReportParameterMode) this.LoadReportParameterForm();
   }
 
@@ -291,7 +333,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   get PageTitle(): string {
     const PageTitles: Readonly<Record<DemoPortalPage, string>> = {
       ReportList: '收藏的報表',
-      ReportParameter: '報表搜尋 / 報表條件',
+      ReportParameter: '所有報表',
       ReportPreview: '報表預覽',
       AccountSettings: '帳號設定',
       UserManagement: '使用者管理',
@@ -315,47 +357,46 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get DisplayedFavoriteReports(): readonly MockFavoriteReport[] {
     const Direction = this.FavoriteReportSortDirection === 'asc' ? 1 : -1;
-    const SearchText = this.FavoriteSearchText.trim().toLocaleLowerCase('zh-Hant');
-    return this.FavoriteReports
-      .filter(
-        ({ Report }) =>
-          (this.SelectedFavoriteCategoryId === this.AllCategoryFilterValue ||
-            Report.CategoryId === this.SelectedFavoriteCategoryId) &&
-          (!SearchText ||
-            Report.ReportName.toLocaleLowerCase('zh-Hant').includes(SearchText) ||
-            Report.Description.toLocaleLowerCase('zh-Hant').includes(SearchText)),
-      )
-      .sort((Left, Right) => {
-        if (this.FavoriteReportSortField === 'ReportName') {
-          return (
-            Left.Report.ReportName.localeCompare(
-              Right.Report.ReportName,
-              'zh-Hant',
-            ) * Direction
-          );
-        }
-        const LeftTimestamp =
-          this.FavoriteReportSortField === 'FavoritedAt'
-            ? Left.FavoritedAt
-            : Left.LastUsedAt;
-        const RightTimestamp =
-          this.FavoriteReportSortField === 'FavoritedAt'
-            ? Right.FavoritedAt
-            : Right.LastUsedAt;
-        if (!LeftTimestamp && !RightTimestamp) {
-          return Left.Report.ReportName.localeCompare(
+    const SearchText =
+      this.FavoriteSearchText.trim().toLocaleLowerCase('zh-Hant');
+    return this.FavoriteReports.filter(
+      ({ Report }) =>
+        (this.SelectedFavoriteCategoryId === this.AllCategoryFilterValue ||
+          Report.CategoryId === this.SelectedFavoriteCategoryId) &&
+        (!SearchText ||
+          Report.ReportName.toLocaleLowerCase('zh-Hant').includes(SearchText) ||
+          Report.Description.toLocaleLowerCase('zh-Hant').includes(SearchText)),
+    ).sort((Left, Right) => {
+      if (this.FavoriteReportSortField === 'ReportName') {
+        return (
+          Left.Report.ReportName.localeCompare(
             Right.Report.ReportName,
             'zh-Hant',
-          );
-        }
-        if (!LeftTimestamp) return 1;
-        if (!RightTimestamp) return -1;
-        return (
-          (new Date(LeftTimestamp).getTime() -
-            new Date(RightTimestamp).getTime()) *
-          Direction
+          ) * Direction
         );
-      });
+      }
+      const LeftTimestamp =
+        this.FavoriteReportSortField === 'FavoritedAt'
+          ? Left.FavoritedAt
+          : Left.LastUsedAt;
+      const RightTimestamp =
+        this.FavoriteReportSortField === 'FavoritedAt'
+          ? Right.FavoritedAt
+          : Right.LastUsedAt;
+      if (!LeftTimestamp && !RightTimestamp) {
+        return Left.Report.ReportName.localeCompare(
+          Right.Report.ReportName,
+          'zh-Hant',
+        );
+      }
+      if (!LeftTimestamp) return 1;
+      if (!RightTimestamp) return -1;
+      return (
+        (new Date(LeftTimestamp).getTime() -
+          new Date(RightTimestamp).getTime()) *
+        Direction
+      );
+    });
   }
 
   SetFavoriteCategory(CategoryId: string): void {
@@ -374,8 +415,13 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ToggleFavoriteReportSort('LastUsedAt');
   }
 
-  GetFavoriteReportSortIndicator(Field: FavoriteReportSortField): '↕' | '↑' | '↓' {
-    if (!this.IsFavoriteReportSortActive || this.FavoriteReportSortField !== Field) {
+  GetFavoriteReportSortIndicator(
+    Field: FavoriteReportSortField,
+  ): '↕' | '↑' | '↓' {
+    if (
+      !this.IsFavoriteReportSortActive ||
+      this.FavoriteReportSortField !== Field
+    ) {
       return '↕';
     }
     return this.FavoriteReportSortDirection === 'asc' ? '↑' : '↓';
@@ -384,7 +430,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   GetFavoriteReportAriaSort(
     Field: FavoriteReportSortField,
   ): 'none' | 'ascending' | 'descending' {
-    if (!this.IsFavoriteReportSortActive || this.FavoriteReportSortField !== Field) {
+    if (
+      !this.IsFavoriteReportSortActive ||
+      this.FavoriteReportSortField !== Field
+    ) {
       return 'none';
     }
     return this.FavoriteReportSortDirection === 'asc'
@@ -421,7 +470,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   RemoveFavoriteReport(Favorite: MockFavoriteReport): void {
     const Account = this.Auth.CurrentUser?.Account;
     if (!Account) return;
-    if (!this.MockRbac.RemoveFavoriteReport(Account, Favorite.Report.ReportKey)) {
+    if (
+      !this.MockRbac.RemoveFavoriteReport(Account, Favorite.Report.ReportKey)
+    ) {
       return;
     }
     if (
@@ -467,13 +518,15 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
         CategoryName: '全部',
         Count: Reports.length,
       },
-      ...this.MockRbac.GetReportFilterCategories(this.Auth.ActiveRoles).map((Category) => ({
-        CategoryId: Category.CategoryId,
-        CategoryName: Category.CategoryName,
-        Count: Reports.filter(
-          (Report) => Report.CategoryId === Category.CategoryId,
-        ).length,
-      })),
+      ...this.MockRbac.GetReportFilterCategories(this.Auth.ActiveRoles).map(
+        (Category) => ({
+          CategoryId: Category.CategoryId,
+          CategoryName: Category.CategoryName,
+          Count: Reports.filter(
+            (Report) => Report.CategoryId === Category.CategoryId,
+          ).length,
+        }),
+      ),
     ];
   }
 
@@ -508,10 +561,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get DisplayedParameterReports() {
-    const SearchText = this.ParameterReportSearchText.trim().toLocaleLowerCase();
+    const SearchText =
+      this.ParameterReportSearchText.trim().toLocaleLowerCase();
     const Reports = this.ParameterAccessibleReports.filter(
       (Report) =>
-        (this.SelectedParameterReportCategoryId === this.AllCategoryFilterValue ||
+        (this.SelectedParameterReportCategoryId ===
+          this.AllCategoryFilterValue ||
           Report.CategoryId === this.SelectedParameterReportCategoryId) &&
         (!SearchText ||
           `${Report.ReportName} ${Report.CategoryName} ${Report.Description}`
@@ -524,7 +579,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     const Direction = this.ParameterReportSortDirection === 'asc' ? 1 : -1;
     return [...Reports].sort((Left, Right) => {
       if (SortField === 'ReportName') {
-        return Left.ReportName.localeCompare(Right.ReportName, 'zh-Hant') * Direction;
+        return (
+          Left.ReportName.localeCompare(Right.ReportName, 'zh-Hant') * Direction
+        );
       }
       return (
         (new Date(Left[SortField]).getTime() -
@@ -592,10 +649,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.ParameterReportSortDirection === 'asc' ? '↑' : '↓';
   }
 
-  GetParameterReportAriaSort(Field: ParameterReportSortField):
-    | 'ascending'
-    | 'descending'
-    | 'none' {
+  GetParameterReportAriaSort(
+    Field: ParameterReportSortField,
+  ): 'ascending' | 'descending' | 'none' {
     if (this.ParameterReportSortField !== Field) return 'none';
     return this.ParameterReportSortDirection === 'asc'
       ? 'ascending'
@@ -656,9 +712,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get VisibleReportParameters(): readonly MockReportParameterDefinition[] {
-    return this.ReportParameterDefinitions
-      .filter((Definition) => Definition.IsVisible)
-      .sort((Left, Right) => Left.DisplayOrder - Right.DisplayOrder);
+    return this.ReportParameterDefinitions.filter(
+      (Definition) => Definition.IsVisible,
+    ).sort((Left, Right) => Left.DisplayOrder - Right.DisplayOrder);
   }
 
   get SelectedReportKey(): MockReportKey | null {
@@ -668,22 +724,19 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   get CanGenerateReport(): boolean {
     return Boolean(
       this.Auth.SelectedReportCategoryPermission.CanExecute &&
-        this.SelectedReportKey &&
-        this.ReportParameterForm.valid &&
-        this.VisibleReportParameters.every(
-          (Definition) =>
-            !this.UsesLov(Definition) ||
-            this.GetLovStatus(Definition) === 'success',
-        ),
+      this.SelectedReportKey &&
+      this.ReportParameterForm.valid &&
+      this.VisibleReportParameters.every(
+        (Definition) =>
+          !this.UsesLov(Definition) ||
+          this.GetLovStatus(Definition) === 'success',
+      ),
     );
   }
 
-  GetControlKind(Definition: MockReportParameterDefinition):
-    | 'range'
-    | 'textarea'
-    | 'checkbox'
-    | 'select'
-    | 'input' {
+  GetControlKind(
+    Definition: MockReportParameterDefinition,
+  ): 'range' | 'textarea' | 'checkbox' | 'select' | 'input' {
     if (Definition.AllowRangeValues) return 'range';
     if (Definition.InputType === 'LongText') return 'textarea';
     if (Definition.InputType === 'Checkbox') return 'checkbox';
@@ -724,7 +777,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!ReportKey) return [];
     return Definition.ValueSourceType === 'SqlLov'
       ? this.ReportParameters.GetLovOptions(ReportKey, Definition.ParameterName)
-      : Definition.Options ?? [];
+      : (Definition.Options ?? []);
   }
 
   RetryLov(Definition: MockReportParameterDefinition): void {
@@ -762,8 +815,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ReportParameterForm = this.BuildParameterForm(
       this.VisibleReportParameters,
     );
-    Object.keys(this.ParameterRangeErrors).forEach((Key) =>
-      delete this.ParameterRangeErrors[Key],
+    Object.keys(this.ParameterRangeErrors).forEach(
+      (Key) => delete this.ParameterRangeErrors[Key],
     );
     this.LastMockExecutionParameters = null;
   }
@@ -789,7 +842,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SelectReportByKey(ReportKey: MockReportKey): void {
-    const Report = this.Auth.AccessibleReports.find((Entry) => Entry.ReportKey === ReportKey);
+    const Report = this.Auth.AccessibleReports.find(
+      (Entry) => Entry.ReportKey === ReportKey,
+    );
     if (!Report?.Enabled) return;
     this.Auth.SelectReport(ReportKey);
     const Account = this.Auth.CurrentUser?.Account;
@@ -864,7 +919,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SelectOutputAction(ActionName: 'BrowserPrint' | 'FixedPrinterPrint'): void {
-    const ActionLabel = ActionName === 'BrowserPrint' ? '瀏覽器列印' : '固定印表機列印';
+    const ActionLabel =
+      ActionName === 'BrowserPrint' ? '瀏覽器列印' : '固定印表機列印';
     this.MockNotice = `${ActionLabel}目前為前端 Mock 操作，尚未串接正式列印服務。`;
   }
 
@@ -956,18 +1012,27 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   GetRoleNames(Roles: readonly MockRoleKey[]): string {
-    return Roles.map((RoleKey) => this.MockRbac.GetRole(RoleKey)?.DisplayName ?? RoleKey).join('、');
+    return Roles.map(
+      (RoleKey) => this.MockRbac.GetRole(RoleKey)?.DisplayName ?? RoleKey,
+    ).join('、');
   }
 
   IsRoleSelected(Roles: readonly MockRoleKey[], RoleKey: MockRoleKey): boolean {
     return Roles.includes(RoleKey);
   }
 
-  IsRoleOptionDisabled(Roles: readonly MockRoleKey[], RoleKey: MockRoleKey): boolean {
+  IsRoleOptionDisabled(
+    Roles: readonly MockRoleKey[],
+    RoleKey: MockRoleKey,
+  ): boolean {
     return RoleKey !== 'ADMIN' && Roles.includes('ADMIN');
   }
 
-  ToggleUserRole(Draft: MockUserDraft | MockUserEditDraft, RoleKey: MockRoleKey, IsSelected: boolean): void {
+  ToggleUserRole(
+    Draft: MockUserDraft | MockUserEditDraft,
+    RoleKey: MockRoleKey,
+    IsSelected: boolean,
+  ): void {
     if (RoleKey === 'ADMIN') {
       Draft.Roles = IsSelected ? ['ADMIN'] : [];
       return;
@@ -998,7 +1063,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   IsAdminUser(Account: string | null): boolean {
-    return Account !== null && this.MockRbac.GetUser(Account)?.Roles.includes('ADMIN') === true;
+    return (
+      Account !== null &&
+      this.MockRbac.GetUser(Account)?.Roles.includes('ADMIN') === true
+    );
   }
 
   OpenDeleteUserDialog(Account: string): void {
@@ -1137,10 +1205,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ShowSuccessToast(
       Result === 'updated' ? '使用者資料已更新。' : Messages[Result],
     );
-    this.Auth.RefreshCurrentUser(
-      OriginalAccount,
-      OriginalAccount,
-    );
+    this.Auth.RefreshCurrentUser(OriginalAccount, OriginalAccount);
     this.CancelEditUser();
   }
 
@@ -1186,7 +1251,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   SetReportEnabled(ReportKey: MockReportKey, Enabled: boolean): void {
     this.MockRbac.SetReportEnabled(ReportKey, Enabled);
-    this.ShowSuccessToast(Enabled ? '報表已在 Mock 資料中啟用。' : '報表已在 Mock 資料中停用。');
+    this.ShowSuccessToast(
+      Enabled ? '報表已在 Mock 資料中啟用。' : '報表已在 Mock 資料中停用。',
+    );
   }
 
   get ReportManagementCategories() {
@@ -1208,7 +1275,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get DisplayedManagedReports(): readonly MockReportReadModel[] {
-    const SearchText = this.ReportManagementSearchText.trim().toLocaleLowerCase();
+    const SearchText =
+      this.ReportManagementSearchText.trim().toLocaleLowerCase();
     const Reports = this.MockRbac.Reports.filter(
       (Report) =>
         (this.ReportManagementCategoryId === this.AllCategoryFilterValue ||
@@ -1224,7 +1292,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     const Direction = this.ReportManagementSortDirection === 'asc' ? 1 : -1;
     return [...Reports].sort((Left, Right) => {
       if (SortField === 'ReportName') {
-        return Left.ReportName.localeCompare(Right.ReportName, 'zh-Hant') * Direction;
+        return (
+          Left.ReportName.localeCompare(Right.ReportName, 'zh-Hant') * Direction
+        );
       }
       return (
         (new Date(Left[SortField]).getTime() -
@@ -1352,7 +1422,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.NewCategoryName = '';
     this.CategoryCreateError = '';
-    this.ShowSuccessToast(`新增報表分類「${Result.Category.CategoryName}」成功！`);
+    this.ShowSuccessToast(
+      `新增報表分類「${Result.Category.CategoryName}」成功！`,
+    );
   }
 
   StartCategoryEdit(Category: MockReportCategory): void {
@@ -1385,14 +1457,16 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     this.CancelCategoryEdit();
-    this.ShowSuccessToast(`報表分類已更新為「${Result.Category.CategoryName}」。`);
+    this.ShowSuccessToast(
+      `報表分類已更新為「${Result.Category.CategoryName}」。`,
+    );
   }
 
   OpenDeleteCategoryDialog(CategoryId: string): void {
     if (!this.Auth.IsAdmin) return;
-    const Category = this.MockRbac
-      .GetCategories()
-      .find((Entry) => Entry.CategoryId === CategoryId);
+    const Category = this.MockRbac.GetCategories().find(
+      (Entry) => Entry.CategoryId === CategoryId,
+    );
     if (!Category || Category.IsSystemReserved) return;
     this.CategoryDeleteError = '';
     this.DeletingCategory = Category;
@@ -1477,7 +1551,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenReportCategoryQuickAdd(): void {
-    if (!this.Auth.IsAdmin || !this.IsUploadReportDialogOpen || this.EditingReportKey)
+    if (
+      !this.Auth.IsAdmin ||
+      !this.IsUploadReportDialogOpen ||
+      this.EditingReportKey
+    )
       return;
     this.QuickAddCategoryName = '';
     this.QuickAddCategoryError = '';
@@ -1504,7 +1582,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.ReportEditorDraft.CategoryId = Result.Category.CategoryId;
     this.CloseReportCategoryQuickAdd();
-    this.ShowSuccessToast(`新增報表分類「${Result.Category.CategoryName}」成功！`);
+    this.ShowSuccessToast(
+      `新增報表分類「${Result.Category.CategoryName}」成功！`,
+    );
   }
 
   OnReportFileSelected(Event: Event): void {
@@ -1553,7 +1633,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.EnsureReportManagementPagination();
     this.CloseReportEditor();
-    this.ShowSuccessToast(IsEditing ? 'Mock 報表已更新。' : 'Mock 報表已上傳。');
+    this.ShowSuccessToast(
+      IsEditing ? 'Mock 報表已更新。' : 'Mock 報表已上傳。',
+    );
   }
 
   OpenDeleteReportDialog(ReportKey: MockReportKey): void {
@@ -1698,7 +1780,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.EditingRoleKey || this.IsBuiltInRole(this.EditingRoleKey)) return;
     const Role = this.MockRbac.GetRole(this.EditingRoleKey);
     if (this.MockRbac.GetRoleUserCount(Role.Key) > 0) {
-      this.RoleDraftError = '此角色仍有使用者使用，請先移除使用者的角色後再刪除。';
+      this.RoleDraftError =
+        '此角色仍有使用者使用，請先移除使用者的角色後再刪除。';
       return;
     }
     this.DeletingRole = Role;
@@ -1776,7 +1859,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  SetPermissionCanExecute(Entry: MockCategoryPermissionEntry, CanExecute: boolean): void {
+  SetPermissionCanExecute(
+    Entry: MockCategoryPermissionEntry,
+    CanExecute: boolean,
+  ): void {
     if (this.IsBuiltInRole(this.EditingRoleKey)) return;
     Entry.Permission.CanExecute = CanExecute;
     if (!CanExecute) {
@@ -1795,7 +1881,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   SaveAccountSettings(): void {
     const CurrentUser = this.Auth.CurrentUser;
     if (!CurrentUser) return;
-    if (this.AccountSettingsDraft.NewPassword !== this.AccountSettingsConfirmation) {
+    if (
+      this.AccountSettingsDraft.NewPassword !== this.AccountSettingsConfirmation
+    ) {
       this.AccountSettingsNotice = '新密碼與確認密碼不一致。';
       return;
     }
@@ -1834,8 +1922,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ReportParameterForm = this.BuildParameterForm(
       this.VisibleReportParameters,
     );
-    Object.keys(this.ParameterRangeErrors).forEach((Key) =>
-      delete this.ParameterRangeErrors[Key],
+    Object.keys(this.ParameterRangeErrors).forEach(
+      (Key) => delete this.ParameterRangeErrors[Key],
     );
     this.LastMockExecutionParameters = null;
   }
@@ -1948,10 +2036,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   ): ValidatorFn[] {
     const Validators: ValidatorFn[] = [];
     if (Definition.IsRequired) Validators.push(this.RequiredParameterValidator);
-    if (Definition.DataType === 'Integer') Validators.push(this.IntegerValidator);
+    if (Definition.DataType === 'Integer')
+      Validators.push(this.IntegerValidator);
     if (Definition.DataType === 'Float') Validators.push(this.NumberValidator);
     if (Definition.DataType === 'Date') Validators.push(this.DateValidator);
-    if (Definition.DataType === 'DateTime') Validators.push(this.DateTimeValidator);
+    if (Definition.DataType === 'DateTime')
+      Validators.push(this.DateTimeValidator);
     return Validators;
   }
 
@@ -2098,7 +2188,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   ): boolean {
     const EndDate = this.ParseDateOnly(String(EndDateValue ?? ''));
     const StartDate = this.ParseDateOnly(String(StartDateValue ?? ''));
-    return Boolean(EndDate && StartDate && EndDate.getTime() < StartDate.getTime());
+    return Boolean(
+      EndDate && StartDate && EndDate.getTime() < StartDate.getTime(),
+    );
   }
 
   private ParseDateOnly(DateValue: string): Date | null {
@@ -2134,7 +2226,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       Errors.Account = '此使用者帳號已存在。';
     if (!this.UserDraft.DisplayName.trim())
       Errors.DisplayName = '請輸入使用者名稱。';
-    if (!this.UserDraft.InitialPassword) Errors.InitialPassword = '請設定初始密碼。';
+    if (!this.UserDraft.InitialPassword)
+      Errors.InitialPassword = '請設定初始密碼。';
     if (!this.UserDraft.Roles.length) Errors.Roles = '請至少選擇一個角色。';
     return Errors;
   }
@@ -2228,10 +2321,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private ClampPage(RequestedPage: number, ItemCount: number): number {
-    return Math.min(
-      Math.max(1, RequestedPage),
-      this.GetTotalPages(ItemCount),
-    );
+    return Math.min(Math.max(1, RequestedPage), this.GetTotalPages(ItemCount));
   }
 
   private RestoreParameterSearchState(State: unknown): void {
@@ -2245,7 +2335,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.ParameterReportEndDate = SearchState.EndDate;
   }
 
-  private ToParameterSearchState(State: unknown): ParameterReportSearchState | null {
+  private ToParameterSearchState(
+    State: unknown,
+  ): ParameterReportSearchState | null {
     if (!State || typeof State !== 'object') return null;
     const Value = State as Partial<ParameterReportSearchState>;
     if (
