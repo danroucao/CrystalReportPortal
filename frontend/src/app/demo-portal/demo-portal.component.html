@@ -20,12 +20,14 @@
     >
     <!-- ReportParameter -->
     <a
+      *ngIf="!Auth.IsAdmin"
       routerLink="/reports"
       routerLinkActive="active"
       [routerLinkActiveOptions]="{ exact: true }"
       >收藏的報表</a
     >
     <a
+      *ngIf="!Auth.IsAdmin"
       routerLink="/account/settings"
       routerLinkActive="active"
       [routerLinkActiveOptions]="{ exact: true }"
@@ -1985,6 +1987,7 @@
         <div class="table-scroll">
           <table class="report-management-table">
             <colgroup>
+              <col class="report-management-pin-column" />
               <col class="report-management-name-column" />
               <col class="report-management-category-column" />
               <col class="report-management-description-column" />
@@ -1995,6 +1998,9 @@
             </colgroup>
             <thead>
               <tr>
+                <th scope="col" class="report-management-pin-cell">
+                  <span class="report-management-pin-header">釘選</span>
+                </th>
                 <th
                   scope="col"
                   [attr.aria-sort]="GetReportManagementAriaSort('ReportName')"
@@ -2093,6 +2099,29 @@
             </thead>
             <tbody>
               <tr *ngFor="let Report of PagedManagedReports">
+                <td class="report-management-pin-cell">
+                  <div class="report-management-pin-control">
+                    <button
+                      type="button"
+                      class="report-management-pin-button"
+                      [class.is-pinned]="IsReportManagementPinned(Report.ReportKey)"
+                      [attr.aria-pressed]="IsReportManagementPinned(Report.ReportKey)"
+                      [attr.aria-label]="
+                        (IsReportManagementPinned(Report.ReportKey)
+                          ? '取消釘選 '
+                          : '釘選 ') + Report.ReportName
+                      "
+                      [title]="
+                        IsReportManagementPinned(Report.ReportKey)
+                          ? '取消釘選報表'
+                          : '釘選報表'
+                      "
+                      (click)="ToggleReportManagementPin(Report.ReportKey)"
+                    >
+                      <span class="report-management-pin-icon" aria-hidden="true"></span>
+                    </button>
+                  </div>
+                </td>
                 <td class="report-management-name" [title]="Report.ReportName">
                   <span>{{ Report.ReportName }}</span>
                 </td>
@@ -2154,7 +2183,7 @@
                 </td>
               </tr>
               <tr *ngIf="!DisplayedManagedReports.length">
-                <td colspan="7" class="report-management-empty">
+                <td colspan="8" class="report-management-empty">
                   找不到符合條件的報表。
                 </td>
               </tr>
@@ -2512,7 +2541,7 @@
               </select>
             </label>
             <button
-              *ngIf="Auth.IsAdmin && !EditingReportKey"
+              *ngIf="Auth.IsAdmin"
               type="button"
               class="secondary-button report-category-quick-add-trigger"
               (click)="OpenReportCategoryQuickAdd()"

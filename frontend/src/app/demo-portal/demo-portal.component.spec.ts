@@ -478,7 +478,7 @@ describe('DemoPortalComponent', () => {
       Array.from(Host.querySelectorAll('.portal-nav > a')).map((Link) =>
         Link.textContent?.trim(),
       ),
-    ).toEqual(['所有報表', '收藏的報表', '帳號設定']);
+    ).toEqual(['所有報表']);
     expect(
       Array.from(Host.querySelectorAll('.parameter-report-table th')).map(
         (Header) => Header.textContent?.replace(/[↕↑↓]/g, '').trim(),
@@ -634,6 +634,20 @@ describe('DemoPortalComponent', () => {
     expect(Host.querySelector('.parameter-report-table')).not.toBeNull();
   });
 
+  it('keeps favorite reports and account settings navigation for non-administrators', () => {
+    const Auth = TestBed.inject(AuthService);
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    fixture.detectChanges();
+
+    expect(
+      Array.from(
+        fixture.nativeElement.querySelectorAll('.portal-nav > a') as NodeListOf<HTMLAnchorElement>,
+      ).map((Link) => Link.textContent?.trim()),
+    ).toEqual(['所有報表', '收藏的報表', '帳號設定']);
+  });
+
   it('redirects direct ReportPreview access without a selected report to ReportParameter', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
@@ -725,6 +739,7 @@ describe('DemoPortalComponent', () => {
         Header.textContent?.trim(),
       ),
     ).toEqual([
+      '釘選',
       '報表名稱',
       '報表分類',
       '報表說明',
@@ -742,9 +757,38 @@ describe('DemoPortalComponent', () => {
       ),
     ).toBe(component.PagedManagedReports[0].Description);
     expect(Table.querySelectorAll('.sortable-table-header')).toHaveSize(3);
-    expect(Table.querySelectorAll('th')[1]?.querySelector('button')).toBeNull();
+    expect(Table.querySelector('th.report-management-pin-cell')).not.toBeNull();
+    expect(
+      Table.querySelector('th.report-management-pin-cell > .report-management-pin-header'),
+    ).not.toBeNull();
+    expect(
+      Table.querySelector('td.report-management-pin-cell > .report-management-pin-control'),
+    ).not.toBeNull();
+    expect(Table.querySelectorAll('th')[0]?.querySelector('button')).toBeNull();
+    expect(Table.querySelectorAll('th')[2]?.querySelector('button')).toBeNull();
+    const ReportToPin = component.PagedManagedReports[1];
+    const PinButtons = Table.querySelectorAll<HTMLButtonElement>(
+      '.report-management-pin-button',
+    );
+    expect(PinButtons[1].getAttribute('aria-pressed')).toBe('false');
+    PinButtons[1].click();
+    fixture.detectChanges();
+    expect(component.IsReportManagementPinned(ReportToPin.ReportKey)).toBeTrue();
+    expect(component.DisplayedManagedReports[0].ReportKey).toBe(
+      ReportToPin.ReportKey,
+    );
     component.ToggleReportManagementSort('ReportName');
     fixture.detectChanges();
+    expect(component.DisplayedManagedReports[0].ReportKey).toBe(
+      ReportToPin.ReportKey,
+    );
+    expect(
+      Table.querySelector<HTMLButtonElement>('.report-management-pin-button')
+        ?.getAttribute('aria-pressed'),
+    ).toBe('true');
+    Table.querySelector<HTMLButtonElement>('.report-management-pin-button')?.click();
+    fixture.detectChanges();
+    expect(component.IsReportManagementPinned(ReportToPin.ReportKey)).toBeFalse();
     expect(component.GetReportManagementSortIndicator('ReportName')).toBe('↑');
     expect(
       component.DisplayedManagedReports.map((Report) => Report.ReportName),
@@ -982,6 +1026,13 @@ describe('DemoPortalComponent', () => {
     );
     expect(component.ReportEditorDraft.Enabled).toBeTrue();
     expect(component.SelectedReportFileName).toBe('DraftReport.rpt');
+
+    component.OpenEditReportDialog('AccountBalance');
+    fixture.detectChanges();
+    expect(Host.querySelector('.report-category-quick-add-trigger')).not.toBeNull();
+    component.OpenReportCategoryQuickAdd();
+    expect(component.IsReportCategoryQuickAddOpen).toBeTrue();
+    component.CloseReportCategoryQuickAdd();
 
     Auth.Logout();
     expect(Auth.Login('user@example.com', 'user123')).toBeTrue();

@@ -258,6 +258,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   ReportManagementSortField: ReportManagementSortField | null = null;
   ReportManagementSortDirection: ReportManagementSortDirection = 'asc';
   ReportManagementCurrentPage = 1;
+  private readonly PinnedReportManagementKeys = new Set<MockReportKey>();
   IsCategoryManagementDialogOpen = false;
   NewCategoryName = '';
   CategoryCreateError = '';
@@ -1286,11 +1287,15 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
             .toLocaleLowerCase()
             .includes(SearchText)),
     );
-    if (!this.ReportManagementSortField) return Reports;
-
-    const SortField = this.ReportManagementSortField;
-    const Direction = this.ReportManagementSortDirection === 'asc' ? 1 : -1;
     return [...Reports].sort((Left, Right) => {
+      const PinOrder =
+        Number(this.IsReportManagementPinned(Right.ReportKey)) -
+        Number(this.IsReportManagementPinned(Left.ReportKey));
+      if (PinOrder) return PinOrder;
+      if (!this.ReportManagementSortField) return 0;
+
+      const SortField = this.ReportManagementSortField;
+      const Direction = this.ReportManagementSortDirection === 'asc' ? 1 : -1;
       if (SortField === 'ReportName') {
         return (
           Left.ReportName.localeCompare(Right.ReportName, 'zh-Hant') * Direction
@@ -1320,6 +1325,19 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OnReportManagementSearchChange(): void {
+    this.ResetReportManagementPagination();
+  }
+
+  IsReportManagementPinned(ReportKey: MockReportKey): boolean {
+    return this.PinnedReportManagementKeys.has(ReportKey);
+  }
+
+  ToggleReportManagementPin(ReportKey: MockReportKey): void {
+    if (this.PinnedReportManagementKeys.has(ReportKey)) {
+      this.PinnedReportManagementKeys.delete(ReportKey);
+    } else {
+      this.PinnedReportManagementKeys.add(ReportKey);
+    }
     this.ResetReportManagementPagination();
   }
 
@@ -1551,12 +1569,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenReportCategoryQuickAdd(): void {
-    if (
-      !this.Auth.IsAdmin ||
-      !this.IsUploadReportDialogOpen ||
-      this.EditingReportKey
-    )
-      return;
+    if (!this.Auth.IsAdmin || !this.IsUploadReportDialogOpen) return;
     this.QuickAddCategoryName = '';
     this.QuickAddCategoryError = '';
     this.IsReportCategoryQuickAddOpen = true;
@@ -1650,6 +1663,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.DeletingReport) return;
     const ReportName = this.DeletingReport.ReportName;
     if (this.MockRbac.DeleteReport(this.DeletingReport.ReportKey)) {
+      this.PinnedReportManagementKeys.delete(this.DeletingReport.ReportKey);
       this.EnsureReportManagementPagination();
       this.ShowSuccessToast(`Mock 報表「${ReportName}」已刪除。`);
     }
