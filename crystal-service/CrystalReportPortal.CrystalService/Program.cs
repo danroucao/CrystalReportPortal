@@ -67,6 +67,44 @@ namespace CrystalReportPortal.CrystalService
                 }
 
                 // ============================
+                // preview
+                // ============================
+
+                if (command == "preview")
+                {
+                    if (args.Length < 3)
+                    {
+                        throw new ArgumentException(
+                            "請指定 RPT 路徑與 PDF 輸出路徑。");
+                    }
+
+                    var rptPath =
+                        args[1];
+
+                    var outputPath =
+                        args[2];
+
+                    service.ExportPdf(
+                        rptPath,
+                        outputPath);
+
+                    var response =
+                        new CrystalExportResponse
+                        {
+                            Success = true,
+                            Message =
+                                "Preview generated successfully.",
+                            OutputPath =
+                                outputPath
+                        };
+
+                    Console.WriteLine(
+                        serializer.Serialize(response));
+
+                    return 0;
+                }
+
+                // ============================
                 // export
                 // ============================
 
@@ -96,23 +134,13 @@ namespace CrystalReportPortal.CrystalService
                             CrystalExportRequest>(
                             json);
 
-                    service.ExportReport(
-                        request);
-
                     var response =
-                        new CrystalExportResponse
-                        {
-                            Success = true,
-                            Message =
-                                "Report exported successfully.",
-                            OutputPath =
-                                request.OutputPath
-                        };
+                        service.ExportReport(request);
 
                     Console.WriteLine(
                         serializer.Serialize(response));
 
-                    return 0;
+                    return response.Success ? 0 : 1;
                 }
 
                 if (command == "datasource")

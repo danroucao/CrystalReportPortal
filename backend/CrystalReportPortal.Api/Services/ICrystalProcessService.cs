@@ -6,4 +6,7 @@ public interface ICrystalProcessService
 {
     Task<CrystalParameterParseResponse> GetParametersAsync(
         string rptPath);
+
+    Task<byte[]> PreviewAsync(
+        string rptPath);
 }

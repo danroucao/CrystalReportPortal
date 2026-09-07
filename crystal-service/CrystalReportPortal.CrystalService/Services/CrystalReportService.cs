@@ -124,9 +124,17 @@ namespace CrystalReportPortal.CrystalService.Services
                 {
                     report.Load(request.RptPath);
 
-                    ReplaceDatabaseConnection(
+                    DumpRasTables(
+                        report,
+                        "BEFORE COMMAND REPLACE");
+
+                    ApplyRasCommandConnection(
                         report,
                         request.Database);
+
+                    DumpRasTables(
+                        report,
+                        "AFTER COMMAND REPLACE");
 
                     SetParameters(
                         report,
@@ -262,182 +270,7 @@ namespace CrystalReportPortal.CrystalService.Services
                 rcd.DatabaseController;
 
             // =====================================================
-            // 1. OLE DB Logon Properties
-            // =====================================================
-
-            var logonProperties =
-                new CrystalDecisions.ReportAppServer
-                    .DataDefModel.PropertyBag();
-
-            logonProperties.Add(
-                "Application Intent",
-                "READWRITE");
-
-            logonProperties.Add(
-                "Auto Translate",
-                "-1");
-
-            logonProperties.Add(
-                "Connect Timeout",
-                "15");
-
-            logonProperties.Add(
-                "Data Source",
-                database.Server);
-
-            logonProperties.Add(
-                "DataTypeCompatibility",
-                "0");
-
-            logonProperties.Add(
-                "General Timeout",
-                "0");
-
-            logonProperties.Add(
-                "Initial Catalog",
-                database.Database);
-
-            logonProperties.Add(
-                "Locale Identifier",
-                "1028");
-
-            logonProperties.Add(
-                "MARS Connection",
-                "0");
-
-            logonProperties.Add(
-                "OLE DB Services",
-                "-5");
-
-            // 本機已確認存在，而且 PowerShell OLE DB
-            // 已成功使用此 Provider 登入。
-            logonProperties.Add(
-                "Provider",
-                "MSOLEDBSQL");
-
-            logonProperties.Add(
-                "Trust Server Certificate",
-                "1");
-
-            logonProperties.Add(
-                "Use DSN Default Properties",
-                false);
-
-            logonProperties.Add(
-                "Use Encryption for Data",
-                "0");
-
-            // =====================================================
-            // 2. Authentication
-            // =====================================================
-
-            if (database.IntegratedSecurity)
-            {
-                logonProperties.Add(
-                    "Integrated Security",
-                    true);
-            }
-            else
-            {
-                logonProperties.Add(
-                    "Integrated Security",
-                    false);
-
-                // 關鍵修正：
-                // SQL Authentication 帳密也放進
-                // QE_LogonProperties
-                logonProperties.Add(
-                    "User ID",
-                    database.Username);
-
-                logonProperties.Add(
-                    "Password",
-                    database.Password);
-            }
-
-            // =====================================================
-            // 3. Query Engine Attributes
-            // =====================================================
-
-            var qeDetails =
-                new CrystalDecisions.ReportAppServer
-                    .DataDefModel.PropertyBag();
-
-            qeDetails.Add(
-                "Database DLL",
-                "crdb_ado.dll");
-
-            qeDetails.Add(
-                "QE_DatabaseName",
-                database.Database);
-
-            qeDetails.Add(
-                "QE_DatabaseType",
-                "OLE DB (ADO)");
-
-            qeDetails.Add(
-                "QE_LogonProperties",
-                logonProperties);
-
-            qeDetails.Add(
-                "QE_ServerDescription",
-                database.Server);
-
-            qeDetails.Add(
-                "QE_SQLDB",
-                true);
-
-            qeDetails.Add(
-                "SSO Enabled",
-                false);
-
-            // SQL Server 預設 Schema
-            qeDetails.Add(
-                "Owner",
-                "dbo");
-
-            logonProperties.Add(
-                "Owner",
-                "dbo");
-
-            // =====================================================
-            // 4. 建立新的 RAS ConnectionInfo
-            // =====================================================
-
-            var newConnection =
-                new CrystalDecisions.ReportAppServer
-                    .DataDefModel.ConnectionInfo();
-
-            newConnection.Attributes =
-                qeDetails;
-
-            newConnection.Kind =
-                CrystalDecisions.ReportAppServer
-                    .DataDefModel
-                    .CrConnectionInfoKindEnum
-                    .crConnectionInfoKindCRQE;
-
-            if (database.IntegratedSecurity)
-            {
-                newConnection.UserName =
-                    string.Empty;
-
-                newConnection.Password =
-                    string.Empty;
-            }
-            else
-            {
-                // 同時保留 RAS ConnectionInfo
-                // 的 UserName / Password
-                newConnection.UserName =
-                    database.Username;
-
-                newConnection.Password =
-                    database.Password;
-            }
-
-            // =====================================================
-            // 5. 取得原本 Connection
+            // 1. 取得 RPT 原本的 ConnectionInfo
             // =====================================================
 
             var oldConnections =
@@ -452,29 +285,205 @@ namespace CrystalReportPortal.CrystalService.Services
             }
 
             // =====================================================
-            // 6. Replace Connection
+            // 2. 逐一替換 Connection
+            //
+            // 不再從零建立 PropertyBag。
+            // 直接 Clone RPT 原本的 Attributes，
+            // 保留 Crystal 自己產生的 datasource metadata。
             // =====================================================
 
             for (int i = 0;
                  i < oldConnections.Count;
                  i++)
             {
-                databaseController
-                    .ReplaceConnection(
-                        oldConnections[i],
-                        newConnection,
-                        null,
-                        CrystalDecisions.ReportAppServer
-                            .DataDefModel
-                            .CrDBOptionsEnum
-                            .crDBOptionDoNotVerifyDB);
+                var oldConnection =
+                    oldConnections[i];
+
+                if (oldConnection.Attributes == null)
+                {
+                    throw new InvalidOperationException(
+                        $"第 {i + 1} 個 Crystal Connection 沒有 Attributes。");
+                }
+
+                // Deep clone 原本的 QE Attributes
+                var qeDetails =
+                    oldConnection.Attributes.Clone(true);
+
+                if (qeDetails == null)
+                {
+                    throw new InvalidOperationException(
+                        $"第 {i + 1} 個 Crystal Connection Attributes Clone 失敗。");
+                }
+
+                // =================================================
+                // 3. 取得原本 QE_LogonProperties
+                // =================================================
+
+                if (!qeDetails.Contains(
+                        "QE_LogonProperties"))
+                {
+                    throw new InvalidOperationException(
+                        $"第 {i + 1} 個 Crystal Connection 找不到 QE_LogonProperties。");
+                }
+
+                var logonProperties =
+                    qeDetails["QE_LogonProperties"]
+                    as CrystalDecisions.ReportAppServer
+                        .DataDefModel.PropertyBag;
+
+                if (logonProperties == null)
+                {
+                    throw new InvalidOperationException(
+                        $"第 {i + 1} 個 Crystal Connection 的 QE_LogonProperties 格式錯誤。");
+                }
+
+                // =================================================
+                // 4. 只覆寫必要的 Database 資訊
+                // =================================================
+
+                qeDetails["QE_DatabaseName"] =
+                    database.Database;
+
+                qeDetails["QE_ServerDescription"] =
+                    database.Server;
+
+                // 注意：
+                // 不再自己設定 QE_SQLDB。
+                //
+                // 原始 RPT 為 True，
+                // Clone 後直接保留原始值。
+                //
+                // 不再自行設定：
+                // Database DLL
+                // QE_DatabaseType
+                // SSO Enabled
+                // Owner
+                // 等 Crystal metadata。
+
+                // =================================================
+                // 5. 修改 OLE DB Provider / Server / Database
+                // =================================================
+
+                logonProperties["Provider"] =
+                    "SQLNCLI11";
+
+                logonProperties["Data Source"] =
+                    database.Server;
+
+                logonProperties["Initial Catalog"] =
+                    database.Database;
+
+                logonProperties["Trust Server Certificate"] =
+                    "1";
+
+                // =================================================
+                // 6. Authentication
+                // =================================================
+
+                if (database.IntegratedSecurity)
+                {
+                    logonProperties["Integrated Security"] =
+                        "SSPI";
+
+                    // 若原本 RPT 曾存 SQL Login 屬性，
+                    // Windows Authentication 時移除。
+                    if (logonProperties.Contains("User ID"))
+                    {
+                        logonProperties.Remove("User ID");
+                    }
+
+                    if (logonProperties.Contains("Password"))
+                    {
+                        logonProperties.Remove("Password");
+                    }
+                }
+                else
+                {
+                    logonProperties["Integrated Security"] =
+                        false;
+
+                    if (logonProperties.Contains("User ID"))
+                    {
+                        logonProperties["User ID"] =
+                            database.Username;
+                    }
+                    else
+                    {
+                        logonProperties.Add(
+                            "User ID",
+                            database.Username);
+                    }
+
+                    if (logonProperties.Contains("Password"))
+                    {
+                        logonProperties["Password"] =
+                            database.Password;
+                    }
+                    else
+                    {
+                        logonProperties.Add(
+                            "Password",
+                            database.Password);
+                    }
+                }
+
+                // 確保修改後的 LogonProperties
+                // 放回 QE Attributes。
+                qeDetails["QE_LogonProperties"] =
+                    logonProperties;
+
+                // =================================================
+                // 7. 建立新的 RAS ConnectionInfo
+                // =================================================
+
+                var newConnection =
+                    new CrystalDecisions.ReportAppServer
+                        .DataDefModel.ConnectionInfo();
+
+                newConnection.Attributes =
+                    qeDetails;
+
+                // 保留原始 Connection Kind
+                newConnection.Kind =
+                    oldConnection.Kind;
+
+                if (database.IntegratedSecurity)
+                {
+                    newConnection.UserName =
+                        string.Empty;
+
+                    newConnection.Password =
+                        string.Empty;
+                }
+                else
+                {
+                    newConnection.UserName =
+                        database.Username;
+
+                    newConnection.Password =
+                        database.Password;
+                }
+
+                // =================================================
+                // 8. Replace Connection
+                // =================================================
+
+                databaseController.ReplaceConnection(
+                    oldConnection,
+                    newConnection,
+                    null,
+                    CrystalDecisions.ReportAppServer
+                        .DataDefModel
+                        .CrDBOptionsEnum
+                        .crDBOptionDoNotVerifyDB);
             }
 
             // =====================================================
-            // 7. 再執行一次 DatabaseController Logon
+            // 9. SQL Authentication 額外執行 Runtime Logon
             //
-            // ReplaceConnection 負責換 persistent connection，
-            // LogonEx 負責明確提供此次 runtime session 的登入資訊。
+            // Windows Authentication 不使用 LogonEx，
+            // 由 MSOLEDBSQL + Integrated Security=SSPI
+            // 使用目前 Crystal Service Process 的 Windows 身分。
             // =====================================================
 
             if (!database.IntegratedSecurity)
@@ -637,9 +646,18 @@ namespace CrystalReportPortal.CrystalService.Services
                 "Initial Catalog",
                 database.Database);
 
-            logonProperties.Set(
-                "Integrated Security",
-                database.IntegratedSecurity);
+            if (database.IntegratedSecurity)
+            {
+                logonProperties.Set(
+                    "Integrated Security",
+                    "SSPI");
+            }
+            else
+            {
+                logonProperties.Set(
+                    "Integrated Security",
+                    false);
+            }
 
             logonProperties.Set(
                 "Provider",
@@ -1098,6 +1116,422 @@ namespace CrystalReportPortal.CrystalService.Services
                         $"{indent}  {key} = {valueText} " +
                         $"[{value?.GetType().FullName ?? "null"}]");
                 }
+            }
+        }
+
+        private void DumpTableConnections(
+    ReportDocument report,
+    string stage)
+        {
+            Console.Error.WriteLine();
+            Console.Error.WriteLine(
+                "========================================");
+            Console.Error.WriteLine(
+                $"TABLE CONNECTIONS - {stage}");
+            Console.Error.WriteLine(
+                "========================================");
+
+            DumpTableCollection(
+                report.Database.Tables,
+                "MainReport");
+
+            foreach (ReportDocument subreport in report.Subreports)
+            {
+                DumpTableCollection(
+                    subreport.Database.Tables,
+                    "SubReport:" + subreport.Name);
+            }
+        }
+
+        private void DumpTableCollection(
+            Tables tables,
+            string scope)
+        {
+            foreach (Table table in tables)
+            {
+                var info =
+                    table.LogOnInfo;
+
+                var connection =
+                    info.ConnectionInfo;
+
+                Console.Error.WriteLine();
+                Console.Error.WriteLine(
+                    $"[{scope}] Table: {table.Name}");
+
+                Console.Error.WriteLine(
+                    $"Location: {table.Location}");
+
+                Console.Error.WriteLine(
+                    $"ServerName: {connection.ServerName}");
+
+                Console.Error.WriteLine(
+                    $"DatabaseName: {connection.DatabaseName}");
+
+                Console.Error.WriteLine(
+                    $"UserID: {connection.UserID}");
+
+                Console.Error.WriteLine(
+                    $"IntegratedSecurity: {connection.IntegratedSecurity}");
+
+                if (connection.Attributes == null)
+                {
+                    Console.Error.WriteLine(
+                        "Attributes: <null>");
+
+                    continue;
+                }
+
+                var attributes =
+                    connection.Attributes.Collection;
+
+                if (attributes == null)
+                {
+                    Console.Error.WriteLine(
+                        "Attributes.Collection: <null>");
+
+                    continue;
+                }
+
+                Console.Error.WriteLine(
+                    $"QE_DatabaseName: {attributes.Lookup("QE_DatabaseName")}");
+
+                Console.Error.WriteLine(
+                    $"QE_ServerDescription: {attributes.Lookup("QE_ServerDescription")}");
+
+                Console.Error.WriteLine(
+                    $"QE_SQLDB: {attributes.Lookup("QE_SQLDB")}");
+
+                var logonValue =
+                    attributes.Lookup(
+                        "QE_LogonProperties");
+
+                var logonAttributes =
+                    logonValue as DbConnectionAttributes;
+
+                if (logonAttributes == null)
+                {
+                    Console.Error.WriteLine(
+                        "QE_LogonProperties: <null>");
+
+                    continue;
+                }
+
+                var logonProperties =
+                    logonAttributes.Collection;
+
+                if (logonProperties == null)
+                {
+                    Console.Error.WriteLine(
+                        "QE_LogonProperties.Collection: <null>");
+
+                    continue;
+                }
+
+                Console.Error.WriteLine(
+                    $"Provider: {logonProperties.Lookup("Provider")}");
+
+                Console.Error.WriteLine(
+                    $"Data Source: {logonProperties.Lookup("Data Source")}");
+
+                Console.Error.WriteLine(
+                    $"Initial Catalog: {logonProperties.Lookup("Initial Catalog")}");
+
+                Console.Error.WriteLine(
+                    $"Integrated Security: {logonProperties.Lookup("Integrated Security")}");
+            }
+        }
+
+        private void DumpRasTables(
+    ReportDocument report,
+    string stage)
+        {
+            Console.Error.WriteLine();
+            Console.Error.WriteLine(
+                "========================================");
+            Console.Error.WriteLine(
+                $"RAS TABLES - {stage}");
+            Console.Error.WriteLine(
+                "========================================");
+
+            var database =
+                report
+                    .ReportClientDocument
+                    .DatabaseController
+                    .Database;
+
+            for (int i = 0;
+                 i < database.Tables.Count;
+                 i++)
+            {
+                var table =
+                    database.Tables[i];
+
+                Console.Error.WriteLine();
+                Console.Error.WriteLine(
+                    $"Table #{i + 1}");
+
+                Console.Error.WriteLine(
+                    $"Runtime Type: {table.GetType().FullName}");
+
+                Console.Error.WriteLine(
+                    $"Name: {table.Name}");
+
+                Console.Error.WriteLine(
+                    $"Alias: {table.Alias}");
+
+                Console.Error.WriteLine(
+                    $"QualifiedName: {table.QualifiedName}");
+
+                Console.Error.WriteLine(
+                    $"ConnectionInfo null: {table.ConnectionInfo == null}");
+
+                if (table.ConnectionInfo != null)
+                {
+                    Console.Error.WriteLine(
+                        $"Connection Kind: {table.ConnectionInfo.Kind}");
+
+                    Console.Error.WriteLine(
+                        $"Connection UserName: {table.ConnectionInfo.UserName}");
+
+                    DumpPropertyBag(
+                        table.ConnectionInfo.Attributes,
+                        "Table Connection Attributes",
+                        0);
+                }
+
+                var commandTable =
+                    table as CrystalDecisions.ReportAppServer
+                        .DataDefModel.CommandTable;
+
+                if (commandTable != null)
+                {
+                    Console.Error.WriteLine(
+                        "IS COMMAND TABLE: True");
+
+                    Console.Error.WriteLine(
+                        $"CommandText Length: {commandTable.CommandText?.Length ?? 0}");
+                }
+                else
+                {
+                    Console.Error.WriteLine(
+                        "IS COMMAND TABLE: False");
+                }
+            }
+        }
+
+        private void ApplyRasCommandConnection(
+    ReportDocument report,
+    CrystalDatabaseConfig database)
+        {
+            var rcd =
+                report.ReportClientDocument;
+
+            var databaseController =
+                rcd.DatabaseController;
+
+            var tables =
+                databaseController
+                    .Database
+                    .Tables;
+
+            for (int i = 0;
+                 i < tables.Count;
+                 i++)
+            {
+                var oldTable =
+                    tables[i];
+
+                var oldCommandTable =
+                    oldTable as CrystalDecisions
+                        .ReportAppServer
+                        .DataDefModel
+                        .CommandTable;
+
+                // 目前先只處理 Command Table
+                if (oldCommandTable == null)
+                {
+                    continue;
+                }
+
+                Console.Error.WriteLine();
+                Console.Error.WriteLine(
+                    $"Applying RAS Command connection: {oldCommandTable.Name}");
+
+                // =====================================================
+                // 1. Deep clone 原 CommandTable
+                // =====================================================
+
+                var newCommandTable =
+                    oldCommandTable.Clone(true)
+                    as CrystalDecisions
+                        .ReportAppServer
+                        .DataDefModel
+                        .CommandTable;
+
+                if (newCommandTable == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Command Table Clone 失敗：{oldCommandTable.Name}");
+                }
+
+                // =====================================================
+                // 2. Clone 原 ConnectionInfo Attributes
+                // =====================================================
+
+                var oldConnection =
+                    oldCommandTable.ConnectionInfo;
+
+                if (oldConnection == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Command Table 沒有 ConnectionInfo：{oldCommandTable.Name}");
+                }
+
+                var qeDetails =
+                    oldConnection.Attributes.Clone(true);
+
+                if (qeDetails == null)
+                {
+                    throw new InvalidOperationException(
+                        "Connection Attributes Clone 失敗。");
+                }
+
+                var logonProperties =
+                    qeDetails["QE_LogonProperties"]
+                    as CrystalDecisions
+                        .ReportAppServer
+                        .DataDefModel
+                        .PropertyBag;
+
+                if (logonProperties == null)
+                {
+                    throw new InvalidOperationException(
+                        "找不到 QE_LogonProperties。");
+                }
+
+                // =====================================================
+                // 3. 修改 Database / Server
+                // =====================================================
+
+                qeDetails["QE_DatabaseName"] =
+                    database.Database;
+
+                qeDetails["QE_ServerDescription"] =
+                    database.Server;
+
+                logonProperties["Provider"] =
+                    "MSOLEDBSQL";
+
+                logonProperties["Data Source"] =
+                    database.Server;
+
+                logonProperties["Initial Catalog"] =
+                    database.Database;
+
+                logonProperties["Trust Server Certificate"] =
+                    "1";
+
+                // =====================================================
+                // 4. Authentication
+                // =====================================================
+
+                if (database.IntegratedSecurity)
+                {
+                    logonProperties["Integrated Security"] =
+                        "SSPI";
+
+                    if (logonProperties.Contains("User ID"))
+                    {
+                        logonProperties.Remove("User ID");
+                    }
+
+                    if (logonProperties.Contains("Password"))
+                    {
+                        logonProperties.Remove("Password");
+                    }
+                }
+                else
+                {
+                    logonProperties["Integrated Security"] =
+                        false;
+
+                    if (logonProperties.Contains("User ID"))
+                    {
+                        logonProperties["User ID"] =
+                            database.Username;
+                    }
+                    else
+                    {
+                        logonProperties.Add(
+                            "User ID",
+                            database.Username);
+                    }
+
+                    if (logonProperties.Contains("Password"))
+                    {
+                        logonProperties["Password"] =
+                            database.Password;
+                    }
+                    else
+                    {
+                        logonProperties.Add(
+                            "Password",
+                            database.Password);
+                    }
+                }
+
+                qeDetails["QE_LogonProperties"] =
+                    logonProperties;
+
+                // =====================================================
+                // 5. 建立新的 ConnectionInfo
+                // =====================================================
+
+                var newConnection =
+                    new CrystalDecisions
+                        .ReportAppServer
+                        .DataDefModel
+                        .ConnectionInfo();
+
+                newConnection.Kind =
+                    oldConnection.Kind;
+
+                newConnection.Attributes =
+                    qeDetails;
+
+                if (database.IntegratedSecurity)
+                {
+                    newConnection.UserName =
+                        string.Empty;
+
+                    newConnection.Password =
+                        string.Empty;
+                }
+                else
+                {
+                    newConnection.UserName =
+                        database.Username;
+
+                    newConnection.Password =
+                        database.Password;
+                }
+
+                // =====================================================
+                // 6. 將 ConnectionInfo 指定給 cloned CommandTable
+                // =====================================================
+
+                newCommandTable.ConnectionInfo =
+                    newConnection;
+
+                // =====================================================
+                // 7. 關鍵：
+                // 用 SetTableLocation 將 CommandTable 套回報表
+                // =====================================================
+
+                databaseController.SetTableLocation(
+                    oldCommandTable,
+                    newCommandTable);
             }
         }
     }
