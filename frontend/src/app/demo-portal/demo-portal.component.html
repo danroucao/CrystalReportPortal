@@ -74,11 +74,11 @@
       <span aria-hidden="true">✓</span>
       {{ Notifications.SuccessMessage }}
     </div>
-    <div *ngIf="Page === 'RptManagement'; else DefaultPageTitle" class="report-management-page-header">
+    <div
+      *ngIf="Page === 'RptManagement'; else DefaultPageTitle"
+      class="report-management-page-header"
+    >
       <h1>{{ PageTitle }}</h1>
-      <button type="button" class="section-header-action" (click)="OpenUploadReportDialog()">
-        <span aria-hidden="true">＋</span>上傳報表
-      </button>
     </div>
     <ng-template #DefaultPageTitle><h1>{{ PageTitle }}</h1></ng-template>
     <section *ngIf="Page === 'ReportList'" class="content-card">
@@ -1431,89 +1431,184 @@
           </section>
         </section>
       </section>
-      <section *ngIf="Page === 'RptManagement'" class="management-section report-management">
-        <div class="report-management-toolbar">
-          <label for="report-management-start-date">開始日期（TBD）
-            <input id="report-management-start-date" type="date" [(ngModel)]="ReportManagementStartDate" (change)="OnReportManagementDateChange()" />
-          </label>
-          <label for="report-management-end-date">結束日期（TBD）
-            <input id="report-management-end-date" type="date" [min]="ReportManagementStartDate || null" [(ngModel)]="ReportManagementEndDate" (change)="OnReportManagementDateChange()" />
-          </label>
-          <label for="report-management-category">分類
-            <select id="report-management-category" [(ngModel)]="ReportManagementCategory" (ngModelChange)="SetReportManagementCategory($event)">
-              <option value="全部">全部</option>
-              <option *ngFor="let Category of ReportManagementCategories" [value]="Category">{{ Category }}</option>
-            </select>
-          </label>
-          <label class="report-management-search" for="report-management-search">搜尋報表名稱或說明
-            <input id="report-management-search" [(ngModel)]="ReportManagementSearchText" (ngModelChange)="OnReportManagementSearchChange()" placeholder="輸入報表名稱或說明" />
-          </label>
-        </div>
-        <p *ngIf="ReportManagementDateNotice" class="parameter-search-error" role="alert">{{ ReportManagementDateNotice }}</p>
-        <p class="report-date-tbd">日期篩選對應欄位尚待需求確認（TBD），目前不套用資料篩選。</p>
+<section
+  *ngIf="Page === 'RptManagement'"
+  class="management-section report-management"
+>
 
-        <div class="table-scroll">
-          <table class="report-management-table">
-            <colgroup>
-              <col class="report-management-name-column" />
-              <col class="report-management-category-column" />
-              <col class="report-management-description-column" />
-              <col class="report-management-enabled-column" />
-              <col class="report-management-created-column" />
-              <col class="report-management-updated-column" />
-              <col class="report-management-actions-column" />
-            </colgroup>
-            <thead><tr>
-              <th>報表名稱</th><th>分類</th><th>說明</th><th>啟用狀態</th><th>建立時間</th><th>更新時間</th><th>操作</th>
-            </tr></thead>
-            <tbody>
-              <tr *ngFor="let Report of PagedManagedReports">
-                <td class="report-management-name" [title]="Report.ReportName"><span>{{ Report.ReportName }}</span></td>
-                <td>{{ Report.Category }}</td>
-                <td class="report-management-description" [title]="Report.Description"><span>{{ Report.Description }}</span></td>
-                <td class="report-enabled-control">
-                  <button type="button" class="account-status-switch" role="switch" [class.is-enabled]="Report.Enabled" [attr.aria-checked]="Report.Enabled" [attr.aria-label]="Report.ReportName + (Report.Enabled ? '已啟用，點擊可停用' : '已停用，點擊可啟用')" (click)="SetReportEnabled(Report.ReportKey, !Report.Enabled)">
-                    <span class="account-status-switch-thumb"></span>
-                  </button>
-                  <span class="account-status-text">{{ Report.Enabled ? "啟用" : "停用" }}</span>
-                </td>
-                <td class="report-management-timestamp">{{ Report.CreatedAt }}</td>
-                <td class="report-management-timestamp">{{ Report.UpdatedAt }}</td>
-                <td class="report-row-actions">
-                  <button type="button" class="secondary-button" [attr.aria-label]="'編輯 ' + Report.ReportName" title="編輯報表" (click)="OpenEditReportDialog(Report.ReportKey)">✎</button>
-                  <button type="button" class="secondary-button" [attr.aria-label]="'刪除 ' + Report.ReportName" title="刪除報表" (click)="OpenDeleteReportDialog(Report.ReportKey)">🗑</button>
-                </td>
-              </tr>
-              <tr *ngIf="!DisplayedManagedReports.length"><td colspan="7" class="report-management-empty">找不到符合條件的報表。</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <nav
-          *ngIf="ReportManagementTotalPages > 1"
-          class="list-pagination"
-          aria-label="報表管理分頁"
+  <section class="management-card">
+
+    <div class="management-card-heading">
+
+      <div>
+        <h2>
+          RPT 報表預覽
+        </h2>
+
+        <p class="muted">
+          上傳RPT 檔案並轉換為 PDF
+        </p>
+      </div>
+
+    </div>
+
+
+    <!-- ============================= -->
+    <!-- RPT File -->
+    <!-- ============================= -->
+
+    <div class="report-file-field">
+
+      <span class="form-field-label">
+        RPT 報表檔案
+        <span
+          class="required-indicator"
+          aria-hidden="true"
         >
-          <button
-            type="button"
-            class="list-pagination-previous"
-            [disabled]="ReportManagementCurrentPage === 1"
-            (click)="PreviousReportManagementPage()"
-          >上一頁</button>
-          <button
-            *ngFor="let Page of ReportManagementPageNumbers"
-            type="button"
-            [class.is-active]="Page === ReportManagementCurrentPage"
-            [attr.aria-current]="Page === ReportManagementCurrentPage ? 'page' : null"
-            (click)="GoToReportManagementPage(Page)"
-          >{{ Page }}</button>
-          <button
-            type="button"
-            class="list-pagination-next"
-            [disabled]="ReportManagementCurrentPage === ReportManagementTotalPages"
-            (click)="NextReportManagementPage()"
-          >下一頁</button>
-        </nav>
-      </section>
+          *
+        </span>
+      </span>
+
+
+      <label
+        class="report-file-picker"
+        for="crystal-demo-file"
+      >
+
+        <span>
+          {{
+            SelectedReportFileName
+              ? SelectedReportFileName
+              : '選擇 RPT 檔案'
+          }}
+        </span>
+
+        <input
+          id="crystal-demo-file"
+          type="file"
+          accept=".rpt"
+          (change)="OnReportFileSelected($event)"
+        />
+
+      </label>
+
+
+      <p
+        *ngIf="SelectedReportFileName"
+        class="selected-report-file"
+      >
+        已選擇：
+        {{ SelectedReportFileName }}
+      </p>
+
+    </div>
+
+
+    <!-- ============================= -->
+    <!-- Error -->
+    <!-- ============================= -->
+
+    <p
+      *ngIf="ReportEditorError"
+      class="field-error"
+      role="alert"
+    >
+      {{ ReportEditorError }}
+    </p>
+
+
+    <p
+      *ngIf="CrystalPreviewError"
+      class="field-error"
+      role="alert"
+    >
+      {{ CrystalPreviewError }}
+    </p>
+
+
+    <!-- ============================= -->
+    <!-- Generate -->
+    <!-- ============================= -->
+
+    <div class="modal-actions">
+
+      <button
+        type="button"
+        [disabled]="
+          !SelectedReportFile ||
+          IsCrystalPreviewLoading
+        "
+        (click)="GenerateCrystalPreview()"
+      >
+
+        {{
+          IsCrystalPreviewLoading
+            ? 'PDF 產生中...'
+            : '上傳並產生 PDF'
+        }}
+
+      </button>
+
+
+      <button
+        *ngIf="CrystalPreviewUrl"
+        type="button"
+        class="secondary-button"
+        (click)="DownloadCrystalPreview()"
+      >
+        下載 PDF
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- ======================================= -->
+  <!-- PDF Preview -->
+  <!-- ======================================= -->
+
+  <section
+    *ngIf="CrystalPreviewUrl"
+    class="management-card"
+  >
+
+    <div class="management-card-heading">
+
+      <div>
+
+        <h2>
+          PDF 預覽
+        </h2>
+
+        <p class="muted">
+          {{ CrystalPreviewFileName }}
+        </p>
+      </div>
+
+
+      <button
+        type="button"
+        class="secondary-button"
+        (click)="DownloadCrystalPreview()"
+      >
+        下載 PDF
+      </button>
+
+    </div>
+
+
+    <iframe
+      [src]="CrystalPreviewUrl"
+      width="100%"
+      height="800"
+      title="Crystal Report PDF Preview"
+    >
+    </iframe>
+
+  </section>
+
+</section>
       <section *ngIf="Page === 'DatabaseConnection'" class="management-section">
         <div class="management-card-heading">
           <div>
@@ -1707,7 +1802,7 @@
         <p>保存期間：180 天</p>
       </section>
     </section>
-    <section *ngIf="IsUploadReportDialogOpen" class="modal-backdrop" (click)="CloseReportEditor()">
+    <!-- <section *ngIf="IsUploadReportDialogOpen" class="modal-backdrop" (click)="CloseReportEditor()">
       <section class="edit-user-modal report-editor-modal" role="dialog" aria-modal="true" aria-labelledby="report-editor-title" (click)="$event.stopPropagation()">
         <div class="modal-heading">
           <h2 id="report-editor-title">{{ EditingReportKey ? '編輯報表' : '上傳報表' }}</h2>
@@ -1746,7 +1841,7 @@
           </div>
         </form>
       </section>
-    </section>
+    </section> -->
     <section *ngIf="DeletingReport" class="modal-backdrop" (click)="CloseDeleteReportDialog()">
       <section class="edit-user-modal report-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-report-title" (click)="$event.stopPropagation()">
         <h2 id="delete-report-title">刪除報表</h2>

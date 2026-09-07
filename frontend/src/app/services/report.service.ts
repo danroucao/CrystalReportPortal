@@ -33,6 +33,11 @@ export interface ReportParameter {
   displayOrder: number;
 }
 
+export interface ReportExecutionParameter {
+  parameterId: number;
+  values: string[];
+}
+
 interface ReportListResponse {
   success: boolean;
   reports: ReportSummary[];
@@ -79,5 +84,30 @@ export class ReportService {
 
   getParameterOptions(reportId: number, parameterId: number): Observable<ParameterOptionResponse> {
     return this.http.get<ParameterOptionResponse>(`${API_BASE_URL}/reports/${reportId}/parameters/${parameterId}/options`);
+  }
+
+  executeReport(reportId: number, parameters: ReportExecutionParameter[]): Observable<Blob> {
+    return this.http.post(
+      `${API_BASE_URL}/reports/${reportId}/execute`,
+      { parameters },
+      { responseType: 'blob' },
+    );
+  }
+
+  previewRpt(file: File) {
+    const formData = new FormData();
+
+    formData.append(
+      'file',
+      file
+    );
+
+    return this.http.post(
+      `${this.apiUrl}/crystal-preview`,
+      formData,
+      {
+        responseType: 'blob'
+      }
+    );
   }
 }

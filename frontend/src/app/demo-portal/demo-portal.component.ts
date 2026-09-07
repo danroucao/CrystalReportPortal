@@ -1,4 +1,11 @@
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+
+import {
+  DomSanitizer,
+  SafeResourceUrl,
+} from '@angular/platform-browser';
+
 import {
   AfterViewInit,
   Component,
@@ -140,6 +147,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
+  private readonly http = inject(HttpClient);
+  private readonly sanitizer = inject(DomSanitizer);
+
   readonly Page = this.route.snapshot.data['Page'] as DemoPortalPage;
   SelectedFavoriteCategory = '全部';
   SelectedParameterReportCategory = '全部';
@@ -211,8 +221,22 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   DeletingReport: MockReport | null = null;
   ReportEditorDraft: ReportEditorDraft = this.CreateReportEditorDraft();
   SelectedReportFileName = '';
+
+  SelectedReportFile: File | null = null;
+
   ReportEditorError = '';
+
   IsReportFileInvalid = false;
+
+  IsCrystalPreviewLoading = false;
+
+  CrystalPreviewError = '';
+
+  CrystalPreviewBlobUrl: string | null = null;
+
+  CrystalPreviewUrl: SafeResourceUrl | null = null;
+
+  CrystalPreviewFileName = '';
   @ViewChild('roleCardViewport')
   private roleCardViewport?: ElementRef<HTMLElement>;
   private roleCardResizeObserver?: ResizeObserver;
@@ -256,10 +280,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.roleCardResizeObserver.observe(Viewport);
   }
 
-  ngOnDestroy(): void {
-    this.roleCardResizeObserver?.disconnect();
-  }
+ngOnDestroy(): void {
+  this.roleCardResizeObserver
+    ?.disconnect();
 
+  this.ClearCrystalPreview();
+}
   get SuccessToastMessage(): string {
     return this.Notifications.SuccessMessage;
   }
@@ -1178,20 +1204,212 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OnReportFileSelected(Event: Event): void {
-    const Input = Event.target as HTMLInputElement;
-    const File = Input.files?.item(0);
-    if (!File) return;
-    if (!File.name.toLocaleLowerCase().endsWith('.rpt')) {
+    const Input =
+      Event.target as HTMLInputElement;
+
+    const File =
+      Input.files?.item(0);
+
+    if (!File) {
+      this.SelectedReportFile = null;
       this.SelectedReportFileName = '';
-      this.ReportEditorError = '僅允許上傳 .rpt 報表檔案。';
-      this.IsReportFileInvalid = true;
-      Input.value = '';
+
       return;
     }
-    this.SelectedReportFileName = File.name;
+
+    if (
+      !File.name
+        .toLocaleLowerCase()
+        .endsWith('.rpt')
+    ) {
+      this.SelectedReportFile = null;
+      this.SelectedReportFileName = '';
+
+      this.ReportEditorError =
+        '僅允許上傳 .rpt 報表檔案。';
+
+      this.IsReportFileInvalid = true;
+
+      Input.value = '';
+
+      return;
+    }
+
+    this.SelectedReportFile =
+      File;
+
+    this.SelectedReportFileName =
+      File.name;
+
     this.ReportEditorError = '';
+
+    this.CrystalPreviewError = '';
+
     this.IsReportFileInvalid = false;
   }
+
+    GenerateCrystalPreview(): void {
+    if (!this.SelectedReportFile) {
+      this.CrystalPreviewError =
+        '請先選擇 RPT 報表檔案。';
+
+      return;
+    }
+
+    this.IsCrystalPreviewLoading = true;
+
+    this.CrystalPreviewError = '';
+
+    this.ClearCrystalPreview();
+
+    const Form =
+      new FormData();
+
+    Form.append(
+      'file',
+      this.SelectedReportFile
+    );
+
+    this.http.post(
+      'http://localhost:5181/api/crystal-preview',
+      Form,
+      {
+        responseType: 'blob'
+      }
+    )
+    .subscribe({
+      next: (PdfBlob) => {
+        this.IsCrystalPreviewLoading =
+          false;
+
+        if (
+          !PdfBlob ||
+          PdfBlob.size === 0
+        ) {
+          this.CrystalPreviewError =
+            '後端沒有回傳 PDF 檔案。';
+
+          return;
+        }
+
+        this.CrystalPreviewBlobUrl =
+          URL.createObjectURL(
+            PdfBlob
+          );
+
+        this.CrystalPreviewUrl =
+          this.sanitizer
+            .bypassSecurityTrustResourceUrl(
+              this.CrystalPreviewBlobUrl
+            );
+
+        this.CrystalPreviewFileName =
+          this.SelectedReportFile
+            ? this.SelectedReportFile.name
+                .replace(
+                  /\.rpt$/i,
+                  '.pdf'
+                )
+            : 'report.pdf';
+
+        this.ShowSuccessToast(
+          'RPT 已成功轉換為 PDF。'
+        );
+      },
+
+      error: (Error) => {
+        this.IsCrystalPreviewLoading =
+          false;
+
+        console.error(
+          'Crystal Report 預覽失敗：',
+          Error
+        );
+
+        this.ReadCrystalPreviewError(
+          Error
+        );
+      }
+    });
+  }
+
+  private ReadCrystalPreviewError(
+  Error: any
+): void {
+  const ErrorBlob =
+    Error?.error;
+
+  if (!(ErrorBlob instanceof Blob)) {
+    this.CrystalPreviewError =
+      '產生 PDF 預覽失敗。';
+
+    return;
+  }
+
+  ErrorBlob
+    .text()
+    .then((Text) => {
+      try {
+        const Result =
+          JSON.parse(Text);
+
+        this.CrystalPreviewError =
+          Result.detail
+          ?? Result.message
+          ?? '產生 PDF 預覽失敗。';
+      }
+      catch {
+        this.CrystalPreviewError =
+          Text
+          || '產生 PDF 預覽失敗。';
+      }
+    })
+    .catch(() => {
+      this.CrystalPreviewError =
+        '產生 PDF 預覽失敗。';
+    });
+}
+
+  DownloadCrystalPreview(): void {
+  if (!this.CrystalPreviewBlobUrl) {
+    return;
+  }
+
+  const Link =
+    document.createElement('a');
+
+  Link.href =
+    this.CrystalPreviewBlobUrl;
+
+  Link.download =
+    this.CrystalPreviewFileName
+    || 'report.pdf';
+
+  document.body.appendChild(
+    Link
+  );
+
+  Link.click();
+
+  Link.remove();
+}
+
+  ClearCrystalPreview(): void {
+  if (this.CrystalPreviewBlobUrl) {
+    URL.revokeObjectURL(
+      this.CrystalPreviewBlobUrl
+    );
+  }
+
+  this.CrystalPreviewBlobUrl =
+    null;
+
+  this.CrystalPreviewUrl =
+    null;
+
+  this.CrystalPreviewFileName =
+    '';
+}
 
   SaveReport(): void {
     const Error = this.GetReportEditorValidationError();

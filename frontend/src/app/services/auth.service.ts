@@ -200,9 +200,20 @@ export class AuthService {
     }
 
     try {
+      const storedUser = JSON.parse(userJson) as Partial<LoginUser>;
+      const roles = storedUser.roles ?? storedUser.Roles ?? [];
+
       this.Token = token;
-      this.CurrentLoginUser =
-        JSON.parse(userJson) as LoginUser;
+      this.CurrentLoginUser = {
+        userId: storedUser.userId ?? 0,
+        account: storedUser.account ?? storedUser.Account ?? '',
+        employeeNo: storedUser.employeeNo ?? '',
+        userName: storedUser.userName ?? storedUser.DisplayName ?? '',
+        roles: [...roles],
+        Account: storedUser.Account ?? storedUser.account ?? '',
+        DisplayName: storedUser.DisplayName ?? storedUser.userName ?? '',
+        Roles: roles as MockRoleKey[],
+      };
     } catch {
       this.Logout();
     }

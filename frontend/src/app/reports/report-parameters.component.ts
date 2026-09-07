@@ -45,6 +45,7 @@ export class ReportParametersComponent implements OnInit {
   loading = !!this.report;
   error = '';
   validationError = '';
+  executing = false;
 
   ngOnInit(): void {
     if (!this.report) return;
@@ -70,6 +71,25 @@ export class ReportParametersComponent implements OnInit {
     const missing = this.visibleParameters.find(parameter => parameter.required && !this.values[parameter.parameterId]);
     if (missing) { this.validationError = `請輸入「${missing.displayName}」。`; return; }
     this.validationError = '';
-    void this.router.navigate(['/reports/preview']);
+    if (!this.report) return;
+    this.executing = true;
+    const parameters = this.parameters
+      .filter(parameter => this.values[parameter.parameterId])
+      .map(parameter => ({
+        parameterId: parameter.parameterId,
+        values: [this.values[parameter.parameterId]],
+      }));
+    this.reportsApi.executeReport(this.report.reportId, parameters).subscribe({
+      next: pdf => {
+        this.executing = false;
+        const previewUrl = URL.createObjectURL(pdf);
+        window.open(previewUrl, '_blank', 'noopener');
+        window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
+      },
+      error: () => {
+        this.executing = false;
+        this.validationError = '報表執行失敗，請確認報表設定與 Crystal Service 狀態。';
+      },
+    });
   }
 }
