@@ -1,7 +1,9 @@
+using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
 namespace CrystalReportPortal.Api.Controllers;
 
@@ -12,13 +14,16 @@ public class ReportsController : ControllerBase
 {
     private readonly IReportService _reportService;
     private readonly ICrystalProcessService _crystalProcessService;
+    private readonly AppDbContext _dbContext;
 
     public ReportsController(
         IReportService reportService,
-        ICrystalProcessService crystalProcessService)
+        ICrystalProcessService crystalProcessService,
+        AppDbContext dbContext)
     {
         _reportService = reportService;
         _crystalProcessService = crystalProcessService;
+        _dbContext = dbContext;
     }
 
     [HttpGet]
@@ -170,5 +175,70 @@ public class ReportsController : ControllerBase
                 userId);
 
         return Ok(result);
+    }
+
+    [HttpGet("{reportId:long}/preview")]
+    public async Task<IActionResult> PreviewReport(
+    long reportId)
+    {
+        var report =
+            await _dbContext.Reports
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    r => r.ReportId == reportId);
+
+        if (report == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "找不到報表。"
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            report.RptFilePath))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "此報表尚未上傳 RPT 檔案。"
+            });
+        }
+
+        if (!System.IO.File.Exists(
+            report.RptFilePath))
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "找不到 RPT 實體檔案。"
+            });
+        }
+
+        try
+        {
+            var pdfBytes =
+                await _crystalProcessService
+                    .PreviewAsync(
+                        report.RptFilePath);
+
+            return File(
+                pdfBytes,
+                "application/pdf");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new
+                {
+                    success = false,
+                    message =
+                        "產生報表預覽失敗。",
+                    detail =
+                        ex.Message
+                });
+        }
     }
 }

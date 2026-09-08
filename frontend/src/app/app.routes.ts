@@ -22,7 +22,7 @@ export const routes: Routes = [
     component: DemoPortalComponent,
     canActivate: [DemoAuthGuard],
     data: { Page: 'ReportParameter' },
-    title: '報表搜尋 / 報表條件｜Crystal Reports 外部報表系統',
+    title: '所有報表｜Crystal Reports 外部報表系統',
   },
   {
     path: 'reports/preview',

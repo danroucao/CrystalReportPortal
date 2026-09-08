@@ -180,7 +180,13 @@ td {
 }
 th {
   color: var(--color-muted);
+  font-size: 0.875rem;
   font-weight: 800;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+th.is-sorted {
+  color: var(--color-primary);
 }
 .preview-placeholder {
   display: grid;

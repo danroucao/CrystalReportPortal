@@ -507,28 +507,32 @@ public class ReportService : IReportService
 
                 if (mapping.ValueSourceType == "SqlLov")
                 {
-                    var lov =
-                        ParseSqlLov(
-                            crystalParameter.Name);
+                    if (IsSqlLovParameter(
+                           crystalParameter.Name))
+                    {
+                        var lov =
+                            ParseSqlLov(
+                                crystalParameter.Name);
 
-                    parameter.LovConfig =
-                        new ParameterLovConfig
-                        {
-                            DataSourceId =
-                                report.DataSourceId,
+                        parameter.LovConfig =
+                            new ParameterLovConfig
+                            {
+                                DataSourceId =
+                                    report.DataSourceId,
 
-                            SqlQuery =
-                                lov.SqlQuery,
+                                SqlQuery =
+                                    lov.SqlQuery,
 
-                            ValueField =
-                                lov.ValueField,
+                                ValueField =
+                                    lov.ValueField,
 
-                            DisplayField =
-                                lov.DisplayField,
+                                DisplayField =
+                                    lov.DisplayField,
 
-                            CreatedAt =
-                                DateTime.Now
-                        };
+                                CreatedAt =
+                                    DateTime.Now
+                            };
+                    }
                 }
 
                 newParameters.Add(parameter);
@@ -689,7 +693,7 @@ public class ReportService : IReportService
         // SQL LOV
         // =====================================
 
-        if (name.Contains('@'))
+        if (IsSqlLovParameter(name))
         {
             return new CrystalParameterMapping
             {
@@ -884,6 +888,33 @@ public class ReportService : IReportService
             ValueField = columns[0],
             DisplayField = columns[1]
         };
+    }
+
+    private static bool IsSqlLovParameter(
+    string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(
+            parameterName))
+        {
+            return false;
+        }
+
+        var atIndex =
+            parameterName.IndexOf('@');
+
+        if (atIndex <= 0)
+        {
+            return false;
+        }
+
+        var sqlPart =
+            parameterName
+                .Substring(atIndex + 1)
+                .TrimStart();
+
+        return sqlPart.StartsWith(
+            "select ",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     // ==========================================
