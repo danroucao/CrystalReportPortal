@@ -43,6 +43,7 @@ export interface MockUserEditDraft {
 
 export interface MockAccountSettingsDraft {
   DisplayName: string;
+  OldPassword: string;
   NewPassword: string;
 }
 
@@ -58,7 +59,12 @@ export type MockDeleteRoleResult =
   | 'built-in-role'
   | 'role-in-use';
 export type MockRoleChangeRequestStatus = 'Pending' | 'Approved' | 'Rejected';
-export type MockAccountSettingsResult = 'updated' | 'not-found' | 'invalid';
+export type MockAccountSettingsResult =
+  | 'updated'
+  | 'password-updated'
+  | 'incorrect-password'
+  | 'not-found'
+  | 'invalid';
 export type MockDeleteUserResult = 'deleted' | 'not-found' | 'minimum-admins';
 
 export interface MockRoleChangeRequest {
@@ -352,10 +358,13 @@ export class MockRbacService {
     const User = this.UsersStore.find((Entry) => Entry.Account === Account);
     if (!User) return 'not-found';
     if (!Draft.DisplayName.trim()) return 'invalid';
+    if (Draft.NewPassword && User.Password !== Draft.OldPassword) {
+      return 'incorrect-password';
+    }
     User.DisplayName = Draft.DisplayName.trim();
     if (Draft.NewPassword) User.Password = Draft.NewPassword;
     this.Touch(User);
-    return 'updated';
+    return Draft.NewPassword ? 'password-updated' : 'updated';
   }
 
   DeleteUser(Account: string): MockDeleteUserResult {
@@ -517,29 +526,42 @@ export class MockRbacService {
     return true;
   }
 
-  GetAccessibleReports(Roles: readonly MockRoleKey[]): readonly MockReportReadModel[] {
-    const NormalizedRoles = this.NormalizeRoles(Roles);
+  GetAllEnabledReports(): readonly MockReportReadModel[] {
     return this.ReportStore
       .filter(
         (Report) =>
           Report.Enabled &&
           this.IsValidCategoryId(Report.CategoryId) &&
-          (!this.IsSystemReservedCategory(Report.CategoryId) ||
-            NormalizedRoles.includes('ADMIN')) &&
-          this.GetEffectiveCategoryPermission(
-            NormalizedRoles,
-            Report.CategoryId,
-          ).CanExecute,
+          !this.IsSystemReservedCategory(Report.CategoryId),
       )
       .map((Report) => this.ToReportReadModel(Report));
   }
 
-  GetFavoriteReports(
-    Account: string,
-    Roles: readonly MockRoleKey[],
-  ): readonly MockFavoriteReport[] {
+  GetAllEnabledReportCategories(): readonly MockReportCategory[] {
+    const ReportCategoryIds = new Set(
+      this.GetAllEnabledReports().map((Report) => Report.CategoryId),
+    );
+    return this.CategoryStore.filter(
+      (Category) =>
+        !Category.IsSystemReserved &&
+        ReportCategoryIds.has(Category.CategoryId),
+    ).map((Category) => ({ ...Category }));
+  }
+
+  GetAccessibleReports(Roles: readonly MockRoleKey[]): readonly MockReportReadModel[] {
+    const NormalizedRoles = this.NormalizeRoles(Roles);
+    return this.GetAllEnabledReports().filter(
+      (Report) =>
+        this.GetEffectiveCategoryPermission(
+          NormalizedRoles,
+          Report.CategoryId,
+        ).CanExecute,
+    );
+  }
+
+  GetFavoriteReports(Account: string): readonly MockFavoriteReport[] {
     const Favorites = this.FavoriteReportStore[Account] ?? {};
-    return this.GetAccessibleReports(Roles)
+    return this.GetAllEnabledReports()
       .filter((Report) => Favorites[Report.ReportKey]?.IsFavorite)
       .map((Report) => ({
         Report,
@@ -646,9 +668,10 @@ export class MockRbacService {
       ? { ...this.SelectedReportSearchCriteria }
       : null;
   }
-  GetSelectedReport(Roles: readonly MockRoleKey[]): MockReportReadModel | null {
-    const Reports = this.GetAccessibleReports(Roles);
-    return Reports.find((Report) => Report.ReportKey === this.SelectedReportKey) ?? null;
+  GetSelectedReport(_Roles: readonly MockRoleKey[]): MockReportReadModel | null {
+    return this.GetAllEnabledReports().find(
+      (Report) => Report.ReportKey === this.SelectedReportKey,
+    ) ?? null;
   }
 
   private NormalizePermission(Permission: MockCategoryPermission): MockCategoryPermission {

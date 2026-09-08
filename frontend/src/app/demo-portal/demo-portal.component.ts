@@ -88,6 +88,7 @@ type FavoriteReportSortField = 'ReportName' | 'FavoritedAt' | 'LastUsedAt';
 type FavoriteReportSortDirection = 'asc' | 'desc';
 type ReportManagementSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
 type ReportManagementSortDirection = 'asc' | 'desc';
+type ReportPreviewOrigin = 'all' | 'favorites';
 
 interface ParameterReportCategoryTab {
   readonly CategoryId: string;
@@ -168,6 +169,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   > | null = null;
   MockNotice = '';
   IsExportMenuOpen = false;
+  ReportPreviewOrigin: ReportPreviewOrigin = 'all';
   private ReturnToParameterSearchState: ParameterReportSearchState | null =
     null;
   readonly ExportOptions: readonly MockExportOption[] = [
@@ -230,6 +232,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.CreateAccountSettingsDraft();
   AccountSettingsConfirmation = '';
   AccountSettingsNotice = '';
+  IsPasswordChangeSuccessModalOpen = false;
   UserSearchText = '';
   UserCurrentPage = 1;
   IsCreateUserDialogOpen = false;
@@ -283,7 +286,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.LoadAccountSettings();
-    const NavigationState = this.router.getCurrentNavigation()?.extras.state;
+    const NavigationState =
+      this.router.getCurrentNavigation()?.extras.state ?? history.state;
     if (this.Page === 'ReportParameter') {
       this.RestoreParameterSearchState(
         NavigationState?.['ParameterSearchState'],
@@ -294,6 +298,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
         ? '請先選擇報表。'
         : '';
     }
+    if (this.Page === 'ReportList' && this.Auth.IsAdmin) {
+      void this.router.navigate(['/reports/parameters']);
+      return;
+    }
     if (this.Page === 'ReportPreview' && !this.Auth.SelectedReport) {
       void this.router.navigate(['/reports/parameters'], {
         state: { ReportSelectionRequired: true },
@@ -301,6 +309,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (this.Page === 'ReportPreview') {
+      this.ReportPreviewOrigin = this.ToReportPreviewOrigin(
+        NavigationState?.['ReportPreviewOrigin'],
+      );
       this.ReturnToParameterSearchState = this.ToParameterSearchState(
         NavigationState?.['ParameterSearchState'],
       );
@@ -347,13 +358,15 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get FavoriteReports(): readonly MockFavoriteReport[] {
     const Account = this.Auth.CurrentUser?.Account;
-    return Account
-      ? this.MockRbac.GetFavoriteReports(Account, this.Auth.ActiveRoles)
+    return Account && !this.Auth.IsAdmin
+      ? this.MockRbac.GetFavoriteReports(Account)
       : [];
   }
 
   get FavoriteReportCategories() {
-    return this.MockRbac.GetReportFilterCategories(this.Auth.ActiveRoles);
+    return this.Auth.IsAdmin
+      ? []
+      : this.MockRbac.GetAllEnabledReportCategories();
   }
 
   get DisplayedFavoriteReports(): readonly MockFavoriteReport[] {
@@ -470,7 +483,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   RemoveFavoriteReport(Favorite: MockFavoriteReport): void {
     const Account = this.Auth.CurrentUser?.Account;
-    if (!Account) return;
+    if (!Account || this.Auth.IsAdmin) return;
     if (
       !this.MockRbac.RemoveFavoriteReport(Account, Favorite.Report.ReportKey)
     ) {
@@ -489,14 +502,16 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   IsFavoriteReport(ReportKey: MockReportKey): boolean {
     const Account = this.Auth.CurrentUser?.Account;
-    return Account ? this.MockRbac.IsFavoriteReport(Account, ReportKey) : false;
+    return Account && !this.Auth.IsAdmin
+      ? this.MockRbac.IsFavoriteReport(Account, ReportKey)
+      : false;
   }
 
   ToggleFavoriteReport(ReportKey: MockReportKey): void {
     const Account = this.Auth.CurrentUser?.Account;
-    if (!Account) return;
+    if (!Account || this.Auth.IsAdmin) return;
     const IsFavorite = this.MockRbac.ToggleFavoriteReport(Account, ReportKey);
-    const Report = this.Auth.AccessibleReports.find(
+    const Report = this.Auth.AllEnabledReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
     if (!Report) return;
@@ -507,19 +522,19 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  get ParameterAccessibleReports() {
-    return this.Auth.AccessibleReports.filter((Report) => Report.Enabled);
+  get ParameterReports() {
+    return this.Auth.AllEnabledReports;
   }
 
   get ParameterReportCategoryTabs(): readonly ParameterReportCategoryTab[] {
-    const Reports = this.ParameterAccessibleReports;
+    const Reports = this.ParameterReports;
     return [
       {
         CategoryId: this.AllCategoryFilterValue,
         CategoryName: '全部',
         Count: Reports.length,
       },
-      ...this.MockRbac.GetReportFilterCategories(this.Auth.ActiveRoles).map(
+      ...this.MockRbac.GetAllEnabledReportCategories().map(
         (Category) => ({
           CategoryId: Category.CategoryId,
           CategoryName: Category.CategoryName,
@@ -564,7 +579,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   get DisplayedParameterReports() {
     const SearchText =
       this.ParameterReportSearchText.trim().toLocaleLowerCase();
-    const Reports = this.ParameterAccessibleReports.filter(
+    const Reports = this.ParameterReports.filter(
       (Report) =>
         (this.SelectedParameterReportCategoryId ===
           this.AllCategoryFilterValue ||
@@ -722,6 +737,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.Auth.SelectedReport?.ReportKey ?? null;
   }
 
+  get ReportPreviewReturnLabel(): string {
+    return this.ReportPreviewOrigin === 'favorites'
+      ? '返回我的收藏'
+      : '返回所有報表';
+  }
+
   get CanGenerateReport(): boolean {
     return Boolean(
       this.Auth.SelectedReportCategoryPermission.CanExecute &&
@@ -843,18 +864,20 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SelectReportByKey(ReportKey: MockReportKey): void {
-    const Report = this.Auth.AccessibleReports.find(
+    const Report = this.Auth.AllEnabledReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
     if (!Report?.Enabled) return;
     this.Auth.SelectReport(ReportKey);
     const Account = this.Auth.CurrentUser?.Account;
     if (Account) this.MockRbac.RecordReportExecution(Account, ReportKey);
-    void this.router.navigate(['/reports/preview']);
+    void this.router.navigate(['/reports/preview'], {
+      state: { ReportPreviewOrigin: 'favorites' },
+    });
   }
 
   SelectReportForParameters(ReportKey: MockReportKey): void {
-    const Report = this.ParameterAccessibleReports.find(
+    const Report = this.ParameterReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
     if (!Report) return;
@@ -864,7 +887,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SelectReportForPreview(ReportKey: MockReportKey): void {
-    const Report = this.ParameterAccessibleReports.find(
+    const Report = this.ParameterReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
     if (!Report) return;
@@ -880,11 +903,18 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     const Account = this.Auth.CurrentUser?.Account;
     if (Account) this.MockRbac.RecordReportExecution(Account, ReportKey);
     void this.router.navigate(['/reports/preview'], {
-      state: { ParameterSearchState: this.CreateParameterSearchState() },
+      state: {
+        ReportPreviewOrigin: 'all',
+        ParameterSearchState: this.CreateParameterSearchState(),
+      },
     });
   }
 
   ReturnToReportList(): void {
+    if (this.ReportPreviewOrigin === 'favorites') {
+      void this.router.navigate(['/reports']);
+      return;
+    }
     void this.router.navigate(['/reports/parameters'], {
       state: this.ReturnToParameterSearchState
         ? { ParameterSearchState: this.ReturnToParameterSearchState }
@@ -1278,6 +1308,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   get DisplayedManagedReports(): readonly MockReportReadModel[] {
     const SearchText =
       this.ReportManagementSearchText.trim().toLocaleLowerCase();
+    const PinPositions = new Map(
+      [...this.PinnedReportManagementKeys].map((ReportKey, Index) => [
+        ReportKey,
+        Index,
+      ]),
+    );
     const Reports = this.MockRbac.Reports.filter(
       (Report) =>
         (this.ReportManagementCategoryId === this.AllCategoryFilterValue ||
@@ -1288,10 +1324,13 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
             .includes(SearchText)),
     );
     return [...Reports].sort((Left, Right) => {
-      const PinOrder =
-        Number(this.IsReportManagementPinned(Right.ReportKey)) -
-        Number(this.IsReportManagementPinned(Left.ReportKey));
-      if (PinOrder) return PinOrder;
+      const LeftPinPosition = PinPositions.get(Left.ReportKey) ?? -1;
+      const RightPinPosition = PinPositions.get(Right.ReportKey) ?? -1;
+      if (LeftPinPosition !== RightPinPosition) {
+        if (LeftPinPosition < 0) return 1;
+        if (RightPinPosition < 0) return -1;
+        return RightPinPosition - LeftPinPosition;
+      }
       if (!this.ReportManagementSortField) return 0;
 
       const SortField = this.ReportManagementSortField;
@@ -1895,6 +1934,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   SaveAccountSettings(): void {
     const CurrentUser = this.Auth.CurrentUser;
     if (!CurrentUser) return;
+    const IsChangingPassword = Boolean(this.AccountSettingsDraft.NewPassword);
+    if (IsChangingPassword && !this.AccountSettingsDraft.OldPassword) {
+      this.AccountSettingsNotice = '請輸入舊密碼。';
+      return;
+    }
     if (
       this.AccountSettingsDraft.NewPassword !== this.AccountSettingsConfirmation
     ) {
@@ -1907,16 +1951,26 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     );
     const Messages: Record<string, string> = {
       updated: '帳號設定已在前端 Mock 中更新。正式密碼驗證仍需後端支援。',
+      'incorrect-password': '舊密碼不正確。',
       invalid: '請輸入使用者名稱。',
       'not-found': '找不到目前登入的使用者。',
     };
-    this.AccountSettingsNotice = Messages[Result];
-    if (Result === 'updated') {
+    if (Result === 'updated' || Result === 'password-updated') {
       this.Auth.RefreshCurrentUser(CurrentUser.Account, CurrentUser.Account);
       this.AccountSettingsDraft = this.CreateAccountSettingsDraft();
       this.LoadAccountSettings();
-      this.AccountSettingsConfirmation = '';
+      this.AccountSettingsNotice =
+        Result === 'updated' ? Messages['updated'] : '';
+      this.IsPasswordChangeSuccessModalOpen = Result === 'password-updated';
+      return;
     }
+    this.AccountSettingsNotice = Messages[Result];
+  }
+
+  ConfirmPasswordChangeAndLogout(): void {
+    if (!this.IsPasswordChangeSuccessModalOpen) return;
+    this.IsPasswordChangeSuccessModalOpen = false;
+    this.Logout();
   }
 
   get IsAdministrationPage(): boolean {
@@ -2248,12 +2302,14 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private CreateAccountSettingsDraft(): MockAccountSettingsDraft {
     return {
       DisplayName: '',
+      OldPassword: '',
       NewPassword: '',
     };
   }
   private LoadAccountSettings(): void {
     this.AccountSettingsDraft = {
       DisplayName: this.Auth.CurrentUser?.DisplayName ?? '',
+      OldPassword: '',
       NewPassword: '',
     };
     this.AccountSettingsConfirmation = '';
@@ -2375,6 +2431,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       StartDate: Value.StartDate,
       EndDate: Value.EndDate,
     };
+  }
+
+  private ToReportPreviewOrigin(State: unknown): ReportPreviewOrigin {
+    return State === 'favorites' ? 'favorites' : 'all';
   }
 
   private ScheduleRoleCardNavigationUpdate(): void {

@@ -39,6 +39,9 @@ export class AuthService {
   get AccessibleReports(): readonly MockReportReadModel[] {
     return this.MockRbac.GetAccessibleReports(this.ActiveRoles);
   }
+  get AllEnabledReports(): readonly MockReportReadModel[] {
+    return this.MockRbac.GetAllEnabledReports();
+  }
   get SelectedReport(): MockReportReadModel | null {
     return this.MockRbac.GetSelectedReport(this.ActiveRoles);
   }

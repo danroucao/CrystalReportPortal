@@ -102,7 +102,7 @@
     <ng-template #DefaultPageTitle
       ><h1>{{ PageTitle }}</h1></ng-template
     >
-    <section *ngIf="Page === 'ReportList'" class="content-card">
+    <section *ngIf="Page === 'ReportList' && !Auth.IsAdmin" class="content-card">
       <div class="favorite-search-toolbar" role="search">
         <label class="favorite-category-field" for="favorite-report-category">
           報表分類
@@ -355,7 +355,7 @@
           <table class="parameter-report-table">
             <thead>
               <tr>
-                <th scope="col">收藏</th>
+                <th *ngIf="!Auth.IsAdmin" scope="col">收藏</th>
                 <th
                   [attr.aria-sort]="GetParameterReportAriaSort('ReportName')"
                   [class.is-sorted]="ParameterReportSortField === 'ReportName'"
@@ -452,7 +452,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let Report of PagedParameterReports">
-                <td>
+                <td *ngIf="!Auth.IsAdmin">
                   <button
                     type="button"
                     class="favorite-star-button parameter-favorite-button"
@@ -517,7 +517,7 @@
                 </td>
               </tr>
               <tr *ngIf="!DisplayedParameterReports.length">
-                <td colspan="7" class="parameter-report-empty-state">
+                <td [attr.colspan]="Auth.IsAdmin ? 6 : 7" class="parameter-report-empty-state">
                   {{
                     HasParameterReportSearchText
                       ? "找不到符合條件的報表。"
@@ -888,7 +888,7 @@
           class="secondary-button preview-return-button"
           (click)="ReturnToReportList()"
         >
-          返回報表列表
+          {{ ReportPreviewReturnLabel }}
         </button>
       </div>
       <p *ngIf="MockNotice" class="mock-notice" role="status">
@@ -917,13 +917,32 @@
           ><input [(ngModel)]="AccountSettingsDraft.DisplayName"
         /></label>
         <label
+          >舊密碼
+          <input
+            type="password"
+            name="account-settings-old-password"
+            autocomplete="current-password"
+            [(ngModel)]="AccountSettingsDraft.OldPassword"
+          />
+        </label>
+        <label
           >新密碼（可留空）
-          <input type="password" [(ngModel)]="AccountSettingsDraft.NewPassword"
-        /></label>
+          <input
+            type="password"
+            name="account-settings-new-password"
+            autocomplete="new-password"
+            [(ngModel)]="AccountSettingsDraft.NewPassword"
+          />
+        </label>
         <label
           >確認新密碼
-          <input type="password" [(ngModel)]="AccountSettingsConfirmation"
-        /></label>
+          <input
+            type="password"
+            name="account-settings-confirm-password"
+            autocomplete="new-password"
+            [(ngModel)]="AccountSettingsConfirmation"
+          />
+        </label>
       </div>
       <p *ngIf="AccountSettingsNotice" class="mock-notice" role="status">
         {{ AccountSettingsNotice }}
@@ -931,6 +950,29 @@
       <button type="button" (click)="SaveAccountSettings()">
         儲存帳號設定
       </button>
+    </section>
+    <section
+      *ngIf="IsPasswordChangeSuccessModalOpen"
+      class="modal-backdrop created-user-success-backdrop"
+    >
+      <section
+        class="created-user-success-modal password-change-success-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="password-change-success-title"
+        aria-describedby="password-change-success-description"
+      >
+        <div class="created-user-success-icon" aria-hidden="true">✓</div>
+        <h2 id="password-change-success-title">密碼修改成功</h2>
+        <p id="password-change-success-description">
+          已成功修改密碼，請重新登入！
+        </p>
+        <div class="created-user-success-actions">
+          <button type="button" (click)="ConfirmPasswordChangeAndLogout()">
+            確認並登出
+          </button>
+        </div>
+      </section>
     </section>
     <section *ngIf="Auth.IsAdmin && IsAdministrationPage" class="content-card">
       <p *ngIf="Page !== 'UserManagement' && Page !== 'RptManagement'">

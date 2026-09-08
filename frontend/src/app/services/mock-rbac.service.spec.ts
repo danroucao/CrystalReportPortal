@@ -32,6 +32,31 @@ describe('MockRbacService', () => {
     ]);
   });
 
+  it('provides one enabled report catalog for the all-reports page', () => {
+    expect(Service.GetAllEnabledReports()).toHaveSize(12);
+    expect(
+      Service.GetAllEnabledReports().map((Report) => Report.ReportKey),
+    ).toContain('InventoryTransferHana');
+    expect(
+      Service.GetAllEnabledReports().map((Report) => Report.ReportKey),
+    ).not.toContain('DocumentsV2WithSerialAndBatchDetails');
+
+    Service.SetReportEnabled('DocumentsV2WithSerialAndBatchDetails', true);
+
+    expect(Service.GetAllEnabledReports()).toHaveSize(13);
+  });
+
+  it('returns every active favorite from the shared report catalog', () => {
+    Service.ToggleFavoriteReport('user@example.com', 'AccountBalance');
+    Service.ToggleFavoriteReport('user@example.com', 'InventoryTransferHana');
+
+    expect(
+      Service.GetFavoriteReports('user@example.com').map(
+        ({ Report }) => Report.ReportKey,
+      ),
+    ).toEqual(['AccountBalance', 'InventoryTransferHana']);
+  });
+
   it('calculates a union of category permissions across ordinary roles', () => {
     expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], 'INVENTORY')).toEqual({
       CanExecute: true,
@@ -350,9 +375,15 @@ describe('MockRbacService', () => {
 
     expect('Password' in Before).toBeFalse();
     expect(Service.UpdateOwnAccount('user@example.com', {
-      DisplayName: '財務人員已更新',
+      DisplayName: '不應更新',
+      OldPassword: 'wrong-password',
       NewPassword: 'changed-user-password',
-    })).toBe('updated');
+    })).toBe('incorrect-password');
+    expect(Service.UpdateOwnAccount('user@example.com', {
+      DisplayName: '財務人員已更新',
+      OldPassword: 'user123',
+      NewPassword: 'changed-user-password',
+    })).toBe('password-updated');
 
     const Updated = Service.GetUser('user@example.com')!;
     expect(Updated.DisplayName).toBe('財務人員已更新');

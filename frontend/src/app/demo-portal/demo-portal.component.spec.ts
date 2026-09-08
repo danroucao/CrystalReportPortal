@@ -27,7 +27,7 @@ describe('DemoPortalComponent', () => {
     const Notifications = TestBed.inject(NotificationService);
     const RouterService = TestBed.inject(Router);
     const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     fixture.componentInstance.Logout();
@@ -39,7 +39,7 @@ describe('DemoPortalComponent', () => {
 
   it('shows the signed-in account and role without a Demo role switcher in the header', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     fixture.detectChanges();
 
@@ -228,6 +228,8 @@ describe('DemoPortalComponent', () => {
   it('lets the signed-in user update only their own name and Mock password in AccountSettings', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
+    const RouterService = TestBed.inject(Router);
+    const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
       snapshot: { data: { Page: string } };
     };
@@ -238,7 +240,23 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     component.AccountSettingsDraft.DisplayName = '財務本人設定';
+    component.AccountSettingsDraft.OldPassword = 'incorrect-password';
     component.AccountSettingsDraft.NewPassword = 'self-service-password';
+    component.AccountSettingsConfirmation = 'self-service-password';
+    component.SaveAccountSettings();
+
+    expect(component.AccountSettingsNotice).toBe('舊密碼不正確。');
+    expect(component.IsPasswordChangeSuccessModalOpen).toBeFalse();
+    expect(MockRbac.Authenticate('user@example.com', 'user123')).not.toBeNull();
+
+    component.AccountSettingsDraft.OldPassword = 'user123';
+    component.AccountSettingsConfirmation = 'different-password';
+    component.SaveAccountSettings();
+
+    expect(component.AccountSettingsNotice).toBe('新密碼與確認新密碼不一致。');
+    expect(component.IsPasswordChangeSuccessModalOpen).toBeFalse();
+    expect(MockRbac.Authenticate('user@example.com', 'user123')).not.toBeNull();
+
     component.AccountSettingsConfirmation = 'self-service-password';
     component.SaveAccountSettings();
 
@@ -248,6 +266,11 @@ describe('DemoPortalComponent', () => {
     expect(
       MockRbac.Authenticate('user@example.com', 'self-service-password'),
     ).not.toBeNull();
+    expect(component.IsPasswordChangeSuccessModalOpen).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('已成功修改密碼，請重新登入！');
+    component.ConfirmPasswordChangeAndLogout();
+    expect(Auth.IsAuthenticated).toBeFalse();
+    expect(Navigate).toHaveBeenCalledWith(['/login']);
     expect(fixture.nativeElement.textContent).toContain('Frontend Mock Only');
   });
 
@@ -260,7 +283,7 @@ describe('DemoPortalComponent', () => {
     };
     const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
     Route.snapshot.data.Page = 'ReportList';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
     (
       [
         'AccountBalance',
@@ -270,10 +293,10 @@ describe('DemoPortalComponent', () => {
         'ServiceContract',
       ] as const
     ).forEach((ReportKey) =>
-      MockRbac.ToggleFavoriteReport('admin@example.com', ReportKey),
+      MockRbac.ToggleFavoriteReport('user@example.com', ReportKey),
     );
     (['AccountBalance', 'Activity'] as const).forEach((ReportKey) =>
-      MockRbac.ToggleFavoriteReport('user@example.com', ReportKey),
+      MockRbac.ToggleFavoriteReport('warehouse@example.com', ReportKey),
     );
     (
       [
@@ -283,7 +306,7 @@ describe('DemoPortalComponent', () => {
         'ServiceContract',
       ] as const
     ).forEach((ReportKey) =>
-      MockRbac.RecordReportExecution('admin@example.com', ReportKey),
+      MockRbac.RecordReportExecution('user@example.com', ReportKey),
     );
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
@@ -407,7 +430,9 @@ describe('DemoPortalComponent', () => {
 
     component.SelectReportByKey('AccountBalance');
     expect(Auth.SelectedReport?.ReportKey).toBe('AccountBalance');
-    expect(Navigate).toHaveBeenCalledWith(['/reports/preview']);
+    expect(Navigate).toHaveBeenCalledWith(['/reports/preview'], {
+      state: { ReportPreviewOrigin: 'favorites' },
+    });
 
     component.RemoveFavoriteReport(
       component.FavoriteReports.find(
@@ -417,8 +442,8 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
     expect(component.FavoriteReports).toHaveSize(4);
     expect(
-      MockRbac.GetFavoriteReports('user@example.com', ['FINANCE']),
-    ).toHaveSize(2);
+      MockRbac.GetFavoriteReports('user@example.com'),
+    ).toHaveSize(4);
   });
 
   it('filters favorites through existing report access and keeps table headers for an empty state', () => {
@@ -428,8 +453,8 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'ReportList';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
-    MockRbac.ToggleFavoriteReport('admin@example.com', 'AccountBalance');
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    MockRbac.ToggleFavoriteReport('user@example.com', 'AccountBalance');
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -463,7 +488,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -478,7 +503,7 @@ describe('DemoPortalComponent', () => {
       Array.from(Host.querySelectorAll('.portal-nav > a')).map((Link) =>
         Link.textContent?.trim(),
       ),
-    ).toEqual(['所有報表']);
+    ).toEqual(['所有報表', '收藏的報表', '帳號設定']);
     expect(
       Array.from(Host.querySelectorAll('.parameter-report-table th')).map(
         (Header) => Header.textContent?.replace(/[↕↑↓]/g, '').trim(),
@@ -578,7 +603,7 @@ describe('DemoPortalComponent', () => {
     expect(
       component.DisplayedParameterReports.map((Report) => Report.ReportName),
     ).toEqual(
-      [...component.ParameterAccessibleReports]
+      [...component.ParameterReports]
         .map((Report) => Report.ReportName)
         .sort((Left, Right) => Right.localeCompare(Left, 'zh-Hant')),
     );
@@ -634,6 +659,43 @@ describe('DemoPortalComponent', () => {
     expect(Host.querySelector('.parameter-report-table')).not.toBeNull();
   });
 
+  it('removes favorite controls for administrators and redirects their direct favorites route', () => {
+    const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    const RouterService = TestBed.inject(Router);
+    const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    const parameterFixture = TestBed.createComponent(DemoPortalComponent);
+    const component = parameterFixture.componentInstance;
+    parameterFixture.detectChanges();
+
+    expect(
+      parameterFixture.nativeElement.querySelector('.parameter-favorite-button'),
+    ).toBeNull();
+    expect(
+      parameterFixture.nativeElement.querySelectorAll('.parameter-report-table th'),
+    ).toHaveSize(6);
+    component.ToggleFavoriteReport('AccountBalance');
+    expect(
+      MockRbac.IsFavoriteReport('admin@example.com', 'AccountBalance'),
+    ).toBeFalse();
+
+    Route.snapshot.data.Page = 'ReportList';
+    Navigate.calls.reset();
+    const favoriteFixture = TestBed.createComponent(DemoPortalComponent);
+    favoriteFixture.detectChanges();
+
+    expect(
+      favoriteFixture.nativeElement.querySelector('.favorite-report-table'),
+    ).toBeNull();
+    expect(Navigate).toHaveBeenCalledWith(['/reports/parameters']);
+  });
+
   it('keeps favorite reports and account settings navigation for non-administrators', () => {
     const Auth = TestBed.inject(AuthService);
     expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
@@ -667,6 +729,41 @@ describe('DemoPortalComponent', () => {
     });
   });
 
+  it('shows the shared enabled report Mock catalog to an ordinary user on ReportParameter', () => {
+    const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    const RouterService = TestBed.inject(Router);
+    const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(component.DisplayedParameterReports).toEqual(
+      MockRbac.GetAllEnabledReports(),
+    );
+    expect(component.DisplayedParameterReports).toHaveSize(12);
+    expect(component.ParameterReportCategories.map((Category) => Category.CategoryId)).toEqual(
+      MockRbac.GetAllEnabledReportCategories().map((Category) => Category.CategoryId),
+    );
+
+    component.SelectReportForPreview('InventoryTransferHana');
+
+    expect(Auth.SelectedReport?.ReportKey).toBe('InventoryTransferHana');
+    expect(Auth.SelectedReportCategoryPermission.CanExecute).toBeFalse();
+    expect(Navigate).toHaveBeenCalledWith(
+      ['/reports/preview'],
+      jasmine.objectContaining({
+        state: jasmine.objectContaining({ ReportPreviewOrigin: 'all' }),
+      }),
+    );
+  });
+
   it('returns from ReportPreview to the report list', () => {
     const Auth = TestBed.inject(AuthService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
@@ -687,6 +784,15 @@ describe('DemoPortalComponent', () => {
     expect(Navigate).toHaveBeenCalledWith(['/reports/parameters'], {
       state: undefined,
     });
+    expect(fixture.nativeElement.textContent).toContain('返回所有報表');
+
+    component.ReportPreviewOrigin = 'favorites';
+    fixture.detectChanges();
+    Navigate.calls.reset();
+    component.ReturnToReportList();
+
+    expect(fixture.nativeElement.textContent).toContain('返回我的收藏');
+    expect(Navigate).toHaveBeenCalledWith(['/reports']);
   });
 
   it('distinguishes a report search empty state from no accessible reports', () => {
@@ -777,10 +883,25 @@ describe('DemoPortalComponent', () => {
     expect(component.DisplayedManagedReports[0].ReportKey).toBe(
       ReportToPin.ReportKey,
     );
-    component.ToggleReportManagementSort('ReportName');
+    const LatestReportToPin = component.DisplayedManagedReports.at(-1)!;
+    component.ToggleReportManagementPin(LatestReportToPin.ReportKey);
+    fixture.detectChanges();
+    expect(component.ReportManagementCurrentPage).toBe(1);
+    expect(component.DisplayedManagedReports[0].ReportKey).toBe(
+      LatestReportToPin.ReportKey,
+    );
+    expect(component.DisplayedManagedReports[1].ReportKey).toBe(
+      ReportToPin.ReportKey,
+    );
+    component.ToggleReportManagementPin(LatestReportToPin.ReportKey);
     fixture.detectChanges();
     expect(component.DisplayedManagedReports[0].ReportKey).toBe(
       ReportToPin.ReportKey,
+    );
+    component.ToggleReportManagementSort('ReportName');
+    fixture.detectChanges();
+    expect(component.DisplayedManagedReports[0].ReportKey).toBe(
+      LatestReportToPin.ReportKey,
     );
     expect(
       Table.querySelector<HTMLButtonElement>('.report-management-pin-button')

@@ -1234,6 +1234,7 @@ app-demo-portal .favorite-star-button {
   box-shadow: none;
 }
 app-demo-portal .favorite-star-button svg {
+  // 調整收藏icon大小
   width: 1.5rem;
   height: 1.5rem;
   fill: none;
@@ -1955,6 +1956,7 @@ app-demo-portal .report-management-pin-button:focus-visible {
 }
 app-demo-portal .report-management-pin-icon {
   display: block;
+  // 調整釘選icon大小
   width: 1.725rem;
   height: 1.725rem;
   background-image: url("/assets/icons/report-pin-icons.png");
