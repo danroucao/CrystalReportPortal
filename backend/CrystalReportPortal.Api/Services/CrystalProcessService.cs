@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using CrystalReportPortal.Api.Dtos;
+using System.Text;
 
 namespace CrystalReportPortal.Api.Services;
 
