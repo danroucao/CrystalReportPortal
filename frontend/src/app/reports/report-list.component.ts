@@ -25,7 +25,7 @@ import { PortalLayoutComponent } from './portal-layout.component';
             <td>{{ report.description || '—' }}</td>
             <td><button type="button" (click)="select(report)">選擇</button></td>
           </tr>
-          <tr *ngIf="!filteredReports.length"><td colspan="4">目前沒有可執行的報表。</td></tr>
+          <tr *ngIf="!filteredReports.length"><td colspan="4">目前沒有具備預覽權限的報表。</td></tr>
         </tbody>
       </table>
     </main></app-portal-layout>

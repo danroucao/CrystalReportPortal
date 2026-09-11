@@ -46,7 +46,7 @@ describe('MockRbacService', () => {
     expect(Service.GetAllEnabledReports()).toHaveSize(13);
   });
 
-  it('returns every active favorite from the shared report catalog', () => {
+  it('filters favorites through the current user category permissions', () => {
     Service.ToggleFavoriteReport('user@example.com', 'AccountBalance');
     Service.ToggleFavoriteReport('user@example.com', 'InventoryTransferHana');
 
@@ -54,13 +54,49 @@ describe('MockRbacService', () => {
       Service.GetFavoriteReports('user@example.com').map(
         ({ Report }) => Report.ReportKey,
       ),
-    ).toEqual(['AccountBalance', 'InventoryTransferHana']);
+    ).toEqual(['AccountBalance']);
+  });
+
+  it('generates a one-time initial password when creating a user', () => {
+    const Credentials = Service.CreateUser({
+      Account: 'generated-password@example.com',
+      DisplayName: '隨機密碼測試',
+      Roles: ['FINANCE'],
+      Enabled: true,
+    });
+
+    expect(Credentials?.Account).toBe('generated-password@example.com');
+    expect(Credentials?.InitialPassword).toMatch(/^[A-Za-z0-9!@#$%]{16}$/);
+    expect(
+      Service.Authenticate(
+        'generated-password@example.com',
+        Credentials!.InitialPassword,
+      ),
+    ).not.toBeNull();
+  });
+
+  it('generates a one-time initial password when creating a user', () => {
+    const Credentials = Service.CreateUser({
+      Account: 'generated-password@example.com',
+      DisplayName: '隨機密碼測試',
+      Roles: ['FINANCE'],
+      Enabled: true,
+    });
+
+    expect(Credentials?.Account).toBe('generated-password@example.com');
+    expect(Credentials?.InitialPassword).toMatch(/^[A-Za-z0-9!@#$%]{16}$/);
+    expect(
+      Service.Authenticate(
+        'generated-password@example.com',
+        Credentials!.InitialPassword,
+      ),
+    ).not.toBeNull();
   });
 
   it('calculates a union of category permissions across ordinary roles', () => {
     expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], 'INVENTORY')).toEqual({
       CanExecute: true,
-      CanExportPdf: true,
+      CanExport: true,
       CanPrint: true,
     });
     expect(Service.GetEffectiveCategoryPermission(['PURCHASE', 'WAREHOUSE'], 'PRODUCTION').CanExecute).toBeTrue();
@@ -74,59 +110,16 @@ describe('MockRbacService', () => {
     expect(Service.GetCategoryPermission('FINANCE', 'FINANCE').CanExecute).toBeTrue();
   });
 
-  it('keeps SystemAdmin category permissions fully allowed without persisted checkbox state', () => {
-    expect(Service.GetCategoryPermissionEntries('ADMIN')).toEqual(
-      jasmine.arrayContaining([
-        jasmine.objectContaining({
-          CategoryId: 'FINANCE',
-          CategoryName: '財務',
-          Permission: { CanExecute: true, CanExportPdf: true, CanPrint: true },
-        }),
-      ]),
-    );
-  });
-
-  it('normalizes SystemAdmin as the only assigned role', () => {
-    const Draft: MockUserDraft = {
-      Account: 'role-test@example.com',
-      DisplayName: '多角色測試',
-      InitialPassword: 'role123',
-      Roles: ['PURCHASE'],
-      Enabled: true,
-    };
-
-    expect(Service.CreateUser(Draft)).toBeTrue();
-    expect(Service.GetUser(Draft.Account)?.Roles).toEqual(['PURCHASE']);
-
-    expect(Service.SaveUserEdit(Draft.Account, {
-      Roles: ['PURCHASE', 'WAREHOUSE'],
-      Enabled: true,
-    }, 'admin@example.com')).toBe('updated');
-    expect(Service.GetUser(Draft.Account)?.Roles).toEqual(['PURCHASE', 'WAREHOUSE']);
-
-    expect(Service.SaveUserEdit(Draft.Account, {
-      Roles: ['PURCHASE', 'ADMIN', 'WAREHOUSE'],
-      Enabled: true,
-    }, 'admin@example.com')).toBe('updated');
-    expect(Service.GetUser(Draft.Account)?.Roles).toEqual(['ADMIN']);
-
-    expect(Service.SaveUserEdit(Draft.Account, {
-      Roles: ['ADMIN', 'FINANCE'],
-      Enabled: true,
-    }, 'admin@example.com')).toBe('updated');
-    expect(Service.GetUser(Draft.Account)?.Roles).toEqual(['ADMIN']);
-  });
-
   it('clears output permissions whenever CanExecute is removed', () => {
     const Entries = Service.GetCategoryPermissionEntries('FINANCE');
     const Entry = Entries.find((Permission) => Permission.CategoryId === 'FINANCE')!;
-    Entry.Permission = { CanExecute: false, CanExportPdf: true, CanPrint: true };
+    Entry.Permission = { CanExecute: false, CanExport: true, CanPrint: true };
 
     Service.SaveCategoryPermissions('FINANCE', Entries);
 
     expect(Service.GetCategoryPermission('FINANCE', 'FINANCE')).toEqual({
       CanExecute: false,
-      CanExportPdf: false,
+      CanExport: false,
       CanPrint: false,
     });
     expect(Service.GetAccessibleReports(['FINANCE']).map((Report) => Report.ReportKey)).toEqual([
@@ -136,9 +129,10 @@ describe('MockRbacService', () => {
 
   it('creates roles and retains only executable category output settings', () => {
     const Permissions = Service.GetEmptyCategoryPermissionEntries();
-    Permissions[0].Permission = { CanExecute: true, CanExportPdf: true, CanPrint: false };
+    Permissions[0].Permission = { CanExecute: true, CanExport: true, CanPrint: false };
     const Draft: MockRoleDraft = {
       DisplayName: '業務人員',
+      ManagementPermissions: [],
       Permissions,
     };
 
@@ -149,35 +143,14 @@ describe('MockRbacService', () => {
     expect(Service.CreateRole(Draft)).toBeNull();
   });
 
-  it('locks the built-in role name while allowing custom roles to be renamed', () => {
-    const AdminName = Service.GetRole('ADMIN').DisplayName;
-    const Permissions = Service.GetCategoryPermissionEntries('ADMIN');
-
-    expect(Service.UpdateRole('ADMIN', {
-      DisplayName: '不應套用的名稱',
-      Permissions,
-    })).toBe('updated');
-    expect(Service.GetRole('ADMIN').DisplayName).toBe(AdminName);
-
+  it('deletes only unused custom roles and preserves assigned roles', () => {
     const CreatedRole = Service.CreateRole({
       DisplayName: 'admin123',
-      Permissions: Service.GetEmptyCategoryPermissionEntries(),
-    })!;
-    expect(Service.UpdateRole(CreatedRole.Key, {
-      DisplayName: '自訂管理角色',
-      Permissions: Service.GetCategoryPermissionEntries(CreatedRole.Key),
-    })).toBe('updated');
-    expect(Service.GetRole(CreatedRole.Key).Key).toBe(CreatedRole.Key);
-    expect(Service.GetRole(CreatedRole.Key).DisplayName).toBe('自訂管理角色');
-  });
-
-  it('deletes only unused custom roles and preserves built-in or assigned roles', () => {
-    const CreatedRole = Service.CreateRole({
-      DisplayName: 'admin123',
+      ManagementPermissions: [],
       Permissions: Service.GetEmptyCategoryPermissionEntries(),
     })!;
 
-    expect(Service.DeleteRole('ADMIN')).toBe('built-in-role');
+    expect(Service.DeleteRole('ADMIN')).toBe('not-found');
     expect(Service.DeleteRole('FINANCE')).toBe('role-in-use');
     expect(Service.DeleteRole(CreatedRole.Key)).toBe('deleted');
     expect(Service.Roles.some((Role) => Role.Key === CreatedRole.Key)).toBeFalse();
@@ -186,11 +159,11 @@ describe('MockRbacService', () => {
   it('keeps all reports in management while excluding disabled reports from the normal report list', () => {
     expect(Service.Reports).toHaveSize(13);
     expect(Service.Reports.every((Report) => Report.ReportKey && Report.FileName && Report.CategoryId && Report.CategoryName && Report.Description)).toBeTrue();
-    expect(Service.GetAccessibleReports(['ADMIN']).some((Report) => Report.ReportKey === 'DocumentsV2WithSerialAndBatchDetails')).toBeFalse();
+    expect(Service.GetAccessibleReports(['PURCHASE']).some((Report) => Report.ReportKey === 'DocumentsV2WithSerialAndBatchDetails')).toBeFalse();
 
     Service.SetReportEnabled('DocumentsV2WithSerialAndBatchDetails', true);
 
-    expect(Service.GetAccessibleReports(['ADMIN']).some((Report) => Report.ReportKey === 'DocumentsV2WithSerialAndBatchDetails')).toBeTrue();
+    expect(Service.GetAccessibleReports(['PURCHASE']).some((Report) => Report.ReportKey === 'DocumentsV2WithSerialAndBatchDetails')).toBeTrue();
   });
 
   it('uses only CategoryIds that exist in the Category Master', () => {
@@ -212,10 +185,13 @@ describe('MockRbacService', () => {
   });
 
   it('uses Category Master entries for filter and report-editor options, including zero-report categories', () => {
-    expect(Service.GetReportFilterCategories(['ADMIN']).map(
+    const Entries = Service.GetCategoryPermissionEntries('FINANCE');
+    Entries.find((Entry) => Entry.CategoryId === 'MARKETING')!.Permission.CanExecute = true;
+    Service.SaveCategoryPermissions('FINANCE', Entries);
+    expect(Service.GetReportFilterCategories(['FINANCE']).map(
       (Category) => Category.CategoryId,
     )).toContain('MARKETING');
-    expect(Service.GetReportFilterCategories(['ADMIN']).map(
+    expect(Service.GetReportFilterCategories(['FINANCE']).map(
       (Category) => Category.CategoryId,
     )).not.toContain(SystemUncategorizedCategoryId);
     expect(Service.GetReportManagementCategories().map(
@@ -245,7 +221,7 @@ describe('MockRbacService', () => {
     );
     expect(Service.GetCategoryPermission('FINANCE', Result.Category.CategoryId)).toEqual({
       CanExecute: false,
-      CanExportPdf: false,
+      CanExport: false,
       CanPrint: false,
     });
   });
@@ -291,7 +267,7 @@ describe('MockRbacService', () => {
     const Entry = Entries.find(
       (Permission) => Permission.CategoryId === CreatedCategory.CategoryId,
     )!;
-    Entry.Permission = { CanExecute: true, CanExportPdf: true, CanPrint: true };
+    Entry.Permission = { CanExecute: true, CanExport: true, CanPrint: true };
     Service.SaveCategoryPermissions('FINANCE', Entries);
 
     const Result = Service.DeleteCategory(CreatedCategory.CategoryId);
@@ -359,7 +335,7 @@ describe('MockRbacService', () => {
     )).toBeFalse();
     expect(Service.GetCategoryPermission('FINANCE', SystemUncategorizedCategoryId)).toEqual({
       CanExecute: false,
-      CanExportPdf: false,
+      CanExport: false,
       CanPrint: false,
     });
     expect(Service.GetAccessibleReports(['FINANCE']).some(
@@ -367,7 +343,7 @@ describe('MockRbacService', () => {
     )).toBeFalse();
     expect(Service.GetAccessibleReports(['ADMIN']).some(
       (Entry) => Entry.ReportKey === Report!.ReportKey,
-    )).toBeTrue();
+    )).toBeFalse();
   });
 
   it('keeps passwords out of user read models and lets only the user change their own name and Mock password', () => {
@@ -401,45 +377,13 @@ describe('MockRbacService', () => {
     expect(Service.SaveUserEdit('warehouse@example.com', {
       Roles: ['PURCHASE', 'WAREHOUSE'],
       Enabled: false,
-    }, 'admin@example.com')).toBe('updated');
+    })).toBe('updated');
 
     const Updated = Service.GetUser('warehouse@example.com')!;
     expect(Updated.DisplayName).toBe(Before.DisplayName);
     expect(Updated.Roles).toEqual(['PURCHASE', 'WAREHOUSE']);
     expect(Updated.Enabled).toBeFalse();
     expect(Updated.UpdatedAt).not.toBe(Before.UpdatedAt);
-  });
-
-  it('keeps at least three SystemAdmins and requires the affected Admin to confirm a permitted demotion', () => {
-    const Demotion = { Roles: ['FINANCE'], Enabled: false };
-    const AdditionalAdmin: MockUserDraft = {
-      Account: 'admin4@example.com',
-      DisplayName: '系統管理員 D',
-      InitialPassword: 'admin456',
-      Roles: ['ADMIN'],
-      Enabled: true,
-    };
-
-    expect(Service.SaveUserEdit('admin2@example.com', Demotion, 'admin@example.com')).toBe('minimum-admins');
-    expect(Service.DeleteUser('admin3@example.com')).toBe('minimum-admins');
-    expect(Service.CreateUser(AdditionalAdmin)).toBeTrue();
-    expect(Service.AdminCount).toBe(4);
-    expect(Service.SaveUserEdit('admin2@example.com', Demotion, 'admin@example.com')).toBe('role-change-requested');
-    const Request = Service.RoleChangeRequests[0];
-    expect(Service.GetUser('admin2@example.com')?.Roles).toEqual(['ADMIN']);
-    expect(Service.GetUser('admin2@example.com')?.Enabled).toBeTrue();
-    expect(Service.RespondToRoleChangeRequest(Request.Id, 'admin@example.com', true)).toBe('not-target');
-    expect(Service.RespondToRoleChangeRequest(Request.Id, 'admin2@example.com', false)).toBe('rejected');
-    expect(Service.GetUser('admin2@example.com')?.Roles).toEqual(['ADMIN']);
-
-    expect(Service.SaveUserEdit('admin2@example.com', Demotion, 'admin@example.com')).toBe('role-change-requested');
-    expect(Service.RespondToRoleChangeRequest(Service.RoleChangeRequests[1].Id, 'admin2@example.com', true)).toBe('approved');
-    expect(Service.GetUser('admin2@example.com')?.Roles).toEqual(['FINANCE']);
-    expect(Service.GetUser('admin2@example.com')?.Enabled).toBeFalse();
-
-    expect(Service.AdminCount).toBe(3);
-    expect(Service.SaveUserEdit('admin@example.com', Demotion, 'admin2@example.com')).toBe('minimum-admins');
-    expect(Service.DeleteUser('admin@example.com')).toBe('minimum-admins');
   });
 
   it('deletes an ordinary user only after the UI confirmation delegates to the Mock service', () => {

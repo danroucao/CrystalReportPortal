@@ -12,7 +12,7 @@
 | Package Manager | npm（`package-lock.json` lockfile v3） |
 | Node.js | Angular Build 依賴要求 `^18.13.0` 或 `>=20.9.0`；本工作區驗證使用 `v20.19.3`。 |
 | npm | 本工作區驗證使用 `10.8.2`。 |
-| UI Library | 未使用 Angular Material 或其他第三方 UI Component Library；採 Angular standalone components 與 SCSS。 |
+| UI Library | Angular standalone components 與 SCSS；裝飾頭像採 `ngx-boring-avatars`。 |
 | 主要套件 | Angular Router、Reactive Forms、RxJS、Zone.js、Karma/Jasmine。 |
 
 ## 安裝與啟動
@@ -45,13 +45,14 @@ npm run build -- --configuration development
 - `ReportParameter`、`ReportPreview`：Mock 條件輸入與 PDF／列印操作入口。
 - `PdfExport`、`BrowserPrint`、`FixedPrinterPrint`：僅展示前端 Mock 操作入口；固定印表機細節仍為 TBD。
 - `AccountSettings`：登入者可在 Frontend Mock 中修改自己的名稱與新密碼；不包含角色、啟用狀態或帳號修改。
-- 管理 UI：`UserManagement`、`RoleManagement`、`ReportPermission`、`RptManagement`、`ReportParameterSetting`、`DatabaseConnection`、`OperationLog`。
-- Development Mock Role／Permission：MEMBER 可使用一般報表流程；ADMIN 額外可檢視管理導覽與管理頁面。
+- 後台「系統設定」：僅有使用者管理及操作紀錄查詢；角色與權限統一在使用者管理的角色卡片／Modal 編輯。
+- 前台：所有報表、收藏的報表、帳號設定；依 Role 的全域權限顯示報表管理及資料庫連線管理。
+- 五種權限採方案 B：全域「資料庫連線管理」`DatabaseConnection`、「報表管理」`RptManagement`，以及各分類的「預覽」`CanExecute`、「匯出」`CanExport`、「列印」`CanPrint`；多角色採 OR／Allow-Wins。管理權限不會額外授予報表預覽權限。「預覽」涵蓋選取、產生及預覽流程，內部判斷仍使用 `CanExecute`。
 
 ### 尚未串接的項目
 
 - 尚未串接 ASP.NET Core Login API、正式 Session、Token、Cookie、API Authorization 或正式 RBAC。
-- 尚未有 API Base URL；專案沒有 `src/environments/` 目錄或正式 API endpoint 設定。
+- `api.config.ts` 保留本機 API Base URL，舊 API Service 尚未接入目前 Mock 登入／權限流程；正式認證與授權契約仍需後端提供。
 - 報表資料、使用者、角色、權限與管理頁內容目前皆使用 `src/app/mock/` 的 Mock Data；公開的 User Read Model 不包含 Password。
 - PDF 產生、瀏覽器列印與固定印表機服務均未串接後端。
 
@@ -61,12 +62,18 @@ npm run build -- --configuration development
 
 僅供 Development／Local Demo 使用，禁止用於正式環境。
 
-| 帳號 | 角色 | 行為 |
+| 帳號 | 身分／角色 | 行為 |
 | --- | --- | --- |
 | `user@example.com` | `FINANCE` | 可檢視已授權的一般報表 UI；無管理導覽及管理路由權限。 |
-| `admin@example.com` | `ADMIN` | 可檢視一般報表 UI 與所有現有管理 UI。 |
+| `admin@example.com` | 獨立後台「系統設定」帳號 | 登入使用者管理；不屬於 User 或 Role，不參與收藏或前台報表操作。 |
 
-`CanExecute`、`CanExportPdf`、`CanPrint` 目前由 `src/app/mock/mock-permissions.ts` 模擬；只有啟用且具有 `CanExecute` 的報表會出現在「我的報表」。UserManagement 顯示 Account、UserName、Roles、IsEnabled、CreatedAt、UpdatedAt 與 Edit／Delete；管理員僅可在建立時設定初始名稱與密碼。production configuration 透過 `angular.json` 的 file replacement 改用 `mock-authentication.provider.production.ts`，不提供 Demo 帳號。
+沿用單一 `/login`。登入後依身分進入前台 `/reports/parameters` 或後台 `/admin/users`；目前 App 記憶體只保存一個身分，重新登入（含失敗）及登出會清除前一身分和選取的報表。重新整理會回到未登入及預設 Mock 資料；正式跨分頁／裝置 Session 失效由後端實作。
+
+一般角色的兩種全域管理權限預設皆未勾選。Demo 驗證方式：以後台帳號登入 → 編輯「財務人員」角色 → 勾選功能權限並儲存 → 登出 → 以 `user@example.com` 登入，即可看到對應管理入口。報表權限仍依分類設定；「匯出」統一控制既有 PDF、Excel、Word、CSV、RTF、文字檔的 Mock 入口。
+
+UserManagement 只包含前台使用者；建立時設定帳號、名稱、角色與啟用狀態，初始密碼由後端隨機產生並以一次性建立結果回傳。後續名稱／密碼由使用者在帳號設定自助修改。Development Mock 以瀏覽器安全亂數模擬此回傳，production configuration 透過 `angular.json` 的 file replacement 改用 `mock-authentication.provider.production.ts`，不提供任何 Demo 登入帳號。
+
+詳細路由、決策覆蓋與驗收紀錄見 [前後台分流實作紀錄](docs/ai-team/front-back-office-migration.md)。舊 `/admin/reports`、`/admin/database-connections` 轉址至受權限保護的前台管理頁；已移除的角色／權限／參數設定獨立頁不再提供入口。
 
 ## 前端目錄結構
 

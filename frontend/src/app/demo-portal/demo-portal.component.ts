@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
   Component,
+  DoCheck,
   ElementRef,
   HostListener,
   OnDestroy,
@@ -29,15 +30,16 @@ import {
   MockCategoryPermissionEntry,
   MockRole,
   MockRoleKey,
+  MockManagementPermission,
 } from '../mock/mock-permissions';
 import { MockReportCategory } from '../mock/mock-report-categories';
 import { MockReportKey, MockReportReadModel } from '../mock/mock-reports';
 import { AuthService } from '../services/auth.service';
 import {
   MockAccountSettingsDraft,
+  MockCreatedUserCredentials,
   MockFavoriteReport,
   MockRbacService,
-  MockRoleChangeRequestStatus,
   MockRoleDraft,
   MockUserDraft,
   MockUserEditDraft,
@@ -51,10 +53,15 @@ import {
 } from '../mock/mock-report-parameters';
 import { NotificationService } from '../services/notification.service';
 import {
+  MockNotificationCenterService,
+} from '../services/mock-notification-center.service';
+import {
   MockDatabaseConnectionDraft,
   MockDatabaseConnectionService,
 } from '../services/mock-database-connection.service';
 import { MockReportParameterService } from '../services/mock-report-parameter.service';
+import { MockAuditLogService } from '../services/mock-audit-log.service';
+import { BoringAvatarComponent } from '../shared/boring-avatar.component';
 
 type DemoPortalPage =
   | 'ReportList'
@@ -64,7 +71,8 @@ type DemoPortalPage =
   | 'UserManagement'
   | 'RptManagement'
   | 'DatabaseConnection'
-  | 'OperationLog';
+  | 'OperationLog'
+  | 'NotificationCenter';
 
 interface MockExportOption {
   readonly Label: string;
@@ -112,14 +120,9 @@ interface ReportEditorDraft {
   Enabled: boolean;
 }
 
-type CreateUserField = 'Account' | 'DisplayName' | 'InitialPassword' | 'Roles';
+type CreateUserField = 'Account' | 'DisplayName' | 'Roles';
 type CreateUserValidationErrors = Partial<Record<CreateUserField, string>>;
 type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
-
-interface CreatedUserCredentials {
-  readonly Account: string;
-  readonly InitialPassword: string;
-}
 
 @Component({
   selector: 'app-demo-portal',
@@ -130,11 +133,14 @@ interface CreatedUserCredentials {
     ReactiveFormsModule,
     RouterLink,
     RouterLinkActive,
+    BoringAvatarComponent,
   ],
   templateUrl: './demo-portal.component.html',
   styleUrl: './demo-portal.component.scss',
 })
-export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
+export class DemoPortalComponent
+  implements OnInit, AfterViewInit, OnDestroy, DoCheck
+{
   readonly PaginationPageSize = 10;
   readonly AllCategoryFilterValue = 'ALL';
   readonly Auth = inject(AuthService);
@@ -142,6 +148,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly ReportParameters = inject(MockReportParameterService);
   readonly DatabaseConnections = inject(MockDatabaseConnectionService);
   readonly Notifications = inject(NotificationService);
+  readonly NotificationCenter = inject(MockNotificationCenterService);
+  readonly AuditLog = inject(MockAuditLogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -169,6 +177,13 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   > | null = null;
   MockNotice = '';
   IsExportMenuOpen = false;
+  IsNotificationPanelOpen = false;
+  IsProfileMenuOpen = false;
+  BackOfficeBindingAccount = '';
+  BackOfficeBindingPassword = '';
+  BackOfficeBindingError = '';
+  NotificationCenterTab: 'All' | 'Unread' = 'All';
+  NotificationPopoverTab: 'All' | 'Unread' = 'All';
   ReportPreviewOrigin: ReportPreviewOrigin = 'all';
   private ReturnToParameterSearchState: ParameterReportSearchState | null =
     null;
@@ -217,12 +232,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     },
   ];
   ManagementNotice = '';
-  readonly AdminMinimumCountErrorMessage =
-    '系統管理員不得少於3位，請先新增/ 任命新的系統管理員後再試 !!';
   EditingAccount: string | null = null;
   UserDraft: MockUserDraft = this.CreateUserDraft();
   CreateUserValidationErrors: CreateUserValidationErrors = {};
-  CreatedUserCredentials: CreatedUserCredentials | null = null;
+  CreatedUserCredentials: MockCreatedUserCredentials | null = null;
   CreatedUserCopyNotice = '';
   EditingUser: MockUserEditDraft | null = null;
   EditUserValidationErrors: EditUserValidationErrors = {};
@@ -284,10 +297,21 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private roleCardViewport?: ElementRef<HTMLElement>;
   private roleCardResizeObserver?: ResizeObserver;
 
+  get AccessNotice(): string {
+    const State = this.route.snapshot.queryParamMap?.get('state');
+    return State === 'permission-denied'
+      ? '目前帳號沒有此功能的使用權限。'
+      : State === 'report-unavailable'
+        ? '請選擇目前有預覽權限的報表。'
+        : '';
+  }
+
   ngOnInit(): void {
     this.LoadAccountSettings();
     const NavigationState =
       this.router.getCurrentNavigation()?.extras.state ?? history.state;
+    if (NavigationState?.['NotificationCenterTab'] === 'Unread')
+      this.NotificationCenterTab = 'Unread';
     if (this.Page === 'ReportParameter') {
       this.RestoreParameterSearchState(
         NavigationState?.['ParameterSearchState'],
@@ -297,10 +321,6 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       ]
         ? '請先選擇報表。'
         : '';
-    }
-    if (this.Page === 'ReportList' && this.Auth.IsAdmin) {
-      void this.router.navigate(['/reports/parameters']);
-      return;
     }
     if (this.Page === 'ReportPreview' && !this.Auth.SelectedReport) {
       void this.router.navigate(['/reports/parameters'], {
@@ -352,21 +372,67 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       RptManagement: '報表管理',
       DatabaseConnection: 'MSSQL 資料庫連線管理',
       OperationLog: '操作紀錄查詢',
+      NotificationCenter: '通知中心',
     };
     return PageTitles[this.Page];
   }
 
+  get NotificationBadgeCount(): number {
+    return this.CurrentNotificationAccount
+      ? this.NotificationCenter.GetUnreadNotificationCount(
+          this.CurrentNotificationAccount,
+        )
+      : 0;
+  }
+
+  get ProfileAccount(): string {
+    return this.Auth.CurrentIdentity?.Account ?? '';
+  }
+  get RecentCenterItems(): readonly {
+    Title: string;
+    Summary: string;
+  }[] {
+    const Notifications = this.CurrentNotifications;
+    return (this.NotificationPopoverTab === 'Unread'
+      ? Notifications.filter((Item) => !Item.ReadAt)
+      : Notifications)
+      .slice(0, 4)
+      .map((Item) => ({
+        Title: Item.Title,
+        Summary: Item.Summary,
+      }));
+  }
+
+  get CurrentNotificationAccount(): string {
+    return this.Auth.CurrentIdentity?.Account ?? '';
+  }
+
+  get CurrentNotifications() {
+    return this.CurrentNotificationAccount
+      ? this.NotificationCenter.GetNotifications(this.CurrentNotificationAccount)
+      : [];
+  }
+
+  get DisplayedNotifications() {
+    return this.NotificationCenterTab === 'Unread'
+      ? this.CurrentNotifications.filter((Item) => !Item.ReadAt)
+      : this.CurrentNotifications;
+  }
+
   get FavoriteReports(): readonly MockFavoriteReport[] {
     const Account = this.Auth.CurrentUser?.Account;
-    return Account && !this.Auth.IsAdmin
+    return Account && this.Auth.IsFrontOffice
       ? this.MockRbac.GetFavoriteReports(Account)
       : [];
   }
 
   get FavoriteReportCategories() {
-    return this.Auth.IsAdmin
-      ? []
-      : this.MockRbac.GetAllEnabledReportCategories();
+    const CategoryIds = new Set(
+      this.FavoriteReports.map(({ Report }) => Report.CategoryId),
+    );
+    return this.MockRbac.GetCategories().filter((Category) =>
+      CategoryIds.has(Category.CategoryId),
+    );
   }
 
   get DisplayedFavoriteReports(): readonly MockFavoriteReport[] {
@@ -483,7 +549,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   RemoveFavoriteReport(Favorite: MockFavoriteReport): void {
     const Account = this.Auth.CurrentUser?.Account;
-    if (!Account || this.Auth.IsAdmin) return;
+    if (!Account || !this.Auth.IsFrontOffice) return;
     if (
       !this.MockRbac.RemoveFavoriteReport(Account, Favorite.Report.ReportKey)
     ) {
@@ -502,16 +568,16 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   IsFavoriteReport(ReportKey: MockReportKey): boolean {
     const Account = this.Auth.CurrentUser?.Account;
-    return Account && !this.Auth.IsAdmin
+    return Account && this.Auth.IsFrontOffice
       ? this.MockRbac.IsFavoriteReport(Account, ReportKey)
       : false;
   }
 
   ToggleFavoriteReport(ReportKey: MockReportKey): void {
     const Account = this.Auth.CurrentUser?.Account;
-    if (!Account || this.Auth.IsAdmin) return;
+    if (!Account || !this.Auth.IsFrontOffice) return;
     const IsFavorite = this.MockRbac.ToggleFavoriteReport(Account, ReportKey);
-    const Report = this.Auth.AllEnabledReports.find(
+    const Report = this.Auth.AccessibleReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
     if (!Report) return;
@@ -523,7 +589,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get ParameterReports() {
-    return this.Auth.AllEnabledReports;
+    return this.Auth.AccessibleReports;
   }
 
   get ParameterReportCategoryTabs(): readonly ParameterReportCategoryTab[] {
@@ -534,7 +600,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
         CategoryName: '全部',
         Count: Reports.length,
       },
-      ...this.MockRbac.GetAllEnabledReportCategories().map(
+      ...this.MockRbac.GetReportFilterCategories(this.Auth.ActiveRoles).map(
         (Category) => ({
           CategoryId: Category.CategoryId,
           CategoryName: Category.CategoryName,
@@ -693,6 +759,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
             .toLowerCase()
             .includes(NormalizedSearchText)),
     );
+  }
+
+  GetRoleAvatarUsers(RoleKey: MockRoleKey): readonly MockUser[] {
+    return this.MockRbac.Users.filter((User) =>
+      User.Roles.includes(RoleKey),
+    ).slice(0, 4);
   }
 
   get UserTotalPages(): number {
@@ -864,7 +936,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SelectReportByKey(ReportKey: MockReportKey): void {
-    const Report = this.Auth.AllEnabledReports.find(
+    const Report = this.Auth.AccessibleReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
     if (!Report?.Enabled) return;
@@ -940,16 +1012,23 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ToggleExportMenu(): void {
+    if (!this.Auth.SelectedReportCategoryPermission.CanExport) return;
     this.IsExportMenuOpen = !this.IsExportMenuOpen;
   }
 
   SelectExportOption(Option: MockExportOption): void {
-    if (!Option.Enabled) return;
+    if (
+      !this.Auth.SelectedReportCategoryPermission.CanExport ||
+      !Option.Enabled ||
+      !this.ExportOptions.includes(Option)
+    )
+      return;
     this.IsExportMenuOpen = false;
     this.MockNotice = `${Option.Label} 匯出目前為前端 Mock 操作，尚未串接正式報表匯出服務。`;
   }
 
   SelectOutputAction(ActionName: 'BrowserPrint' | 'FixedPrinterPrint'): void {
+    if (!this.Auth.SelectedReportCategoryPermission.CanPrint) return;
     const ActionLabel =
       ActionName === 'BrowserPrint' ? '瀏覽器列印' : '固定印表機列印';
     this.MockNotice = `${ActionLabel}目前為前端 Mock 操作，尚未串接正式列印服務。`;
@@ -961,13 +1040,76 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.router.navigate(['/login']);
   }
 
-  SwitchDemoRole(Role: MockRoleKey): void {
-    this.Auth.SwitchDemoRole(Role);
-    if (!this.Auth.IsAdmin && this.IsAdministrationPage)
-      void this.router.navigate(['/reports']);
+  ToggleNotificationPanel(): void {
+    this.IsProfileMenuOpen = false;
+    this.IsNotificationPanelOpen = !this.IsNotificationPanelOpen;
+    if (this.IsNotificationPanelOpen) {
+      this.NotificationPopoverTab = 'All';
+    }
+  }
+
+  ToggleProfileMenu(): void {
+    this.IsNotificationPanelOpen = false;
+    this.IsProfileMenuOpen = !this.IsProfileMenuOpen;
+  }
+
+  SetNotificationPopoverTab(
+    Tab: 'All' | 'Unread',
+  ): void {
+    this.NotificationPopoverTab = Tab;
+  }
+
+  OpenNotificationCenter(
+    Tab: 'All' | 'Unread' = 'All',
+  ): void {
+    if (this.Auth.RequiresBackOfficeIdentityBinding) return;
+    this.IsNotificationPanelOpen = false;
+    void this.router.navigate(
+      [
+        this.Auth.IsBackOffice
+          ? '/admin/notification-center'
+          : '/notification-center',
+      ],
+      { state: { NotificationCenterTab: Tab } },
+    );
+  }
+
+  MarkCenterNotificationRead(Id: string): void {
+    if (this.Auth.RequiresBackOfficeIdentityBinding) return;
+    const Account = this.CurrentNotificationAccount;
+    if (Account) this.NotificationCenter.MarkNotificationRead(Id, Account);
+  }
+
+  SubmitBackOfficeIdentityBinding(): void {
+    this.BackOfficeBindingError = '';
+    if (!this.BackOfficeBindingAccount || !this.BackOfficeBindingPassword) {
+      this.BackOfficeBindingError = '請輸入前台帳號與密碼。';
+      return;
+    }
+    if (!this.Auth.BindBackOfficeIdentity(
+      this.BackOfficeBindingAccount,
+      this.BackOfficeBindingPassword,
+    )) {
+      this.BackOfficeBindingError =
+        this.Auth.LastBackOfficeIdentityBindingFailure === 'disabled'
+          ? '此帳號已停用。'
+          : '帳號或密碼不正確，請重新輸入。';
+      return;
+    }
+    this.AuditLog.RecordBackOfficeAction('後台身分綁定', '完成後台操作 session 的前台身分驗證。');
+    this.Notifications.ShowSuccess('身分驗證成功，已進入後台。');
+    this.BackOfficeBindingAccount = '';
+    this.BackOfficeBindingPassword = '';
+  }
+
+  ReturnToLoginFromBackOfficeBinding(): void {
+    if (!this.Auth.RequiresBackOfficeIdentityBinding) return;
+    this.Auth.Logout();
+    void this.router.navigate(['/login']);
   }
 
   EditUser(Account: string): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     const User = this.MockRbac.Users.find(
       (MockUser) => MockUser.Account === Account,
     );
@@ -981,30 +1123,27 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SaveUser(): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     this.CreateUserValidationErrors = this.GetCreateUserValidationErrors();
     if (Object.keys(this.CreateUserValidationErrors).length) return;
 
-    const CreatedUserCredentials: CreatedUserCredentials = {
-      Account: this.UserDraft.Account.trim(),
-      InitialPassword: this.UserDraft.InitialPassword,
-    };
-    const IsSaved = this.MockRbac.CreateUser(this.UserDraft);
+    const CreatedUserCredentials = this.MockRbac.CreateUser(this.UserDraft);
     this.ManagementNotice = '';
-    if (!IsSaved) {
+    if (!CreatedUserCredentials) {
       this.CreateUserValidationErrors = {
         Account: '此使用者帳號已存在。',
       };
       return;
     }
-    if (IsSaved) {
-      this.EnsureUserPagination();
-      this.CloseCreateUserDialog();
-      this.CreatedUserCredentials = CreatedUserCredentials;
-      this.CreatedUserCopyNotice = '';
-    }
+    this.EnsureUserPagination();
+    this.CloseCreateUserDialog();
+    this.CreatedUserCredentials = CreatedUserCredentials;
+    this.CreatedUserCopyNotice = '';
+    this.AuditLog.RecordBackOfficeAction('新增使用者', `建立前台使用者 ${CreatedUserCredentials.Account}。`);
   }
 
   OpenCreateUserDialog(): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     this.UserDraft = this.CreateUserDraft();
     this.CreateUserValidationErrors = {};
     this.IsCreateUserDialogOpen = true;
@@ -1052,26 +1191,15 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return Roles.includes(RoleKey);
   }
 
-  IsRoleOptionDisabled(
-    Roles: readonly MockRoleKey[],
-    RoleKey: MockRoleKey,
-  ): boolean {
-    return RoleKey !== 'ADMIN' && Roles.includes('ADMIN');
-  }
-
   ToggleUserRole(
     Draft: MockUserDraft | MockUserEditDraft,
     RoleKey: MockRoleKey,
     IsSelected: boolean,
   ): void {
-    if (RoleKey === 'ADMIN') {
-      Draft.Roles = IsSelected ? ['ADMIN'] : [];
-      return;
-    }
-    if (Draft.Roles.includes('ADMIN')) return;
+    if (!this.Auth.CanOperateBackOffice) return;
     Draft.Roles = IsSelected
       ? this.MockRbac.NormalizeRoles([...Draft.Roles, RoleKey])
-      : Draft.Roles.filter((SelectedRole) => SelectedRole !== RoleKey);
+      : Draft.Roles.filter((Key) => Key !== RoleKey);
   }
 
   ToggleCreateUserRole(RoleKey: MockRoleKey, IsSelected: boolean): void {
@@ -1084,7 +1212,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   CanEditEditingUserRoles(): boolean {
-    return this.Auth.IsAdmin && !this.IsEditingSelf();
+    return this.Auth.CanOperateBackOffice;
   }
 
   ToggleEditingUserRole(RoleKey: MockRoleKey, IsSelected: boolean): void {
@@ -1093,14 +1221,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     delete this.EditUserValidationErrors.Roles;
   }
 
-  IsAdminUser(Account: string | null): boolean {
-    return (
-      Account !== null &&
-      this.MockRbac.GetUser(Account)?.Roles.includes('ADMIN') === true
-    );
-  }
-
   OpenDeleteUserDialog(Account: string): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     this.DeletingUser = this.MockRbac.GetUser(Account);
     this.DeleteUserError = '';
   }
@@ -1111,32 +1233,15 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ConfirmDeleteUser(): void {
-    if (!this.DeletingUser) return;
-    const Account = this.DeletingUser.Account;
-    if (
-      this.DeletingUser.Roles.includes('ADMIN') &&
-      this.MockRbac.AdminCount <= 3
-    ) {
-      this.DeleteUserError = this.AdminMinimumCountErrorMessage;
-      return;
-    }
-    const Result = this.MockRbac.DeleteUser(Account);
-    const Messages: Record<string, string> = {
-      deleted: 'Mock 使用者已刪除。',
-      'minimum-admins': this.AdminMinimumCountErrorMessage,
-      'not-found': '找不到要刪除的使用者。',
-    };
-    if (Result !== 'deleted') {
-      this.DeleteUserError = Messages[Result];
+    if (!this.Auth.CanOperateBackOffice || !this.DeletingUser) return;
+    if (this.MockRbac.DeleteUser(this.DeletingUser.Account) !== 'deleted') {
+      this.DeleteUserError = '找不到要刪除的使用者。';
       return;
     }
     this.EnsureUserPagination();
+    this.AuditLog.RecordBackOfficeAction('刪除使用者', `刪除前台使用者 ${this.DeletingUser.Account}。`);
     this.CloseDeleteUserDialog();
-    this.ShowSuccessToast(Messages['deleted']);
-    if (Account === this.Auth.CurrentUser?.Account) {
-      this.Auth.Logout();
-      void this.router.navigate(['/login']);
-    }
+    this.ShowSuccessToast('使用者已刪除。');
   }
 
   ScrollRoleCards(Direction: -1 | 1): void {
@@ -1188,56 +1293,30 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SaveEditedUser(): void {
-    if (!this.EditingAccount || !this.EditingUser || !this.Auth.CurrentUser)
+    if (!this.Auth.CanOperateBackOffice || !this.EditingAccount || !this.EditingUser)
       return;
-    const OriginalAccount = this.EditingAccount;
-    const OriginalUser = this.MockRbac.GetUser(OriginalAccount);
     this.EditUserValidationErrors = {};
-    if (!this.EditingUser.Roles.length) {
+    const Before = this.NotificationCenter.CaptureAccess(this.EditingAccount);
+    const Result = this.MockRbac.SaveUserEdit(
+      this.EditingAccount,
+      this.EditingUser,
+    );
+    if (Result === 'invalid') {
       this.EditUserValidationErrors = { Roles: '請至少選擇一個角色。' };
       return;
     }
-    if (
-      OriginalUser?.Roles.includes('ADMIN') &&
-      !this.EditingUser.Roles.includes('ADMIN') &&
-      this.MockRbac.AdminCount <= 3
-    ) {
-      this.EditUserValidationErrors = {
-        Roles: this.AdminMinimumCountErrorMessage,
-      };
+    if (Result === 'not-found') {
+      this.EditUserValidationErrors = { Form: '找不到要編輯的使用者。' };
       return;
     }
-    const Result = this.MockRbac.SaveUserEdit(
-      OriginalAccount,
-      this.EditingUser,
-      this.Auth.CurrentUser.Account,
+    this.EnsureUserPagination();
+    this.NotificationCenter.NotifyRoleAssignmentChange(
+      this.EditingAccount,
+      Before,
     );
-    const Messages: Record<string, string> = {
-      updated: 'Mock 使用者資料已更新。',
-      'role-change-requested':
-        '系統管理員角色變更申請已建立，等待異動對象同意或拒絕。',
-      'self-role-change-not-allowed': '系統管理員不可修改自己的角色。',
-      'minimum-admins': this.AdminMinimumCountErrorMessage,
-      'pending-request-exists': '此使用者已有待處理的角色變更申請。',
-      'duplicate-account': '帳號已存在，請使用其他帳號。',
-      'self-disable-not-allowed': '目前登入的使用者不可將自己停用。',
-      invalid: '請至少選擇一個角色。',
-      'not-found': '找不到要編輯的使用者。',
-    };
-    if (Result === 'invalid' || Result === 'minimum-admins') {
-      this.EditUserValidationErrors = { Roles: Messages[Result] };
-      return;
-    }
-    if (Result !== 'updated' && Result !== 'role-change-requested') {
-      this.EditUserValidationErrors = { Form: Messages[Result] };
-      return;
-    }
-    if (Result === 'updated') this.EnsureUserPagination();
-    this.ShowSuccessToast(
-      Result === 'updated' ? '使用者資料已更新。' : Messages[Result],
-    );
-    this.Auth.RefreshCurrentUser(OriginalAccount, OriginalAccount);
+    this.AuditLog.RecordBackOfficeAction('更新使用者權限', `更新前台使用者 ${this.EditingAccount} 的角色或啟用狀態。`);
     this.CancelEditUser();
+    this.ShowSuccessToast('使用者資料已更新。');
   }
 
   CancelEditUser(): void {
@@ -1249,6 +1328,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('document:keydown.escape')
   CloseEditUserOnEscape(): void {
     if (this.IsExportMenuOpen) this.IsExportMenuOpen = false;
+    else if (this.IsNotificationPanelOpen) this.IsNotificationPanelOpen = false;
+    else if (this.IsProfileMenuOpen) this.IsProfileMenuOpen = false;
     else if (this.DeletingCategory) this.CloseDeleteCategoryDialog();
     else if (this.IsCategoryManagementDialogOpen)
       this.CloseCategoryManagementDialog();
@@ -1266,21 +1347,22 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @HostListener('document:click', ['$event'])
   CloseExportMenuOnOutsideClick(Event: MouseEvent): void {
-    if (!this.IsExportMenuOpen) return;
     const Target = Event.target;
-    if (Target instanceof Element && Target.closest('.export-dropdown')) return;
-    this.IsExportMenuOpen = false;
+    if (!(Target instanceof Element)) return;
+    if (this.IsExportMenuOpen && !Target.closest('.export-dropdown'))
+      this.IsExportMenuOpen = false;
+    if (this.IsNotificationPanelOpen && !Target.closest('.notification-menu'))
+      this.IsNotificationPanelOpen = false;
+    if (this.IsProfileMenuOpen && !Target.closest('.profile-menu'))
+      this.IsProfileMenuOpen = false;
   }
 
   SetUserEnabled(Account: string, Enabled: boolean): void {
-    if (!Enabled && Account === this.Auth.CurrentUser?.Account) {
-      this.ManagementNotice = '目前登入的使用者不可將自己停用。';
-      return;
-    }
-    this.MockRbac.SetUserEnabled(Account, Enabled);
+    if (this.Auth.CanOperateBackOffice) this.MockRbac.SetUserEnabled(Account, Enabled);
   }
 
   SetReportEnabled(ReportKey: MockReportKey, Enabled: boolean): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     this.MockRbac.SetReportEnabled(ReportKey, Enabled);
     this.ShowSuccessToast(
       Enabled ? '報表已在 Mock 資料中啟用。' : '報表已在 Mock 資料中停用。',
@@ -1372,6 +1454,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ToggleReportManagementPin(ReportKey: MockReportKey): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     if (this.PinnedReportManagementKeys.has(ReportKey)) {
       this.PinnedReportManagementKeys.delete(ReportKey);
     } else {
@@ -1449,7 +1532,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenCategoryManagementDialog(): void {
-    if (!this.Auth.IsAdmin) return;
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     this.NewCategoryName = '';
     this.CategoryCreateError = '';
     this.CancelCategoryEdit();
@@ -1466,7 +1549,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   CreateManagedCategory(): void {
-    if (!this.Auth.IsAdmin) return;
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     const Result = this.MockRbac.CreateCategory(this.NewCategoryName);
     const Messages: Record<Exclude<typeof Result.Status, 'created'>, string> = {
       'invalid-name': '請輸入分類名稱。',
@@ -1479,13 +1562,21 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.NewCategoryName = '';
     this.CategoryCreateError = '';
+    this.NotificationCenter.CreateCategoryReview(
+      Result.Category,
+      this.Auth.CurrentUser?.Account ?? '前台使用者',
+    );
     this.ShowSuccessToast(
       `新增報表分類「${Result.Category.CategoryName}」成功！`,
     );
   }
 
   StartCategoryEdit(Category: MockReportCategory): void {
-    if (!this.Auth.IsAdmin || Category.IsSystemReserved) return;
+    if (
+      !this.Auth.HasManagementPermission('RptManagement') ||
+      Category.IsSystemReserved
+    )
+      return;
     this.EditingCategoryId = Category.CategoryId;
     this.EditingCategoryName = Category.CategoryName;
     this.CategoryEditError = '';
@@ -1498,7 +1589,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SaveCategoryEdit(): void {
-    if (!this.Auth.IsAdmin || !this.EditingCategoryId) return;
+    if (
+      !this.Auth.HasManagementPermission('RptManagement') ||
+      !this.EditingCategoryId
+    )
+      return;
     const Result = this.MockRbac.RenameCategory(
       this.EditingCategoryId,
       this.EditingCategoryName,
@@ -1520,7 +1615,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenDeleteCategoryDialog(CategoryId: string): void {
-    if (!this.Auth.IsAdmin) return;
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     const Category = this.MockRbac.GetCategories().find(
       (Entry) => Entry.CategoryId === CategoryId,
     );
@@ -1535,7 +1630,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ConfirmDeleteCategory(): void {
-    if (!this.Auth.IsAdmin || !this.DeletingCategory) return;
+    if (
+      !this.Auth.HasManagementPermission('RptManagement') ||
+      !this.DeletingCategory
+    )
+      return;
     const CategoryId = this.DeletingCategory.CategoryId;
     const Result = this.MockRbac.DeleteCategory(CategoryId);
     const Messages: Record<Exclude<typeof Result.Status, 'deleted'>, string> = {
@@ -1571,6 +1670,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenUploadReportDialog(): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     this.EditingReportKey = null;
     this.ReportEditorDraft = this.CreateReportEditorDraft();
     this.SelectedReportFileName = '';
@@ -1581,6 +1681,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenEditReportDialog(ReportKey: MockReportKey): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     const Report = this.MockRbac.GetReport(ReportKey);
     if (!Report) return;
     this.EditingReportKey = Report.ReportKey;
@@ -1608,7 +1709,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenReportCategoryQuickAdd(): void {
-    if (!this.Auth.IsAdmin || !this.IsUploadReportDialogOpen) return;
+    if (
+      !this.Auth.HasManagementPermission('RptManagement') ||
+      !this.IsUploadReportDialogOpen
+    )
+      return;
     this.QuickAddCategoryName = '';
     this.QuickAddCategoryError = '';
     this.IsReportCategoryQuickAddOpen = true;
@@ -1621,7 +1726,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   CreateReportCategoryQuickAdd(): void {
-    if (!this.Auth.IsAdmin || !this.IsReportCategoryQuickAddOpen) return;
+    if (
+      !this.Auth.HasManagementPermission('RptManagement') ||
+      !this.IsReportCategoryQuickAddOpen
+    )
+      return;
     const Result = this.MockRbac.CreateCategory(this.QuickAddCategoryName);
     const Messages: Record<Exclude<typeof Result.Status, 'created'>, string> = {
       'invalid-name': '請輸入報表分類名稱。',
@@ -1633,6 +1742,10 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     this.ReportEditorDraft.CategoryId = Result.Category.CategoryId;
+    this.NotificationCenter.CreateCategoryReview(
+      Result.Category,
+      this.Auth.CurrentUser?.Account ?? '前台使用者',
+    );
     this.CloseReportCategoryQuickAdd();
     this.ShowSuccessToast(
       `新增報表分類「${Result.Category.CategoryName}」成功！`,
@@ -1640,6 +1753,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OnReportFileSelected(Event: Event): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     const Input = Event.target as HTMLInputElement;
     const File = Input.files?.item(0);
     if (!File) return;
@@ -1656,6 +1770,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SaveReport(): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     const Error = this.GetReportEditorValidationError();
     if (Error) {
       this.ReportEditorError = Error;
@@ -1691,6 +1806,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenDeleteReportDialog(ReportKey: MockReportKey): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     this.DeletingReport = this.MockRbac.GetReport(ReportKey);
   }
 
@@ -1699,6 +1815,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ConfirmDeleteReport(): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
     if (!this.DeletingReport) return;
     const ReportName = this.DeletingReport.ReportName;
     if (this.MockRbac.DeleteReport(this.DeletingReport.ReportKey)) {
@@ -1710,6 +1827,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenCreateDatabaseConnection(): void {
+    if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
     this.EditingDatabaseConnectionKey = null;
     this.DatabaseConnectionDraft = this.CreateDatabaseConnectionDraft();
     this.DatabaseConnectionFormError = '';
@@ -1717,6 +1835,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenEditDatabaseConnection(Key: string): void {
+    if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
     const Connection = this.DatabaseConnections.GetConnection(Key);
     if (!Connection) return;
     this.EditingDatabaseConnectionKey = Key;
@@ -1742,6 +1861,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SaveDatabaseConnection(): void {
+    if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
     this.DatabaseConnectionFormError = '';
     const IsEditing = this.EditingDatabaseConnectionKey !== null;
     const IsSaved = IsEditing
@@ -1768,33 +1888,8 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return User.Account;
   }
 
-  RespondToRoleChangeRequest(RequestId: number, Approve: boolean): void {
-    const CurrentAccount = this.Auth.CurrentUser?.Account;
-    if (!CurrentAccount) return;
-    const Result = this.MockRbac.RespondToRoleChangeRequest(
-      RequestId,
-      CurrentAccount,
-      Approve,
-    );
-    const Messages: Record<string, string> = {
-      approved:
-        '角色變更申請已在 Mock 資料中核准。正式環境仍須由後端再次驗證。',
-      rejected: '角色變更申請已拒絕，原角色維持不變。',
-      'not-target': '只有角色異動對象可以回應此申請。',
-      'minimum-admins': this.AdminMinimumCountErrorMessage,
-      'not-pending': '此申請已處理。',
-      'not-found': '找不到此角色變更申請。',
-    };
-    this.ManagementNotice = Messages[Result];
-    if (Result === 'approved') {
-      this.Auth.RefreshCurrentUser(CurrentAccount, CurrentAccount);
-      if (!this.Auth.IsAdmin && this.IsAdministrationPage) {
-        void this.router.navigate(['/reports']);
-      }
-    }
-  }
-
   OpenCreateRoleDialog(): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     this.RoleDraft = this.CreateRoleDraft();
     this.RoleDraftError = '';
     this.IsCreateRoleDialogOpen = true;
@@ -1807,10 +1902,12 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   OpenEditRoleDialog(RoleKey: MockRoleKey): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     const Role = this.MockRbac.GetRole(RoleKey);
     this.EditingRoleKey = Role.Key;
     this.RoleDraft = {
       DisplayName: Role.DisplayName,
+      ManagementPermissions: [...Role.ManagementPermissions],
       Permissions: this.MockRbac.GetCategoryPermissionEntries(Role.Key),
     };
     this.RoleDraftError = '';
@@ -1825,12 +1922,9 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.RoleDraftError = '';
   }
 
-  IsBuiltInRole(RoleKey: MockRoleKey | null): boolean {
-    return RoleKey === 'ADMIN';
-  }
-
   OpenDeleteRoleDialog(): void {
-    if (!this.EditingRoleKey || this.IsBuiltInRole(this.EditingRoleKey)) return;
+    if (!this.Auth.CanOperateBackOffice) return;
+    if (!this.EditingRoleKey) return;
     const Role = this.MockRbac.GetRole(this.EditingRoleKey);
     if (this.MockRbac.GetRoleUserCount(Role.Key) > 0) {
       this.RoleDraftError =
@@ -1845,11 +1939,11 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ConfirmDeleteRole(): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     const Role = this.DeletingRole;
     if (!Role) return;
     const Result = this.MockRbac.DeleteRole(Role.Key);
     const Messages: Record<Exclude<typeof Result, 'deleted'>, string> = {
-      'built-in-role': '系統內建角色不可刪除。',
       'role-in-use': '此角色仍有使用者使用，請先移除使用者的角色後再刪除。',
       'not-found': '找不到要刪除的角色。',
     };
@@ -1859,6 +1953,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     if (this.UserRoleFilter === Role.Key) this.UserRoleFilter = null;
+    this.AuditLog.RecordBackOfficeAction('刪除角色', `刪除角色 ${Role.DisplayName}。`);
     this.CloseDeleteRoleDialog();
     this.CloseEditRoleDialog();
     this.ScheduleRoleCardNavigationUpdate();
@@ -1870,18 +1965,24 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   SaveRole(): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     const Role = this.MockRbac.CreateRole(this.RoleDraft);
     if (!Role) {
       this.RoleDraftError = '角色名稱已存在，請輸入未重複的角色名稱。';
       return;
     }
     this.CloseCreateRoleDialog();
+    this.AuditLog.RecordBackOfficeAction('新增角色', `建立角色 ${Role.DisplayName}。`);
     this.ScheduleRoleCardNavigationUpdate();
     this.ShowSuccessToast(`新增角色「${Role.DisplayName}」，成功！`);
   }
 
   SaveEditedRole(): void {
+    if (!this.Auth.CanOperateBackOffice) return;
     if (!this.EditingRoleKey) return;
+    const BeforeByAccount = this.NotificationCenter.CaptureRoleUsers(
+      this.EditingRoleKey,
+    );
     const Result = this.MockRbac.UpdateRole(
       this.EditingRoleKey,
       this.RoleDraft,
@@ -1896,30 +1997,23 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const DisplayName = this.MockRbac.GetRole(this.EditingRoleKey).DisplayName;
+    this.NotificationCenter.NotifyRoleDefinitionChange(
+      this.EditingRoleKey,
+      BeforeByAccount,
+    );
+    this.AuditLog.RecordBackOfficeAction('更新角色權限', `更新角色 ${DisplayName} 的功能或報表分類權限。`);
     this.CloseEditRoleDialog();
     this.ShowSuccessToast(`角色「${DisplayName}」已更新。`);
-  }
-
-  IsEditingSelf(): boolean {
-    return this.EditingAccount === this.Auth.CurrentUser?.Account;
-  }
-  CanRespondToRoleChangeRequest(
-    TargetAccount: string,
-    Status: MockRoleChangeRequestStatus,
-  ): boolean {
-    return (
-      Status === 'Pending' && TargetAccount === this.Auth.CurrentUser?.Account
-    );
   }
 
   SetPermissionCanExecute(
     Entry: MockCategoryPermissionEntry,
     CanExecute: boolean,
   ): void {
-    if (this.IsBuiltInRole(this.EditingRoleKey)) return;
+    if (!this.Auth.CanOperateBackOffice) return;
     Entry.Permission.CanExecute = CanExecute;
     if (!CanExecute) {
-      Entry.Permission.CanExportPdf = false;
+      Entry.Permission.CanExport = false;
       Entry.Permission.CanPrint = false;
     }
   }
@@ -1956,7 +2050,6 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       'not-found': '找不到目前登入的使用者。',
     };
     if (Result === 'updated' || Result === 'password-updated') {
-      this.Auth.RefreshCurrentUser(CurrentUser.Account, CurrentUser.Account);
       this.AccountSettingsDraft = this.CreateAccountSettingsDraft();
       this.LoadAccountSettings();
       this.AccountSettingsNotice =
@@ -1973,13 +2066,55 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     this.Logout();
   }
 
-  get IsAdministrationPage(): boolean {
-    return (
-      this.Page !== 'ReportList' &&
-      this.Page !== 'ReportParameter' &&
-      this.Page !== 'ReportPreview' &&
-      this.Page !== 'AccountSettings'
-    );
+  get IsManagementPage(): boolean {
+    return [
+      'UserManagement',
+      'OperationLog',
+      'RptManagement',
+      'DatabaseConnection',
+    ].includes(this.Page);
+  }
+
+  get CanAccessPage(): boolean {
+    if (this.Page === 'NotificationCenter') return this.Auth.IsAuthenticated;
+    if (this.Page === 'UserManagement') return this.Auth.IsBackOffice;
+    if (this.Page === 'RptManagement')
+      return this.Auth.HasManagementPermission('RptManagement');
+    if (this.Page === 'DatabaseConnection')
+      return this.Auth.HasManagementPermission('DatabaseConnection');
+    if (this.Page === 'OperationLog')
+      return this.Auth.HasManagementPermission('OperationLog');
+    return this.Auth.IsFrontOffice;
+  }
+
+  private IsAccessRedirectPending = false;
+
+  ngDoCheck(): void {
+    if (this.IsAccessRedirectPending) return;
+    if (
+      !this.CanAccessPage ||
+      (this.Page === 'ReportPreview' && !this.Auth.SelectedReport)
+    ) {
+      this.IsAccessRedirectPending = true;
+      void this.router.navigate(
+        [this.Auth.IsAuthenticated ? this.Auth.HomeRoute : '/login'],
+        {
+          queryParams: { state: 'permission-denied' },
+        },
+      );
+    }
+  }
+
+  ToggleManagementPermission(
+    Permission: MockManagementPermission,
+    Enabled: boolean,
+  ): void {
+    if (!this.Auth.CanOperateBackOffice) return;
+    this.RoleDraft.ManagementPermissions = Enabled
+      ? [...new Set([...this.RoleDraft.ManagementPermissions, Permission])]
+      : this.RoleDraft.ManagementPermissions.filter(
+          (Value) => Value !== Permission,
+        );
   }
 
   private LoadReportParameterForm(): void {
@@ -2280,7 +2415,6 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
     return {
       Account: '',
       DisplayName: '',
-      InitialPassword: '',
       Roles: [],
       Enabled: false,
     };
@@ -2294,8 +2428,6 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
       Errors.Account = '此使用者帳號已存在。';
     if (!this.UserDraft.DisplayName.trim())
       Errors.DisplayName = '請輸入使用者名稱。';
-    if (!this.UserDraft.InitialPassword)
-      Errors.InitialPassword = '請設定初始密碼。';
     if (!this.UserDraft.Roles.length) Errors.Roles = '請至少選擇一個角色。';
     return Errors;
   }
@@ -2317,6 +2449,7 @@ export class DemoPortalComponent implements OnInit, AfterViewInit, OnDestroy {
   private CreateRoleDraft(): MockRoleDraft {
     return {
       DisplayName: '',
+      ManagementPermissions: [],
       Permissions: this.MockRbac.GetEmptyCategoryPermissionEntries(),
     };
   }

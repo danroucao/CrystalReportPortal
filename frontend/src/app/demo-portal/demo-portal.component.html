@@ -1,72 +1,219 @@
 <div class="portal-shell">
-  <header class="portal-header">
-    <a routerLink="/reports" class="portal-brand"
+  <header
+    class="portal-header"
+    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding ? '' : null"
+    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding ? 'true' : null"
+  >
+    <a [routerLink]="Auth.HomeRoute" class="portal-brand"
       >Crystal Reports 外部報表系統</a
     >
     <div class="account-summary">
-      <span
-        >{{ Auth.CurrentUser?.DisplayName }}（{{ Auth.ActiveRoleNames }}）</span
-      >
-      <button type="button" (click)="Logout()">登出</button>
+      <div class="notification-menu">
+        <button
+          type="button"
+          class="notification-bell"
+          [attr.aria-expanded]="IsNotificationPanelOpen"
+          aria-label="開啟通知中心"
+          (click)="ToggleNotificationPanel()"
+        >
+          <span aria-hidden="true">🔔</span
+          ><span *ngIf="NotificationBadgeCount" class="notification-badge">{{
+            NotificationBadgeCount
+          }}</span>
+        </button>
+        <section
+          *ngIf="IsNotificationPanelOpen"
+          class="notification-popover"
+          aria-label="近期通知"
+        >
+          <div class="notification-popover-heading">
+            <strong>通知中心</strong
+            ><button
+              type="button"
+              class="notification-close"
+              aria-label="關閉"
+              (click)="IsNotificationPanelOpen = false"
+            >
+              ×
+            </button>
+          </div>
+          <div
+            class="notification-popover-tabs"
+            role="tablist"
+            aria-label="近期項目分類"
+          >
+            <ng-container *ngIf="Auth.IsAuthenticated">
+              <button
+                type="button"
+                [class.is-active]="NotificationPopoverTab === 'All'"
+                (click)="SetNotificationPopoverTab('All')"
+              >
+                全部（{{ CurrentNotifications.length }}）
+              </button>
+            </ng-container>
+            <ng-container *ngIf="Auth.IsAuthenticated">
+              <button
+                type="button"
+                [class.is-active]="NotificationPopoverTab === 'Unread'"
+                (click)="SetNotificationPopoverTab('Unread')"
+              >
+                未讀（{{ NotificationBadgeCount }}）
+              </button>
+            </ng-container>
+          </div>
+          <button
+            *ngFor="let Item of RecentCenterItems"
+            type="button"
+            class="notification-preview"
+            (click)="OpenNotificationCenter(NotificationPopoverTab)"
+          >
+            <strong>{{ Item.Title }}</strong
+            ><span>{{ Item.Summary }}</span>
+          </button>
+          <p *ngIf="!RecentCenterItems.length" class="muted">
+            目前沒有新項目。
+          </p>
+          <button
+            type="button"
+            class="notification-all-link"
+            (click)="OpenNotificationCenter('All')"
+          >
+            查看全部
+          </button>
+        </section>
+      </div>
+      <div class="profile-menu">
+        <button
+          type="button"
+          class="profile-trigger"
+          [attr.aria-expanded]="IsProfileMenuOpen"
+          aria-label="開啟帳號選單"
+          (click)="ToggleProfileMenu()"
+        >
+          <ngx-boring-avatar
+            *ngIf="Auth.CurrentIdentity as User"
+            variant="beam"
+            [name]="User.Account"
+            [size]="40"
+          />
+          <span class="profile-trigger-name">{{ Auth.DisplayName }}</span
+          ><span aria-hidden="true" class="profile-trigger-chevron">⌄</span>
+        </button>
+        <section
+          *ngIf="IsProfileMenuOpen"
+          class="profile-popover"
+          aria-label="帳號選單"
+        >
+          <div class="profile-popover-identity">
+            <ngx-boring-avatar
+              *ngIf="Auth.CurrentIdentity as User"
+              variant="beam"
+              [name]="User.Account"
+              [size]="58"
+            />
+            <div>
+              <strong>{{ Auth.DisplayName }}</strong
+              ><span>{{ ProfileAccount }}</span
+              ><small *ngIf="Auth.IsFrontOffice">{{
+                Auth.ActiveRoleNames
+              }}</small
+              ><small *ngIf="Auth.IsBackOffice">後台共用帳號</small>
+            </div>
+          </div>
+          <div class="profile-popover-links">
+            <a
+              *ngIf="Auth.IsFrontOffice"
+              routerLink="/account/settings"
+              (click)="IsProfileMenuOpen = false"
+              >帳號設定</a
+            >
+            <button
+              type="button"
+              (click)="OpenNotificationCenter('All')"
+            >
+              通知中心<span
+                *ngIf="NotificationBadgeCount"
+                class="profile-link-count"
+                >{{ NotificationBadgeCount }}</span
+              >
+            </button>
+          </div>
+          <button type="button" class="profile-logout" (click)="Logout()">
+            登出
+          </button>
+        </section>
+      </div>
     </div>
   </header>
-  <aside class="portal-nav" aria-label="系統導覽">
-    <p class="nav-group-title">一般功能</p>
-    <a
-      routerLink="/reports/parameters"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      >所有報表</a
-    >
-    <!-- ReportParameter -->
-    <a
-      *ngIf="!Auth.IsAdmin"
-      routerLink="/reports"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      >收藏的報表</a
-    >
-    <a
-      *ngIf="!Auth.IsAdmin"
-      routerLink="/account/settings"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      >帳號設定</a
-    >
-    <!-- AccountSettings -->
-    <ng-container *ngIf="Auth.IsAdmin"
-      ><p class="nav-group-title">管理功能</p>
+  <aside
+    class="portal-nav"
+    aria-label="系統導覽"
+    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding ? '' : null"
+    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding ? 'true' : null"
+  >
+    <ng-container *ngIf="Auth.IsFrontOffice">
+      <p class="nav-group-title">一般功能</p>
       <a
-        routerLink="/admin/reports"
+        routerLink="/reports/parameters"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
-        >報表管理</a
+        >所有報表</a
       >
-      <!-- RptManagement -->
       <a
-        routerLink="/admin/users"
+        routerLink="/reports"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
-        >使用者管理</a
+        >收藏的報表</a
       >
-      <!-- UserManagement -->
+      <a routerLink="/notification-center" routerLinkActive="active"
+        >通知中心</a
+      >
+      <p
+        *ngIf="
+          Auth.HasManagementPermission('DatabaseConnection') ||
+          Auth.HasManagementPermission('RptManagement') ||
+          Auth.HasManagementPermission('OperationLog')
+        "
+        class="nav-group-title"
+      >
+        管理功能
+      </p>
       <a
-        routerLink="/admin/database-connections"
+        *ngIf="Auth.HasManagementPermission('DatabaseConnection')"
+        routerLink="/database-connections"
         routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
         >MSSQL 資料庫連線管理</a
       >
-      <!-- DatabaseConnection -->
       <a
-        routerLink="/admin/operation-logs"
+        *ngIf="Auth.HasManagementPermission('RptManagement')"
+        routerLink="/report-management"
         routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
+        >報表管理</a
+      >
+      <a
+        *ngIf="Auth.HasManagementPermission('OperationLog')"
+        routerLink="/operation-logs"
+        routerLinkActive="active"
         >操作紀錄查詢</a
       >
-      <!-- OperationLog -->
+    </ng-container>
+    <ng-container *ngIf="Auth.IsBackOffice">
+      <p class="nav-group-title">系統設定</p>
+      <a routerLink="/admin/users" routerLinkActive="active">使用者管理</a>
+      <a routerLink="/admin/notification-center" routerLinkActive="active"
+        >通知中心</a
+      >
     </ng-container>
   </aside>
-  <main class="portal-main">
+  <main
+    *ngIf="CanAccessPage"
+    class="portal-main"
+    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding ? '' : null"
+    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding ? 'true' : null"
+  >
+    <p *ngIf="AccessNotice" class="mock-notice" role="status">
+      {{ AccessNotice }}
+    </p>
     <div
       *ngIf="Notifications.SuccessMessage"
       class="success-toast"
@@ -83,7 +230,7 @@
       <h1>{{ PageTitle }}</h1>
       <div class="report-management-header-actions">
         <button
-          *ngIf="Auth.IsAdmin"
+          *ngIf="Auth.HasManagementPermission('RptManagement')"
           type="button"
           class="secondary-button"
           (click)="OpenCategoryManagementDialog()"
@@ -92,7 +239,7 @@
         </button>
         <button
           type="button"
-          class="section-header-action"
+          class="section-header-action primary-button"
           (click)="OpenUploadReportDialog()"
         >
           <span aria-hidden="true">＋</span>上傳報表
@@ -102,7 +249,61 @@
     <ng-template #DefaultPageTitle
       ><h1>{{ PageTitle }}</h1></ng-template
     >
-    <section *ngIf="Page === 'ReportList' && !Auth.IsAdmin" class="content-card">
+    <section
+      *ngIf="Page === 'NotificationCenter'"
+      class="content-card notification-center-page"
+    >
+      <div
+        class="notification-center-tabs"
+        role="tablist"
+        aria-label="通知中心頁籤"
+      >
+        <button
+          type="button"
+          [class.is-active]="NotificationCenterTab === 'All'"
+          (click)="NotificationCenterTab = 'All'"
+        >
+          全部（{{ CurrentNotifications.length }}）
+        </button>
+        <button
+          type="button"
+          [class.is-active]="NotificationCenterTab === 'Unread'"
+          (click)="NotificationCenterTab = 'Unread'"
+        >
+          未讀（{{
+            NotificationCenter.GetUnreadNotificationCount(
+              CurrentNotificationAccount
+            )
+          }}）
+        </button>
+      </div>
+
+      <ng-container
+        *ngIf="NotificationCenterTab === 'All' || NotificationCenterTab === 'Unread'"
+      >
+        <article
+          *ngFor="let Item of DisplayedNotifications"
+          class="center-item"
+          [class.is-unread]="!Item.ReadAt"
+          (click)="MarkCenterNotificationRead(Item.Id)"
+        >
+          <div>
+            <h2>{{ Item.Title }}</h2>
+            <p>{{ Item.Summary }}</p>
+            <p class="muted">{{ Item.Detail }}</p>
+          </div>
+          <time>{{ Item.CreatedAt | date: "short" }}</time>
+        </article>
+        <p *ngIf="!DisplayedNotifications.length" class="muted">
+          {{ NotificationCenterTab === 'Unread' ? '目前沒有未讀通知。' : '目前沒有通知。' }}
+        </p>
+      </ng-container>
+
+    </section>
+    <section
+      *ngIf="Page === 'ReportList' && Auth.IsFrontOffice"
+      class="content-card"
+    >
       <div class="favorite-search-toolbar" role="search">
         <label class="favorite-category-field" for="favorite-report-category">
           報表分類
@@ -233,14 +434,18 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let Favorite of DisplayedFavoriteReports">
+            <tr
+              *ngFor="let Favorite of DisplayedFavoriteReports"
+              class="report-entry-row"
+              (click)="SelectReportByKey(Favorite.Report.ReportKey)"
+            >
               <td>
                 <button
                   type="button"
                   class="favorite-star-button is-favorite"
                   [attr.aria-label]="'取消收藏 ' + Favorite.Report.ReportName"
                   [title]="'取消收藏 ' + Favorite.Report.ReportName"
-                  (click)="RemoveFavoriteReport(Favorite)"
+                  (click)="RemoveFavoriteReport(Favorite); $event.stopPropagation()"
                 >
                   <svg
                     class="favorite-icon"
@@ -262,7 +467,7 @@
               <td>
                 <button
                   type="button"
-                  (click)="SelectReportByKey(Favorite.Report.ReportKey)"
+                  (click)="SelectReportByKey(Favorite.Report.ReportKey); $event.stopPropagation()"
                 >
                   選擇
                 </button>
@@ -355,7 +560,7 @@
           <table class="parameter-report-table">
             <thead>
               <tr>
-                <th *ngIf="!Auth.IsAdmin" scope="col">收藏</th>
+                <th *ngIf="Auth.IsFrontOffice" scope="col">收藏</th>
                 <th
                   [attr.aria-sort]="GetParameterReportAriaSort('ReportName')"
                   [class.is-sorted]="ParameterReportSortField === 'ReportName'"
@@ -451,8 +656,12 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let Report of PagedParameterReports">
-                <td *ngIf="!Auth.IsAdmin">
+              <tr
+                *ngFor="let Report of PagedParameterReports"
+                class="report-entry-row"
+                (click)="SelectReportForPreview(Report.ReportKey)"
+              >
+                <td *ngIf="Auth.IsFrontOffice">
                   <button
                     type="button"
                     class="favorite-star-button parameter-favorite-button"
@@ -467,7 +676,7 @@
                         ? '取消收藏 '
                         : '收藏 ') + Report.ReportName
                     "
-                    (click)="ToggleFavoriteReport(Report.ReportKey)"
+                    (click)="ToggleFavoriteReport(Report.ReportKey); $event.stopPropagation()"
                   >
                     <svg
                       *ngIf="IsFavoriteReport(Report.ReportKey)"
@@ -510,14 +719,14 @@
                 <td>
                   <button
                     type="button"
-                    (click)="SelectReportForPreview(Report.ReportKey)"
+                    (click)="SelectReportForPreview(Report.ReportKey); $event.stopPropagation()"
                   >
                     選擇
                   </button>
                 </td>
               </tr>
               <tr *ngIf="!DisplayedParameterReports.length">
-                <td [attr.colspan]="Auth.IsAdmin ? 6 : 7" class="parameter-report-empty-state">
+                <td colspan="7" class="parameter-report-empty-state">
                   {{
                     HasParameterReportSearchText
                       ? "找不到符合條件的報表。"
@@ -776,6 +985,7 @@
           <button
             *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
             type="submit"
+            class="primary-button"
             [disabled]="!CanGenerateReport"
           >
             產生報表
@@ -792,7 +1002,7 @@
             *ngIf="!Auth.SelectedReportCategoryPermission.CanExecute"
             class="mock-notice"
           >
-            目前測試角色沒有執行權限。
+            目前角色沒有預覽權限。
           </p>
         </form>
       </ng-template>
@@ -827,7 +1037,7 @@
       <div class="preview-output-bar">
         <div class="output-actions">
           <div
-            *ngIf="Auth.SelectedReportCategoryPermission.CanExportPdf"
+            *ngIf="Auth.SelectedReportCategoryPermission.CanExport"
             class="export-dropdown"
           >
             <button
@@ -947,7 +1157,11 @@
       <p *ngIf="AccountSettingsNotice" class="mock-notice" role="status">
         {{ AccountSettingsNotice }}
       </p>
-      <button type="button" (click)="SaveAccountSettings()">
+      <button
+        type="button"
+        class="primary-button"
+        (click)="SaveAccountSettings()"
+      >
         儲存帳號設定
       </button>
     </section>
@@ -968,13 +1182,17 @@
           已成功修改密碼，請重新登入！
         </p>
         <div class="created-user-success-actions">
-          <button type="button" (click)="ConfirmPasswordChangeAndLogout()">
+          <button
+            type="button"
+            class="primary-button"
+            (click)="ConfirmPasswordChangeAndLogout()"
+          >
             確認並登出
           </button>
         </div>
       </section>
     </section>
-    <section *ngIf="Auth.IsAdmin && IsAdministrationPage" class="content-card">
+    <section *ngIf="CanAccessPage && IsManagementPage" class="content-card">
       <p *ngIf="Page !== 'UserManagement' && Page !== 'RptManagement'">
         {{ AdminDescription }}
       </p>
@@ -994,7 +1212,7 @@
             </div>
             <button
               type="button"
-              class="section-header-action"
+              class="section-header-action primary-button"
               (click)="OpenCreateRoleDialog()"
             >
               <span aria-hidden="true">＋</span>
@@ -1021,13 +1239,26 @@
                 [class.has-overflow]="RoleCardHasOverflow"
               >
                 <article *ngFor="let Role of MockRbac.Roles" class="role-card">
-                  <p class="role-card-count">
-                    {{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者
-                  </p>
+                  <div class="role-card-summary">
+                    <p class="role-card-count">
+                      {{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者
+                    </p>
+                    <div class="role-avatar-group" aria-hidden="true">
+                      <ngx-boring-avatar
+                        *ngFor="
+                          let User of GetRoleAvatarUsers(Role.Key);
+                          trackBy: TrackUserByAccount
+                        "
+                        variant="beam"
+                        [name]="User.Account"
+                        [size]="26"
+                      />
+                    </div>
+                  </div>
                   <h3>{{ Role.DisplayName }}</h3>
                   <button
                     type="button"
-                    class="role-card-action"
+                    class="role-card-action primary-button"
                     (click)="OpenEditRoleDialog(Role.Key)"
                   >
                     編輯角色
@@ -1061,7 +1292,7 @@
             </div>
             <button
               type="button"
-              class="section-header-action"
+              class="section-header-action primary-button"
               (click)="OpenCreateUserDialog()"
             >
               <span aria-hidden="true">＋</span>
@@ -1072,75 +1303,6 @@
           <p *ngIf="ManagementNotice" class="mock-notice" role="status">
             {{ ManagementNotice }}
           </p>
-
-          <section
-            *ngIf="MockRbac.RoleChangeRequests.length"
-            class="role-change-card"
-          >
-            <h3>角色變更申請</h3>
-            <p class="muted">系統管理員降職須由異動對象回應。</p>
-            <table>
-              <thead>
-                <tr>
-                  <th>申請人</th>
-                  <th>異動對象</th>
-                  <th>原角色</th>
-                  <th>新角色</th>
-                  <th>狀態</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let Request of MockRbac.RoleChangeRequests">
-                  <td>{{ Request.RequesterAccount }}</td>
-                  <td>{{ Request.TargetAccount }}</td>
-                  <td>
-                    {{ GetRoleNames(Request.PreviousRoles) }}
-                  </td>
-                  <td>
-                    {{ GetRoleNames(Request.RequestedRoles) }}
-                  </td>
-                  <td>
-                    <span
-                      class="request-status"
-                      [class.is-pending]="Request.Status === 'Pending'"
-                      [class.is-approved]="Request.Status === 'Approved'"
-                      [class.is-rejected]="Request.Status === 'Rejected'"
-                      >{{ Request.Status }}</span
-                    >
-                  </td>
-                  <td>
-                    <ng-container
-                      *ngIf="
-                        CanRespondToRoleChangeRequest(
-                          Request.TargetAccount,
-                          Request.Status
-                        );
-                        else waitingForResponse
-                      "
-                    >
-                      <button
-                        type="button"
-                        (click)="RespondToRoleChangeRequest(Request.Id, true)"
-                      >
-                        同意
-                      </button>
-                      <button
-                        type="button"
-                        class="secondary-button"
-                        (click)="RespondToRoleChangeRequest(Request.Id, false)"
-                      >
-                        拒絕
-                      </button>
-                    </ng-container>
-                    <ng-template #waitingForResponse
-                      >等待異動對象回應</ng-template
-                    >
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
 
           <div class="user-management-toolbar" role="search">
             <label class="user-search-field">
@@ -1201,7 +1363,14 @@
                     *ngFor="let User of PagedUsers; trackBy: TrackUserByAccount"
                   >
                     <td class="user-account-cell" [title]="User.Account">
-                      <span>{{ User.Account }}</span>
+                      <div class="user-account-identity">
+                        <ngx-boring-avatar
+                          variant="beam"
+                          [name]="User.Account"
+                          [size]="40"
+                        />
+                        <span>{{ User.Account }}</span>
+                      </div>
                     </td>
                     <td>{{ User.DisplayName }}</td>
                     <td>{{ GetRoleNames(User.Roles) }}</td>
@@ -1211,14 +1380,11 @@
                         class="account-status-switch"
                         role="switch"
                         [class.is-enabled]="User.Enabled"
-                        [disabled]="User.Account === Auth.CurrentUser?.Account"
                         [attr.aria-checked]="User.Enabled"
                         [attr.aria-label]="
-                          User.Account === Auth.CurrentUser?.Account
-                            ? '目前登入的使用者不可停用'
-                            : User.Enabled
-                              ? '停用 ' + User.Account
-                              : '啟用 ' + User.Account
+                          User.Enabled
+                            ? '停用 ' + User.Account
+                            : '啟用 ' + User.Account
                         "
                         (click)="SetUserEnabled(User.Account, !User.Enabled)"
                       >
@@ -1311,7 +1477,9 @@
             <div class="modal-heading">
               <div>
                 <h2 id="create-user-title">建立使用者</h2>
-                <p class="muted">請設定帳號、初始密碼、角色與啟用狀態。</p>
+                <p class="muted">
+                  請設定帳號、角色與啟用狀態；初始密碼將由後端隨機產生。
+                </p>
               </div>
               <button
                 type="button"
@@ -1386,39 +1554,6 @@
                 </label>
               </div>
 
-              <label class="create-user-password-field">
-                <span
-                  >初始密碼
-                  <span class="required-indicator" aria-hidden="true"
-                    >*</span
-                  ></span
-                >
-                <input
-                  name="create-user-password"
-                  type="password"
-                  [(ngModel)]="UserDraft.InitialPassword"
-                  (ngModelChange)="
-                    ClearCreateUserValidationError('InitialPassword')
-                  "
-                  autocomplete="new-password"
-                  [attr.aria-invalid]="
-                    CreateUserValidationErrors.InitialPassword ? 'true' : null
-                  "
-                  [attr.aria-describedby]="
-                    CreateUserValidationErrors.InitialPassword
-                      ? 'create-user-password-error'
-                      : null
-                  "
-                />
-                <small
-                  *ngIf="CreateUserValidationErrors.InitialPassword"
-                  id="create-user-password-error"
-                  class="field-error"
-                  role="alert"
-                  >{{ CreateUserValidationErrors.InitialPassword }}</small
-                >
-              </label>
-
               <fieldset class="create-user-role-field">
                 <legend>
                   所屬角色
@@ -1432,7 +1567,6 @@
                   <label
                     *ngFor="let Role of MockRbac.Roles"
                     class="create-user-role-option"
-                    [class.is-admin-role]="Role.Key === 'ADMIN'"
                     [class.is-selected]="
                       IsRoleSelected(UserDraft.Roles, Role.Key)
                     "
@@ -1440,9 +1574,6 @@
                     <input
                       type="checkbox"
                       [checked]="IsRoleSelected(UserDraft.Roles, Role.Key)"
-                      [disabled]="
-                        IsRoleOptionDisabled(UserDraft.Roles, Role.Key)
-                      "
                       (click)="
                         ToggleCreateUserRole(
                           Role.Key,
@@ -1482,7 +1613,7 @@
               </div>
 
               <div class="modal-actions create-user-actions">
-                <button type="submit">建立使用者</button>
+                <button type="submit" class="primary-button">建立使用者</button>
                 <button
                   type="button"
                   class="secondary-button"
@@ -1508,8 +1639,14 @@
           >
             <div class="created-user-success-icon" aria-hidden="true">✓</div>
             <h2 id="created-user-success-title">新增使用者成功</h2>
-            <p id="created-user-success-description">
-              請複製下方資訊，並傳送給使用者進行登入。
+            <p
+              id="created-user-success-description"
+              class="created-user-success-description"
+            >
+              <span>已成功建立使用者。</span>
+              <span
+                >請複製下方資訊傳給使用者，<strong>並告知其於首次登入時立即修改密碼</strong>。</span
+              >
             </p>
             <section
               class="created-user-credentials"
@@ -1520,8 +1657,8 @@
                   <dt>帳號：</dt>
                   <dd>{{ CreatedUserCredentials.Account }}</dd>
                 </div>
-                <div>
-                  <dt>密碼：</dt>
+                <div class="created-user-password-row">
+                  <dt>初始密碼：</dt>
                   <dd>{{ CreatedUserCredentials.InitialPassword }}</dd>
                 </div>
               </dl>
@@ -1548,7 +1685,11 @@
               {{ CreatedUserCopyNotice }}
             </p>
             <div class="created-user-success-actions">
-              <button type="button" (click)="CloseCreatedUserSuccessModal()">
+              <button
+                type="button"
+                class="primary-button"
+                (click)="CloseCreatedUserSuccessModal()"
+              >
                 確認
               </button>
             </div>
@@ -1602,13 +1743,8 @@
                   class="account-status-switch"
                   role="switch"
                   [class.is-enabled]="EditingUser.Enabled"
-                  [disabled]="IsEditingSelf()"
                   [attr.aria-checked]="EditingUser.Enabled"
-                  [attr.aria-label]="
-                    IsEditingSelf()
-                      ? '目前登入的使用者不可停用'
-                      : '切換使用者啟用狀態'
-                  "
+                  aria-label="切換使用者啟用狀態"
                   (click)="EditingUser.Enabled = !EditingUser.Enabled"
                 >
                   <span class="account-status-switch-thumb"></span>
@@ -1637,10 +1773,6 @@
                   <input
                     type="checkbox"
                     [checked]="IsRoleSelected(EditingUser.Roles, Role.Key)"
-                    [disabled]="
-                      !CanEditEditingUserRoles() ||
-                      IsRoleOptionDisabled(EditingUser.Roles, Role.Key)
-                    "
                     (click)="
                       ToggleEditingUserRole(
                         Role.Key,
@@ -1666,17 +1798,14 @@
             >
               {{ EditUserValidationErrors.Form }}
             </p>
-            <p *ngIf="IsEditingSelf()" class="muted">
-              系統管理員不可修改自己的角色或啟用狀態。
-            </p>
-            <p
-              *ngIf="EditingAccount && IsAdminUser(EditingAccount)"
-              class="muted"
-            >
-              系統管理員降職會建立角色變更申請，須由異動對象回應。
-            </p>
+
             <div class="modal-actions">
-              <button type="button" (click)="SaveEditedUser()">儲存變更</button
+              <button
+                type="button"
+                class="primary-button"
+                (click)="SaveEditedUser()"
+              >
+                儲存變更</button
               ><button
                 type="button"
                 class="secondary-button"
@@ -1722,7 +1851,11 @@
               {{ DeleteUserError }}
             </p>
             <div class="modal-actions">
-              <button type="button" (click)="ConfirmDeleteUser()">
+              <button
+                type="button"
+                class="danger-button"
+                (click)="ConfirmDeleteUser()"
+              >
                 確認刪除
               </button>
               <button
@@ -1784,12 +1917,6 @@
                   ></span
                 ><input
                   [(ngModel)]="RoleDraft.DisplayName"
-                  [readonly]="
-                    IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)
-                  "
-                  [attr.aria-readonly]="
-                    IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)
-                  "
                   [attr.aria-invalid]="RoleDraftError ? 'true' : null"
                   [attr.aria-describedby]="
                     RoleDraftError ? 'role-name-error' : null
@@ -1798,9 +1925,9 @@
                   (ngModelChange)="ClearRoleDraftError()"
               /></label>
               <button
-                *ngIf="IsEditRoleDialogOpen && !IsBuiltInRole(EditingRoleKey)"
+                *ngIf="IsEditRoleDialogOpen"
                 type="button"
-                class="role-delete-button"
+                class="role-delete-button danger-button"
                 aria-label="刪除角色"
                 title="刪除角色"
                 (click)="OpenDeleteRoleDialog()"
@@ -1817,26 +1944,58 @@
                 刪除角色
               </button>
             </div>
-            <p
-              *ngIf="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
-              class="role-name-lock-hint"
+
+            <div
+              class="role-global-permissions"
+              role="group"
+              aria-label="功能權限"
             >
-              系統內建角色名稱不可修改。
-            </p>
+              <h3>功能權限</h3>
+              <label
+                ><input
+                  type="checkbox"
+                  [ngModel]="
+                    RoleDraft.ManagementPermissions.includes(
+                      'DatabaseConnection'
+                    )
+                  "
+                  (ngModelChange)="
+                    ToggleManagementPermission('DatabaseConnection', $event)
+                  "
+                />資料庫連線管理</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  [ngModel]="
+                    RoleDraft.ManagementPermissions.includes('RptManagement')
+                  "
+                  (ngModelChange)="
+                    ToggleManagementPermission('RptManagement', $event)
+                  "
+                />報表管理</label
+              >
+              <label
+                ><input
+                  type="checkbox"
+                  [ngModel]="
+                    RoleDraft.ManagementPermissions.includes('OperationLog')
+                  "
+                  (ngModelChange)="
+                    ToggleManagementPermission('OperationLog', $event)
+                  "
+                />操作紀錄查詢</label
+              >
+            </div>
             <div class="create-role-permissions">
               <h3>報表分類權限</h3>
-              <p
-                *ngIf="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
-                class="role-name-lock-hint"
-              >
-                系統管理員擁有所有報表分類權限，設定為唯讀。
-              </p>
+
               <div class="table-scroll">
                 <table class="role-permission-table">
                   <thead>
                     <tr>
                       <th>報表分類</th>
-                      <th>執行</th>
+                      <th>預覽</th>
                       <th>匯出</th>
                       <th>列印</th>
                     </tr>
@@ -1853,35 +2012,26 @@
                         <input
                           type="checkbox"
                           [ngModel]="Entry.Permission.CanExecute"
+                          [attr.aria-label]="Entry.CategoryName + '：預覽'"
                           (ngModelChange)="
                             SetPermissionCanExecute(Entry, $event)
-                          "
-                          [disabled]="
-                            IsEditRoleDialogOpen &&
-                            IsBuiltInRole(EditingRoleKey)
                           "
                         />
                       </td>
                       <td>
                         <input
                           type="checkbox"
-                          [(ngModel)]="Entry.Permission.CanExportPdf"
-                          [disabled]="
-                            !Entry.Permission.CanExecute ||
-                            (IsEditRoleDialogOpen &&
-                              IsBuiltInRole(EditingRoleKey))
-                          "
+                          [(ngModel)]="Entry.Permission.CanExport"
+                          [attr.aria-label]="Entry.CategoryName + '：匯出'"
+                          [disabled]="!Entry.Permission.CanExecute"
                         />
                       </td>
                       <td>
                         <input
                           type="checkbox"
                           [(ngModel)]="Entry.Permission.CanPrint"
-                          [disabled]="
-                            !Entry.Permission.CanExecute ||
-                            (IsEditRoleDialogOpen &&
-                              IsBuiltInRole(EditingRoleKey))
-                          "
+                          [attr.aria-label]="Entry.CategoryName + '：列印'"
+                          [disabled]="!Entry.Permission.CanExecute"
                         />
                       </td>
                     </tr>
@@ -1900,6 +2050,7 @@
               <div class="role-modal-primary-actions">
                 <button
                   type="button"
+                  class="primary-button"
                   (click)="IsEditRoleDialogOpen ? SaveEditedRole() : SaveRole()"
                 >
                   {{ IsEditRoleDialogOpen ? "儲存角色" : "建立角色" }}
@@ -1944,7 +2095,7 @@
               <div class="role-modal-primary-actions">
                 <button
                   type="button"
-                  class="role-delete-button"
+                  class="role-delete-button danger-button"
                   (click)="ConfirmDeleteRole()"
                 >
                   刪除
@@ -2140,14 +2291,22 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let Report of PagedManagedReports">
+              <tr
+                *ngFor="let Report of PagedManagedReports"
+                class="report-entry-row"
+                (click)="SelectReportForPreview(Report.ReportKey)"
+              >
                 <td class="report-management-pin-cell">
                   <div class="report-management-pin-control">
                     <button
                       type="button"
                       class="report-management-pin-button"
-                      [class.is-pinned]="IsReportManagementPinned(Report.ReportKey)"
-                      [attr.aria-pressed]="IsReportManagementPinned(Report.ReportKey)"
+                      [class.is-pinned]="
+                        IsReportManagementPinned(Report.ReportKey)
+                      "
+                      [attr.aria-pressed]="
+                        IsReportManagementPinned(Report.ReportKey)
+                      "
                       [attr.aria-label]="
                         (IsReportManagementPinned(Report.ReportKey)
                           ? '取消釘選 '
@@ -2158,9 +2317,12 @@
                           ? '取消釘選報表'
                           : '釘選報表'
                       "
-                      (click)="ToggleReportManagementPin(Report.ReportKey)"
+                      (click)="ToggleReportManagementPin(Report.ReportKey); $event.stopPropagation()"
                     >
-                      <span class="report-management-pin-icon" aria-hidden="true"></span>
+                      <span
+                        class="report-management-pin-icon"
+                        aria-hidden="true"
+                      ></span>
                     </button>
                   </div>
                 </td>
@@ -2187,9 +2349,7 @@
                         ? '已啟用，點擊可停用'
                         : '已停用，點擊可啟用')
                     "
-                    (click)="
-                      SetReportEnabled(Report.ReportKey, !Report.Enabled)
-                    "
+                    (click)="SetReportEnabled(Report.ReportKey, !Report.Enabled); $event.stopPropagation()"
                   >
                     <span class="account-status-switch-thumb"></span>
                   </button>
@@ -2209,7 +2369,7 @@
                     class="secondary-button"
                     [attr.aria-label]="'編輯 ' + Report.ReportName"
                     title="編輯報表"
-                    (click)="OpenEditReportDialog(Report.ReportKey)"
+                    (click)="OpenEditReportDialog(Report.ReportKey); $event.stopPropagation()"
                   >
                     ✎
                   </button>
@@ -2218,7 +2378,7 @@
                     class="secondary-button"
                     [attr.aria-label]="'刪除 ' + Report.ReportName"
                     title="刪除報表"
-                    (click)="OpenDeleteReportDialog(Report.ReportKey)"
+                    (click)="OpenDeleteReportDialog(Report.ReportKey); $event.stopPropagation()"
                   >
                     🗑
                   </button>
@@ -2277,7 +2437,11 @@
               不會回傳或保存於前端 Mock 資料。
             </p>
           </div>
-          <button type="button" (click)="OpenCreateDatabaseConnection()">
+          <button
+            type="button"
+            class="primary-button"
+            (click)="OpenCreateDatabaseConnection()"
+          >
             建立連線
           </button>
         </div>
@@ -2451,7 +2615,11 @@
               若不修改密碼請保持空白。
             </p>
             <div class="modal-actions">
-              <button type="button" (click)="SaveDatabaseConnection()">
+              <button
+                type="button"
+                class="primary-button"
+                (click)="SaveDatabaseConnection()"
+              >
                 {{ EditingDatabaseConnectionKey ? "儲存變更" : "建立連線" }}
               </button>
               <button
@@ -2469,7 +2637,8 @@
         *ngIf="
           Page !== 'UserManagement' &&
           Page !== 'RptManagement' &&
-          Page !== 'DatabaseConnection'
+          Page !== 'DatabaseConnection' &&
+          Page !== 'OperationLog'
         "
       >
         <thead>
@@ -2483,12 +2652,34 @@
           <tr>
             <td>{{ PageTitle }}</td>
             <td>可檢視</td>
-            <td>僅供 ADMIN UIUX 流程驗證，未呼叫後端 API。</td>
+            <td>僅供後台操作紀錄版面展示，尚未串接紀錄查詢 API。</td>
           </tr>
         </tbody>
       </table>
       <section *ngIf="Page === 'OperationLog'" class="permission-matrix">
-        <p>保存期間：180 天</p>
+        <h2>操作紀錄</h2>
+        <p class="muted">保存期間：180 天。後台操作的 user_id 來自已完成身分綁定的前台帳號。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>時間</th>
+              <th>user_id</th>
+              <th>操作</th>
+              <th>內容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let Entry of AuditLog.OperationLogs">
+              <td>{{ Entry.OccurredAt }}</td>
+              <td>{{ Entry.UserId }}</td>
+              <td>{{ Entry.Action }}</td>
+              <td>{{ Entry.Detail }}</td>
+            </tr>
+            <tr *ngIf="!AuditLog.OperationLogs.length">
+              <td colspan="4" class="muted">尚無後台操作紀錄。</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </section>
     <section
@@ -2583,7 +2774,7 @@
               </select>
             </label>
             <button
-              *ngIf="Auth.IsAdmin"
+              *ngIf="Auth.HasManagementPermission('RptManagement')"
               type="button"
               class="secondary-button report-category-quick-add-trigger"
               (click)="OpenReportCategoryQuickAdd()"
@@ -2618,7 +2809,11 @@
               />
             </label>
             <div class="report-category-quick-add-actions">
-              <button type="button" (click)="CreateReportCategoryQuickAdd()">
+              <button
+                type="button"
+                class="primary-button"
+                (click)="CreateReportCategoryQuickAdd()"
+              >
                 新增
               </button>
               <button
@@ -2685,7 +2880,7 @@
             {{ ReportEditorError }}
           </p>
           <div class="modal-actions report-editor-actions">
-            <button type="submit">儲存</button>
+            <button type="submit" class="primary-button">儲存</button>
             <button
               type="button"
               class="secondary-button"
@@ -2740,7 +2935,7 @@
               [attr.aria-invalid]="CategoryCreateError ? 'true' : null"
             />
           </label>
-          <button type="submit">
+          <button type="submit" class="primary-button">
             <span aria-hidden="true">＋</span> 新增分類
           </button>
           <p *ngIf="CategoryCreateError" class="field-error" role="alert">
@@ -2803,7 +2998,11 @@
                     else CategoryActions
                   "
                 >
-                  <button type="button" (click)="SaveCategoryEdit()">
+                  <button
+                    type="button"
+                    class="primary-button"
+                    (click)="SaveCategoryEdit()"
+                  >
                     儲存
                   </button>
                   <button
@@ -2899,7 +3098,7 @@
         <div class="modal-actions category-delete-actions">
           <button
             type="button"
-            class="role-delete-button"
+            class="role-delete-button danger-button"
             (click)="ConfirmDeleteCategory()"
           >
             {{
@@ -2938,7 +3137,7 @@
         <div class="modal-actions report-editor-actions">
           <button
             type="button"
-            class="role-delete-button"
+            class="role-delete-button danger-button"
             (click)="ConfirmDeleteReport()"
           >
             刪除
@@ -2954,4 +3153,54 @@
       </section>
     </section>
   </main>
+  <section
+    *ngIf="Auth.RequiresBackOfficeIdentityBinding"
+    class="modal-backdrop back-office-binding-backdrop"
+    role="presentation"
+  >
+    <section
+      class="edit-user-modal back-office-binding-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="back-office-binding-title"
+    >
+      <h2 id="back-office-binding-title">驗證操作身分</h2>
+      <p class="muted">
+        請輸入您的帳號密碼以驗證身分。
+      </p>
+      <div class="form-grid back-office-binding-form">
+        <label>
+          前台帳號
+          <input
+            [(ngModel)]="BackOfficeBindingAccount"
+            name="backOfficeBindingAccount"
+            autocomplete="username"
+            (ngModelChange)="BackOfficeBindingError = ''"
+          />
+        </label>
+        <label>
+          前台密碼
+          <input
+            type="password"
+            [(ngModel)]="BackOfficeBindingPassword"
+            name="backOfficeBindingPassword"
+            autocomplete="current-password"
+            (keyup.enter)="SubmitBackOfficeIdentityBinding()"
+            (ngModelChange)="BackOfficeBindingError = ''"
+          />
+        </label>
+      </div>
+      <p *ngIf="BackOfficeBindingError" class="field-error" role="alert">
+        {{ BackOfficeBindingError }}
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="primary-button" (click)="SubmitBackOfficeIdentityBinding()">
+          驗證身分
+        </button>
+        <button type="button" class="secondary-button" (click)="ReturnToLoginFromBackOfficeBinding()">
+          返回登入
+        </button>
+      </div>
+    </section>
+  </section>
 </div>

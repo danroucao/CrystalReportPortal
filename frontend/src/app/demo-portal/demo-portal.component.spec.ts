@@ -5,8 +5,22 @@ import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { MockRbacService, MockUserDraft } from '../services/mock-rbac.service';
 import { MockReportParameterService } from '../services/mock-report-parameter.service';
+import { MockNotificationCenterService } from '../services/mock-notification-center.service';
 import { NotificationService } from '../services/notification.service';
 import { DemoPortalComponent } from './demo-portal.component';
+
+function LoginFrontManager(Auth: AuthService, IncludeManagement = true): boolean {
+  const Rbac = TestBed.inject(MockRbacService);
+  const Permissions = Rbac.GetCategoryPermissionEntries('FINANCE');
+  Permissions.forEach((Entry) => Entry.Permission = { CanExecute: true, CanExport: true, CanPrint: true });
+  Rbac.UpdateRole('FINANCE', { DisplayName: '財務人員', ManagementPermissions: IncludeManagement ? ['RptManagement', 'DatabaseConnection', 'OperationLog'] : [], Permissions });
+  return Auth.Login('user@example.com', 'user123');
+}
+
+function LoginBoundBackOfficeOperator(Auth: AuthService): boolean {
+  return Auth.Login('admin@example.com', 'admin123') &&
+    Auth.BindBackOfficeIdentity('user@example.com', 'user123');
+}
 
 describe('DemoPortalComponent', () => {
   beforeEach(async () => {
@@ -20,6 +34,131 @@ describe('DemoPortalComponent', () => {
         },
       ],
     }).compileComponents();
+  });
+
+  it('requires front-office identity binding before allowing back-office actions', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Notifications = TestBed.inject(NotificationService);
+    const Navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.back-office-binding-modal')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('main')?.hasAttribute('inert')).toBeTrue();
+    component.OpenCreateUserDialog();
+    expect(component.IsCreateUserDialogOpen).toBeFalse();
+    expect(fixture.nativeElement.querySelector('.back-office-binding-modal')?.textContent)
+      .toContain('驗證身分');
+
+    component.BackOfficeBindingAccount = 'unknown@example.com';
+    component.BackOfficeBindingPassword = 'wrong';
+    component.SubmitBackOfficeIdentityBinding();
+    expect(component.BackOfficeBindingError).toBe('帳號或密碼不正確，請重新輸入。');
+
+    component.BackOfficeBindingAccount = 'inventory-clerk@example.com';
+    component.BackOfficeBindingPassword = 'inventoryclerk123';
+    component.SubmitBackOfficeIdentityBinding();
+    expect(component.BackOfficeBindingError).toBe('此帳號已停用。');
+
+    component.ReturnToLoginFromBackOfficeBinding();
+    expect(Auth.IsAuthenticated).toBeFalse();
+    expect(Navigate).toHaveBeenCalledWith(['/login']);
+
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+
+    component.BackOfficeBindingAccount = 'user@example.com';
+    component.BackOfficeBindingPassword = 'user123';
+    component.SubmitBackOfficeIdentityBinding();
+    fixture.detectChanges();
+    expect(Auth.BoundBackOfficeUserId).toBe('user@example.com');
+    expect(Notifications.SuccessMessage).toBe('身分驗證成功，已進入後台。');
+    expect(fixture.nativeElement.querySelector('.back-office-binding-modal')).toBeNull();
+    component.OpenCreateUserDialog();
+    expect(component.IsCreateUserDialogOpen).toBeTrue();
+  });
+
+  it('keeps back-office navigation separate and saves both global permissions through role checkboxes', () => {
+    const Auth = TestBed.inject(AuthService);
+    LoginBoundBackOfficeOperator(Auth);
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    const Host = fixture.nativeElement as HTMLElement;
+    expect(Array.from(Host.querySelectorAll('aside a')).map((Link) => Link.getAttribute('href')))
+      .toEqual(['/admin/users']);
+    const UserTable = Host.querySelector('.user-management-table');
+    expect(UserTable).not.toBeNull();
+    expect(UserTable!.textContent).not.toContain('admin@example.com');
+    expect(component.MockRbac.Roles.map((Role) => Role.Key)).not.toContain('ADMIN');
+    component.OpenEditRoleDialog('FINANCE');
+    fixture.detectChanges();
+    const Checkboxes = Host.querySelectorAll<HTMLInputElement>('.role-global-permissions input');
+    expect(Checkboxes.length).toBe(3);
+    Checkboxes.forEach((Checkbox) => { expect(Checkbox.checked).toBeFalse(); Checkbox.click(); });
+    fixture.detectChanges();
+    component.SaveEditedRole();
+    component.OpenEditRoleDialog('FINANCE');
+    fixture.detectChanges();
+    expect(component.RoleDraft.ManagementPermissions).toEqual(['DatabaseConnection', 'RptManagement', 'OperationLog']);
+    Host.querySelectorAll<HTMLInputElement>('.role-global-permissions input').forEach((Checkbox) => expect(Checkbox.checked).toBeTrue());
+    component.CloseEditRoleDialog();
+    Auth.Login('user@example.com', 'user123');
+    component.OpenCreateUserDialog();
+    component.EditUser('warehouse@example.com');
+    component.OpenCreateRoleDialog();
+    expect(component.IsCreateUserDialogOpen).toBeFalse();
+    expect(component.EditingUser).toBeNull();
+    expect(component.IsCreateRoleDialogOpen).toBeFalse();
+  });
+
+  it('blocks every export format and both print actions after live permission revocation', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Rbac = TestBed.inject(MockRbacService);
+    TestBed.inject(ActivatedRoute).snapshot.data['Page'] = 'ReportPreview';
+    LoginFrontManager(Auth);
+    Auth.SelectReport('AccountBalance');
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    for (const Option of component.ExportOptions.filter((Entry) => Entry.Enabled)) {
+      component.SelectExportOption(Option);
+      expect(component.MockNotice).toContain(Option.Label);
+    }
+    const Permissions = Rbac.GetCategoryPermissionEntries('FINANCE');
+    Permissions.find((Entry) => Entry.CategoryId === 'FINANCE')!.Permission = { CanExecute: true, CanExport: false, CanPrint: false };
+    Rbac.SaveCategoryPermissions('FINANCE', Permissions);
+    component.MockNotice = '';
+    component.ToggleExportMenu();
+    component.ExportOptions.forEach((Option) => component.SelectExportOption(Option));
+    component.SelectOutputAction('BrowserPrint');
+    component.SelectOutputAction('FixedPrinterPrint');
+    fixture.detectChanges();
+    expect(component.MockNotice).toBe('');
+    expect(component.IsExportMenuOpen).toBeFalse();
+    expect(Auth.SelectedReport).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.export-dropdown')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.output-actions')?.textContent).not.toContain('列印');
+  });
+
+  it('hides an open management page and rejects changes when its global permission is revoked', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Rbac = TestBed.inject(MockRbacService);
+    const Navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    TestBed.inject(ActivatedRoute).snapshot.data['Page'] = 'RptManagement';
+    LoginFrontManager(Auth);
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.OpenUploadReportDialog();
+    Rbac.UpdateRole('FINANCE', { DisplayName: '財務人員', ManagementPermissions: [], Permissions: Rbac.GetCategoryPermissionEntries('FINANCE') });
+    const WasEnabled = Rbac.GetReport('AccountBalance')!.Enabled;
+    component.SetReportEnabled('AccountBalance', !WasEnabled);
+    fixture.detectChanges();
+    expect(Rbac.GetReport('AccountBalance')!.Enabled).toBe(WasEnabled);
+    expect(fixture.nativeElement.querySelector('main')).toBeNull();
+    expect(Navigate).toHaveBeenCalledWith(['/reports/parameters'], { queryParams: { state: 'permission-denied' } });
   });
 
   it('logs out and queues a success notification for the login page', () => {
@@ -40,6 +179,7 @@ describe('DemoPortalComponent', () => {
   it('shows the signed-in account and role without a Demo role switcher in the header', () => {
     const Auth = TestBed.inject(AuthService);
     expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    TestBed.inject(ActivatedRoute).snapshot.data['Page'] = 'ReportParameter';
     const fixture = TestBed.createComponent(DemoPortalComponent);
     fixture.detectChanges();
 
@@ -55,7 +195,7 @@ describe('DemoPortalComponent', () => {
 
   it('keeps the UserManagement table frame and header for normal, one-user, and empty results', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -89,7 +229,7 @@ describe('DemoPortalComponent', () => {
   it('renders the approved user management fields, icon actions, and a delete confirmation', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
@@ -116,7 +256,7 @@ describe('DemoPortalComponent', () => {
     ).toBe(FirstAccount);
     expect(
       fixture.nativeElement
-        .querySelector('.user-account-cell > span')
+        .querySelector('.user-account-identity > span')
         ?.textContent?.trim(),
     ).toBe(FirstAccount);
     expect(
@@ -141,7 +281,7 @@ describe('DemoPortalComponent', () => {
 
   it('keeps account and user name read-only in the administrator edit dialog', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     component.EditUser('warehouse@example.com');
@@ -166,7 +306,7 @@ describe('DemoPortalComponent', () => {
   it('updates the EditUser role draft from native checkbox clicks and saves only on confirmation', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     component.EditUser('user@example.com');
@@ -199,9 +339,7 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
     expect(component.EditingUser?.Roles).toEqual(['PURCHASE', 'WAREHOUSE']);
 
-    RoleCheckbox('系統管理者').click();
-    fixture.detectChanges();
-    expect(component.EditingUser?.Roles).toEqual(['ADMIN']);
+    expect(MockRbac.Roles.some((Role) => Role.Key === 'ADMIN')).toBeFalse();
 
     component.CancelEditUser();
     expect(MockRbac.GetUser('user@example.com')?.Roles).toEqual(['FINANCE']);
@@ -253,13 +391,14 @@ describe('DemoPortalComponent', () => {
     component.AccountSettingsConfirmation = 'different-password';
     component.SaveAccountSettings();
 
-    expect(component.AccountSettingsNotice).toBe('新密碼與確認新密碼不一致。');
+    expect(component.AccountSettingsNotice).toBe('新密碼與確認密碼不一致。');
     expect(component.IsPasswordChangeSuccessModalOpen).toBeFalse();
     expect(MockRbac.Authenticate('user@example.com', 'user123')).not.toBeNull();
 
     component.AccountSettingsConfirmation = 'self-service-password';
     component.SaveAccountSettings();
 
+    fixture.detectChanges();
     expect(Auth.CurrentUser?.DisplayName).toBe('財務本人設定');
     expect(Auth.CurrentUser?.Roles).toEqual(['FINANCE']);
     expect(Auth.CurrentUser?.Enabled).toBeTrue();
@@ -271,7 +410,7 @@ describe('DemoPortalComponent', () => {
     component.ConfirmPasswordChangeAndLogout();
     expect(Auth.IsAuthenticated).toBeFalse();
     expect(Navigate).toHaveBeenCalledWith(['/login']);
-    expect(fixture.nativeElement.textContent).toContain('Frontend Mock Only');
+
   });
 
   it('renders only the current user favorites, supports category and date sorting, and keeps report selection flow', () => {
@@ -283,7 +422,7 @@ describe('DemoPortalComponent', () => {
     };
     const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
     Route.snapshot.data.Page = 'ReportList';
-    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    expect(LoginFrontManager(Auth, false)).toBeTrue();
     (
       [
         'AccountBalance',
@@ -488,7 +627,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    expect(LoginFrontManager(Auth, false)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -659,43 +798,6 @@ describe('DemoPortalComponent', () => {
     expect(Host.querySelector('.parameter-report-table')).not.toBeNull();
   });
 
-  it('removes favorite controls for administrators and redirects their direct favorites route', () => {
-    const Auth = TestBed.inject(AuthService);
-    const MockRbac = TestBed.inject(MockRbacService);
-    const Route = TestBed.inject(ActivatedRoute) as unknown as {
-      snapshot: { data: { Page: string } };
-    };
-    const RouterService = TestBed.inject(Router);
-    const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
-    Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
-
-    const parameterFixture = TestBed.createComponent(DemoPortalComponent);
-    const component = parameterFixture.componentInstance;
-    parameterFixture.detectChanges();
-
-    expect(
-      parameterFixture.nativeElement.querySelector('.parameter-favorite-button'),
-    ).toBeNull();
-    expect(
-      parameterFixture.nativeElement.querySelectorAll('.parameter-report-table th'),
-    ).toHaveSize(6);
-    component.ToggleFavoriteReport('AccountBalance');
-    expect(
-      MockRbac.IsFavoriteReport('admin@example.com', 'AccountBalance'),
-    ).toBeFalse();
-
-    Route.snapshot.data.Page = 'ReportList';
-    Navigate.calls.reset();
-    const favoriteFixture = TestBed.createComponent(DemoPortalComponent);
-    favoriteFixture.detectChanges();
-
-    expect(
-      favoriteFixture.nativeElement.querySelector('.favorite-report-table'),
-    ).toBeNull();
-    expect(Navigate).toHaveBeenCalledWith(['/reports/parameters']);
-  });
-
   it('keeps favorite reports and account settings navigation for non-administrators', () => {
     const Auth = TestBed.inject(AuthService);
     expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
@@ -719,7 +821,7 @@ describe('DemoPortalComponent', () => {
     const RouterService = TestBed.inject(Router);
     const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
     Route.snapshot.data.Page = 'ReportPreview';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     fixture.detectChanges();
@@ -729,7 +831,7 @@ describe('DemoPortalComponent', () => {
     });
   });
 
-  it('shows the shared enabled report Mock catalog to an ordinary user on ReportParameter', () => {
+  it('shows only the permitted enabled report catalog to an ordinary user on ReportParameter', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
@@ -745,23 +847,18 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     expect(component.DisplayedParameterReports).toEqual(
-      MockRbac.GetAllEnabledReports(),
+      MockRbac.GetAccessibleReports(Auth.ActiveRoles),
     );
-    expect(component.DisplayedParameterReports).toHaveSize(12);
+    expect(component.DisplayedParameterReports).toHaveSize(5);
     expect(component.ParameterReportCategories.map((Category) => Category.CategoryId)).toEqual(
-      MockRbac.GetAllEnabledReportCategories().map((Category) => Category.CategoryId),
+      MockRbac.GetReportFilterCategories(Auth.ActiveRoles).map((Category) => Category.CategoryId),
     );
 
     component.SelectReportForPreview('InventoryTransferHana');
 
-    expect(Auth.SelectedReport?.ReportKey).toBe('InventoryTransferHana');
+    expect(Auth.SelectedReport).toBeNull();
     expect(Auth.SelectedReportCategoryPermission.CanExecute).toBeFalse();
-    expect(Navigate).toHaveBeenCalledWith(
-      ['/reports/preview'],
-      jasmine.objectContaining({
-        state: jasmine.objectContaining({ ReportPreviewOrigin: 'all' }),
-      }),
-    );
+    expect(Navigate).not.toHaveBeenCalled();
   });
 
   it('returns from ReportPreview to the report list', () => {
@@ -772,7 +869,7 @@ describe('DemoPortalComponent', () => {
     const RouterService = TestBed.inject(Router);
     const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
     Route.snapshot.data.Page = 'ReportPreview';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
     Auth.SelectReport('AccountBalance');
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
@@ -802,7 +899,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -829,7 +926,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'RptManagement';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -901,7 +998,7 @@ describe('DemoPortalComponent', () => {
     component.ToggleReportManagementSort('ReportName');
     fixture.detectChanges();
     expect(component.DisplayedManagedReports[0].ReportKey).toBe(
-      LatestReportToPin.ReportKey,
+      ReportToPin.ReportKey,
     );
     expect(
       Table.querySelector<HTMLButtonElement>('.report-management-pin-button')
@@ -952,7 +1049,7 @@ describe('DemoPortalComponent', () => {
     expect(Table.querySelectorAll('[role="switch"]').length).toBe(10);
     expect(Host.textContent).not.toContain('AccountBalance.rpt');
     expect(Host.textContent).toContain('停用');
-    expect(Host.textContent).toContain('開始日期（TBD）');
+    expect(Host.textContent).toContain('日期篩選對應欄位尚待需求確認（TBD）');
     expect(
       component.ReportManagementCategories.map(
         (Category) => Category.CategoryId,
@@ -973,10 +1070,10 @@ describe('DemoPortalComponent', () => {
 
     const FirstSwitch =
       Table.querySelector<HTMLButtonElement>('[role="switch"]')!;
-    expect(FirstSwitch.getAttribute('aria-checked')).toBe('false');
+    const WasEnabled = FirstSwitch.getAttribute('aria-checked') === 'true';
     FirstSwitch.click();
     fixture.detectChanges();
-    expect(FirstSwitch.getAttribute('aria-checked')).toBe('true');
+    expect(Table.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe(String(!WasEnabled));
 
     component.OpenUploadReportDialog();
     fixture.detectChanges();
@@ -1071,7 +1168,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'RptManagement';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -1156,21 +1253,21 @@ describe('DemoPortalComponent', () => {
     component.CloseReportCategoryQuickAdd();
 
     Auth.Logout();
-    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    expect(Auth.Login('warehouse@example.com', 'warehouse123')).toBeTrue();
     fixture.detectChanges();
     expect(Host.querySelector('.report-category-quick-add-trigger')).toBeNull();
     component.OpenReportCategoryQuickAdd();
     expect(component.IsReportCategoryQuickAddOpen).toBeFalse();
   });
 
-  it('lets only an administrator manage report categories through the modal', () => {
+  it('lets only a permitted front user manage report categories through the modal', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'RptManagement';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -1293,7 +1390,7 @@ describe('DemoPortalComponent', () => {
 
     component.CloseCategoryManagementDialog();
     Auth.Logout();
-    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    expect(Auth.Login('warehouse@example.com', 'warehouse123')).toBeTrue();
     fixture.detectChanges();
     expect(
       Array.from(Host.querySelectorAll('button')).some(
@@ -1310,7 +1407,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -1330,14 +1427,17 @@ describe('DemoPortalComponent', () => {
     component.OnParameterReportSearchChange();
     fixture.detectChanges();
     expect(component.ParameterReportCurrentPage).toBe(1);
-    expect(component.PagedParameterReports).toHaveSize(3);
+    expect(component.PagedParameterReports).toHaveSize(2);
     expect(fixture.nativeElement.querySelector('.list-pagination')).toBeNull();
   });
 
   it('paginates the UserManagement table without paginating role cards', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
 
+    for (let Index = 0; Index < 3; Index++) TestBed.inject(MockRbacService).CreateUser({
+      Account: 'pagination' + Index, DisplayName: '分頁測試', Roles: ['FINANCE'], Enabled: true,
+    });
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
@@ -1361,7 +1461,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'RptManagement';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -1388,7 +1488,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'DatabaseConnection';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -1410,7 +1510,7 @@ describe('DemoPortalComponent', () => {
 
   it('uses localized category permission labels in the EditRole dialog', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     fixture.componentInstance.OpenEditRoleDialog('FINANCE');
@@ -1421,30 +1521,12 @@ describe('DemoPortalComponent', () => {
         '.role-permission-table th',
       ),
     ).map((Header) => Header.textContent?.trim());
-    expect(Headers).toEqual(['報表分類', '執行', '匯出', '列印']);
+    expect(Headers).toEqual(['報表分類', '預覽', '匯出', '列印']);
     expect(fixture.nativeElement.textContent).toContain('財務');
     expect(fixture.nativeElement.textContent).not.toContain('AccountBalance');
     expect(fixture.nativeElement.textContent).not.toContain('CanExecute');
-    expect(fixture.nativeElement.textContent).not.toContain('CanExportPdf');
+    expect(fixture.nativeElement.textContent).not.toContain('CanExport');
     expect(fixture.nativeElement.textContent).not.toContain('CanPrint');
-  });
-
-  it('removes the standalone permission navigation and makes SystemAdmin category rows read-only', () => {
-    const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
-    const fixture = TestBed.createComponent(DemoPortalComponent);
-    const component = fixture.componentInstance;
-    component.OpenEditRoleDialog('ADMIN');
-    fixture.detectChanges();
-
-    const Host = fixture.nativeElement as HTMLElement;
-    expect(Host.textContent).not.toContain('報表權限管理');
-    expect(
-      Host.querySelectorAll('.role-permission-table input:disabled').length,
-    ).toBeGreaterThan(0);
-    expect(Host.textContent).toContain(
-      '系統管理員擁有所有報表分類權限，設定為唯讀。',
-    );
   });
 
   it('opens the export menu, closes it after selection, and shows the selected Mock format', () => {
@@ -1453,8 +1535,9 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'ReportPreview';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
+    Auth.SelectReport('AccountBalance');
     const fixture = TestBed.createComponent(DemoPortalComponent);
     fixture.detectChanges();
 
@@ -1502,7 +1585,7 @@ describe('DemoPortalComponent', () => {
     };
     const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
     Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -1545,7 +1628,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
     Auth.SelectReport('Activity');
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
@@ -1587,7 +1670,7 @@ describe('DemoPortalComponent', () => {
     };
     const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
     Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
     Auth.SelectReport('InventoryTransferHana');
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
@@ -1636,7 +1719,7 @@ describe('DemoPortalComponent', () => {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'ReportParameter';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
     Auth.SelectReport('AccountBalance');
 
     ParameterService.SetLovStatus('AccountBalance', 'CustomerCode', 'loading');
@@ -1664,94 +1747,9 @@ describe('DemoPortalComponent', () => {
     ).toBe('success');
   });
 
-  it('redirects an administrator to reports after approving their own demotion', () => {
-    const Auth = TestBed.inject(AuthService);
-    const MockRbac = TestBed.inject(MockRbacService);
-    const RouterService = TestBed.inject(Router);
-    const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
-    const AdditionalAdmin: MockUserDraft = {
-      Account: 'admin4@example.com',
-      DisplayName: '系統管理員 D',
-      InitialPassword: 'admin456',
-      Roles: ['ADMIN'],
-      Enabled: true,
-    };
-    const Demotion = {
-      Account: 'admin2@example.com',
-      DisplayName: '系統管理員 B',
-      Roles: ['FINANCE'],
-      Enabled: true,
-    };
-
-    expect(Auth.Login('admin2@example.com', 'admin234')).toBeTrue();
-    expect(MockRbac.CreateUser(AdditionalAdmin)).toBeTrue();
-    expect(
-      MockRbac.SaveUserEdit(
-        'admin2@example.com',
-        Demotion,
-        'admin@example.com',
-      ),
-    ).toBe('role-change-requested');
-
-    const fixture = TestBed.createComponent(DemoPortalComponent);
-    fixture.componentInstance.RespondToRoleChangeRequest(
-      MockRbac.RoleChangeRequests[0].Id,
-      true,
-    );
-
-    expect(Auth.IsAdmin).toBeFalse();
-    expect(Navigate).toHaveBeenCalledWith(['/reports']);
-  });
-
-  it('disables and defends the current administrator account against self-disable', () => {
-    const Auth = TestBed.inject(AuthService);
-    const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
-
-    const fixture = TestBed.createComponent(DemoPortalComponent);
-    fixture.detectChanges();
-    const CurrentUserSwitch = Array.from(
-      (
-        fixture.nativeElement as HTMLElement
-      ).querySelectorAll<HTMLButtonElement>('.account-status-switch'),
-    ).find(
-      (Button) =>
-        Button.getAttribute('aria-label') === '目前登入的使用者不可停用',
-    );
-
-    expect(CurrentUserSwitch?.disabled).toBeTrue();
-
-    fixture.componentInstance.SetUserEnabled('admin@example.com', false);
-
-    expect(MockRbac.GetUser('admin@example.com')?.Enabled).toBeTrue();
-    expect(fixture.componentInstance.ManagementNotice).toBe(
-      '目前登入的使用者不可將自己停用。',
-    );
-
-    fixture.componentInstance.ManagementNotice = '';
-    fixture.componentInstance.EditUser('admin@example.com');
-    fixture.detectChanges();
-    const EditingUserSwitch = (
-      fixture.nativeElement as HTMLElement
-    ).querySelector<HTMLButtonElement>(
-      '.edit-user-modal .account-status-switch',
-    );
-    expect(EditingUserSwitch?.disabled).toBeTrue();
-
-    fixture.componentInstance.EditingUser!.Enabled = false;
-    fixture.componentInstance.SaveEditedUser();
-
-    expect(MockRbac.GetUser('admin@example.com')?.Enabled).toBeTrue();
-    expect(fixture.componentInstance.EditUserValidationErrors).toEqual({
-      Form: '目前登入的使用者不可將自己停用。',
-    });
-    expect(fixture.componentInstance.EditingUser).not.toBeNull();
-    expect(fixture.componentInstance.ManagementNotice).toBe('');
-  });
-
   it('keeps the EditUser modal open and clears the local required-role error after a role change', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -1776,63 +1774,13 @@ describe('DemoPortalComponent', () => {
     expect(component.EditUserValidationErrors.Roles).toBeUndefined();
   });
 
-  it('keeps the EditUser modal open and shows the administrator minimum error below roles', () => {
-    const Auth = TestBed.inject(AuthService);
-    const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
-
-    const fixture = TestBed.createComponent(DemoPortalComponent);
-    const component = fixture.componentInstance;
-    component.EditUser('admin2@example.com');
-    component.EditingUser!.Roles = ['FINANCE'];
-    component.SaveEditedUser();
-    fixture.detectChanges();
-
-    expect(MockRbac.AdminCount).toBe(3);
-    expect(MockRbac.GetUser('admin2@example.com')?.Roles).toEqual(['ADMIN']);
-    expect(component.EditingUser).not.toBeNull();
-    expect(component.EditUserValidationErrors.Roles).toBe(
-      '系統管理員不得少於3位，請先新增/ 任命新的系統管理員後再試 !!',
-    );
-    expect(component.ManagementNotice).toBe('');
-    expect(
-      (fixture.nativeElement as HTMLElement).querySelector(
-        '.edit-user-modal #edit-user-roles-error',
-      )?.textContent,
-    ).toContain(component.EditUserValidationErrors.Roles);
-  });
-
-  it('keeps the DeleteUser modal open and shows the administrator minimum error locally', () => {
-    const Auth = TestBed.inject(AuthService);
-    const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
-
-    const fixture = TestBed.createComponent(DemoPortalComponent);
-    const component = fixture.componentInstance;
-    component.OpenDeleteUserDialog('admin2@example.com');
-    component.ConfirmDeleteUser();
-    fixture.detectChanges();
-
-    expect(MockRbac.AdminCount).toBe(3);
-    expect(component.DeletingUser?.Account).toBe('admin2@example.com');
-    expect(component.DeleteUserError).toBe(
-      '系統管理員不得少於3位，請先新增/ 任命新的系統管理員後再試 !!',
-    );
-    expect(component.ManagementNotice).toBe('');
-    expect(
-      (fixture.nativeElement as HTMLElement).querySelector(
-        '[aria-labelledby="delete-user-title"] .field-error',
-      )?.textContent,
-    ).toContain(component.DeleteUserError);
-  });
-
   it('keeps the database connection modal open and renders required-field errors locally', () => {
     const Auth = TestBed.inject(AuthService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
       snapshot: { data: { Page: string } };
     };
     Route.snapshot.data.Page = 'DatabaseConnection';
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginFrontManager(Auth)).toBeTrue();
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
@@ -1856,7 +1804,7 @@ describe('DemoPortalComponent', () => {
 
   it('creates a role from the UserManagement dialog state and makes it available in role cards', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
 
@@ -1875,7 +1823,7 @@ describe('DemoPortalComponent', () => {
     expect(component.IsCreateRoleDialogOpen).toBeFalse();
     expect(component.SuccessToastMessage).toBe('新增角色「業務人員」，成功！');
     expect(fixture.nativeElement.textContent).toContain('業務人員');
-    expect(fixture.nativeElement.textContent).toContain(
+    expect(component.MockRbac.Roles.find((Role) => Role.DisplayName === '業務人員')?.Description).toBe(
       '前端 Mock 建立的自訂角色。',
     );
     expect(
@@ -1886,7 +1834,7 @@ describe('DemoPortalComponent', () => {
   it('edits an existing role from the UserManagement dialog state', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
 
@@ -1901,34 +1849,10 @@ describe('DemoPortalComponent', () => {
     expect(MockRbac.GetRole('FINANCE').DisplayName).toBe('財務分析人員');
   });
 
-  it('locks SystemAdmin in the EditRole dialog and does not render a delete action', () => {
-    const Auth = TestBed.inject(AuthService);
-    const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
-    const fixture = TestBed.createComponent(DemoPortalComponent);
-    const component = fixture.componentInstance;
-    const AdminName = MockRbac.GetRole('ADMIN').DisplayName;
-
-    component.OpenEditRoleDialog('ADMIN');
-    fixture.detectChanges();
-
-    const Host = fixture.nativeElement as HTMLElement;
-    const NameInput = Host.querySelector<HTMLInputElement>(
-      '.role-name-field input',
-    )!;
-    expect(NameInput.readOnly).toBeTrue();
-    expect(Host.querySelector('.role-description-field')).toBeNull();
-    expect(Host.querySelector('[aria-label="刪除角色"]')).toBeNull();
-
-    component.RoleDraft.DisplayName = '不應套用的名稱';
-    component.SaveEditedRole();
-    expect(MockRbac.GetRole('ADMIN').DisplayName).toBe(AdminName);
-  });
-
   it('cancels custom role renames and deletes a zero-user role only after confirmation', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
 
@@ -1966,7 +1890,7 @@ describe('DemoPortalComponent', () => {
 
   it('blocks deletion of a role that is still assigned to users', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
 
@@ -1980,7 +1904,7 @@ describe('DemoPortalComponent', () => {
   it('derives role filter tabs and user counts from the current Mock data', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
@@ -2004,17 +1928,16 @@ describe('DemoPortalComponent', () => {
     expect(component.FilteredUsers).toEqual([RoleUsers[0]]);
   });
 
-  it('supports ordinary multi-role assignment while keeping SystemAdmin exclusive', () => {
+  it('supports ordinary multi-role assignment', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
 
     component.OpenCreateUserDialog();
     component.UserDraft.Account = 'role-flow@example.com';
     component.UserDraft.DisplayName = '角色流程測試';
-    component.UserDraft.InitialPassword = 'roleflow123';
     component.UserDraft.Roles = [];
     component.ToggleUserRole(component.UserDraft, 'PURCHASE', true);
     component.SaveUser();
@@ -2031,20 +1954,13 @@ describe('DemoPortalComponent', () => {
     ]);
 
     component.EditUser('role-flow@example.com');
-    component.ToggleUserRole(component.EditingUser!, 'ADMIN', true);
-    expect(component.EditingUser?.Roles).toEqual(['ADMIN']);
-    expect(
-      component.IsRoleOptionDisabled(component.EditingUser!.Roles, 'FINANCE'),
-    ).toBeTrue();
-    component.ToggleUserRole(component.EditingUser!, 'FINANCE', true);
-    component.SaveEditedUser();
-    expect(MockRbac.GetUser('role-flow@example.com')?.Roles).toEqual(['ADMIN']);
+    expect(MockRbac.Roles.some((Role) => Role.Key === 'ADMIN')).toBeFalse();
   });
 
-  it('uses the CreateUser checkbox group for multi-role selection, SystemAdmin exclusivity, and field-level validation', () => {
+  it('uses the CreateUser checkbox group for multi-role selection, and field-level validation', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     component.OpenCreateUserDialog();
@@ -2068,7 +1984,6 @@ describe('DemoPortalComponent', () => {
     expect(component.CreateUserValidationErrors).toEqual({
       Account: '請輸入使用者帳號。',
       DisplayName: '請輸入使用者名稱。',
-      InitialPassword: '請設定初始密碼。',
       Roles: '請至少選擇一個角色。',
     });
 
@@ -2084,21 +1999,11 @@ describe('DemoPortalComponent', () => {
       'WAREHOUSE',
     ]);
 
-    CreateRoleCheckbox('ADMIN').click();
-    fixture.detectChanges();
-    expect(component.UserDraft.Roles).toEqual(['ADMIN']);
-    expect(
-      component.IsRoleOptionDisabled(component.UserDraft.Roles, 'FINANCE'),
-    ).toBeTrue();
-    CreateRoleCheckbox('ADMIN').click();
-    fixture.detectChanges();
-    expect(
-      component.IsRoleOptionDisabled(component.UserDraft.Roles, 'FINANCE'),
-    ).toBeFalse();
-
+    CreateRoleCheckbox('FINANCE').click();
+    CreateRoleCheckbox('PURCHASE').click();
+    CreateRoleCheckbox('WAREHOUSE').click();
     component.UserDraft.Account = 'created-multi-role@example.com';
     component.UserDraft.DisplayName = '多角色建立測試';
-    component.UserDraft.InitialPassword = 'createdmultirole123';
     CreateRoleCheckbox('PURCHASE').click();
     fixture.detectChanges();
     CreateRoleCheckbox('WAREHOUSE').click();
@@ -2110,31 +2015,43 @@ describe('DemoPortalComponent', () => {
     ]);
   });
 
-  it('shows the one-time created-user credentials modal after a successful user creation', () => {
+  it('shows the backend-generated one-time credentials without a password field after user creation', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     component.OpenCreateUserDialog();
     component.UserDraft.Account = 'created-credentials@example.com';
     component.UserDraft.DisplayName = '帳密結果測試';
-    component.UserDraft.InitialPassword = 'initial-password-123';
     component.ToggleCreateUserRole('FINANCE', true);
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('input[name="create-user-password"]'),
+    ).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('初始密碼將由後端隨機產生');
 
     component.SaveUser();
     fixture.detectChanges();
 
     const Host = fixture.nativeElement as HTMLElement;
     expect(component.IsCreateUserDialogOpen).toBeFalse();
-    expect(component.CreatedUserCredentials).toEqual({
-      Account: 'created-credentials@example.com',
-      InitialPassword: 'initial-password-123',
-    });
+    expect(component.CreatedUserCredentials?.Account).toBe('created-credentials@example.com');
+    expect(component.CreatedUserCredentials?.InitialPassword).toMatch(/^[A-Za-z0-9!@#$%]{16}$/);
     expect(MockRbac.GetUser('created-credentials@example.com')).not.toBeNull();
     expect(
       Host.querySelector('.created-user-success-modal')?.textContent,
     ).toContain('created-credentials@example.com');
+    expect(
+      Host.querySelector('#created-user-success-description')?.textContent,
+    ).toContain('已成功建立使用者。');
+    expect(
+      Host.querySelector('#created-user-success-description strong')?.textContent,
+    ).toContain('首次登入時立即修改密碼');
+    expect(
+      Host.querySelector('.created-user-password-row dt')?.textContent?.trim(),
+    ).toBe('初始密碼：');
     expect(Host.querySelector('.created-user-copy-button')).not.toBeNull();
 
     component.CloseCreatedUserSuccessModal();
@@ -2142,17 +2059,18 @@ describe('DemoPortalComponent', () => {
   });
 
   it('clears and disables output permissions when CanExecute is removed', () => {
+    LoginBoundBackOfficeOperator(TestBed.inject(AuthService));
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     const Entry = component.RoleDraft.Permissions[0];
-    Entry.Permission.CanExportPdf = true;
+    Entry.Permission.CanExport = true;
     Entry.Permission.CanPrint = true;
 
     component.SetPermissionCanExecute(Entry, false);
 
     expect(Entry.Permission).toEqual({
       CanExecute: false,
-      CanExportPdf: false,
+      CanExport: false,
       CanPrint: false,
     });
   });
@@ -2220,7 +2138,7 @@ describe('DemoPortalComponent', () => {
 
   it('keeps the create actions in their section headers rather than in role cards or search', () => {
     const Auth = TestBed.inject(AuthService);
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
@@ -2257,5 +2175,119 @@ describe('DemoPortalComponent', () => {
 
     UserCreateAction.click();
     expect(component.IsCreateUserDialogOpen).toBeTrue();
+  });
+
+  it('filters front-office notifications between all and unread tabs', () => {
+    const Auth = TestBed.inject(AuthService);
+    const NotificationCenter = TestBed.inject(MockNotificationCenterService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'NotificationCenter';
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    NotificationCenter.NotifyRoleAssignmentChange(
+      'user@example.com',
+      NotificationCenter.CaptureAccess('user@example.com'),
+    );
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('全部（1）');
+    expect(fixture.nativeElement.textContent).toContain('未讀（1）');
+    expect(component.DisplayedNotifications).toHaveSize(1);
+    component.NotificationCenterTab = 'Unread';
+    component.MarkCenterNotificationRead(
+      component.CurrentNotifications[0].Id,
+    );
+    expect(component.DisplayedNotifications).toHaveSize(0);
+    component.NotificationCenterTab = 'All';
+    expect(component.DisplayedNotifications).toHaveSize(1);
+
+    component.ToggleNotificationPanel();
+    expect(
+      Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll(
+          '.notification-popover-tabs button',
+        ),
+      ).map((Button) => Button.textContent?.trim()),
+    ).toEqual(['全部（1）', '未讀（0）']);
+
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
+    const BackOfficeFixture = TestBed.createComponent(DemoPortalComponent);
+    BackOfficeFixture.detectChanges();
+    const BackOfficeComponent = BackOfficeFixture.componentInstance;
+    expect(BackOfficeComponent.NotificationCenterTab).toBe('All');
+    expect(
+      Array.from(
+        (BackOfficeFixture.nativeElement as HTMLElement).querySelectorAll(
+          '.notification-center-tabs button',
+        ),
+      ).map((Button) => Button.textContent?.trim()),
+    ).toEqual(['全部（0）', '未讀（0）']);
+    BackOfficeComponent.ToggleNotificationPanel();
+    expect(
+      Array.from(
+        (BackOfficeFixture.nativeElement as HTMLElement).querySelectorAll(
+          '.notification-popover-tabs button',
+        ),
+      ).map((Button) => Button.textContent?.trim()),
+    ).toEqual(['全部（0）', '未讀（0）']);
+  });
+
+  it('opens a report from list rows while favorite controls do not bubble', () => {
+    const Auth = TestBed.inject(AuthService);
+    const MockRbac = TestBed.inject(MockRbacService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportList';
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    MockRbac.ToggleFavoriteReport('user@example.com', 'AccountBalance');
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    const SelectReport = spyOn(component, 'SelectReportByKey');
+    fixture.detectChanges();
+    const Host = fixture.nativeElement as HTMLElement;
+
+    Host.querySelector<HTMLTableRowElement>('.favorite-report-table tbody tr')!.click();
+    expect(SelectReport).toHaveBeenCalledWith('AccountBalance');
+    SelectReport.calls.reset();
+    Host.querySelector<HTMLButtonElement>('.favorite-star-button')!.click();
+    expect(SelectReport).not.toHaveBeenCalled();
+  });
+
+  it('opens all-report and report-management rows while their controls do not bubble', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    expect(LoginFrontManager(Auth)).toBeTrue();
+
+    Route.snapshot.data.Page = 'ReportParameter';
+    const ParameterFixture = TestBed.createComponent(DemoPortalComponent);
+    const ParameterComponent = ParameterFixture.componentInstance;
+    const SelectParameterReport = spyOn(ParameterComponent, 'SelectReportForPreview');
+    ParameterFixture.detectChanges();
+    const ParameterHost = ParameterFixture.nativeElement as HTMLElement;
+    ParameterHost.querySelector<HTMLTableRowElement>('.parameter-report-table tbody tr')!.click();
+    expect(SelectParameterReport).toHaveBeenCalled();
+    SelectParameterReport.calls.reset();
+    ParameterHost.querySelector<HTMLButtonElement>('.parameter-favorite-button')!.click();
+    expect(SelectParameterReport).not.toHaveBeenCalled();
+
+    Route.snapshot.data.Page = 'RptManagement';
+    const ManagementFixture = TestBed.createComponent(DemoPortalComponent);
+    const ManagementComponent = ManagementFixture.componentInstance;
+    const SelectManagedReport = spyOn(ManagementComponent, 'SelectReportForPreview');
+    ManagementFixture.detectChanges();
+    const ManagementHost = ManagementFixture.nativeElement as HTMLElement;
+    ManagementHost.querySelector<HTMLTableRowElement>('.report-management-table tbody tr')!.click();
+    expect(SelectManagedReport).toHaveBeenCalled();
+    SelectManagedReport.calls.reset();
+    ManagementHost.querySelector<HTMLButtonElement>('.report-management-pin-button')!.click();
+    expect(SelectManagedReport).not.toHaveBeenCalled();
   });
 });

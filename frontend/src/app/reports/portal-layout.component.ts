@@ -10,24 +10,21 @@ import { AuthService } from '../services/auth.service';
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
     <header class="header">
-      <a routerLink="/reports" class="brand">Crystal Reports 外部報表系統</a>
-      <div>{{ auth.CurrentUser?.DisplayName }}（{{ auth.ActiveRoleNames }}） <button type="button" (click)="logout()">登出</button></div>
+      <a [routerLink]="auth.HomeRoute" class="brand">Crystal Reports 外部報表系統</a>
+      <div>{{ auth.DisplayName }} <button type="button" (click)="logout()">登出</button></div>
     </header>
     <div class="body">
       <aside class="nav">
-        <p>一般使用者功能</p>
-        <a routerLink="/reports" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">我的報表</a>
-        <a routerLink="/reports/parameters" routerLinkActive="active">報表條件</a>
-        <a routerLink="/reports/preview" routerLinkActive="active">報表預覽</a>
-        <a routerLink="/account/settings" routerLinkActive="active">帳號設定</a>
-        <ng-container *ngIf="auth.IsAdmin">
-          <p>管理功能</p>
-          <a routerLink="/admin/users" routerLinkActive="active">使用者管理</a>
-          <a routerLink="/admin/permissions" routerLinkActive="active">報表權限管理</a>
-          <a routerLink="/admin/reports" routerLinkActive="active">RPT 報表管理</a>
-          <a routerLink="/admin/parameters" routerLinkActive="active">報表參數設定</a>
-          <a routerLink="/admin/database-connections" routerLinkActive="active">MSSQL 資料庫連線管理</a>
-          <a routerLink="/admin/operation-logs" routerLinkActive="active">操作紀錄查詢</a>
+        <ng-container *ngIf="auth.IsFrontOffice">
+          <a routerLink="/reports/parameters">所有報表</a>
+          <a routerLink="/reports">收藏的報表</a>
+          <a routerLink="/account/settings">帳號設定</a>
+          <a *ngIf="auth.HasManagementPermission('DatabaseConnection')" routerLink="/database-connections">MSSQL 資料庫連線管理</a>
+          <a *ngIf="auth.HasManagementPermission('RptManagement')" routerLink="/report-management">報表管理</a>
+          <a *ngIf="auth.HasManagementPermission('OperationLog')" routerLink="/operation-logs">操作紀錄查詢</a>
+        </ng-container>
+        <ng-container *ngIf="auth.IsBackOffice">
+          <a routerLink="/admin/users">使用者管理</a>
         </ng-container>
       </aside>
       <section class="content"><ng-content></ng-content></section>

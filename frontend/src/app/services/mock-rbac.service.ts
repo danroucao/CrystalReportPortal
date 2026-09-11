@@ -17,7 +17,6 @@ import {
 } from '../mock/mock-reports';
 import {
   EmptyMockCategoryPermission,
-  FullMockCategoryPermission,
   InitialMockRoleCategoryPermissions,
   MockCategoryPermission,
   MockCategoryPermissionEntry,
@@ -31,9 +30,13 @@ import { MockUser, MockUserCredential } from '../mock/mock-users';
 export interface MockUserDraft {
   Account: string;
   DisplayName: string;
-  InitialPassword: string;
   Roles: MockRoleKey[];
   Enabled: boolean;
+}
+
+export interface MockCreatedUserCredentials {
+  readonly Account: string;
+  readonly InitialPassword: string;
 }
 
 export interface MockUserEditDraft {
@@ -49,6 +52,7 @@ export interface MockAccountSettingsDraft {
 
 export interface MockRoleDraft {
   DisplayName: string;
+  ManagementPermissions: MockManagementPermission[];
   Permissions: MockCategoryPermissionEntry[];
 }
 
@@ -56,27 +60,15 @@ export type MockRoleSaveResult = 'updated' | 'not-found' | 'invalid' | 'duplicat
 export type MockDeleteRoleResult =
   | 'deleted'
   | 'not-found'
-  | 'built-in-role'
   | 'role-in-use';
-export type MockRoleChangeRequestStatus = 'Pending' | 'Approved' | 'Rejected';
 export type MockAccountSettingsResult =
   | 'updated'
   | 'password-updated'
   | 'incorrect-password'
   | 'not-found'
   | 'invalid';
-export type MockDeleteUserResult = 'deleted' | 'not-found' | 'minimum-admins';
 
-export interface MockRoleChangeRequest {
-  readonly Id: number;
-  RequesterAccount: string;
-  TargetAccount: string;
-  readonly PreviousRoles: readonly MockRoleKey[];
-  readonly RequestedRoles: readonly MockRoleKey[];
-  readonly RequestedEnabled: boolean;
-  readonly RequestedAt: string;
-  Status: MockRoleChangeRequestStatus;
-}
+export type MockDeleteUserResult = 'deleted' | 'not-found';
 
 export interface MockFavoriteReport {
   readonly Report: MockReportReadModel;
@@ -100,23 +92,7 @@ interface MockFavoriteReportState {
   LastUsedAt: string | null;
 }
 
-export type MockUserEditResult =
-  | 'updated'
-  | 'role-change-requested'
-  | 'not-found'
-  | 'invalid'
-  | 'self-disable-not-allowed'
-  | 'self-role-change-not-allowed'
-  | 'minimum-admins'
-  | 'pending-request-exists';
-
-export type MockRoleChangeResponseResult =
-  | 'approved'
-  | 'rejected'
-  | 'not-found'
-  | 'not-target'
-  | 'not-pending'
-  | 'minimum-admins';
+export type MockUserEditResult = 'updated' | 'not-found' | 'invalid';
 
 export type MockCreateCategoryResult =
   | { Status: 'created'; Category: MockReportCategory }
@@ -150,7 +126,6 @@ export type MockDeleteCategoryResult =
 
 @Injectable({ providedIn: 'root' })
 export class MockRbacService {
-  private readonly MinimumAdminCount = 3;
   private readonly UsersStore: MockUserCredential[] = MockAuthenticationProvider.GetInitialUsers().map((User) => this.CloneCredential(User));
   private readonly RoleStore: MockRole[] = MockRoles.map((Role) => ({ ...Role, ManagementPermissions: [...Role.ManagementPermissions] }));
   private readonly CategoryStore: MockReportCategory[] = MockReportCategories.map(
@@ -161,8 +136,6 @@ export class MockRbacService {
     string,
     Partial<Record<MockReportKey, MockFavoriteReportState>>
   > = this.CreateInitialFavoriteStore();
-  private readonly RoleChangeRequestsStore: MockRoleChangeRequest[] = [];
-  private NextRoleChangeRequestId = 1;
   private NextCustomRoleSequence = 1;
   private NextCustomCategorySequence = 1;
   private NextUploadedReportSequence = 1;
@@ -172,10 +145,6 @@ export class MockRbacService {
 
   get IsEnabled(): boolean { return MockAuthenticationProvider.IsEnabled; }
   get Users(): readonly MockUser[] { return this.UsersStore.map((User) => this.ToReadModel(User)); }
-  get RoleChangeRequests(): readonly MockRoleChangeRequest[] {
-    return this.RoleChangeRequestsStore.map((Request) => ({ ...Request, PreviousRoles: [...Request.PreviousRoles], RequestedRoles: [...Request.RequestedRoles] }));
-  }
-  get AdminCount(): number { return this.UsersStore.filter((User) => User.Roles.includes('ADMIN')).length; }
   get Roles(): readonly MockRole[] { return this.RoleStore.map((Role) => ({ ...Role, ManagementPermissions: [...Role.ManagementPermissions] })); }
   get Reports(): readonly MockReportReadModel[] {
     return this.ReportStore.map((Report) => this.ToReportReadModel(Report));
@@ -301,56 +270,37 @@ export class MockRbacService {
   }
 
   NormalizeRoles(Roles: readonly MockRoleKey[]): MockRoleKey[] {
-    const ValidRoles = [...new Set(Roles)].filter((RoleKey) => this.RoleStore.some((Role) => Role.Key === RoleKey));
-    return ValidRoles.includes('ADMIN') ? ['ADMIN'] : ValidRoles;
+    return [...new Set(Roles)].filter((Key) => this.RoleStore.some((Role) => Role.Key === Key));
   }
 
-  CreateUser(Draft: MockUserDraft): boolean {
+  CreateUser(Draft: MockUserDraft): MockCreatedUserCredentials | null {
     const Roles = this.NormalizeRoles(Draft.Roles);
-    if (!Draft.Account.trim() || !Draft.DisplayName.trim() || !Draft.InitialPassword || !Roles.length) return false;
-    if (this.UsersStore.some((User) => User.Account === Draft.Account.trim())) return false;
+    if (Draft.Account.trim() === MockAuthenticationProvider.BackOfficeAccount?.Account) return null;
+    if (!Draft.Account.trim() || !Draft.DisplayName.trim() || !Roles.length) return null;
+    if (this.UsersStore.some((User) => User.Account === Draft.Account.trim())) return null;
+    const InitialPassword = this.GenerateMockInitialPassword();
     const Timestamp = this.GetTimestamp();
     this.UsersStore.push({
       Account: Draft.Account.trim(),
       DisplayName: Draft.DisplayName.trim(),
-      Password: Draft.InitialPassword,
+      Password: InitialPassword,
       Roles,
       Enabled: Draft.Enabled,
       CreatedAt: Timestamp,
       UpdatedAt: Timestamp,
     });
     this.FavoriteReportStore[Draft.Account.trim()] = this.CreateEmptyFavoriteState();
-    return true;
+    return { Account: Draft.Account.trim(), InitialPassword };
   }
 
-  SaveUserEdit(OriginalAccount: string, Draft: MockUserEditDraft, RequesterAccount: string): MockUserEditResult {
-    const ExistingUser = this.UsersStore.find((User) => User.Account === OriginalAccount);
+  SaveUserEdit(Account: string, Draft: MockUserEditDraft): MockUserEditResult {
+    const User = this.UsersStore.find((Entry) => Entry.Account === Account);
+    if (!User) return 'not-found';
     const Roles = this.NormalizeRoles(Draft.Roles);
-    if (!ExistingUser) return 'not-found';
     if (!Roles.length) return 'invalid';
-    if (RequesterAccount === OriginalAccount && !Draft.Enabled) return 'self-disable-not-allowed';
-
-    const IsAdminDemotion = ExistingUser.Roles.includes('ADMIN') && !Roles.includes('ADMIN');
-    if (IsAdminDemotion) {
-      if (RequesterAccount === OriginalAccount) return 'self-role-change-not-allowed';
-      if (this.AdminCount <= this.MinimumAdminCount) return 'minimum-admins';
-      if (this.RoleChangeRequestsStore.some((Request) => Request.TargetAccount === OriginalAccount && Request.Status === 'Pending')) return 'pending-request-exists';
-      this.RoleChangeRequestsStore.push({
-        Id: this.NextRoleChangeRequestId++,
-        RequesterAccount,
-        TargetAccount: ExistingUser.Account,
-        PreviousRoles: [...ExistingUser.Roles],
-        RequestedRoles: [...Roles],
-        RequestedEnabled: Draft.Enabled,
-        RequestedAt: this.GetTimestamp(),
-        Status: 'Pending',
-      });
-      return 'role-change-requested';
-    }
-
-    ExistingUser.Roles = Roles;
-    ExistingUser.Enabled = Draft.Enabled;
-    this.Touch(ExistingUser);
+    User.Roles = Roles;
+    User.Enabled = Draft.Enabled;
+    this.Touch(User);
     return 'updated';
   }
 
@@ -368,30 +318,11 @@ export class MockRbacService {
   }
 
   DeleteUser(Account: string): MockDeleteUserResult {
-    const UserIndex = this.UsersStore.findIndex((User) => User.Account === Account);
-    if (UserIndex < 0) return 'not-found';
-    if (this.UsersStore[UserIndex].Roles.includes('ADMIN') && this.AdminCount <= this.MinimumAdminCount) return 'minimum-admins';
-    this.UsersStore.splice(UserIndex, 1);
+    const Index = this.UsersStore.findIndex((User) => User.Account === Account);
+    if (Index < 0) return 'not-found';
+    this.UsersStore.splice(Index, 1);
+    delete this.FavoriteReportStore[Account];
     return 'deleted';
-  }
-
-  RespondToRoleChangeRequest(RequestId: number, ResponderAccount: string, Approve: boolean): MockRoleChangeResponseResult {
-    const Request = this.RoleChangeRequestsStore.find((Entry) => Entry.Id === RequestId);
-    if (!Request) return 'not-found';
-    if (Request.Status !== 'Pending') return 'not-pending';
-    if (Request.TargetAccount !== ResponderAccount) return 'not-target';
-    if (Approve && Request.PreviousRoles.includes('ADMIN') && !Request.RequestedRoles.includes('ADMIN') && this.AdminCount <= this.MinimumAdminCount) return 'minimum-admins';
-    if (Approve) {
-      const Target = this.UsersStore.find((User) => User.Account === Request.TargetAccount);
-      if (!Target) return 'not-found';
-      Target.Roles = this.NormalizeRoles(Request.RequestedRoles);
-      Target.Enabled = Request.RequestedEnabled;
-      this.Touch(Target);
-      Request.Status = 'Approved';
-      return 'approved';
-    }
-    Request.Status = 'Rejected';
-    return 'rejected';
   }
 
   SetUserEnabled(Account: string, Enabled: boolean): void {
@@ -409,7 +340,7 @@ export class MockRbacService {
       Key,
       DisplayName,
       Description: '前端 Mock 建立的自訂角色。',
-      ManagementPermissions: [],
+      ManagementPermissions: this.NormalizeManagementPermissions(Draft.ManagementPermissions),
     };
     this.RoleStore.push(Role);
     this.PermissionStore[Key] = this.ToCategoryPermissionRecord(Draft.Permissions);
@@ -420,12 +351,10 @@ export class MockRbacService {
     const RoleIndex = this.RoleStore.findIndex((Role) => Role.Key === RoleKey);
     if (RoleIndex < 0) return 'not-found';
     const ExistingRole = this.RoleStore[RoleIndex];
-    const DisplayName = RoleKey === 'ADMIN'
-      ? ExistingRole.DisplayName
-      : Draft.DisplayName.trim();
+    const DisplayName = Draft.DisplayName.trim();
     if (!DisplayName) return 'invalid';
     if (this.RoleStore.some((Role) => Role.Key !== RoleKey && Role.DisplayName === DisplayName)) return 'duplicate-name';
-    this.RoleStore[RoleIndex] = { ...ExistingRole, DisplayName };
+    this.RoleStore[RoleIndex] = { ...ExistingRole, DisplayName, ManagementPermissions: this.NormalizeManagementPermissions(Draft.ManagementPermissions) };
     this.SaveCategoryPermissions(RoleKey, Draft.Permissions);
     return 'updated';
   }
@@ -433,7 +362,6 @@ export class MockRbacService {
   DeleteRole(RoleKey: MockRoleKey): MockDeleteRoleResult {
     const RoleIndex = this.RoleStore.findIndex((Role) => Role.Key === RoleKey);
     if (RoleIndex < 0) return 'not-found';
-    if (RoleKey === 'ADMIN') return 'built-in-role';
     if (this.GetRoleUserCount(RoleKey) > 0) return 'role-in-use';
     this.RoleStore.splice(RoleIndex, 1);
     delete this.PermissionStore[RoleKey];
@@ -561,7 +489,8 @@ export class MockRbacService {
 
   GetFavoriteReports(Account: string): readonly MockFavoriteReport[] {
     const Favorites = this.FavoriteReportStore[Account] ?? {};
-    return this.GetAllEnabledReports()
+    const User = this.GetUser(Account);
+    return (User?.Enabled ? this.GetAccessibleReports(User.Roles) : [])
       .filter((Report) => Favorites[Report.ReportKey]?.IsFavorite)
       .map((Report) => ({
         Report,
@@ -582,6 +511,8 @@ export class MockRbacService {
   }
 
   ToggleFavoriteReport(Account: string, ReportKey: MockReportKey): boolean {
+    const User = this.GetUser(Account);
+    if (!User?.Enabled || !this.GetAccessibleReports(User.Roles).some((Report) => Report.ReportKey === ReportKey)) return false;
     const Favorites =
       this.FavoriteReportStore[Account] ?? (this.FavoriteReportStore[Account] = {});
     const Favorite =
@@ -602,16 +533,10 @@ export class MockRbacService {
   }
 
   GetCategoryPermission(Role: MockRoleKey, CategoryId: string): MockCategoryPermission {
-    if (
-      !this.IsValidCategoryId(CategoryId) ||
-      (this.IsSystemReservedCategory(CategoryId) && Role !== 'ADMIN')
-    ) {
+    if (!this.GetRole(Role) || !this.IsValidCategoryId(CategoryId) || this.IsSystemReservedCategory(CategoryId)) {
       return EmptyMockCategoryPermission();
     }
-    if (Role === 'ADMIN') return FullMockCategoryPermission();
-    return {
-      ...(this.PermissionStore[Role]?.[CategoryId] ?? EmptyMockCategoryPermission()),
-    };
+    return { ...(this.PermissionStore[Role]?.[CategoryId] ?? EmptyMockCategoryPermission()) };
   }
 
   GetEffectiveCategoryPermission(
@@ -623,7 +548,7 @@ export class MockRbacService {
       const Permission = this.GetCategoryPermission(Role, CategoryId);
       return {
         CanExecute: Effective.CanExecute || Permission.CanExecute,
-        CanExportPdf: Effective.CanExportPdf || Permission.CanExportPdf,
+        CanExport: Effective.CanExport || Permission.CanExport,
         CanPrint: Effective.CanPrint || Permission.CanPrint,
       };
     }, EmptyMockCategoryPermission());
@@ -646,12 +571,14 @@ export class MockRbacService {
   }
 
   SaveCategoryPermissions(Role: MockRoleKey, Entries: readonly MockCategoryPermissionEntry[]): void {
-    if (Role === 'ADMIN') return;
     this.PermissionStore[Role] = this.ToCategoryPermissionRecord(Entries);
   }
 
   GetRole(RoleKey: MockRoleKey): MockRole { return this.RoleStore.find((Role) => Role.Key === RoleKey)!; }
-  HasManagementPermission(Role: MockRoleKey, Permission: MockManagementPermission): boolean { return this.GetRole(Role).ManagementPermissions.includes(Permission); }
+
+  HasManagementPermission(Role: MockRoleKey, Permission: MockManagementPermission): boolean {
+    return this.GetRole(Role)?.ManagementPermissions.includes(Permission) ?? false;
+  }
   SelectReport(
     ReportKey: MockReportKey,
     SearchCriteria: MockReportSearchCriteria | null = null,
@@ -668,10 +595,23 @@ export class MockRbacService {
       ? { ...this.SelectedReportSearchCriteria }
       : null;
   }
-  GetSelectedReport(_Roles: readonly MockRoleKey[]): MockReportReadModel | null {
-    return this.GetAllEnabledReports().find(
-      (Report) => Report.ReportKey === this.SelectedReportKey,
-    ) ?? null;
+
+  GetSelectedReport(Roles: readonly MockRoleKey[]): MockReportReadModel | null {
+    return this.GetAccessibleReports(Roles).find((Report) => Report.ReportKey === this.SelectedReportKey) ?? null;
+  }
+
+  private NormalizeManagementPermissions(Permissions: readonly MockManagementPermission[] = []): MockManagementPermission[] {
+    return [...new Set(Permissions)].filter((Permission) =>
+      Permission === 'RptManagement' ||
+      Permission === 'DatabaseConnection' ||
+      Permission === 'OperationLog');
+  }
+
+  private GenerateMockInitialPassword(): string {
+    const Alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+    const Values = new Uint32Array(16);
+    globalThis.crypto.getRandomValues(Values);
+    return Array.from(Values, (Value) => Alphabet[Value % Alphabet.length]).join('');
   }
 
   private NormalizePermission(Permission: MockCategoryPermission): MockCategoryPermission {

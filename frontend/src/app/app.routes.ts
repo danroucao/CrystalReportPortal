@@ -2,7 +2,12 @@ import { Routes } from '@angular/router';
 
 import { LoginComponent } from './login/login.component';
 import { DemoPortalComponent } from './demo-portal/demo-portal.component';
-import { DemoAdminGuard, DemoAuthGuard } from './guards/demo-auth.guards';
+import {
+  BackOfficeGuard,
+  FrontOfficeGuard,
+  FrontOfficePermissionGuard,
+  ReportPreviewGuard,
+} from './guards/demo-auth.guards';
 
 export const routes: Routes = [
   {
@@ -13,58 +18,83 @@ export const routes: Routes = [
   {
     path: 'reports',
     component: DemoPortalComponent,
-    canActivate: [DemoAuthGuard],
+    canActivate: [FrontOfficeGuard],
     data: { Page: 'ReportList' },
     title: '收藏的報表｜Crystal Reports 外部報表系統',
   },
   {
     path: 'reports/parameters',
     component: DemoPortalComponent,
-    canActivate: [DemoAuthGuard],
+    canActivate: [FrontOfficeGuard],
     data: { Page: 'ReportParameter' },
     title: '所有報表｜Crystal Reports 外部報表系統',
   },
   {
     path: 'reports/preview',
     component: DemoPortalComponent,
-    canActivate: [DemoAuthGuard],
+    canActivate: [ReportPreviewGuard],
     data: { Page: 'ReportPreview' },
     title: '報表預覽｜Crystal Reports 外部報表系統',
   },
   {
     path: 'account/settings',
     component: DemoPortalComponent,
-    canActivate: [DemoAuthGuard],
+    canActivate: [FrontOfficeGuard],
     data: { Page: 'AccountSettings' },
     title: '帳號設定｜Crystal Reports 外部報表系統',
   },
   {
+    path: 'notification-center',
+    component: DemoPortalComponent,
+    canActivate: [FrontOfficeGuard],
+    data: { Page: 'NotificationCenter' },
+    title: '通知中心｜Crystal Reports 外部報表系統',
+  },
+  {
     path: 'admin/users',
     component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
+    canActivate: [BackOfficeGuard],
     data: { Page: 'UserManagement' },
     title: '使用者管理｜Crystal Reports 外部報表系統',
   },
   {
-    path: 'admin/reports',
+    path: 'report-management',
     component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
-    data: { Page: 'RptManagement' },
+    canActivate: [FrontOfficePermissionGuard],
+    data: { Page: 'RptManagement', Permission: 'RptManagement' },
     title: '報表管理｜Crystal Reports 外部報表系統',
   },
   {
-    path: 'admin/database-connections',
+    path: 'database-connections',
     component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
-    data: { Page: 'DatabaseConnection' },
+    canActivate: [FrontOfficePermissionGuard],
+    data: { Page: 'DatabaseConnection', Permission: 'DatabaseConnection' },
     title: '資料庫連線｜Crystal Reports 外部報表系統',
   },
   {
-    path: 'admin/operation-logs',
+    path: 'operation-logs',
     component: DemoPortalComponent,
-    canActivate: [DemoAdminGuard],
-    data: { Page: 'OperationLog' },
+    canActivate: [FrontOfficePermissionGuard],
+    data: { Page: 'OperationLog', Permission: 'OperationLog' },
     title: '操作紀錄｜Crystal Reports 外部報表系統',
+  },
+  {
+    path: 'admin/notification-center',
+    component: DemoPortalComponent,
+    canActivate: [BackOfficeGuard],
+    data: { Page: 'NotificationCenter' },
+    title: '通知中心｜Crystal Reports 外部報表系統',
+  },
+  { path: 'admin/reports', pathMatch: 'full', redirectTo: 'report-management' },
+  {
+    path: 'admin/database-connections',
+    pathMatch: 'full',
+    redirectTo: 'database-connections',
+  },
+  {
+    path: 'admin/operation-logs',
+    pathMatch: 'full',
+    redirectTo: 'operation-logs',
   },
   { path: '', pathMatch: 'full', redirectTo: 'login' },
   { path: '**', redirectTo: 'login' },

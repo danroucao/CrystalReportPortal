@@ -110,7 +110,7 @@ export class LoginComponent implements OnInit {
       }
 
       this.Notifications.ShowSuccess('登入成功！');
-      void this.router.navigate(['/reports/parameters']);
+      void this.router.navigate([this.Auth.HomeRoute]);
     }, 700);
   }
 }
