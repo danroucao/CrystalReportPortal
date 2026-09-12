@@ -1,4 +1,5 @@
-import { TestBed } from '@angular/core/testing';
+import { fakeAsync, flushMicrotasks, TestBed, tick } from '@angular/core/testing';
+import { NgZone } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 
@@ -23,6 +24,97 @@ function LoginBoundBackOfficeOperator(Auth: AuthService): boolean {
 }
 
 describe('DemoPortalComponent', () => {
+  it('settles after identity binding and repeated user dialog interactions', async () => {
+    const Auth = TestBed.inject(AuthService);
+    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const Zone = TestBed.inject(NgZone);
+    const Host = fixture.nativeElement as HTMLElement;
+    fixture.autoDetectChanges();
+    await fixture.whenStable();
+    Zone.run(() => {
+      for (const [Name, Value] of [
+        ['backOfficeBindingAccount', 'user@example.com'],
+        ['backOfficeBindingPassword', 'user123'],
+      ]) {
+        const Input = Host.querySelector<HTMLInputElement>(`input[name="${Name}"]`)!;
+        Input.value = Value;
+        Input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      Host.querySelector<HTMLButtonElement>('.back-office-binding-modal .primary-button')!.click();
+    });
+    await fixture.whenStable();
+    expect(Auth.CanOperateBackOffice).toBeTrue();
+    expect(Host.querySelector('.back-office-binding-backdrop')).toBeNull();
+    expect(Host.querySelectorAll('[inert]').length).toBe(0);
+
+    for (let Round = 0; Round < 3; Round++) {
+      Zone.run(() => Host.querySelector<HTMLElement>('.user-account-identity span')!.click());
+      await fixture.whenStable();
+      expect(Host.querySelector('#edit-user-title')).not.toBeNull();
+      Zone.run(() => Host.querySelector<HTMLLabelElement>('.edit-user-role-option')!.click());
+      await fixture.whenStable();
+      expect(fixture.componentInstance.EditingUser?.Roles).toEqual([]);
+      Zone.run(() => Host.querySelector<HTMLButtonElement>('.edit-user-modal .modal-close-button')!.click());
+      await fixture.whenStable();
+      expect(Host.querySelector('#edit-user-title')).toBeNull();
+
+      Zone.run(() => fixture.componentInstance.OpenCreateUserDialog());
+      await fixture.whenStable();
+      Zone.run(() => Host.querySelector<HTMLElement>('.create-user-role-option span')!.click());
+      await fixture.whenStable();
+      expect(fixture.componentInstance.UserDraft.Roles).toEqual(['FINANCE']);
+      Zone.run(() => Host.querySelector<HTMLButtonElement>('.create-user-modal .modal-close-button')!.click());
+      await fixture.whenStable();
+      expect(Host.querySelector('.create-user-modal')).toBeNull();
+    }
+    fixture.destroy();
+  });
+
+  for (const Mode of ['create', 'edit'] as const) {
+    it(`preserves role controls and remains responsive in the ${Mode} user dialog`, fakeAsync(() => {
+      expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
+      const fixture = TestBed.createComponent(DemoPortalComponent);
+      const component = fixture.componentInstance;
+      fixture.detectChanges();
+      const Host = fixture.nativeElement as HTMLElement;
+      const RoleCard = Host.querySelector('.role-card');
+      if (Mode === 'create') {
+        component.OpenCreateUserDialog();
+      } else {
+        // Exercise the real row handler, including clicks on the account text.
+        Host.querySelector<HTMLElement>('.user-account-identity span')!.click();
+      }
+      fixture.detectChanges();
+      flushMicrotasks();
+      const Selector = `.${Mode}-user-role-option`;
+      const Option = Host.querySelector<HTMLLabelElement>(Selector)!;
+      expect(Option).not.toBeNull();
+      const Checkbox = Option.querySelector<HTMLInputElement>('input')!;
+      const InitiallyChecked = Checkbox.checked;
+      for (let Round = 0; Round < 4; Round++) {
+        fixture.detectChanges();
+        flushMicrotasks();
+        expect(Host.querySelector(Selector)).toBe(Option);
+        expect(Host.querySelector('.role-card')).toBe(RoleCard);
+      }
+      Checkbox.click();
+      fixture.detectChanges();
+      flushMicrotasks();
+      expect(Checkbox.checked).toBe(!InitiallyChecked);
+      Option.click();
+      fixture.detectChanges();
+      flushMicrotasks();
+      expect(Checkbox.checked).toBe(InitiallyChecked);
+      if (Mode === 'create') component.CloseCreateUserDialog();
+      else component.CancelEditUser();
+      fixture.detectChanges();
+      expect(Host.querySelector(Selector)).toBeNull();
+      fixture.destroy();
+      tick(0);
+    }));
+  }
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [DemoPortalComponent],
@@ -75,6 +167,7 @@ describe('DemoPortalComponent', () => {
     expect(Auth.BoundBackOfficeUserId).toBe('user@example.com');
     expect(Notifications.SuccessMessage).toBe('身分驗證成功，已進入後台。');
     expect(fixture.nativeElement.querySelector('.back-office-binding-modal')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('[inert]').length).toBe(0);
     component.OpenCreateUserDialog();
     expect(component.IsCreateUserDialogOpen).toBeTrue();
   });
@@ -1401,6 +1494,39 @@ describe('DemoPortalComponent', () => {
     expect(component.IsCategoryManagementDialogOpen).toBeFalse();
   });
 
+  it('keeps report management toggle DOM nodes when report search loses focus', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'RptManagement';
+    expect(LoginFrontManager(Auth)).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    fixture.detectChanges();
+
+    const Host = fixture.nativeElement as HTMLElement;
+    const Search = Host.querySelector<HTMLInputElement>(
+      '#report-management-search',
+    )!;
+    const ToggleBeforeBlur = Host.querySelector<HTMLButtonElement>(
+      '.report-management-table [role="switch"]',
+    )!;
+    const EnabledBeforeBlur = ToggleBeforeBlur.getAttribute('aria-checked');
+
+    Search.focus();
+    Search.dispatchEvent(new FocusEvent('blur'));
+    fixture.detectChanges();
+
+    const ToggleAfterBlur = Host.querySelector<HTMLButtonElement>(
+      '.report-management-table [role="switch"]',
+    );
+    expect(ToggleAfterBlur).toBe(ToggleBeforeBlur);
+    expect(ToggleAfterBlur?.getAttribute('aria-checked')).toBe(
+      EnabledBeforeBlur,
+    );
+  });
+
   it('paginates the filtered report search list and resets to page one after search changes', () => {
     const Auth = TestBed.inject(AuthService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
@@ -1858,6 +1984,7 @@ describe('DemoPortalComponent', () => {
 
     component.OpenCreateRoleDialog();
     component.RoleDraft.DisplayName = 'admin123';
+    component.RoleDraft.ManagementPermissions = ['RptManagement'];
     component.SaveRole();
     const RoleKey = MockRbac.Roles.find(
       (Role) => Role.DisplayName === 'admin123',
@@ -1967,12 +2094,14 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     const Host = fixture.nativeElement as HTMLElement;
-    const CreateRoleCheckbox = (RoleKey: string) => {
+    const CreateRoleOption = (RoleKey: string) => {
       const RoleName = MockRbac.GetRole(RoleKey)!.DisplayName;
-      const Option = Array.from(
+      return Array.from(
         Host.querySelectorAll<HTMLLabelElement>('.create-user-role-option'),
       ).find((Entry) => Entry.textContent?.includes(RoleName))!;
-      return Option.querySelector<HTMLInputElement>('input')!;
+    };
+    const CreateRoleCheckbox = (RoleKey: string) => {
+      return CreateRoleOption(RoleKey).querySelector<HTMLInputElement>('input')!;
     };
     expect(Host.querySelector('.create-user-modal')).not.toBeNull();
     expect(
@@ -1987,11 +2116,12 @@ describe('DemoPortalComponent', () => {
       Roles: '請至少選擇一個角色。',
     });
 
-    CreateRoleCheckbox('FINANCE').click();
+    CreateRoleOption('FINANCE').querySelector('span')!.click();
     fixture.detectChanges();
+    expect(component.UserDraft.Roles).toEqual(['FINANCE']);
     CreateRoleCheckbox('PURCHASE').click();
     fixture.detectChanges();
-    CreateRoleCheckbox('WAREHOUSE').click();
+    CreateRoleOption('WAREHOUSE').click();
     fixture.detectChanges();
     expect(component.UserDraft.Roles).toEqual([
       'FINANCE',
@@ -2177,6 +2307,31 @@ describe('DemoPortalComponent', () => {
     expect(component.IsCreateUserDialogOpen).toBeTrue();
   });
 
+  it('requires a unique role name and at least one permission before creating a role', () => {
+    const Auth = TestBed.inject(AuthService);
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+
+    component.OpenCreateRoleDialog();
+    component.SaveRole();
+    expect(component.RoleDraftError).toBe('請輸入角色名稱。');
+
+    component.RoleDraft.DisplayName = '財務人員';
+    component.SaveRole();
+    expect(component.RoleDraftError).toBe(
+      '角色名稱已存在，請輸入未重複的角色名稱。',
+    );
+
+    component.RoleDraft.DisplayName = '稽核人員';
+    component.SaveRole();
+    expect(component.RoleDraftError).toBe('請至少勾選一個權限。');
+
+    component.RoleDraft.Permissions[0].Permission.CanExecute = true;
+    component.SaveRole();
+    expect(component.IsCreateRoleDialogOpen).toBeFalse();
+  });
+
   it('filters front-office notifications between all and unread tabs', () => {
     const Auth = TestBed.inject(AuthService);
     const NotificationCenter = TestBed.inject(MockNotificationCenterService);
@@ -2259,7 +2414,7 @@ describe('DemoPortalComponent', () => {
     expect(SelectReport).not.toHaveBeenCalled();
   });
 
-  it('opens all-report and report-management rows while their controls do not bubble', () => {
+  it('opens all-report rows and report-management editors while controls do not bubble', () => {
     const Auth = TestBed.inject(AuthService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
       snapshot: { data: { Page: string } };
@@ -2281,13 +2436,121 @@ describe('DemoPortalComponent', () => {
     Route.snapshot.data.Page = 'RptManagement';
     const ManagementFixture = TestBed.createComponent(DemoPortalComponent);
     const ManagementComponent = ManagementFixture.componentInstance;
-    const SelectManagedReport = spyOn(ManagementComponent, 'SelectReportForPreview');
+    const OpenManagedReportEditor = spyOn(
+      ManagementComponent,
+      'OpenEditReportDialog',
+    );
     ManagementFixture.detectChanges();
     const ManagementHost = ManagementFixture.nativeElement as HTMLElement;
     ManagementHost.querySelector<HTMLTableRowElement>('.report-management-table tbody tr')!.click();
-    expect(SelectManagedReport).toHaveBeenCalled();
-    SelectManagedReport.calls.reset();
+    expect(OpenManagedReportEditor).toHaveBeenCalledWith(
+      ManagementComponent.PagedManagedReports[0].ReportKey,
+    );
+    OpenManagedReportEditor.calls.reset();
     ManagementHost.querySelector<HTMLButtonElement>('.report-management-pin-button')!.click();
-    expect(SelectManagedReport).not.toHaveBeenCalled();
+    expect(OpenManagedReportEditor).not.toHaveBeenCalled();
+  });
+
+  it('opens user editors from user-management rows while row controls do not bubble', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'UserManagement';
+    expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    const EditUser = spyOn(component, 'EditUser');
+    fixture.detectChanges();
+
+    const Host = fixture.nativeElement as HTMLElement;
+    const FirstUser = component.PagedUsers[0];
+    Host.querySelector<HTMLTableRowElement>(
+      '.user-management-table tbody tr',
+    )!.click();
+    expect(EditUser).toHaveBeenCalledWith(FirstUser.Account);
+
+    EditUser.calls.reset();
+    Host.querySelector<HTMLButtonElement>(
+      '.user-management-table [role="switch"]',
+    )!.click();
+    expect(EditUser).not.toHaveBeenCalled();
+
+    Host.querySelector<HTMLButtonElement>(
+      '.user-management-table .secondary-button',
+    )!.click();
+    expect(EditUser).toHaveBeenCalledOnceWith(FirstUser.Account);
+  });
+
+  it('renders paged operation logs, resets pagination on filtering, and opens a detail modal', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute);
+    Route.snapshot.data['Page'] = 'OperationLog';
+    expect(LoginFrontManager(Auth)).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(component.FilteredOperationLogs).toHaveSize(11);
+    expect(component.PagedOperationLogs).toHaveSize(10);
+    expect(component.OperationLogTotalPages).toBe(2);
+    expect(fixture.nativeElement.querySelectorAll('.operation-log-table tbody tr')).toHaveSize(10);
+
+    component.GoToOperationLogPage(2);
+    expect(component.PagedOperationLogs).toHaveSize(1);
+    component.OperationLogCategoryFilter = 'ReportAction';
+    component.OnOperationLogFilterChange();
+    expect(component.OperationLogCurrentPage).toBe(1);
+    expect(component.PagedOperationLogs.every((Entry) => Entry.Category === 'ReportAction')).toBeTrue();
+
+    component.OperationLogCurrentPage = 2;
+    component.OperationLogSourceFilter = 'BackOffice';
+    component.OnOperationLogSourceChange();
+    fixture.detectChanges();
+    expect(component.OperationLogCategoryFilter).toBe('ALL');
+    expect(component.OperationLogCurrentPage).toBe(1);
+    const CategorySelect = fixture.nativeElement.querySelectorAll(
+      '.operation-log-filters select',
+    )[1] as HTMLSelectElement;
+    const CategoryOptions = Array.from(CategorySelect.options).map((Option) => Option.value);
+    expect(CategoryOptions).toEqual(['ALL', 'PermissionChange', 'AccountManagement']);
+
+    component.OperationLogCategoryFilter = 'AccountManagement';
+    component.OperationLogCurrentPage = 2;
+    component.OperationLogSourceFilter = 'FrontOffice';
+    component.OnOperationLogSourceChange();
+    fixture.detectChanges();
+    expect(component.OperationLogCategoryFilter).toBe('ALL');
+    expect(component.OperationLogCurrentPage).toBe(1);
+    expect(Array.from(CategorySelect.options).map((Option) => Option.value))
+      .toEqual(['ALL', 'ReportAction']);
+
+    component.OperationLogCategoryFilter = 'ALL';
+    component.OperationLogSourceFilter = 'ALL';
+    component.OnOperationLogFilterChange();
+    component.ToggleOperationLogSort('UserId');
+    expect(component.OperationLogSortDirection).toBe('asc');
+    expect(component.PagedOperationLogs.map((Entry) => Entry.UserId)).toEqual(
+      [...component.PagedOperationLogs.map((Entry) => Entry.UserId)].sort((Left, Right) =>
+        Left.localeCompare(Right, 'zh-Hant'),
+      ),
+    );
+    component.ToggleOperationLogSort('OccurredAt');
+    expect(component.OperationLogSortDirection).toBe('asc');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.operation-log-table th[aria-sort]')).toHaveSize(2);
+
+    (fixture.nativeElement.querySelector('.operation-log-row') as HTMLElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.operation-log-detail-modal')?.textContent)
+      .toContain('操作紀錄細節');
+    component.CloseOperationLogDetail();
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('.operation-log-detail-action button') as HTMLButtonElement).click();
+    expect(component.SelectedOperationLog).not.toBeNull();
+    component.CloseOperationLogDetail();
+    expect(component.SelectedOperationLog).toBeNull();
   });
 });

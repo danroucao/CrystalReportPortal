@@ -60,7 +60,12 @@ import {
   MockDatabaseConnectionService,
 } from '../services/mock-database-connection.service';
 import { MockReportParameterService } from '../services/mock-report-parameter.service';
-import { MockAuditLogService } from '../services/mock-audit-log.service';
+import {
+  MockAuditLogCategory,
+  MockAuditLogEntry,
+  MockAuditLogService,
+  MockAuditLogSource,
+} from '../services/mock-audit-log.service';
 import { BoringAvatarComponent } from '../shared/boring-avatar.component';
 
 type DemoPortalPage =
@@ -97,6 +102,15 @@ type FavoriteReportSortDirection = 'asc' | 'desc';
 type ReportManagementSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
 type ReportManagementSortDirection = 'asc' | 'desc';
 type ReportPreviewOrigin = 'all' | 'favorites';
+type OperationLogCategoryFilter = MockAuditLogCategory | 'ALL';
+type OperationLogSourceFilter = MockAuditLogSource | 'ALL';
+type OperationLogSortField = 'OccurredAt' | 'UserId';
+type OperationLogSortDirection = 'asc' | 'desc';
+
+interface OperationLogCategoryOption {
+  readonly Value: OperationLogCategoryFilter;
+  readonly Label: string;
+}
 
 interface ParameterReportCategoryTab {
   readonly CategoryId: string;
@@ -179,6 +193,34 @@ export class DemoPortalComponent
   IsExportMenuOpen = false;
   IsNotificationPanelOpen = false;
   IsProfileMenuOpen = false;
+  readonly OperationLogCategoryOptionsBySource: Readonly<
+    Record<OperationLogSourceFilter, readonly OperationLogCategoryOption[]>
+  > = {
+    ALL: [
+      { Value: 'ALL', Label: '全部分類' },
+      { Value: 'PermissionChange', Label: '權限變動' },
+      { Value: 'ReportAction', Label: '報表操作' },
+      { Value: 'AccountManagement', Label: '帳號管理' },
+    ],
+    BackOffice: [
+      { Value: 'ALL', Label: '全部分類' },
+      { Value: 'PermissionChange', Label: '權限變動' },
+      { Value: 'AccountManagement', Label: '帳號管理' },
+    ],
+    FrontOffice: [
+      { Value: 'ALL', Label: '全部分類' },
+      { Value: 'ReportAction', Label: '報表操作' },
+    ],
+  };
+  OperationLogCategoryFilter: OperationLogCategoryFilter = 'ALL';
+  OperationLogSourceFilter: OperationLogSourceFilter = 'ALL';
+  OperationLogStartDate = '';
+  OperationLogEndDate = '';
+  OperationLogSearchText = '';
+  OperationLogCurrentPage = 1;
+  OperationLogSortField: OperationLogSortField = 'OccurredAt';
+  OperationLogSortDirection: OperationLogSortDirection = 'desc';
+  SelectedOperationLog: MockAuditLogEntry | null = null;
   BackOfficeBindingAccount = '';
   BackOfficeBindingPassword = '';
   BackOfficeBindingError = '';
@@ -308,6 +350,7 @@ export class DemoPortalComponent
 
   ngOnInit(): void {
     this.LoadAccountSettings();
+    if (this.Page === 'OperationLog') this.InitializeOperationLogDateRange();
     const NavigationState =
       this.router.getCurrentNavigation()?.extras.state ?? history.state;
     if (NavigationState?.['NotificationCenterTab'] === 'Unread')
@@ -715,6 +758,149 @@ export class DemoPortalComponent
     this.GoToParameterReportPage(this.ParameterReportCurrentPage + 1);
   }
 
+  get OperationLogMinimumDate(): string {
+    return this.ToDateInputValue(this.GetDateDaysAgo(179));
+  }
+
+  get OperationLogMaximumDate(): string {
+    return this.ToDateInputValue(new Date());
+  }
+
+  get FilteredOperationLogs(): readonly MockAuditLogEntry[] {
+    const SearchText = this.OperationLogSearchText.trim().toLocaleLowerCase();
+    const FilteredLogs = this.AuditLog.OperationLogs.filter((Entry) => {
+      const OccurredDate = Entry.OccurredAt.slice(0, 10);
+      const MatchesDate =
+        (!this.OperationLogStartDate || OccurredDate >= this.OperationLogStartDate) &&
+        (!this.OperationLogEndDate || OccurredDate <= this.OperationLogEndDate);
+      const MatchesSearch = !SearchText ||
+        `${Entry.UserId} ${Entry.TargetId} ${Entry.IpAddress} ${Entry.Summary}`
+          .toLocaleLowerCase()
+          .includes(SearchText);
+      return MatchesDate && MatchesSearch &&
+        (this.OperationLogCategoryFilter === 'ALL' || Entry.Category === this.OperationLogCategoryFilter) &&
+        (this.OperationLogSourceFilter === 'ALL' || Entry.Source === this.OperationLogSourceFilter);
+    });
+    const Direction = this.OperationLogSortDirection === 'asc' ? 1 : -1;
+    return [...FilteredLogs].sort((Left, Right) => {
+      if (this.OperationLogSortField === 'OccurredAt')
+        return (new Date(Left.OccurredAt).getTime() - new Date(Right.OccurredAt).getTime()) * Direction;
+      return Left.UserId.localeCompare(Right.UserId, 'zh-Hant') * Direction;
+    });
+  }
+
+  get OperationLogAvailableCategoryOptions(): readonly OperationLogCategoryOption[] {
+    return this.OperationLogCategoryOptionsBySource[this.OperationLogSourceFilter];
+  }
+
+  get OperationLogTotalPages(): number {
+    return this.GetTotalPages(this.FilteredOperationLogs.length);
+  }
+
+  get OperationLogPageNumbers(): readonly number[] {
+    return this.GetPageNumbers(this.OperationLogTotalPages);
+  }
+
+  get PagedOperationLogs(): readonly MockAuditLogEntry[] {
+    return this.GetPagedItems(this.FilteredOperationLogs, this.OperationLogCurrentPage);
+  }
+
+  OnOperationLogFilterChange(): void {
+    this.OperationLogCurrentPage = 1;
+  }
+
+  OnOperationLogSourceChange(): void {
+    const IsCurrentCategoryAllowed = this.OperationLogAvailableCategoryOptions.some(
+      (Option) => Option.Value === this.OperationLogCategoryFilter,
+    );
+    if (!IsCurrentCategoryAllowed) {
+      this.OperationLogCategoryFilter = 'ALL';
+    }
+    this.OnOperationLogFilterChange();
+  }
+
+  ToggleOperationLogSort(Field: OperationLogSortField): void {
+    this.OperationLogSortDirection = this.OperationLogSortField === Field
+      ? (this.OperationLogSortDirection === 'asc' ? 'desc' : 'asc')
+      : 'asc';
+    this.OperationLogSortField = Field;
+    this.OnOperationLogFilterChange();
+  }
+
+  OperationLogSortIndicator(Field: OperationLogSortField): string {
+    if (this.OperationLogSortField !== Field) return '↕';
+    return this.OperationLogSortDirection === 'asc' ? '↑' : '↓';
+  }
+
+  OperationLogSortAria(Field: OperationLogSortField): 'ascending' | 'descending' | 'none' {
+    if (this.OperationLogSortField !== Field) return 'none';
+    return this.OperationLogSortDirection === 'asc' ? 'ascending' : 'descending';
+  }
+
+  OnOperationLogDateChange(): void {
+    if (this.OperationLogStartDate < this.OperationLogMinimumDate)
+      this.OperationLogStartDate = this.OperationLogMinimumDate;
+    if (this.OperationLogEndDate > this.OperationLogMaximumDate)
+      this.OperationLogEndDate = this.OperationLogMaximumDate;
+    if (this.OperationLogStartDate && this.OperationLogEndDate && this.OperationLogEndDate < this.OperationLogStartDate)
+      this.OperationLogEndDate = this.OperationLogStartDate;
+    this.OnOperationLogFilterChange();
+  }
+
+  GoToOperationLogPage(Page: number): void {
+    this.OperationLogCurrentPage = this.ClampPage(Page, this.FilteredOperationLogs.length);
+  }
+
+  PreviousOperationLogPage(): void {
+    this.GoToOperationLogPage(this.OperationLogCurrentPage - 1);
+  }
+
+  NextOperationLogPage(): void {
+    this.GoToOperationLogPage(this.OperationLogCurrentPage + 1);
+  }
+
+  OpenOperationLogDetail(Entry: MockAuditLogEntry): void {
+    this.SelectedOperationLog = Entry;
+  }
+
+  CloseOperationLogDetail(): void {
+    this.SelectedOperationLog = null;
+  }
+
+  OperationLogCategoryLabel(Category: MockAuditLogCategory): string {
+    return {
+      PermissionChange: '權限變動',
+      ReportAction: '報表操作',
+      AccountManagement: '帳號管理',
+    }[Category];
+  }
+
+  OperationLogActionLabel(Action: string): string {
+    return {
+      GRANT_ROLE: '授予角色',
+      REVOKE_ROLE: '移除角色',
+      UPDATE_ROLE_PERMISSION: '更新權限',
+      REPORT_DOWNLOAD: '下載報表',
+      REPORT_PREVIEW: '預覽報表',
+      REPORT_EXPORT: '匯出報表',
+      REPORT_PRINT: '列印報表',
+      CREATE_USER: '建立帳號',
+      UPDATE_USER: '更新帳號',
+      DISABLE_USER: '停用帳號',
+    }[Action] ?? Action;
+  }
+
+  OperationLogSourceLabel(Source: MockAuditLogSource): string {
+    return Source === 'BackOffice' ? '後台' : '前台';
+  }
+
+  FormatOperationLogTime(OccurredAt: string): string {
+    return new Date(OccurredAt).toLocaleString('zh-TW', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  }
+
   ToggleParameterReportSort(Field: ParameterReportSortField): void {
     this.ResetParameterReportPagination();
     if (this.ParameterReportSortField === Field) {
@@ -744,7 +930,6 @@ export class DemoPortalComponent
     const Descriptions: Partial<Record<DemoPortalPage, string>> = {
       UserManagement: '檢視使用者帳號、角色與啟用狀態的 Mock 清單。',
       DatabaseConnection: '檢視資料庫連線設定畫面；不會顯示或連線真實帳密。',
-      OperationLog: '檢視操作紀錄畫面與 180 天 保存標示的 Mock 資料。',
     };
     return Descriptions[this.Page] ?? '';
   }
@@ -1888,6 +2073,16 @@ export class DemoPortalComponent
     return User.Account;
   }
 
+  // Roles returns fresh read models. Preserve views so NgModel initialization
+  // cannot keep scheduling change detection by recreating its controls.
+  TrackRoleByKey(_: number, Role: MockRole): MockRoleKey {
+    return Role.Key;
+  }
+
+  TrackReportByKey(_: number, Report: MockReportReadModel): MockReportKey {
+    return Report.ReportKey;
+  }
+
   OpenCreateRoleDialog(): void {
     if (!this.Auth.CanOperateBackOffice) return;
     this.RoleDraft = this.CreateRoleDraft();
@@ -1966,6 +2161,19 @@ export class DemoPortalComponent
 
   SaveRole(): void {
     if (!this.Auth.CanOperateBackOffice) return;
+    const DisplayName = this.RoleDraft.DisplayName.trim();
+    if (!DisplayName) {
+      this.RoleDraftError = '請輸入角色名稱。';
+      return;
+    }
+    if (this.MockRbac.Roles.some((Role) => Role.DisplayName === DisplayName)) {
+      this.RoleDraftError = '角色名稱已存在，請輸入未重複的角色名稱。';
+      return;
+    }
+    if (!this.HasAnyRolePermission(this.RoleDraft)) {
+      this.RoleDraftError = '請至少勾選一個權限。';
+      return;
+    }
     const Role = this.MockRbac.CreateRole(this.RoleDraft);
     if (!Role) {
       this.RoleDraftError = '角色名稱已存在，請輸入未重複的角色名稱。';
@@ -2016,6 +2224,18 @@ export class DemoPortalComponent
       Entry.Permission.CanExport = false;
       Entry.Permission.CanPrint = false;
     }
+  }
+
+  private HasAnyRolePermission(Draft: MockRoleDraft): boolean {
+    return (
+      Draft.ManagementPermissions.length > 0 ||
+      Draft.Permissions.some(
+        (Entry) =>
+          Entry.Permission.CanExecute ||
+          Entry.Permission.CanExport ||
+          Entry.Permission.CanPrint,
+      )
+    );
   }
 
   TrackByCategoryPermissionEntry(
@@ -2491,6 +2711,24 @@ export class DemoPortalComponent
       StartDate: this.ParameterReportStartDate,
       EndDate: this.ParameterReportEndDate,
     };
+  }
+
+  private InitializeOperationLogDateRange(): void {
+    this.OperationLogEndDate = this.OperationLogMaximumDate;
+    this.OperationLogStartDate = this.ToDateInputValue(this.GetDateDaysAgo(6));
+  }
+
+  private GetDateDaysAgo(DaysAgo: number): Date {
+    const DateValue = new Date();
+    DateValue.setDate(DateValue.getDate() - DaysAgo);
+    return DateValue;
+  }
+
+  private ToDateInputValue(DateValue: Date): string {
+    const Year = DateValue.getFullYear();
+    const Month = String(DateValue.getMonth() + 1).padStart(2, '0');
+    const Day = String(DateValue.getDate()).padStart(2, '0');
+    return `${Year}-${Month}-${Day}`;
   }
 
   private EnsureUserPagination(): void {

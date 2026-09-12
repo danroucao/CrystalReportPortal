@@ -127,10 +127,7 @@
               (click)="IsProfileMenuOpen = false"
               >帳號設定</a
             >
-            <button
-              type="button"
-              (click)="OpenNotificationCenter('All')"
-            >
+            <button type="button" (click)="OpenNotificationCenter('All')">
               通知中心<span
                 *ngIf="NotificationBadgeCount"
                 class="profile-link-count"
@@ -246,9 +243,12 @@
         </button>
       </div>
     </div>
-    <ng-template #DefaultPageTitle
-      ><h1>{{ PageTitle }}</h1></ng-template
-    >
+    <ng-template #DefaultPageTitle>
+      <h1>{{ PageTitle }}</h1>
+      <p *ngIf="Page === 'OperationLog'" class="operation-log-page-subtitle">
+        集中檢視權限變動、報表操作與帳號管理事件。
+      </p>
+    </ng-template>
     <section
       *ngIf="Page === 'NotificationCenter'"
       class="content-card notification-center-page"
@@ -279,7 +279,9 @@
       </div>
 
       <ng-container
-        *ngIf="NotificationCenterTab === 'All' || NotificationCenterTab === 'Unread'"
+        *ngIf="
+          NotificationCenterTab === 'All' || NotificationCenterTab === 'Unread'
+        "
       >
         <article
           *ngFor="let Item of DisplayedNotifications"
@@ -295,10 +297,13 @@
           <time>{{ Item.CreatedAt | date: "short" }}</time>
         </article>
         <p *ngIf="!DisplayedNotifications.length" class="muted">
-          {{ NotificationCenterTab === 'Unread' ? '目前沒有未讀通知。' : '目前沒有通知。' }}
+          {{
+            NotificationCenterTab === "Unread"
+              ? "目前沒有未讀通知。"
+              : "目前沒有通知。"
+          }}
         </p>
       </ng-container>
-
     </section>
     <section
       *ngIf="Page === 'ReportList' && Auth.IsFrontOffice"
@@ -326,7 +331,7 @@
           <input
             id="favorite-report-search"
             [(ngModel)]="FavoriteSearchText"
-            placeholder="輸入報表名稱或報表說明"
+            placeholder="請輸入報表名稱或報表說明"
           />
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <circle cx="10.8" cy="10.8" r="5.8"></circle>
@@ -445,7 +450,9 @@
                   class="favorite-star-button is-favorite"
                   [attr.aria-label]="'取消收藏 ' + Favorite.Report.ReportName"
                   [title]="'取消收藏 ' + Favorite.Report.ReportName"
-                  (click)="RemoveFavoriteReport(Favorite); $event.stopPropagation()"
+                  (click)="
+                    RemoveFavoriteReport(Favorite); $event.stopPropagation()
+                  "
                 >
                   <svg
                     class="favorite-icon"
@@ -467,7 +474,10 @@
               <td>
                 <button
                   type="button"
-                  (click)="SelectReportByKey(Favorite.Report.ReportKey); $event.stopPropagation()"
+                  (click)="
+                    SelectReportByKey(Favorite.Report.ReportKey);
+                    $event.stopPropagation()
+                  "
                 >
                   選擇
                 </button>
@@ -532,8 +542,8 @@
               id="parameter-report-search"
               [(ngModel)]="ParameterReportSearchText"
               (ngModelChange)="OnParameterReportSearchChange()"
-              placeholder="輸入報表名稱或報表說明"
-              aria-label="輸入報表名稱或報表說明"
+              placeholder="請輸入報表名稱或報表說明"
+              aria-label="請輸入報表名稱或報表說明"
             />
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="10.8" cy="10.8" r="5.8"></circle>
@@ -676,7 +686,10 @@
                         ? '取消收藏 '
                         : '收藏 ') + Report.ReportName
                     "
-                    (click)="ToggleFavoriteReport(Report.ReportKey); $event.stopPropagation()"
+                    (click)="
+                      ToggleFavoriteReport(Report.ReportKey);
+                      $event.stopPropagation()
+                    "
                   >
                     <svg
                       *ngIf="IsFavoriteReport(Report.ReportKey)"
@@ -719,7 +732,10 @@
                 <td>
                   <button
                     type="button"
-                    (click)="SelectReportForPreview(Report.ReportKey); $event.stopPropagation()"
+                    (click)="
+                      SelectReportForPreview(Report.ReportKey);
+                      $event.stopPropagation()
+                    "
                   >
                     選擇
                   </button>
@@ -1192,8 +1208,18 @@
         </div>
       </section>
     </section>
-    <section *ngIf="CanAccessPage && IsManagementPage" class="content-card">
-      <p *ngIf="Page !== 'UserManagement' && Page !== 'RptManagement'">
+    <section
+      *ngIf="CanAccessPage && IsManagementPage"
+      class="management-page-content"
+      [class.content-card]="Page !== 'OperationLog'"
+    >
+      <p
+        *ngIf="
+          Page !== 'UserManagement' &&
+          Page !== 'RptManagement' &&
+          Page !== 'OperationLog'
+        "
+      >
         {{ AdminDescription }}
       </p>
       <section *ngIf="Page === 'UserManagement'" class="user-management">
@@ -1238,7 +1264,7 @@
                 class="role-card-grid"
                 [class.has-overflow]="RoleCardHasOverflow"
               >
-                <article *ngFor="let Role of MockRbac.Roles" class="role-card">
+                <article *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" class="role-card">
                   <div class="role-card-summary">
                     <p class="role-card-count">
                       {{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者
@@ -1253,6 +1279,10 @@
                         [name]="User.Account"
                         [size]="26"
                       />
+                      <span
+                        *ngIf="!GetRoleAvatarUsers(Role.Key).length"
+                        class="role-avatar-placeholder"
+                      ></span>
                     </div>
                   </div>
                   <h3>{{ Role.DisplayName }}</h3>
@@ -1334,7 +1364,7 @@
               全部 ({{ MockRbac.Users.length }})
             </button>
             <button
-              *ngFor="let Role of MockRbac.Roles"
+              *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey"
               type="button"
               [class.is-active]="UserRoleFilter === Role.Key"
               [attr.aria-pressed]="UserRoleFilter === Role.Key"
@@ -1361,6 +1391,8 @@
                 <tbody>
                   <tr
                     *ngFor="let User of PagedUsers; trackBy: TrackUserByAccount"
+                    class="user-entry-row"
+                    (click)="EditUser(User.Account)"
                   >
                     <td class="user-account-cell" [title]="User.Account">
                       <div class="user-account-identity">
@@ -1386,7 +1418,10 @@
                             ? '停用 ' + User.Account
                             : '啟用 ' + User.Account
                         "
-                        (click)="SetUserEnabled(User.Account, !User.Enabled)"
+                        (click)="
+                          SetUserEnabled(User.Account, !User.Enabled);
+                          $event.stopPropagation()
+                        "
                       >
                         <span class="account-status-switch-thumb"></span>
                       </button>
@@ -1402,7 +1437,9 @@
                         class="secondary-button"
                         [attr.aria-label]="'編輯 ' + User.Account"
                         title="編輯使用者"
-                        (click)="EditUser(User.Account)"
+                        (click)="
+                          EditUser(User.Account); $event.stopPropagation()
+                        "
                       >
                         ✎
                       </button>
@@ -1411,7 +1448,10 @@
                         class="secondary-button"
                         [attr.aria-label]="'刪除 ' + User.Account"
                         title="刪除使用者"
-                        (click)="OpenDeleteUserDialog(User.Account)"
+                        (click)="
+                          OpenDeleteUserDialog(User.Account);
+                          $event.stopPropagation()
+                        "
                       >
                         🗑
                       </button>
@@ -1565,7 +1605,7 @@
                   aria-label="所屬角色"
                 >
                   <label
-                    *ngFor="let Role of MockRbac.Roles"
+                    *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey"
                     class="create-user-role-option"
                     [class.is-selected]="
                       IsRoleSelected(UserDraft.Roles, Role.Key)
@@ -1573,13 +1613,9 @@
                   >
                     <input
                       type="checkbox"
-                      [checked]="IsRoleSelected(UserDraft.Roles, Role.Key)"
-                      (click)="
-                        ToggleCreateUserRole(
-                          Role.Key,
-                          !IsRoleSelected(UserDraft.Roles, Role.Key)
-                        )
-                      "
+                      [ngModel]="IsRoleSelected(UserDraft.Roles, Role.Key)"
+                      [ngModelOptions]="{ standalone: true }"
+                      (ngModelChange)="ToggleCreateUserRole(Role.Key, $event)"
                     />
                     <span>{{ Role.DisplayName }}</span>
                   </label>
@@ -1767,18 +1803,17 @@
                 aria-label="所屬角色"
               >
                 <label
-                  *ngFor="let Role of MockRbac.Roles"
+                  *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey"
                   class="edit-user-role-option"
+                  [class.is-selected]="
+                    IsRoleSelected(EditingUser.Roles, Role.Key)
+                  "
                 >
                   <input
                     type="checkbox"
-                    [checked]="IsRoleSelected(EditingUser.Roles, Role.Key)"
-                    (click)="
-                      ToggleEditingUserRole(
-                        Role.Key,
-                        !IsRoleSelected(EditingUser.Roles, Role.Key)
-                      )
-                    "
+                    [ngModel]="IsRoleSelected(EditingUser.Roles, Role.Key)"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="ToggleEditingUserRole(Role.Key, $event)"
                   />
                   {{ Role.DisplayName }}
                 </label>
@@ -1919,7 +1954,7 @@
                   [(ngModel)]="RoleDraft.DisplayName"
                   [attr.aria-invalid]="RoleDraftError ? 'true' : null"
                   [attr.aria-describedby]="
-                    RoleDraftError ? 'role-name-error' : null
+                    RoleDraftError ? 'role-draft-error' : null
                   "
                   [class.is-invalid]="RoleDraftError"
                   (ngModelChange)="ClearRoleDraftError()"
@@ -2041,7 +2076,7 @@
             </div>
             <span
               *ngIf="RoleDraftError"
-              id="role-name-error"
+              id="role-draft-error"
               class="field-error"
               role="alert"
               >{{ RoleDraftError }}</span
@@ -2158,7 +2193,7 @@
               id="report-management-search"
               [(ngModel)]="ReportManagementSearchText"
               (ngModelChange)="OnReportManagementSearchChange()"
-              placeholder="輸入報表名稱或報表說明"
+              placeholder="請輸入報表名稱或報表說明"
             />
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <circle cx="10.8" cy="10.8" r="5.8"></circle>
@@ -2292,9 +2327,9 @@
             </thead>
             <tbody>
               <tr
-                *ngFor="let Report of PagedManagedReports"
+                *ngFor="let Report of PagedManagedReports; trackBy: TrackReportByKey"
                 class="report-entry-row"
-                (click)="SelectReportForPreview(Report.ReportKey)"
+                (click)="OpenEditReportDialog(Report.ReportKey)"
               >
                 <td class="report-management-pin-cell">
                   <div class="report-management-pin-control">
@@ -2317,7 +2352,10 @@
                           ? '取消釘選報表'
                           : '釘選報表'
                       "
-                      (click)="ToggleReportManagementPin(Report.ReportKey); $event.stopPropagation()"
+                      (click)="
+                        ToggleReportManagementPin(Report.ReportKey);
+                        $event.stopPropagation()
+                      "
                     >
                       <span
                         class="report-management-pin-icon"
@@ -2349,7 +2387,10 @@
                         ? '已啟用，點擊可停用'
                         : '已停用，點擊可啟用')
                     "
-                    (click)="SetReportEnabled(Report.ReportKey, !Report.Enabled); $event.stopPropagation()"
+                    (click)="
+                      SetReportEnabled(Report.ReportKey, !Report.Enabled);
+                      $event.stopPropagation()
+                    "
                   >
                     <span class="account-status-switch-thumb"></span>
                   </button>
@@ -2363,25 +2404,33 @@
                 <td class="report-management-timestamp">
                   {{ Report.UpdatedAt }}
                 </td>
-                <td class="report-row-actions">
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    [attr.aria-label]="'編輯 ' + Report.ReportName"
-                    title="編輯報表"
-                    (click)="OpenEditReportDialog(Report.ReportKey); $event.stopPropagation()"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    [attr.aria-label]="'刪除 ' + Report.ReportName"
-                    title="刪除報表"
-                    (click)="OpenDeleteReportDialog(Report.ReportKey); $event.stopPropagation()"
-                  >
-                    🗑
-                  </button>
+                <td class="report-management-actions-cell">
+                  <div class="report-row-actions">
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      [attr.aria-label]="'編輯 ' + Report.ReportName"
+                      title="編輯報表"
+                      (click)="
+                        OpenEditReportDialog(Report.ReportKey);
+                        $event.stopPropagation()
+                      "
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      [attr.aria-label]="'刪除 ' + Report.ReportName"
+                      title="刪除報表"
+                      (click)="
+                        OpenDeleteReportDialog(Report.ReportKey);
+                        $event.stopPropagation()
+                      "
+                    >
+                      🗑
+                    </button>
+                  </div>
                 </td>
               </tr>
               <tr *ngIf="!DisplayedManagedReports.length">
@@ -2459,7 +2508,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let Connection of DatabaseConnections.Connections">
+              <tr
+                *ngFor="let Connection of DatabaseConnections.Connections"
+                class="database-connection-row"
+              >
                 <td>{{ Connection.DataSourceName }}</td>
                 <td>{{ Connection.ServerHost }}:{{ Connection.Port }}</td>
                 <td>{{ Connection.DatabaseName }}</td>
@@ -2656,30 +2708,303 @@
           </tr>
         </tbody>
       </table>
-      <section *ngIf="Page === 'OperationLog'" class="permission-matrix">
-        <h2>操作紀錄</h2>
-        <p class="muted">保存期間：180 天。後台操作的 user_id 來自已完成身分綁定的前台帳號。</p>
-        <table>
-          <thead>
-            <tr>
-              <th>時間</th>
-              <th>user_id</th>
-              <th>操作</th>
-              <th>內容</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let Entry of AuditLog.OperationLogs">
-              <td>{{ Entry.OccurredAt }}</td>
-              <td>{{ Entry.UserId }}</td>
-              <td>{{ Entry.Action }}</td>
-              <td>{{ Entry.Detail }}</td>
-            </tr>
-            <tr *ngIf="!AuditLog.OperationLogs.length">
-              <td colspan="4" class="muted">尚無後台操作紀錄。</td>
-            </tr>
-          </tbody>
-        </table>
+      <section *ngIf="Page === 'OperationLog'" class="operation-log-page">
+        <div class="operation-log-heading">
+          <span class="operation-log-retention">保存期間：180 天</span>
+        </div>
+
+        <div class="operation-log-filters" aria-label="操作紀錄篩選條件">
+          <label>
+            <span>操作來源</span>
+            <select
+              [(ngModel)]="OperationLogSourceFilter"
+              (ngModelChange)="OnOperationLogSourceChange()"
+            >
+              <option value="ALL">全部來源</option>
+              <option value="BackOffice">後台</option>
+              <option value="FrontOffice">前台</option>
+            </select>
+          </label>
+          <label>
+            <span>紀錄分類</span>
+            <select
+              [(ngModel)]="OperationLogCategoryFilter"
+              (ngModelChange)="OnOperationLogFilterChange()"
+            >
+              <option
+                *ngFor="let Option of OperationLogAvailableCategoryOptions"
+                [value]="Option.Value"
+              >
+                {{ Option.Label }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>開始日期</span>
+            <input
+              type="date"
+              [(ngModel)]="OperationLogStartDate"
+              [min]="OperationLogMinimumDate"
+              [max]="OperationLogMaximumDate"
+              (ngModelChange)="OnOperationLogDateChange()"
+            />
+          </label>
+          <label>
+            <span>結束日期</span>
+            <input
+              type="date"
+              [(ngModel)]="OperationLogEndDate"
+              [min]="OperationLogMinimumDate"
+              [max]="OperationLogMaximumDate"
+              (ngModelChange)="OnOperationLogDateChange()"
+            />
+          </label>
+          <label class="operation-log-search parameter-search-field">
+            <span>關鍵字搜尋</span>
+            <input
+              type="search"
+              [(ngModel)]="OperationLogSearchText"
+              (ngModelChange)="OnOperationLogFilterChange()"
+              placeholder="請輸入操作者、目標名稱或 IP"
+            />
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.8" cy="10.8" r="5.8"></circle>
+              <path d="m15.2 15.2 4 4"></path>
+            </svg>
+          </label>
+        </div>
+
+        <div class="operation-log-results-bar">
+          <p>
+            共 <strong>{{ FilteredOperationLogs.length }}</strong> 筆紀錄
+          </p>
+          <p>每頁顯示 10 筆</p>
+        </div>
+
+        <div class="operation-log-table-frame">
+          <table class="operation-log-table">
+            <thead>
+              <tr>
+                <th
+                  [class.is-sorted]="OperationLogSortField === 'OccurredAt'"
+                  [attr.aria-sort]="OperationLogSortAria('OccurredAt')"
+                >
+                  <button type="button" class="sortable-table-header" (click)="ToggleOperationLogSort('OccurredAt')">
+                    操作時間
+                    <svg
+                      class="sort-indicator"
+                      [class.is-ascending]="OperationLogSortIndicator('OccurredAt') === '↑'"
+                      [class.is-descending]="OperationLogSortIndicator('OccurredAt') === '↓'"
+                      viewBox="0 0 16 24"
+                      aria-hidden="true"
+                    >
+                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                      <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                    </svg>
+                  </button>
+                </th>
+                <th
+                  [class.is-sorted]="OperationLogSortField === 'UserId'"
+                  [attr.aria-sort]="OperationLogSortAria('UserId')"
+                >
+                  <button type="button" class="sortable-table-header" (click)="ToggleOperationLogSort('UserId')">
+                    操作者
+                    <svg
+                      class="sort-indicator"
+                      [class.is-ascending]="OperationLogSortIndicator('UserId') === '↑'"
+                      [class.is-descending]="OperationLogSortIndicator('UserId') === '↓'"
+                      viewBox="0 0 16 24"
+                      aria-hidden="true"
+                    >
+                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                      <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                    </svg>
+                  </button>
+                </th>
+                <th>來源</th>
+                <th>分類</th>
+                <th>操作</th>
+                <th>操作摘要</th>
+                <th>來源 IP</th>
+                <th><span class="visually-hidden">詳細內容</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let Entry of PagedOperationLogs"
+                class="operation-log-row"
+                tabindex="0"
+                (click)="OpenOperationLogDetail(Entry)"
+                (keydown.enter)="OpenOperationLogDetail(Entry)"
+                (keydown.space)="OpenOperationLogDetail(Entry); $event.preventDefault()"
+              >
+                <td class="operation-log-time">
+                  {{ FormatOperationLogTime(Entry.OccurredAt) }}
+                </td>
+                <td class="operation-log-actor">{{ Entry.UserId }}</td>
+                <td>
+                  <span
+                    class="operation-log-source"
+                    [class.is-backoffice]="Entry.Source === 'BackOffice'"
+                    >{{ OperationLogSourceLabel(Entry.Source) }}</span
+                  >
+                </td>
+                <td>
+                  <span
+                    class="operation-log-category"
+                    [class.is-permission]="
+                      Entry.Category === 'PermissionChange'
+                    "
+                    [class.is-report]="Entry.Category === 'ReportAction'"
+                    [class.is-account]="Entry.Category === 'AccountManagement'"
+                    >{{ OperationLogCategoryLabel(Entry.Category) }}</span
+                  >
+                </td>
+                <td class="operation-log-action">
+                  {{ OperationLogActionLabel(Entry.Action) }}
+                </td>
+                <td class="operation-log-summary" [title]="Entry.Summary">
+                  {{ Entry.Summary }}
+                </td>
+                <td class="operation-log-ip">{{ Entry.IpAddress }}</td>
+                <td class="operation-log-detail-action">
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    (click)="OpenOperationLogDetail(Entry); $event.stopPropagation()"
+                  >
+                    檢視細節
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="!FilteredOperationLogs.length">
+                <td colspan="8" class="operation-log-empty-state">
+                  找不到符合目前篩選條件的操作紀錄。
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <nav
+          *ngIf="OperationLogTotalPages > 1"
+          class="list-pagination"
+          aria-label="操作紀錄分頁"
+        >
+          <button
+            type="button"
+            class="list-pagination-previous"
+            [disabled]="OperationLogCurrentPage === 1"
+            (click)="PreviousOperationLogPage()"
+          >
+            上一頁
+          </button>
+          <button
+            *ngFor="let Page of OperationLogPageNumbers"
+            type="button"
+            [class.is-active]="Page === OperationLogCurrentPage"
+            [attr.aria-current]="
+              Page === OperationLogCurrentPage ? 'page' : null
+            "
+            (click)="GoToOperationLogPage(Page)"
+          >
+            {{ Page }}
+          </button>
+          <button
+            type="button"
+            class="list-pagination-next"
+            [disabled]="OperationLogCurrentPage === OperationLogTotalPages"
+            (click)="NextOperationLogPage()"
+          >
+            下一頁
+          </button>
+        </nav>
+      </section>
+      <section
+        *ngIf="SelectedOperationLog"
+        class="modal-backdrop operation-log-detail-backdrop"
+        (click)="CloseOperationLogDetail()"
+      >
+        <section
+          class="edit-user-modal operation-log-detail-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="operation-log-detail-title"
+          (click)="$event.stopPropagation()"
+        >
+          <div class="modal-heading">
+            <div>
+              <p class="operation-log-modal-eyebrow">
+                {{ OperationLogCategoryLabel(SelectedOperationLog.Category) }}
+              </p>
+              <h2 id="operation-log-detail-title">操作紀錄細節</h2>
+            </div>
+            <button
+              type="button"
+              class="modal-close-button"
+              aria-label="關閉操作紀錄細節"
+              (click)="CloseOperationLogDetail()"
+            >
+              ×
+            </button>
+          </div>
+          <dl class="operation-log-detail-overview">
+            <div>
+              <dt>操作時間</dt>
+              <dd>
+                {{ FormatOperationLogTime(SelectedOperationLog.OccurredAt) }}
+              </dd>
+            </div>
+            <div>
+              <dt>操作者</dt>
+              <dd>{{ SelectedOperationLog.UserId }}</dd>
+            </div>
+            <div>
+              <dt>操作來源</dt>
+              <dd>
+                {{ OperationLogSourceLabel(SelectedOperationLog.Source) }}
+              </dd>
+            </div>
+            <div>
+              <dt>來源 IP</dt>
+              <dd>{{ SelectedOperationLog.IpAddress }}</dd>
+            </div>
+            <div>
+              <dt>動作代碼</dt>
+              <dd>{{ SelectedOperationLog.Action }}</dd>
+            </div>
+            <div>
+              <dt>目標物件</dt>
+              <dd>{{ SelectedOperationLog.TargetId }}</dd>
+            </div>
+          </dl>
+          <section
+            class="operation-log-detail-content"
+            aria-labelledby="operation-log-content-title"
+          >
+            <h3 id="operation-log-content-title">操作內容</h3>
+            <dl>
+              <div *ngFor="let Detail of SelectedOperationLog.Details">
+                <dt>{{ Detail.Label }}</dt>
+                <dd
+                  [class.is-added]="Detail.Tone === 'added'"
+                  [class.is-removed]="Detail.Tone === 'removed'"
+                >
+                  {{ Detail.Value }}
+                </dd>
+              </div>
+            </dl>
+          </section>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="primary-button"
+              (click)="CloseOperationLogDetail()"
+            >
+              關閉
+            </button>
+          </div>
+        </section>
       </section>
     </section>
     <section
@@ -3165,9 +3490,7 @@
       aria-labelledby="back-office-binding-title"
     >
       <h2 id="back-office-binding-title">驗證操作身分</h2>
-      <p class="muted">
-        請輸入您的帳號密碼以驗證身分。
-      </p>
+      <p class="muted">請輸入您的帳號密碼以驗證身分。</p>
       <div class="form-grid back-office-binding-form">
         <label>
           前台帳號
@@ -3194,10 +3517,18 @@
         {{ BackOfficeBindingError }}
       </p>
       <div class="modal-actions">
-        <button type="button" class="primary-button" (click)="SubmitBackOfficeIdentityBinding()">
+        <button
+          type="button"
+          class="primary-button"
+          (click)="SubmitBackOfficeIdentityBinding()"
+        >
           驗證身分
         </button>
-        <button type="button" class="secondary-button" (click)="ReturnToLoginFromBackOfficeBinding()">
+        <button
+          type="button"
+          class="secondary-button"
+          (click)="ReturnToLoginFromBackOfficeBinding()"
+        >
           返回登入
         </button>
       </div>
