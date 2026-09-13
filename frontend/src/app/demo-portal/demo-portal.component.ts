@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import {
+  AfterViewChecked,
   AfterViewInit,
   Component,
   DoCheck,
@@ -53,6 +54,7 @@ import {
 } from '../mock/mock-report-parameters';
 import { NotificationService } from '../services/notification.service';
 import {
+  MockCenterNotification,
   MockNotificationCenterService,
 } from '../services/mock-notification-center.service';
 import {
@@ -153,7 +155,7 @@ type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
   styleUrl: './demo-portal.component.scss',
 })
 export class DemoPortalComponent
-  implements OnInit, AfterViewInit, OnDestroy, DoCheck
+  implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy, DoCheck
 {
   readonly PaginationPageSize = 10;
   readonly AllCategoryFilterValue = 'ALL';
@@ -191,7 +193,9 @@ export class DemoPortalComponent
   > | null = null;
   MockNotice = '';
   IsExportMenuOpen = false;
+  IsPrintMenuOpen = false;
   IsNotificationPanelOpen = false;
+  SelectedCenterNotification: MockCenterNotification | null = null;
   IsProfileMenuOpen = false;
   readonly OperationLogCategoryOptionsBySource: Readonly<
     Record<OperationLogSourceFilter, readonly OperationLogCategoryOption[]>
@@ -326,6 +330,7 @@ export class DemoPortalComponent
   DeletingCategory: MockReportCategory | null = null;
   CategoryDeleteError = '';
   IsUploadReportDialogOpen = false;
+  IsReportDiscardConfirmationOpen = false;
   IsReportCategoryQuickAddOpen = false;
   QuickAddCategoryName = '';
   QuickAddCategoryError = '';
@@ -335,6 +340,25 @@ export class DemoPortalComponent
   SelectedReportFileName = '';
   ReportEditorError = '';
   IsReportFileInvalid = false;
+  private ReportEditorInitialDraft: ReportEditorDraft | null = null;
+  private InitialReportFileName = '';
+  private ReportEditorOpener: HTMLElement | null = null;
+  private ReportDiscardConfirmationReturnFocus: HTMLElement | null = null;
+  private PendingReportEditorFocus: HTMLElement | null = null;
+  private ShouldFocusReportDiscardContinue = false;
+  private NotificationDetailOpener: HTMLElement | null = null;
+  private PendingNotificationDetailFocus: HTMLElement | null = null;
+  private ShouldFocusNotificationDetailClose = false;
+  @ViewChild('notificationDetailDialog')
+  private notificationDetailDialog?: ElementRef<HTMLElement>;
+  @ViewChild('notificationDetailCloseButton')
+  private notificationDetailCloseButton?: ElementRef<HTMLButtonElement>;
+  @ViewChild('reportEditorDialog')
+  private reportEditorDialog?: ElementRef<HTMLElement>;
+  @ViewChild('reportDiscardDialog')
+  private reportDiscardDialog?: ElementRef<HTMLElement>;
+  @ViewChild('reportDiscardContinueButton')
+  private reportDiscardContinueButton?: ElementRef<HTMLButtonElement>;
   @ViewChild('roleCardViewport')
   private roleCardViewport?: ElementRef<HTMLElement>;
   private roleCardResizeObserver?: ResizeObserver;
@@ -397,6 +421,31 @@ export class DemoPortalComponent
     this.roleCardResizeObserver.observe(Viewport);
   }
 
+  ngAfterViewChecked(): void {
+    if (this.ShouldFocusNotificationDetailClose) {
+      const CloseButton = this.notificationDetailCloseButton?.nativeElement;
+      if (CloseButton) {
+        CloseButton.focus();
+        this.ShouldFocusNotificationDetailClose = false;
+      }
+    }
+    if (this.PendingNotificationDetailFocus?.isConnected) {
+      this.PendingNotificationDetailFocus.focus();
+      this.PendingNotificationDetailFocus = null;
+    }
+    if (this.ShouldFocusReportDiscardContinue) {
+      const ContinueButton = this.reportDiscardContinueButton?.nativeElement;
+      if (ContinueButton) {
+        ContinueButton.focus();
+        this.ShouldFocusReportDiscardContinue = false;
+      }
+    }
+    if (this.PendingReportEditorFocus?.isConnected) {
+      this.PendingReportEditorFocus.focus();
+      this.PendingReportEditorFocus = null;
+    }
+  }
+
   ngOnDestroy(): void {
     this.roleCardResizeObserver?.disconnect();
   }
@@ -431,19 +480,12 @@ export class DemoPortalComponent
   get ProfileAccount(): string {
     return this.Auth.CurrentIdentity?.Account ?? '';
   }
-  get RecentCenterItems(): readonly {
-    Title: string;
-    Summary: string;
-  }[] {
+  get RecentCenterItems(): readonly MockCenterNotification[] {
     const Notifications = this.CurrentNotifications;
     return (this.NotificationPopoverTab === 'Unread'
       ? Notifications.filter((Item) => !Item.ReadAt)
       : Notifications)
-      .slice(0, 4)
-      .map((Item) => ({
-        Title: Item.Title,
-        Summary: Item.Summary,
-      }));
+      .slice(0, 4);
   }
 
   get CurrentNotificationAccount(): string {
@@ -1198,6 +1240,7 @@ export class DemoPortalComponent
 
   ToggleExportMenu(): void {
     if (!this.Auth.SelectedReportCategoryPermission.CanExport) return;
+    this.IsPrintMenuOpen = false;
     this.IsExportMenuOpen = !this.IsExportMenuOpen;
   }
 
@@ -1214,9 +1257,16 @@ export class DemoPortalComponent
 
   SelectOutputAction(ActionName: 'BrowserPrint' | 'FixedPrinterPrint'): void {
     if (!this.Auth.SelectedReportCategoryPermission.CanPrint) return;
+    this.IsPrintMenuOpen = false;
     const ActionLabel =
       ActionName === 'BrowserPrint' ? '瀏覽器列印' : '固定印表機列印';
     this.MockNotice = `${ActionLabel}目前為前端 Mock 操作，尚未串接正式列印服務。`;
+  }
+
+  TogglePrintMenu(): void {
+    if (!this.Auth.SelectedReportCategoryPermission.CanPrint) return;
+    this.IsExportMenuOpen = false;
+    this.IsPrintMenuOpen = !this.IsPrintMenuOpen;
   }
 
   Logout(): void {
@@ -1226,6 +1276,7 @@ export class DemoPortalComponent
   }
 
   ToggleNotificationPanel(): void {
+    if (this.SelectedCenterNotification) return;
     this.IsProfileMenuOpen = false;
     this.IsNotificationPanelOpen = !this.IsNotificationPanelOpen;
     if (this.IsNotificationPanelOpen) {
@@ -1263,6 +1314,22 @@ export class DemoPortalComponent
     if (this.Auth.RequiresBackOfficeIdentityBinding) return;
     const Account = this.CurrentNotificationAccount;
     if (Account) this.NotificationCenter.MarkNotificationRead(Id, Account);
+  }
+
+  OpenNotificationDetail(Notification: MockCenterNotification): void {
+    if (this.Auth.RequiresBackOfficeIdentityBinding) return;
+    this.NotificationDetailOpener = this.GetActiveHTMLElement();
+    this.SelectedCenterNotification = Notification;
+    this.MarkCenterNotificationRead(Notification.Id);
+    this.ShouldFocusNotificationDetailClose = true;
+  }
+
+  CloseNotificationDetail(): void {
+    if (!this.SelectedCenterNotification) return;
+    this.SelectedCenterNotification = null;
+    this.ShouldFocusNotificationDetailClose = false;
+    this.PendingNotificationDetailFocus = this.NotificationDetailOpener;
+    this.NotificationDetailOpener = null;
   }
 
   SubmitBackOfficeIdentityBinding(): void {
@@ -1512,7 +1579,9 @@ export class DemoPortalComponent
 
   @HostListener('document:keydown.escape')
   CloseEditUserOnEscape(): void {
-    if (this.IsExportMenuOpen) this.IsExportMenuOpen = false;
+    if (this.SelectedCenterNotification) this.CloseNotificationDetail();
+    else if (this.IsExportMenuOpen) this.IsExportMenuOpen = false;
+    else if (this.IsPrintMenuOpen) this.IsPrintMenuOpen = false;
     else if (this.IsNotificationPanelOpen) this.IsNotificationPanelOpen = false;
     else if (this.IsProfileMenuOpen) this.IsProfileMenuOpen = false;
     else if (this.DeletingCategory) this.CloseDeleteCategoryDialog();
@@ -1520,7 +1589,9 @@ export class DemoPortalComponent
       this.CloseCategoryManagementDialog();
     else if (this.IsReportCategoryQuickAddOpen)
       this.CloseReportCategoryQuickAdd();
-    else if (this.IsUploadReportDialogOpen) this.CloseReportEditor();
+    else if (this.IsReportDiscardConfirmationOpen)
+      this.ContinueEditingReport();
+    else if (this.IsUploadReportDialogOpen) this.RequestCloseReportEditor();
     else if (this.DeletingReport) this.CloseDeleteReportDialog();
     else if (this.EditingUser) this.CancelEditUser();
     else if (this.DeletingUser) this.CloseDeleteUserDialog();
@@ -1536,10 +1607,49 @@ export class DemoPortalComponent
     if (!(Target instanceof Element)) return;
     if (this.IsExportMenuOpen && !Target.closest('.export-dropdown'))
       this.IsExportMenuOpen = false;
+    if (this.IsPrintMenuOpen && !Target.closest('.print-dropdown'))
+      this.IsPrintMenuOpen = false;
     if (this.IsNotificationPanelOpen && !Target.closest('.notification-menu'))
       this.IsNotificationPanelOpen = false;
     if (this.IsProfileMenuOpen && !Target.closest('.profile-menu'))
       this.IsProfileMenuOpen = false;
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  KeepFocusInTopModal(Event: KeyboardEvent): void {
+    if (Event.key !== 'Tab') return;
+    const Dialog = this.SelectedCenterNotification
+      ? this.notificationDetailDialog?.nativeElement
+      : this.IsReportDiscardConfirmationOpen
+      ? this.reportDiscardDialog?.nativeElement
+      : this.IsUploadReportDialogOpen && !this.IsReportCategoryQuickAddOpen
+        ? this.reportEditorDialog?.nativeElement
+        : undefined;
+    if (!Dialog) return;
+
+    const FocusableElements = Array.from(
+      Dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((Element) => !Element.hasAttribute('inert'));
+    if (!FocusableElements.length) return;
+
+    const FirstElement = FocusableElements[0];
+    const LastElement = FocusableElements.at(-1)!;
+    const ActiveElement = document.activeElement;
+    if (
+      Event.shiftKey &&
+      (ActiveElement === FirstElement || !Dialog.contains(ActiveElement))
+    ) {
+      Event.preventDefault();
+      LastElement.focus();
+    } else if (
+      !Event.shiftKey &&
+      (ActiveElement === LastElement || !Dialog.contains(ActiveElement))
+    ) {
+      Event.preventDefault();
+      FirstElement.focus();
+    }
   }
 
   SetUserEnabled(Account: string, Enabled: boolean): void {
@@ -1856,19 +1966,23 @@ export class DemoPortalComponent
 
   OpenUploadReportDialog(): void {
     if (!this.Auth.HasManagementPermission('RptManagement')) return;
+    this.RememberReportEditorOpener();
     this.EditingReportKey = null;
     this.ReportEditorDraft = this.CreateReportEditorDraft();
     this.SelectedReportFileName = '';
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
+    this.IsReportDiscardConfirmationOpen = false;
     this.CloseReportCategoryQuickAdd();
     this.IsUploadReportDialogOpen = true;
+    this.RememberInitialReportEditorState();
   }
 
   OpenEditReportDialog(ReportKey: MockReportKey): void {
     if (!this.Auth.HasManagementPermission('RptManagement')) return;
     const Report = this.MockRbac.GetReport(ReportKey);
     if (!Report) return;
+    this.RememberReportEditorOpener();
     this.EditingReportKey = Report.ReportKey;
     this.ReportEditorDraft = {
       ReportName: Report.ReportName,
@@ -1879,18 +1993,51 @@ export class DemoPortalComponent
     this.SelectedReportFileName = Report.FileName;
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
+    this.IsReportDiscardConfirmationOpen = false;
     this.CloseReportCategoryQuickAdd();
     this.IsUploadReportDialogOpen = true;
+    this.RememberInitialReportEditorState();
   }
 
   CloseReportEditor(): void {
     this.IsUploadReportDialogOpen = false;
+    this.IsReportDiscardConfirmationOpen = false;
     this.EditingReportKey = null;
     this.ReportEditorDraft = this.CreateReportEditorDraft();
     this.SelectedReportFileName = '';
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
     this.CloseReportCategoryQuickAdd();
+    this.ReportEditorInitialDraft = null;
+    this.InitialReportFileName = '';
+    this.ShouldFocusReportDiscardContinue = false;
+    this.ScheduleReportEditorFocus(this.ReportEditorOpener);
+    this.ReportEditorOpener = null;
+    this.ReportDiscardConfirmationReturnFocus = null;
+  }
+
+  RequestCloseReportEditor(): void {
+    if (!this.IsUploadReportDialogOpen) return;
+    if (!this.IsReportEditorDirty()) {
+      this.CloseReportEditor();
+      return;
+    }
+    this.ReportDiscardConfirmationReturnFocus = this.GetActiveHTMLElement();
+    this.IsReportDiscardConfirmationOpen = true;
+    this.ShouldFocusReportDiscardContinue = true;
+  }
+
+  ContinueEditingReport(): void {
+    if (!this.IsReportDiscardConfirmationOpen) return;
+    this.IsReportDiscardConfirmationOpen = false;
+    this.ShouldFocusReportDiscardContinue = false;
+    this.ScheduleReportEditorFocus(this.ReportDiscardConfirmationReturnFocus);
+    this.ReportDiscardConfirmationReturnFocus = null;
+  }
+
+  DiscardReportEditorChanges(): void {
+    if (!this.IsReportDiscardConfirmationOpen) return;
+    this.CloseReportEditor();
   }
 
   OpenReportCategoryQuickAdd(): void {
@@ -2358,6 +2505,36 @@ export class DemoPortalComponent
       CategoryId: '',
       Enabled: false,
     };
+  }
+
+  private RememberReportEditorOpener(): void {
+    this.ReportEditorOpener = this.GetActiveHTMLElement();
+  }
+
+  private RememberInitialReportEditorState(): void {
+    this.ReportEditorInitialDraft = { ...this.ReportEditorDraft };
+    this.InitialReportFileName = this.SelectedReportFileName;
+  }
+
+  private IsReportEditorDirty(): boolean {
+    const InitialDraft = this.ReportEditorInitialDraft;
+    if (!InitialDraft) return false;
+    return (
+      InitialDraft.ReportName !== this.ReportEditorDraft.ReportName ||
+      InitialDraft.Description !== this.ReportEditorDraft.Description ||
+      InitialDraft.CategoryId !== this.ReportEditorDraft.CategoryId ||
+      InitialDraft.Enabled !== this.ReportEditorDraft.Enabled ||
+      this.InitialReportFileName !== this.SelectedReportFileName
+    );
+  }
+
+  private GetActiveHTMLElement(): HTMLElement | null {
+    const ActiveElement = document.activeElement;
+    return ActiveElement instanceof HTMLElement ? ActiveElement : null;
+  }
+
+  private ScheduleReportEditorFocus(Target: HTMLElement | null): void {
+    this.PendingReportEditorFocus = Target;
   }
 
   private GetReportEditorValidationError(): string {

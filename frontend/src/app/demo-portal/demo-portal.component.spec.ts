@@ -224,14 +224,17 @@ describe('DemoPortalComponent', () => {
     Rbac.SaveCategoryPermissions('FINANCE', Permissions);
     component.MockNotice = '';
     component.ToggleExportMenu();
+    component.TogglePrintMenu();
     component.ExportOptions.forEach((Option) => component.SelectExportOption(Option));
     component.SelectOutputAction('BrowserPrint');
     component.SelectOutputAction('FixedPrinterPrint');
     fixture.detectChanges();
     expect(component.MockNotice).toBe('');
     expect(component.IsExportMenuOpen).toBeFalse();
+    expect(component.IsPrintMenuOpen).toBeFalse();
     expect(Auth.SelectedReport).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.export-dropdown')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.print-dropdown')).toBeNull();
     expect(fixture.nativeElement.querySelector('.output-actions')?.textContent).not.toContain('列印');
   });
 
@@ -1255,6 +1258,91 @@ describe('DemoPortalComponent', () => {
     expect(component.MockRbac.GetReport(Uploaded.ReportKey)).toBeNull();
   });
 
+  it('asks before discarding dirty report editor changes and restores focus deliberately', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'RptManagement';
+    expect(LoginFrontManager(Auth)).toBeTrue();
+
+    const Opener = document.createElement('button');
+    document.body.append(Opener);
+    Opener.focus();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    const Host = fixture.nativeElement as HTMLElement;
+    component.OpenEditReportDialog('AccountBalance');
+    fixture.detectChanges();
+
+    const Description = Host.querySelector<HTMLTextAreaElement>(
+      '#report-editor-description',
+    )!;
+    Description.focus();
+    component.ReportEditorDraft.Description = '尚未儲存的說明';
+    component.RequestCloseReportEditor();
+    fixture.detectChanges();
+
+    const ContinueButton = Host.querySelector<HTMLButtonElement>(
+      '.report-discard-confirmation-modal .secondary-button',
+    )!;
+    expect(component.IsUploadReportDialogOpen).toBeTrue();
+    expect(component.IsReportDiscardConfirmationOpen).toBeTrue();
+    expect(Host.querySelector('.report-editor-modal')?.hasAttribute('inert')).toBeTrue();
+    expect(document.activeElement).toBe(ContinueButton);
+
+    const DiscardButton = Host.querySelector<HTMLButtonElement>(
+      '.report-discard-confirmation-modal .danger-button',
+    )!;
+    DiscardButton.focus();
+    const TabEvent = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    });
+    DiscardButton.dispatchEvent(TabEvent);
+    expect(TabEvent.defaultPrevented).toBeTrue();
+    expect(document.activeElement).toBe(ContinueButton);
+
+    ContinueButton.click();
+    fixture.detectChanges();
+    expect(component.IsReportDiscardConfirmationOpen).toBeFalse();
+    expect(component.ReportEditorDraft.Description).toBe('尚未儲存的說明');
+    expect(document.activeElement).toBe(Description);
+
+    component.RequestCloseReportEditor();
+    fixture.detectChanges();
+    Host.querySelector<HTMLButtonElement>(
+      '.report-discard-confirmation-modal .danger-button',
+    )!.click();
+    fixture.detectChanges();
+    expect(component.IsUploadReportDialogOpen).toBeFalse();
+    expect(component.ReportEditorDraft.ReportName).toBe('');
+    expect(document.activeElement).toBe(Opener);
+
+    fixture.destroy();
+    Opener.remove();
+  });
+
+  it('labels report list actions as preview actions', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(LoginFrontManager(Auth)).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    fixture.detectChanges();
+    const ButtonLabels = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        '.parameter-report-table tbody button',
+      ),
+    ).map((Button) => Button.textContent?.trim());
+    expect(ButtonLabels).toContain('預覽報表');
+    fixture.destroy();
+  });
+
   it('quickly adds a category from the upload modal without resetting the upload draft', () => {
     const Auth = TestBed.inject(AuthService);
     const Route = TestBed.inject(ActivatedRoute) as unknown as {
@@ -1323,6 +1411,13 @@ describe('DemoPortalComponent', () => {
     expect(component.SuccessToastMessage).toBe(
       '新增報表分類「快速新增分類」成功！',
     );
+    expect(
+      TestBed.inject(MockNotificationCenterService)
+        .GetNotifications('admin@example.com')
+        .some((Notification) =>
+          Notification.Summary.includes(QuickAddCategory.CategoryName),
+        ),
+    ).toBeTrue();
 
     component.OpenReportCategoryQuickAdd();
     component.QuickAddCategoryName = '取消的分類';
@@ -1700,6 +1795,51 @@ describe('DemoPortalComponent', () => {
     expect(Host.querySelector('[role="menu"]')).toBeNull();
     expect(Host.querySelector('.mock-notice')?.textContent).toContain(
       'Excel 匯出目前為前端 Mock 操作',
+    );
+  });
+
+  it('combines print actions in a menu and closes it after a print method is selected', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportPreview';
+    expect(LoginFrontManager(Auth)).toBeTrue();
+
+    Auth.SelectReport('AccountBalance');
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    fixture.detectChanges();
+
+    const Host = fixture.nativeElement as HTMLElement;
+    const Trigger = Host.querySelector<HTMLButtonElement>('.print-trigger')!;
+    expect(Trigger.textContent).toContain('列印');
+    expect(Trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(Host.querySelector('.output-actions')?.textContent).not.toContain(
+      '瀏覽器列印',
+    );
+
+    Trigger.click();
+    fixture.detectChanges();
+    expect(Trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(
+      Array.from(Host.querySelectorAll('.print-menu [role="menuitem"]')).map(
+        (Item) => Item.textContent?.trim(),
+      ),
+    ).toEqual(['瀏覽器列印', '固定印表機列印']);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(Host.querySelector('.print-menu')).toBeNull();
+
+    Trigger.click();
+    fixture.detectChanges();
+    Host.querySelectorAll<HTMLButtonElement>(
+      '.print-menu [role="menuitem"]',
+    )[1].click();
+    fixture.detectChanges();
+    expect(Host.querySelector('.print-menu')).toBeNull();
+    expect(Host.querySelector('.mock-notice')?.textContent).toContain(
+      '固定印表機列印目前為前端 Mock 操作',
     );
   });
 
@@ -2349,16 +2489,22 @@ describe('DemoPortalComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('全部（1）');
-    expect(fixture.nativeElement.textContent).toContain('未讀（1）');
-    expect(component.DisplayedNotifications).toHaveSize(1);
+    const TotalNotifications = component.CurrentNotifications.length;
+    const UnreadNotifications = component.NotificationBadgeCount;
+    expect(fixture.nativeElement.textContent).toContain(
+      `全部（${TotalNotifications}）`,
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      `未讀（${UnreadNotifications}）`,
+    );
+    expect(component.DisplayedNotifications).toHaveSize(TotalNotifications);
     component.NotificationCenterTab = 'Unread';
     component.MarkCenterNotificationRead(
       component.CurrentNotifications[0].Id,
     );
-    expect(component.DisplayedNotifications).toHaveSize(0);
+    expect(component.DisplayedNotifications).toHaveSize(UnreadNotifications - 1);
     component.NotificationCenterTab = 'All';
-    expect(component.DisplayedNotifications).toHaveSize(1);
+    expect(component.DisplayedNotifications).toHaveSize(TotalNotifications);
 
     component.ToggleNotificationPanel();
     expect(
@@ -2367,12 +2513,19 @@ describe('DemoPortalComponent', () => {
           '.notification-popover-tabs button',
         ),
       ).map((Button) => Button.textContent?.trim()),
-    ).toEqual(['全部（1）', '未讀（0）']);
+    ).toEqual([
+      `全部（${TotalNotifications}）`,
+      `未讀（${UnreadNotifications - 1}）`,
+    ]);
 
     expect(LoginBoundBackOfficeOperator(Auth)).toBeTrue();
     const BackOfficeFixture = TestBed.createComponent(DemoPortalComponent);
     BackOfficeFixture.detectChanges();
     const BackOfficeComponent = BackOfficeFixture.componentInstance;
+    const BackOfficeTotalNotifications =
+      BackOfficeComponent.CurrentNotifications.length;
+    const BackOfficeUnreadNotifications =
+      BackOfficeComponent.NotificationBadgeCount;
     expect(BackOfficeComponent.NotificationCenterTab).toBe('All');
     expect(
       Array.from(
@@ -2380,7 +2533,10 @@ describe('DemoPortalComponent', () => {
           '.notification-center-tabs button',
         ),
       ).map((Button) => Button.textContent?.trim()),
-    ).toEqual(['全部（0）', '未讀（0）']);
+    ).toEqual([
+      `全部（${BackOfficeTotalNotifications}）`,
+      `未讀（${BackOfficeUnreadNotifications}）`,
+    ]);
     BackOfficeComponent.ToggleNotificationPanel();
     expect(
       Array.from(
@@ -2388,7 +2544,71 @@ describe('DemoPortalComponent', () => {
           '.notification-popover-tabs button',
         ),
       ).map((Button) => Button.textContent?.trim()),
-    ).toEqual(['全部（0）', '未讀（0）']);
+    ).toEqual([
+      `全部（${BackOfficeTotalNotifications}）`,
+      `未讀（${BackOfficeUnreadNotifications}）`,
+    ]);
+  });
+
+  it('opens the selected notification preview in a detail modal and returns focus', () => {
+    const Auth = TestBed.inject(AuthService);
+    const NotificationCenter = TestBed.inject(MockNotificationCenterService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportList';
+    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
+    NotificationCenter.NotifyRoleAssignmentChange(
+      'user@example.com',
+      NotificationCenter.CaptureAccess('user@example.com'),
+    );
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    const Host = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+    component.ToggleNotificationPanel();
+    fixture.detectChanges();
+
+    const UnreadBeforeOpening = component.NotificationBadgeCount;
+
+    const Preview = Host.querySelector<HTMLButtonElement>(
+      '.notification-preview',
+    )!;
+    Preview.focus();
+    Preview.click();
+    fixture.detectChanges();
+
+    const CloseButton = Host.querySelector<HTMLButtonElement>(
+      '.notification-detail-modal .modal-close-button',
+    )!;
+    expect(component.SelectedCenterNotification?.Id).toBe(
+      component.CurrentNotifications[0].Id,
+    );
+    expect(component.NotificationBadgeCount).toBe(UnreadBeforeOpening - 1);
+    expect(Host.querySelector('.notification-detail-content')?.textContent)
+      .toContain(component.CurrentNotifications[0].Detail);
+    expect(document.activeElement).toBe(CloseButton);
+
+    const FinalButton = Host.querySelector<HTMLButtonElement>(
+      '.notification-detail-actions .primary-button',
+    )!;
+    FinalButton.focus();
+    const TabEvent = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true,
+    });
+    FinalButton.dispatchEvent(TabEvent);
+    expect(TabEvent.defaultPrevented).toBeTrue();
+    expect(document.activeElement).toBe(CloseButton);
+
+    CloseButton.click();
+    fixture.detectChanges();
+    expect(component.SelectedCenterNotification).toBeNull();
+    expect(component.IsNotificationPanelOpen).toBeTrue();
+    expect(document.activeElement).toBe(Preview);
+    fixture.destroy();
   });
 
   it('opens a report from list rows while favorite controls do not bubble', () => {
