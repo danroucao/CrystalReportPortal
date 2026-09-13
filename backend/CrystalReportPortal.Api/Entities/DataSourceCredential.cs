@@ -6,17 +6,17 @@ public class DataSourceCredential
 
     public long DataSourceId { get; set; }
 
-    public string CredentialType { get; set; } = null!;
+    public string CredentialType { get; set; } = string.Empty;
 
-    public string Username { get; set; } = null!;
+    public string AuthenticationType { get; set; } = "SqlServer";
 
-    public string EncryptedPassword { get; set; } = null!;
+    public string? Username { get; set; }
+
+    public string? EncryptedPassword { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
 
-
-    // Navigation Property
     public ReportDataSource DataSource { get; set; } = null!;
 }
