@@ -77,6 +77,7 @@ type DemoPortalPage =
   | 'AccountSettings'
   | 'UserManagement'
   | 'RptManagement'
+  | 'ReportUpload'
   | 'DatabaseConnection'
   | 'OperationLog'
   | 'NotificationCenter';
@@ -135,6 +136,8 @@ interface ReportEditorDraft {
   CategoryId: string;
   Enabled: boolean;
 }
+
+type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
 
 type CreateUserField = 'Account' | 'DisplayName' | 'Roles';
 type CreateUserValidationErrors = Partial<Record<CreateUserField, string>>;
@@ -290,7 +293,8 @@ export class DemoPortalComponent
   AccountSettingsDraft: MockAccountSettingsDraft =
     this.CreateAccountSettingsDraft();
   AccountSettingsConfirmation = '';
-  AccountSettingsNotice = '';
+  AccountProfileNotice = '';
+  AccountPasswordNotice = '';
   IsPasswordChangeSuccessModalOpen = false;
   UserSearchText = '';
   UserCurrentPage = 1;
@@ -340,6 +344,8 @@ export class DemoPortalComponent
   SelectedReportFileName = '';
   ReportEditorError = '';
   IsReportFileInvalid = false;
+  ReportUploadStep: ReportUploadStep = 'Form';
+  PublishedUploadedReport: MockReportReadModel | null = null;
   private ReportEditorInitialDraft: ReportEditorDraft | null = null;
   private InitialReportFileName = '';
   private ReportEditorOpener: HTMLElement | null = null;
@@ -353,6 +359,8 @@ export class DemoPortalComponent
   private notificationDetailDialog?: ElementRef<HTMLElement>;
   @ViewChild('notificationDetailCloseButton')
   private notificationDetailCloseButton?: ElementRef<HTMLButtonElement>;
+  @ViewChild('parameterReportSearchInput')
+  private parameterReportSearchInput?: ElementRef<HTMLInputElement>;
   @ViewChild('reportEditorDialog')
   private reportEditorDialog?: ElementRef<HTMLElement>;
   @ViewChild('reportDiscardDialog')
@@ -374,6 +382,7 @@ export class DemoPortalComponent
 
   ngOnInit(): void {
     this.LoadAccountSettings();
+    if (this.Page === 'ReportUpload') this.InitializeReportUploadFlow();
     if (this.Page === 'OperationLog') this.InitializeOperationLogDateRange();
     const NavigationState =
       this.router.getCurrentNavigation()?.extras.state ?? history.state;
@@ -462,6 +471,7 @@ export class DemoPortalComponent
       AccountSettings: '帳號設定',
       UserManagement: '使用者管理',
       RptManagement: '報表管理',
+      ReportUpload: '上傳報表',
       DatabaseConnection: 'MSSQL 資料庫連線管理',
       OperationLog: '操作紀錄查詢',
       NotificationCenter: '通知中心',
@@ -762,6 +772,31 @@ export class DemoPortalComponent
     return Boolean(this.ParameterReportSearchText.trim());
   }
 
+  get HasParameterReportFilters(): boolean {
+    return (
+      this.HasParameterReportSearchText ||
+      Boolean(this.ParameterReportStartDate) ||
+      Boolean(this.ParameterReportEndDate) ||
+      this.SelectedParameterReportCategoryId !== this.AllCategoryFilterValue
+    );
+  }
+
+  get ParameterReportFilterSummary(): string {
+    const Filters: string[] = [];
+    if (this.HasParameterReportSearchText)
+      Filters.push(`關鍵字「${this.ParameterReportSearchText.trim()}」`);
+    const Category = this.ParameterReportCategories.find(
+      (Item) => Item.CategoryId === this.SelectedParameterReportCategoryId,
+    );
+    if (Category) Filters.push(`分類「${Category.CategoryName}」`);
+    if (this.ParameterReportStartDate || this.ParameterReportEndDate) {
+      Filters.push(
+        `資料期間 ${this.ParameterReportStartDate || '不限'} 至 ${this.ParameterReportEndDate || '不限'}`,
+      );
+    }
+    return Filters.join('、');
+  }
+
   get ParameterReportTotalPages(): number {
     return this.GetTotalPages(this.DisplayedParameterReports.length);
   }
@@ -779,6 +814,23 @@ export class DemoPortalComponent
 
   OnParameterReportSearchChange(): void {
     this.ResetParameterReportPagination();
+  }
+
+  ClearParameterReportSearch(): void {
+    if (!this.ParameterReportSearchText) return;
+    this.ParameterReportSearchText = '';
+    this.OnParameterReportSearchChange();
+    this.parameterReportSearchInput?.nativeElement.focus();
+  }
+
+  ClearParameterReportFilters(): void {
+    this.ParameterReportSearchText = '';
+    this.ParameterReportStartDate = '';
+    this.ParameterReportEndDate = '';
+    this.SelectedParameterReportCategoryId = this.AllCategoryFilterValue;
+    this.ParameterReportDateNotice = '';
+    this.ResetParameterReportPagination();
+    this.parameterReportSearchInput?.nativeElement.focus();
   }
 
   ResetParameterReportPagination(): void {
@@ -1225,6 +1277,11 @@ export class DemoPortalComponent
     this.IsReportParameterMode = false;
   }
 
+  BrowseAllReports(): void {
+    if (!this.Auth.IsFrontOffice) return;
+    void this.router.navigate(['/reports/parameters']);
+  }
+
   ExecuteReport(): void {
     if (!this.CanGenerateReport) {
       this.ReportParameterForm.markAllAsTouched();
@@ -1591,7 +1648,8 @@ export class DemoPortalComponent
       this.CloseReportCategoryQuickAdd();
     else if (this.IsReportDiscardConfirmationOpen)
       this.ContinueEditingReport();
-    else if (this.IsUploadReportDialogOpen) this.RequestCloseReportEditor();
+    else if (this.IsUploadReportDialogOpen || this.IsReportUploadFlow)
+      this.RequestCloseReportEditor();
     else if (this.DeletingReport) this.CloseDeleteReportDialog();
     else if (this.EditingUser) this.CancelEditUser();
     else if (this.DeletingUser) this.CloseDeleteUserDialog();
@@ -1679,6 +1737,26 @@ export class DemoPortalComponent
   get ReportEditorCategories() {
     return this.MockRbac.GetReportEditorCategories(
       this.ReportEditorDraft.CategoryId,
+    );
+  }
+
+  get IsReportUploadFlow(): boolean {
+    return this.Page === 'ReportUpload';
+  }
+
+  get ReportUploadStepNumber(): number {
+    return this.ReportUploadStep === 'Form'
+      ? 1
+      : this.ReportUploadStep === 'Confirm'
+        ? 2
+        : 3;
+  }
+
+  get ReportUploadCategoryName(): string {
+    return (
+      this.ReportEditorCategories.find(
+        (Category) => Category.CategoryId === this.ReportEditorDraft.CategoryId,
+      )?.CategoryName ?? '未分類'
     );
   }
 
@@ -1978,6 +2056,57 @@ export class DemoPortalComponent
     this.RememberInitialReportEditorState();
   }
 
+  StartReportUpload(): void {
+    if (!this.Auth.HasManagementPermission('RptManagement')) return;
+    void this.router.navigate(['/report-management/upload']);
+  }
+
+  ContinueReportUpload(): void {
+    if (!this.IsReportUploadFlow) return;
+    const Error = this.GetReportEditorValidationError();
+    if (Error) {
+      this.ReportEditorError = Error;
+      return;
+    }
+    this.ReportEditorError = '';
+    this.ReportUploadStep = 'Confirm';
+  }
+
+  ReturnToReportUploadForm(): void {
+    if (!this.IsReportUploadFlow || this.ReportUploadStep !== 'Confirm') return;
+    this.ReportUploadStep = 'Form';
+  }
+
+  PublishReportUpload(): void {
+    if (!this.IsReportUploadFlow || this.ReportUploadStep !== 'Confirm') return;
+    const Error = this.GetReportEditorValidationError();
+    if (Error) {
+      this.ReportEditorError = Error;
+      this.ReportUploadStep = 'Form';
+      return;
+    }
+    const PublishedReport = this.MockRbac.CreateReport({
+      ReportName: this.ReportEditorDraft.ReportName,
+      Description: this.ReportEditorDraft.Description,
+      CategoryId: this.ReportEditorDraft.CategoryId,
+      Enabled: this.ReportEditorDraft.Enabled,
+      FileName: this.SelectedReportFileName,
+    });
+    if (!PublishedReport) {
+      this.ReportEditorError = '發佈報表失敗，請重新確認欄位。';
+      this.ReportUploadStep = 'Form';
+      return;
+    }
+    this.PublishedUploadedReport = PublishedReport;
+    this.ReportUploadStep = 'Complete';
+    this.RememberInitialReportEditorState();
+    this.EnsureReportManagementPagination();
+  }
+
+  ReturnToReportManagement(): void {
+    void this.router.navigate(['/report-management']);
+  }
+
   OpenEditReportDialog(ReportKey: MockReportKey): void {
     if (!this.Auth.HasManagementPermission('RptManagement')) return;
     const Report = this.MockRbac.GetReport(ReportKey);
@@ -2017,9 +2146,10 @@ export class DemoPortalComponent
   }
 
   RequestCloseReportEditor(): void {
-    if (!this.IsUploadReportDialogOpen) return;
+    if (!this.IsUploadReportDialogOpen && !this.IsReportUploadFlow) return;
     if (!this.IsReportEditorDirty()) {
-      this.CloseReportEditor();
+      if (this.IsReportUploadFlow) this.ReturnToReportManagement();
+      else this.CloseReportEditor();
       return;
     }
     this.ReportDiscardConfirmationReturnFocus = this.GetActiveHTMLElement();
@@ -2037,13 +2167,18 @@ export class DemoPortalComponent
 
   DiscardReportEditorChanges(): void {
     if (!this.IsReportDiscardConfirmationOpen) return;
+    if (this.IsReportUploadFlow) {
+      this.IsReportDiscardConfirmationOpen = false;
+      this.ReturnToReportManagement();
+      return;
+    }
     this.CloseReportEditor();
   }
 
   OpenReportCategoryQuickAdd(): void {
     if (
       !this.Auth.HasManagementPermission('RptManagement') ||
-      !this.IsUploadReportDialogOpen
+      (!this.IsUploadReportDialogOpen && !this.IsReportUploadFlow)
     )
       return;
     this.QuickAddCategoryName = '';
@@ -2392,39 +2527,68 @@ export class DemoPortalComponent
     return Entry.CategoryId;
   }
 
-  SaveAccountSettings(): void {
+  SaveAccountProfile(): void {
     const CurrentUser = this.Auth.CurrentUser;
     if (!CurrentUser) return;
-    const IsChangingPassword = Boolean(this.AccountSettingsDraft.NewPassword);
-    if (IsChangingPassword && !this.AccountSettingsDraft.OldPassword) {
-      this.AccountSettingsNotice = '請輸入舊密碼。';
-      return;
-    }
-    if (
-      this.AccountSettingsDraft.NewPassword !== this.AccountSettingsConfirmation
-    ) {
-      this.AccountSettingsNotice = '新密碼與確認密碼不一致。';
-      return;
-    }
+    this.AccountProfileNotice = '';
     const Result = this.MockRbac.UpdateOwnAccount(
       CurrentUser.Account,
-      this.AccountSettingsDraft,
+      {
+        DisplayName: this.AccountSettingsDraft.DisplayName,
+        OldPassword: '',
+        NewPassword: '',
+      },
     );
     const Messages: Record<string, string> = {
-      updated: '帳號設定已在前端 Mock 中更新。正式密碼驗證仍需後端支援。',
-      'incorrect-password': '舊密碼不正確。',
+      updated: '個人資料已儲存。',
       invalid: '請輸入使用者名稱。',
       'not-found': '找不到目前登入的使用者。',
     };
-    if (Result === 'updated' || Result === 'password-updated') {
-      this.AccountSettingsDraft = this.CreateAccountSettingsDraft();
+    if (Result === 'updated') {
       this.LoadAccountSettings();
-      this.AccountSettingsNotice =
-        Result === 'updated' ? Messages['updated'] : '';
-      this.IsPasswordChangeSuccessModalOpen = Result === 'password-updated';
+      this.AccountProfileNotice = Messages['updated'];
       return;
     }
-    this.AccountSettingsNotice = Messages[Result];
+    this.AccountProfileNotice = Messages[Result] ?? '無法儲存個人資料。';
+  }
+
+  ChangePassword(): void {
+    const CurrentUser = this.Auth.CurrentUser;
+    if (!CurrentUser) return;
+    this.AccountPasswordNotice = '';
+    if (!this.AccountSettingsDraft.OldPassword) {
+      this.AccountPasswordNotice = '請輸入目前密碼。';
+      return;
+    }
+    if (!this.AccountSettingsDraft.NewPassword) {
+      this.AccountPasswordNotice = '請輸入新密碼。';
+      return;
+    }
+    if (this.AccountSettingsDraft.NewPassword.length < 8) {
+      this.AccountPasswordNotice = '新密碼需至少 8 碼。';
+      return;
+    }
+    if (this.AccountSettingsDraft.NewPassword !== this.AccountSettingsConfirmation) {
+      this.AccountPasswordNotice = '新密碼與確認新密碼不一致。';
+      return;
+    }
+    const Result = this.MockRbac.UpdateOwnAccount(CurrentUser.Account, {
+      DisplayName: CurrentUser.DisplayName,
+      OldPassword: this.AccountSettingsDraft.OldPassword,
+      NewPassword: this.AccountSettingsDraft.NewPassword,
+    });
+    if (Result === 'password-updated') {
+      this.LoadAccountSettings();
+      this.IsPasswordChangeSuccessModalOpen = true;
+      return;
+    }
+    const Messages: Partial<Record<typeof Result, string>> = {
+      'incorrect-password': '目前密碼不正確。',
+      'not-found': '找不到目前登入的使用者。',
+      invalid: '無法更新密碼，請稍後再試。',
+    };
+    this.AccountPasswordNotice =
+      Messages[Result] ?? '無法更新密碼，請稍後再試。';
   }
 
   ConfirmPasswordChangeAndLogout(): void {
@@ -2446,6 +2610,8 @@ export class DemoPortalComponent
     if (this.Page === 'NotificationCenter') return this.Auth.IsAuthenticated;
     if (this.Page === 'UserManagement') return this.Auth.IsBackOffice;
     if (this.Page === 'RptManagement')
+      return this.Auth.HasManagementPermission('RptManagement');
+    if (this.Page === 'ReportUpload')
       return this.Auth.HasManagementPermission('RptManagement');
     if (this.Page === 'DatabaseConnection')
       return this.Auth.HasManagementPermission('DatabaseConnection');
@@ -2505,6 +2671,19 @@ export class DemoPortalComponent
       CategoryId: '',
       Enabled: false,
     };
+  }
+
+  private InitializeReportUploadFlow(): void {
+    this.EditingReportKey = null;
+    this.ReportEditorDraft = this.CreateReportEditorDraft();
+    this.SelectedReportFileName = '';
+    this.ReportEditorError = '';
+    this.IsReportFileInvalid = false;
+    this.ReportUploadStep = 'Form';
+    this.PublishedUploadedReport = null;
+    this.IsReportDiscardConfirmationOpen = false;
+    this.CloseReportCategoryQuickAdd();
+    this.RememberInitialReportEditorState();
   }
 
   private RememberReportEditorOpener(): void {

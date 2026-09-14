@@ -58,6 +58,13 @@ export const routes: Routes = [
     title: '使用者管理｜Crystal Reports 外部報表系統',
   },
   {
+    path: 'report-management/upload',
+    component: DemoPortalComponent,
+    canActivate: [FrontOfficePermissionGuard],
+    data: { Page: 'ReportUpload', Permission: 'RptManagement' },
+    title: '上傳報表｜Crystal Reports 外部報表系統',
+  },
+  {
     path: 'report-management',
     component: DemoPortalComponent,
     canActivate: [FrontOfficePermissionGuard],

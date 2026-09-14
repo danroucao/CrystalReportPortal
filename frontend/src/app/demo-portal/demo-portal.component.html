@@ -75,7 +75,7 @@
             ><span>{{ Item.Summary }}</span>
           </button>
           <p *ngIf="!RecentCenterItems.length" class="muted">
-            目前沒有新項目。
+            目前沒有未讀通知。
           </p>
           <button
             type="button"
@@ -288,14 +288,14 @@
         <button
           type="button"
           class="section-header-action primary-button"
-          (click)="OpenUploadReportDialog()"
+          (click)="StartReportUpload()"
         >
           <span aria-hidden="true">＋</span>上傳報表
         </button>
       </div>
     </div>
     <ng-template #DefaultPageTitle>
-      <h1>{{ PageTitle }}</h1>
+      <h1 *ngIf="Page !== 'AccountSettings' && Page !== 'ReportUpload'">{{ PageTitle }}</h1>
       <p *ngIf="Page === 'OperationLog'" class="operation-log-page-subtitle">
         集中檢視權限變動、報表操作與帳號管理事件。
       </p>
@@ -347,13 +347,35 @@
           </div>
           <time>{{ Item.CreatedAt | date: "short" }}</time>
         </article>
-        <p *ngIf="!DisplayedNotifications.length" class="muted">
-          {{
-            NotificationCenterTab === "Unread"
-              ? "目前沒有未讀通知。"
-              : "目前沒有通知。"
-          }}
-        </p>
+        <section
+          *ngIf="!DisplayedNotifications.length"
+          class="notification-empty-state"
+          role="status"
+        >
+          <div class="notification-empty-illustration" aria-hidden="true">
+            <svg viewBox="0 0 80 80">
+              <path
+                d="M25 34a15 15 0 0 1 30 0c0 17 7 17 7 21H18c0-4 7-4 7-21Z"
+              />
+              <path d="M34 63h12M26 23l-5-5M54 23l5-5M18 35h-7M62 35h7" />
+              <path d="M25 55v9h30v-9" />
+            </svg>
+          </div>
+          <h2>
+            {{
+              NotificationCenterTab === "Unread"
+                ? "目前沒有未讀通知"
+                : "目前沒有通知"
+            }}
+          </h2>
+          <p>
+            {{
+              NotificationCenterTab === "Unread"
+                ? "已讀通知會保留在「全部」頁籤中。"
+                : "新的系統通知與權限提醒會顯示在這裡。"
+            }}
+          </p>
+        </section>
       </ng-container>
     </section>
     <section
@@ -536,11 +558,40 @@
             </tr>
             <tr *ngIf="!DisplayedFavoriteReports.length">
               <td colspan="6" class="favorite-empty-state">
-                {{
-                  FavoriteReports.length
-                    ? "找不到符合條件的報表。"
-                    : "目前沒有收藏的報表。"
-                }}
+                <div class="favorite-empty-content">
+                  <div class="favorite-empty-illustration" aria-hidden="true">
+                    <svg viewBox="0 0 80 80">
+                      <path
+                        d="M24 14h26l10 10v38H24zM50 14v11h10M34 39h16M34 47h16"
+                      />
+                      <path
+                        d="m54 55 3.3 6.7 7.4 1.1-5.3 5.2 1.3 7.3-6.7-3.5-6.7 3.5 1.3-7.3-5.3-5.2 7.4-1.1z"
+                      />
+                    </svg>
+                  </div>
+                  <h2>
+                    {{
+                      FavoriteReports.length
+                        ? "找不到符合條件的收藏報表"
+                        : "尚未收藏報表"
+                    }}
+                  </h2>
+                  <p>
+                    {{
+                      FavoriteReports.length
+                        ? "請調整搜尋文字或報表分類後再試一次。"
+                        : "目前沒有收藏的報表。從所有報表預覽後，可將常用報表加入收藏。"
+                    }}
+                  </p>
+                  <button
+                    *ngIf="!FavoriteReports.length"
+                    type="button"
+                    class="favorite-empty-action"
+                    (click)="BrowseAllReports()"
+                  >
+                    瀏覽所有報表
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -590,17 +641,40 @@
           <label class="parameter-search-field" for="parameter-report-search">
             搜尋報表
             <input
+              #parameterReportSearchInput
               id="parameter-report-search"
               [(ngModel)]="ParameterReportSearchText"
               (ngModelChange)="OnParameterReportSearchChange()"
               placeholder="請輸入報表名稱或報表說明"
               aria-label="請輸入報表名稱或報表說明"
             />
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="10.8" cy="10.8" r="5.8"></circle>
-              <path d="m15.2 15.2 4 4"></path>
-            </svg>
+            <button
+              *ngIf="HasParameterReportSearchText; else ParameterSearchIcon"
+              type="button"
+              class="parameter-search-clear-button"
+              aria-label="清除搜尋關鍵字"
+              title="清除搜尋關鍵字"
+              (click)="ClearParameterReportSearch()"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 7l10 10M17 7 7 17"></path>
+              </svg>
+            </button>
+            <ng-template #ParameterSearchIcon>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.8" cy="10.8" r="5.8"></circle>
+                <path d="m15.2 15.2 4 4"></path>
+              </svg>
+            </ng-template>
           </label>
+          <button
+            *ngIf="HasParameterReportFilters"
+            type="button"
+            class="secondary-button parameter-clear-filters-button"
+            (click)="ClearParameterReportFilters()"
+          >
+            清除篩選
+          </button>
           <p
             *ngIf="ParameterReportDateValidationMessage"
             class="parameter-search-error"
@@ -617,7 +691,13 @@
           </p>
         </div>
         <h2 class="parameter-section-heading">報表列表</h2>
-        <div class="table-scroll parameter-report-table-scroll">
+        <div
+          *ngIf="
+            DisplayedParameterReports.length;
+            else ParameterReportEmptyState
+          "
+          class="table-scroll parameter-report-table-scroll"
+        >
           <table class="parameter-report-table">
             <thead>
               <tr>
@@ -792,18 +872,63 @@
                   </button>
                 </td>
               </tr>
-              <tr *ngIf="!DisplayedParameterReports.length">
-                <td colspan="7" class="parameter-report-empty-state">
-                  {{
-                    HasParameterReportSearchText
-                      ? "找不到符合條件的報表。"
-                      : "目前沒有可使用的報表。"
-                  }}
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>
+        <ng-template #ParameterReportEmptyState>
+          <section
+            class="parameter-report-empty-panel"
+            role="status"
+            aria-live="polite"
+          >
+            <svg
+              class="parameter-report-empty-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h6M9 17h6" />
+            </svg>
+            <h3>
+              {{
+                HasParameterReportFilters
+                  ? "找不到符合條件的報表"
+                  : "目前沒有可使用的報表"
+              }}
+            </h3>
+            <p>
+              {{
+                HasParameterReportFilters
+                  ? "請調整搜尋文字、報表分類或資料期間後再試一次。"
+                  : "目前沒有可供預覽的報表，請聯絡系統管理員確認報表權限或啟用狀態。"
+              }}
+            </p>
+            <p
+              *ngIf="HasParameterReportFilters"
+              class="parameter-report-empty-filters"
+            >
+              已套用：{{ ParameterReportFilterSummary }}
+            </p>
+            <div
+              *ngIf="HasParameterReportFilters"
+              class="parameter-report-empty-actions"
+            >
+              <button
+                type="button"
+                class="primary-button"
+                (click)="ClearParameterReportFilters()"
+              >
+                清除篩選
+              </button>
+              <button
+                type="button"
+                class="secondary-button"
+                (click)="ClearParameterReportFilters()"
+              >
+                瀏覽所有報表
+              </button>
+            </div>
+          </section>
+        </ng-template>
         <nav
           *ngIf="ParameterReportTotalPages > 1"
           class="list-pagination"
@@ -1205,60 +1330,107 @@
       *ngIf="Page === 'AccountSettings'"
       class="content-card account-settings-card"
     >
-      <h2>帳號設定</h2>
-      <!-- <p class="muted">
-        Frontend Mock
-        Only：可修改自己的使用者名稱與新密碼；目前密碼驗證與正式儲存仍需後端支援。
-      </p> -->
-      <div class="account-settings-form">
-        <label
-          >使用者帳號 <input [value]="Auth.CurrentUser?.Account" disabled
-        /></label>
-        <label
-          ><span class="form-field-label"
-            >使用者名稱<span class="required-indicator" aria-hidden="true"
-              >*</span
-            ></span
-          ><input [(ngModel)]="AccountSettingsDraft.DisplayName"
-        /></label>
-        <label
-          >舊密碼
-          <input
-            type="password"
-            name="account-settings-old-password"
-            autocomplete="current-password"
-            [(ngModel)]="AccountSettingsDraft.OldPassword"
-          />
-        </label>
-        <label
-          >新密碼（可留空）
-          <input
-            type="password"
-            name="account-settings-new-password"
-            autocomplete="new-password"
-            [(ngModel)]="AccountSettingsDraft.NewPassword"
-          />
-        </label>
-        <label
-          >確認新密碼
-          <input
-            type="password"
-            name="account-settings-confirm-password"
-            autocomplete="new-password"
-            [(ngModel)]="AccountSettingsConfirmation"
-          />
-        </label>
+      <header class="account-settings-heading">
+        <p>個人帳戶</p>
+        <h1>帳號設定</h1>
+        <span>管理個人資料與登入安全性。</span>
+      </header>
+      <section class="account-profile-summary" aria-label="目前帳號摘要">
+        <ngx-boring-avatar
+          *ngIf="Auth.CurrentIdentity as User"
+          variant="beam"
+          [name]="User.Account"
+          [size]="64"
+        />
+        <div>
+          <strong>{{ Auth.DisplayName }}</strong>
+          <span>帳號：{{ Auth.CurrentUser?.Account }}</span>
+        </div>
+        <span class="account-status-chip">已啟用</span>
+      </section>
+      <div class="account-settings-layout">
+        <section class="account-settings-panel" aria-labelledby="profile-settings-title">
+          <header class="account-settings-panel-heading">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0" />
+            </svg>
+            <div>
+              <h3 id="profile-settings-title">個人資料</h3>
+              <p>維護顯示名稱，讓其他同仁能正確識別您。</p>
+            </div>
+          </header>
+          <div class="account-settings-form account-profile-form">
+            <label>
+              <span class="form-field-label">使用者名稱<span class="required-indicator" aria-hidden="true">*</span></span>
+              <input [(ngModel)]="AccountSettingsDraft.DisplayName" />
+              <small>此名稱將顯示在系統中，供其他同仁識別。</small>
+            </label>
+            <label>
+              使用者帳號
+              <input [value]="Auth.CurrentUser?.Account" disabled />
+              <small>帳號由系統建立，無法修改。</small>
+            </label>
+          </div>
+          <p *ngIf="AccountProfileNotice" class="account-settings-notice" role="status">
+            {{ AccountProfileNotice }}
+          </p>
+          <div class="account-settings-actions">
+            <button type="button" class="primary-button" (click)="SaveAccountProfile()">
+              儲存變更
+            </button>
+          </div>
+        </section>
+        <section class="account-settings-panel account-security-panel" aria-labelledby="security-settings-title">
+          <header class="account-settings-panel-heading">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="10" width="14" height="10" rx="1.5" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2" />
+            </svg>
+            <div>
+              <h3 id="security-settings-title">登入安全性</h3>
+              <p>定期更新密碼以保護您的帳號安全。</p>
+            </div>
+          </header>
+          <div class="account-settings-form account-password-form">
+            <label>
+              目前密碼
+              <input
+                type="password"
+                name="account-settings-old-password"
+                autocomplete="current-password"
+                [(ngModel)]="AccountSettingsDraft.OldPassword"
+              />
+            </label>
+            <label>
+              新密碼
+              <input
+                type="password"
+                name="account-settings-new-password"
+                autocomplete="new-password"
+                [(ngModel)]="AccountSettingsDraft.NewPassword"
+              />
+              <small>密碼需至少 8 碼，建議包含英數字。</small>
+            </label>
+            <label>
+              確認新密碼
+              <input
+                type="password"
+                name="account-settings-confirm-password"
+                autocomplete="new-password"
+                [(ngModel)]="AccountSettingsConfirmation"
+              />
+            </label>
+          </div>
+          <p *ngIf="AccountPasswordNotice" class="account-settings-notice" role="status">
+            {{ AccountPasswordNotice }}
+          </p>
+          <div class="account-settings-actions">
+            <button type="button" class="account-password-action" (click)="ChangePassword()">
+              更新密碼
+            </button>
+          </div>
+        </section>
       </div>
-      <p *ngIf="AccountSettingsNotice" class="mock-notice" role="status">
-        {{ AccountSettingsNotice }}
-      </p>
-      <button
-        type="button"
-        class="primary-button"
-        (click)="SaveAccountSettings()"
-      >
-        儲存帳號設定
-      </button>
     </section>
     <section
       *ngIf="IsPasswordChangeSuccessModalOpen"
@@ -1285,6 +1457,131 @@
             確認並登出
           </button>
         </div>
+      </section>
+    </section>
+    <section
+      *ngIf="Page === 'ReportUpload'"
+      class="report-upload-page"
+      aria-labelledby="report-upload-title"
+    >
+      <header class="report-upload-header">
+        <p class="report-upload-breadcrumb">報表管理 <span aria-hidden="true">›</span> 上傳報表</p>
+        <h1 id="report-upload-title">
+          {{ ReportUploadStep === "Complete" ? "報表已發佈" : ReportUploadStep === "Confirm" ? "上傳內容確認" : "上傳報表" }}
+        </h1>
+        <p>
+          {{ ReportUploadStep === "Complete" ? "報表已成功新增至報表管理。" : ReportUploadStep === "Confirm" ? "請確認內容無誤後再發佈。" : "建立報表資料並上傳 RPT 檔案。" }}
+        </p>
+      </header>
+
+      <ol class="report-upload-steps" aria-label="上傳報表步驟">
+        <li [class.is-complete]="ReportUploadStepNumber > 1" [class.is-active]="ReportUploadStepNumber === 1">
+          <span>{{ ReportUploadStepNumber > 1 ? "✓" : "1" }}</span><strong>填寫資料</strong>
+        </li>
+        <li [class.is-complete]="ReportUploadStepNumber > 2" [class.is-active]="ReportUploadStepNumber === 2">
+          <span>{{ ReportUploadStepNumber > 2 ? "✓" : "2" }}</span><strong>確認內容</strong>
+        </li>
+        <li [class.is-active]="ReportUploadStepNumber === 3">
+          <span>3</span><strong>發佈完成</strong>
+        </li>
+      </ol>
+
+      <form *ngIf="ReportUploadStep === 'Form'" class="report-upload-form" (ngSubmit)="ContinueReportUpload()" novalidate>
+        <section class="report-upload-panel">
+          <header>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h6M9 17h6" /></svg>
+            <div><h2>報表基本資料</h2><p>設定報表名稱、說明與分類。</p></div>
+          </header>
+          <div class="report-upload-fields">
+            <label for="report-upload-name"><span class="form-field-label">報表名稱<span class="required-indicator" aria-hidden="true">*</span></span>
+              <input id="report-upload-name" name="reportUploadName" [(ngModel)]="ReportEditorDraft.ReportName" [attr.aria-invalid]="ReportEditorError && !ReportEditorDraft.ReportName.trim() ? 'true' : null" placeholder="請輸入報表名稱" />
+            </label>
+            <label for="report-upload-description"><span class="form-field-label">報表說明<span class="required-indicator" aria-hidden="true">*</span></span>
+              <textarea id="report-upload-description" name="reportUploadDescription" [(ngModel)]="ReportEditorDraft.Description" rows="4" maxlength="500" placeholder="請輸入報表說明"></textarea>
+              <small>{{ ReportEditorDraft.Description.length }} / 500</small>
+            </label>
+            <div class="report-upload-category-row">
+              <label for="report-upload-category"><span class="form-field-label">報表分類<span class="required-indicator" aria-hidden="true">*</span></span>
+                <select id="report-upload-category" name="reportUploadCategory" [(ngModel)]="ReportEditorDraft.CategoryId" [attr.aria-invalid]="ReportEditorError && !ReportEditorDraft.CategoryId ? 'true' : null">
+                  <option value="" disabled>請選擇報表分類</option>
+                  <option *ngFor="let Category of ReportEditorCategories" [value]="Category.CategoryId">{{ Category.CategoryName }}</option>
+                </select>
+              </label>
+              <button type="button" class="report-upload-add-category" (click)="OpenReportCategoryQuickAdd()"><span aria-hidden="true">＋</span> 新增分類</button>
+            </div>
+            <div *ngIf="IsReportCategoryQuickAddOpen" class="report-category-quick-add report-upload-quick-add" role="group" aria-labelledby="report-upload-category-add-label">
+              <label for="report-upload-category-add"><span id="report-upload-category-add-label" class="form-field-label">分類名稱<span class="required-indicator" aria-hidden="true">*</span></span>
+                <input id="report-upload-category-add" name="reportUploadQuickCategory" [(ngModel)]="QuickAddCategoryName" (ngModelChange)="QuickAddCategoryError = ''" placeholder="請輸入新分類名稱" [attr.aria-invalid]="QuickAddCategoryError ? 'true' : null" />
+              </label>
+              <div class="report-category-quick-add-actions"><button type="button" class="primary-button" (click)="CreateReportCategoryQuickAdd()">新增</button><button type="button" class="secondary-button" (click)="CloseReportCategoryQuickAdd()">取消</button></div>
+              <p *ngIf="QuickAddCategoryError" class="field-error" role="alert">{{ QuickAddCategoryError }}</p>
+            </div>
+            <div class="report-upload-enabled">
+              <span class="form-field-label">啟用狀態</span>
+              <button type="button" class="account-status-switch" role="switch" [class.is-enabled]="ReportEditorDraft.Enabled" [attr.aria-checked]="ReportEditorDraft.Enabled" (click)="ReportEditorDraft.Enabled = !ReportEditorDraft.Enabled"><span class="account-status-switch-thumb"></span></button>
+              <span>{{ ReportEditorDraft.Enabled ? "啟用" : "停用" }}</span>
+            </div>
+          </div>
+        </section>
+        <section class="report-upload-panel report-upload-file-panel">
+          <header>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12.5 13.5 4-4a3 3 0 0 0-4.2-4.3l-6.8 6.9a4.5 4.5 0 0 0 6.4 6.4l6.2-6.2" /></svg>
+            <div><h2>上傳 RPT 檔案</h2><p>請選擇要上傳的 Crystal Reports 檔案。</p></div>
+          </header>
+          <label class="report-upload-dropzone" for="report-upload-file">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v5h14v-5" /></svg>
+            <strong>拖曳 .rpt 檔案到此處，或選擇檔案</strong>
+            <span>僅支援 .rpt 格式</span>
+            <span class="report-upload-file-button">選擇檔案</span>
+            <input id="report-upload-file" type="file" accept=".rpt" (change)="OnReportFileSelected($event)" />
+          </label>
+          <p *ngIf="SelectedReportFileName" class="report-upload-selected-file"><span aria-hidden="true">✓</span> 已選擇檔案：{{ SelectedReportFileName }}</p>
+          <p *ngIf="ReportEditorError" class="field-error report-upload-error" role="alert">{{ ReportEditorError }}</p>
+          <footer class="report-upload-actions report-upload-form-actions">
+            <button type="button" class="report-upload-secondary-action" (click)="RequestCloseReportEditor()">取消</button>
+            <button type="submit" class="primary-button">下一步：確認內容</button>
+          </footer>
+        </section>
+      </form>
+
+      <section *ngIf="ReportUploadStep === 'Confirm'" class="report-upload-review" aria-label="上傳內容確認">
+        <p class="report-upload-info"><span aria-hidden="true">i</span> 發佈後可在報表管理中編輯。</p>
+        <div class="report-upload-review-grid">
+          <section class="report-upload-panel report-upload-file-summary">
+            <h2>檔案摘要</h2>
+            <svg class="report-upload-document-illustration" viewBox="0 0 100 100" aria-hidden="true"><path d="M28 12h31l13 13v55H28zM59 12v14h13M38 47h24M38 57h24M38 67h16" /></svg>
+            <strong>{{ SelectedReportFileName }}</strong><span>檔案檢查完成</span>
+          </section>
+          <section class="report-upload-panel report-upload-details-summary">
+            <h2>報表資料</h2>
+            <dl>
+              <div><dt>報表名稱</dt><dd>{{ ReportEditorDraft.ReportName }}</dd></div>
+              <div><dt>報表說明</dt><dd>{{ ReportEditorDraft.Description }}</dd></div>
+              <div><dt>報表分類</dt><dd><span class="report-upload-category-chip">{{ ReportUploadCategoryName }}</span></dd></div>
+              <div><dt>啟用狀態</dt><dd>{{ ReportEditorDraft.Enabled ? "已啟用" : "停用" }}</dd></div>
+            </dl>
+          </section>
+        </div>
+        <footer class="report-upload-actions">
+          <button type="button" class="report-upload-secondary-action" (click)="ReturnToReportUploadForm()">返回修改</button>
+          <button type="button" class="primary-button" (click)="PublishReportUpload()">確認並發佈</button>
+        </footer>
+      </section>
+
+      <section *ngIf="ReportUploadStep === 'Complete' && PublishedUploadedReport as Report" class="report-upload-complete" aria-live="polite">
+        <div class="report-upload-complete-panel">
+          <div class="report-upload-success-illustration" aria-hidden="true"><svg viewBox="0 0 80 80"><path d="M22 12h28l12 12v42H22zM50 12v13h12M33 47l6 6 11-13" /></svg></div>
+          <h2>已成功上傳</h2><p>報表已發佈至報表管理。</p>
+          <dl class="report-upload-published-summary">
+            <div><dt>報表名稱</dt><dd>{{ Report.ReportName }}</dd></div>
+            <div><dt>報表分類</dt><dd>{{ Report.CategoryName }}</dd></div>
+            <div><dt>RPT 檔案</dt><dd>{{ Report.FileName }}</dd></div>
+            <div><dt>發佈時間</dt><dd>{{ Report.CreatedAt | date: "yyyy/MM/dd HH:mm" }}</dd></div>
+          </dl>
+        </div>
+        <footer class="report-upload-actions report-upload-complete-actions">
+          <button type="button" class="primary-button" (click)="ReturnToReportManagement()">回到報表管理</button>
+        </footer>
       </section>
     </section>
     <section

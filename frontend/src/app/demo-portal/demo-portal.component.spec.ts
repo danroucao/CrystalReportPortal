@@ -135,6 +135,7 @@ describe('DemoPortalComponent', () => {
     expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
+    const Host = fixture.nativeElement as HTMLElement;
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.back-office-binding-modal')).not.toBeNull();
@@ -459,7 +460,7 @@ describe('DemoPortalComponent', () => {
     expect(component.EditingUser?.Roles).toEqual(['FINANCE', 'PURCHASE']);
   });
 
-  it('lets the signed-in user update only their own name and Mock password in AccountSettings', () => {
+  it('separates signed-in user profile changes from password changes in AccountSettings', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
     const RouterService = TestBed.inject(Router);
@@ -474,25 +475,36 @@ describe('DemoPortalComponent', () => {
     fixture.detectChanges();
 
     component.AccountSettingsDraft.DisplayName = '財務本人設定';
+    component.SaveAccountProfile();
+    expect(component.AccountProfileNotice).toBe('個人資料已儲存。');
+    expect(Auth.CurrentUser?.DisplayName).toBe('財務本人設定');
+    expect(Auth.CurrentUser?.Roles).toEqual(['FINANCE']);
+
+    component.AccountSettingsDraft.OldPassword = 'user123';
+    component.AccountSettingsDraft.NewPassword = 'short';
+    component.AccountSettingsConfirmation = 'short';
+    component.ChangePassword();
+    expect(component.AccountPasswordNotice).toBe('新密碼需至少 8 碼。');
+
     component.AccountSettingsDraft.OldPassword = 'incorrect-password';
     component.AccountSettingsDraft.NewPassword = 'self-service-password';
     component.AccountSettingsConfirmation = 'self-service-password';
-    component.SaveAccountSettings();
+    component.ChangePassword();
 
-    expect(component.AccountSettingsNotice).toBe('舊密碼不正確。');
+    expect(component.AccountPasswordNotice).toBe('目前密碼不正確。');
     expect(component.IsPasswordChangeSuccessModalOpen).toBeFalse();
     expect(MockRbac.Authenticate('user@example.com', 'user123')).not.toBeNull();
 
     component.AccountSettingsDraft.OldPassword = 'user123';
     component.AccountSettingsConfirmation = 'different-password';
-    component.SaveAccountSettings();
+    component.ChangePassword();
 
-    expect(component.AccountSettingsNotice).toBe('新密碼與確認密碼不一致。');
+    expect(component.AccountPasswordNotice).toBe('新密碼與確認新密碼不一致。');
     expect(component.IsPasswordChangeSuccessModalOpen).toBeFalse();
     expect(MockRbac.Authenticate('user@example.com', 'user123')).not.toBeNull();
 
     component.AccountSettingsConfirmation = 'self-service-password';
-    component.SaveAccountSettings();
+    component.ChangePassword();
 
     fixture.detectChanges();
     expect(Auth.CurrentUser?.DisplayName).toBe('財務本人設定');
@@ -988,6 +1000,45 @@ describe('DemoPortalComponent', () => {
     expect(Navigate).toHaveBeenCalledWith(['/reports']);
   });
 
+  it('switches the report search icon to a clear control and resets all filters', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportParameter';
+    expect(LoginFrontManager(Auth)).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    const Host = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+    expect(Host.querySelector('.parameter-search-field > svg')).not.toBeNull();
+    expect(Host.querySelector('.parameter-search-clear-button')).toBeNull();
+
+    component.ParameterReportSearchText = 'Account';
+    fixture.detectChanges();
+    const ClearSearchButton = Host.querySelector<HTMLButtonElement>(
+      '.parameter-search-clear-button',
+    )!;
+    expect(ClearSearchButton.getAttribute('aria-label')).toBe('清除搜尋關鍵字');
+    ClearSearchButton.click();
+    fixture.detectChanges();
+    expect(component.ParameterReportSearchText).toBe('');
+    expect(Host.querySelector('.parameter-search-field > svg')).not.toBeNull();
+
+    component.ParameterReportSearchText = 'Account';
+    component.ParameterReportStartDate = '2026-09-01';
+    component.ParameterReportEndDate = '2026-09-10';
+    component.SetParameterReportCategory('FINANCE');
+    component.ClearParameterReportFilters();
+    expect(component.HasParameterReportFilters).toBeFalse();
+    expect(component.ParameterReportStartDate).toBe('');
+    expect(component.ParameterReportEndDate).toBe('');
+    expect(component.SelectedParameterReportCategoryId).toBe(
+      component.AllCategoryFilterValue,
+    );
+  });
+
   it('distinguishes a report search empty state from no accessible reports', () => {
     const Auth = TestBed.inject(AuthService);
     const MockRbac = TestBed.inject(MockRbacService);
@@ -999,12 +1050,24 @@ describe('DemoPortalComponent', () => {
 
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
+    const Host = fixture.nativeElement as HTMLElement;
     fixture.detectChanges();
     component.ParameterReportSearchText = 'no-match';
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain(
-      '找不到符合條件的報表。',
+      '找不到符合條件的報表',
     );
+    expect(
+      Host.querySelector('.parameter-report-empty-panel'),
+    ).not.toBeNull();
+    Host
+      .querySelector<HTMLButtonElement>(
+        '.parameter-report-empty-actions .primary-button',
+      )!
+      .click();
+    fixture.detectChanges();
+    expect(component.ParameterReportSearchText).toBe('');
+    expect(component.DisplayedParameterReports.length).toBeGreaterThan(0);
 
     component.ParameterReportSearchText = '';
     MockRbac.Reports.forEach((Report) =>
@@ -1012,7 +1075,7 @@ describe('DemoPortalComponent', () => {
     );
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain(
-      '目前沒有可使用的報表。',
+      '目前沒有可使用的報表',
     );
   });
 
@@ -1256,6 +1319,60 @@ describe('DemoPortalComponent', () => {
     expect(Host.textContent).toContain('確定要刪除此報表嗎？');
     component.ConfirmDeleteReport();
     expect(component.MockRbac.GetReport(Uploaded.ReportKey)).toBeNull();
+  });
+
+  it('uses a three-step page to review and publish an uploaded report', () => {
+    const Auth = TestBed.inject(AuthService);
+    const RouterService = TestBed.inject(Router);
+    const Navigate = spyOn(RouterService, 'navigate').and.resolveTo(true);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'ReportUpload';
+    expect(LoginFrontManager(Auth)).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    const Host = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+
+    expect(Host.querySelector('.report-upload-page')).not.toBeNull();
+    expect(Host.querySelectorAll('.report-upload-steps li').length).toBe(3);
+    expect(Host.querySelector('.report-upload-review')).toBeNull();
+
+    component.ReportEditorDraft = {
+      ReportName: '三步驟上傳測試報表',
+      Description: '確認頁不會在發布前建立報表。',
+      CategoryId: 'FINANCE',
+      Enabled: true,
+    };
+    component.SelectedReportFileName = 'ThreeStepUpload.rpt';
+    component.ContinueReportUpload();
+    fixture.detectChanges();
+
+    expect(component.ReportUploadStep).toBe('Confirm');
+    expect(Host.querySelector('.report-upload-review')).not.toBeNull();
+    expect(
+      component.MockRbac.Reports.some(
+        (Report) => Report.ReportName === '三步驟上傳測試報表',
+      ),
+    ).toBeFalse();
+
+    component.PublishReportUpload();
+    fixture.detectChanges();
+    expect(component.ReportUploadStep).toBe('Complete');
+    expect(Host.querySelector('.report-upload-complete')).not.toBeNull();
+    expect(
+      Host.querySelectorAll('.report-upload-complete-actions button').length,
+    ).toBe(1);
+    expect(
+      component.MockRbac.Reports.some(
+        (Report) => Report.ReportName === '三步驟上傳測試報表',
+      ),
+    ).toBeTrue();
+
+    component.ReturnToReportManagement();
+    expect(Navigate).toHaveBeenCalledWith(['/report-management']);
   });
 
   it('asks before discarding dirty report editor changes and restores focus deliberately', () => {
@@ -2548,6 +2665,23 @@ describe('DemoPortalComponent', () => {
       `全部（${BackOfficeTotalNotifications}）`,
       `未讀（${BackOfficeUnreadNotifications}）`,
     ]);
+  });
+
+  it('renders a useful illustration when the notification list is empty', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Route = TestBed.inject(ActivatedRoute) as unknown as {
+      snapshot: { data: { Page: string } };
+    };
+    Route.snapshot.data.Page = 'NotificationCenter';
+    expect(Auth.Login('warehouse@example.com', 'warehouse123')).toBeTrue();
+
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const Host = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+    expect(Host.querySelector('.notification-empty-state')).not.toBeNull();
+    expect(
+      Host.querySelector('.notification-empty-illustration'),
+    ).not.toBeNull();
   });
 
   it('opens the selected notification preview in a detail modal and returns focus', () => {
