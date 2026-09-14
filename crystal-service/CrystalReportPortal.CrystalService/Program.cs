@@ -165,6 +165,51 @@ namespace CrystalReportPortal.CrystalService
                     return 0;
                 }
 
+                // ============================
+                // test-connection
+                // ============================
+
+                if (command == "test-connection")
+                {
+                    if (args.Length < 2)
+                    {
+                        throw new ArgumentException(
+                            "請指定資料庫設定 JSON 路徑。");
+                    }
+
+                    var requestPath = args[1];
+
+                    if (!File.Exists(requestPath))
+                    {
+                        throw new FileNotFoundException(
+                            "找不到資料庫設定 JSON。",
+                            requestPath);
+                    }
+
+                    var json =
+                        File.ReadAllText(requestPath);
+
+                    var database =
+                        serializer.Deserialize<
+                            CrystalDatabaseConfig>(
+                            json);
+
+                    if (database == null)
+                    {
+                        throw new InvalidOperationException(
+                            "資料庫設定 JSON 解析失敗。");
+                    }
+
+                    var response =
+                        service.TestDatabaseConnection(
+                            database);
+
+                    Console.WriteLine(
+                        serializer.Serialize(response));
+
+                    return response.Success ? 0 : 1;
+                }
+
                 throw new ArgumentException(
                     "不支援的 command：" +
                     command);

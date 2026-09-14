@@ -3,12 +3,139 @@ using CrystalDecisions.Shared;
 using CrystalReportPortal.CrystalService.Models;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Diagnostics;
 using System.IO;
 
 namespace CrystalReportPortal.CrystalService.Services
 {
     public class CrystalReportService
     {
+        public CrystalDatabaseTestResponse TestDatabaseConnection(CrystalDatabaseConfig database)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                if (database == null)
+                {
+                    throw new ArgumentNullException(
+                        nameof(database));
+                }
+
+                if (string.IsNullOrWhiteSpace(database.Server))
+                {
+                    throw new ArgumentException("Database.Server 不可為空白。");
+                }
+
+                if (string.IsNullOrWhiteSpace(database.Database))
+                {
+                    throw new ArgumentException("Database.Database 不可為空白。");
+                }
+
+                if (!database.IntegratedSecurity)
+                {
+                    if (string.IsNullOrWhiteSpace(database.Username))
+                    {
+                        throw new ArgumentException("SQL Server Authentication 模式下 Username 不可為空白。");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(database.Password))
+                    {
+                        throw new ArgumentException("SQL Server Authentication 模式下 Password 不可為空白。");
+                    }
+                }
+
+                var builder =
+                    new SqlConnectionStringBuilder
+                    {
+                        DataSource = database.Server,
+                        InitialCatalog = database.Database,
+                        IntegratedSecurity =
+                            database.IntegratedSecurity,
+                        ConnectTimeout = 10,
+                        TrustServerCertificate = true,
+                        ApplicationName =
+                            "CrystalReportPortal.CrystalService"
+                    };
+
+                if (!database.IntegratedSecurity)
+                {
+                    builder.UserID = database.Username;
+
+                    builder.Password = database.Password;
+                }
+
+                using (var connection = new SqlConnection(builder.ConnectionString))
+                {
+                    connection.Open();
+
+                    const string sql = @"
+                    SELECT
+                        CAST(SYSTEM_USER AS NVARCHAR(128)) AS LoginName,
+                        DB_NAME() AS DatabaseName,
+                        (
+                            SELECT COUNT_BIG(*)
+                            FROM dbo.v_SalesDetail
+                        ) AS DetailCount;";
+
+                    using (var command = new SqlCommand(sql, connection))
+                    {
+                        command.CommandTimeout = 15;
+
+                        using (var reader =
+                               command.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                throw new InvalidOperationException(
+                                    "測試查詢沒有回傳結果。");
+                            }
+
+                            stopwatch.Stop();
+
+                            return new CrystalDatabaseTestResponse
+                            {
+                                Success = true,
+                                Connected = true,
+                                Server = database.Server,
+                                Database =
+                                    reader["DatabaseName"]
+                                        .ToString(),
+                                LoginName =
+                                    reader["LoginName"]
+                                        .ToString(),
+                                DetailCount =
+                                    Convert.ToInt64(
+                                        reader["DetailCount"]),
+                                ElapsedMilliseconds =
+                                    stopwatch.ElapsedMilliseconds,
+                                Message =
+                                    "Database connection successful."
+                            };
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+
+                return new CrystalDatabaseTestResponse
+                {
+                    Success = false,
+                    Connected = false,
+                    Server = database?.Server,
+                    Database = database?.Database,
+                    LoginName = null,
+                    DetailCount = 0,
+                    ElapsedMilliseconds =
+                        stopwatch.ElapsedMilliseconds,
+                    Message = ex.Message
+                };
+            }
+        }
+
         public void ExportPdf(
             string rptPath,
             string outputPath)
