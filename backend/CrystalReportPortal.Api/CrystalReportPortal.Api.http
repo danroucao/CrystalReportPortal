@@ -1,6 +1,71 @@
-@CrystalReportPortal.Api_HostAddress = http://localhost:5181
+@baseUrl=https://localhost:7007
+@account=test@example.com
+@password=Test1234
+@reportId=1
 
-GET {{CrystalReportPortal.Api_HostAddress}}/weatherforecast/
+### 測試 1：未登入，預期 401
+
+GET {{baseUrl}}/api/reports
 Accept: application/json
 
-###
+
+### 測試 2：登入，預期 200
+
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "account": "{{account}}",
+  "password": "{{password}}"
+}
+
+
+### 測試 3：確認 Token，預期 200
+
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{login.response.body.$.token}}
+Accept: application/json
+
+
+### 測試 4：查看報表權限，預期 200
+
+GET {{baseUrl}}/api/reports
+Authorization: Bearer {{login.response.body.$.token}}
+Accept: application/json
+
+
+### 測試 5：CanExecute，預期 200 或 403
+
+GET {{baseUrl}}/api/reports/{{reportId}}/execute-access
+Authorization: Bearer {{login.response.body.$.token}}
+Accept: application/json
+
+
+### 測試 6：取得參數，預期 200 或 403
+
+GET {{baseUrl}}/api/reports/{{reportId}}/parameters
+Authorization: Bearer {{login.response.body.$.token}}
+Accept: application/json
+
+
+### 測試 7：停用報表，預期 200 或 403
+
+PATCH {{baseUrl}}/api/reports/{{reportId}}/status
+Authorization: Bearer {{login.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "isEnabled": false
+}
+
+
+### 測試 8：重新啟用報表，預期 200 或 403
+
+PATCH {{baseUrl}}/api/reports/{{reportId}}/status
+Authorization: Bearer {{login.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "isEnabled": true
+}

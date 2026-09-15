@@ -12,6 +12,14 @@ public class RoleReportPermission
 
     public bool CanPrint { get; set; }
 
+    public bool CanUpload { get; set; }
+
+    public bool CanMaintain { get; set; }
+
+    public bool CanSetParameters { get; set; }
+        
+    public bool CanEnableDisable { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }

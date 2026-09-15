@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using CrystalReportPortal.Api.Dtos;
+using CrystalReportPortal.Api.Entities;
 
 namespace CrystalReportPortal.Api.Controllers;
 
@@ -127,7 +129,6 @@ public class ReportsController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = "ADMIN")]
     [HttpGet("test-crystal-parameters")]
     public async Task<IActionResult> TestCrystalParameters()
     {
@@ -140,13 +141,26 @@ public class ReportsController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = "ADMIN")]
     [HttpPost("{reportId:long}/rpt")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadRpt(
     long reportId,
     IFormFile file)
     {
+        var roleCodes = User
+    .FindAll(ClaimTypes.Role)
+    .Select(claim => claim.Value)
+    .ToList();
+
+        var allowed = await _reportService.CanUploadReportAsync(
+            reportId,
+            roleCodes);
+
+        if (!allowed)
+        {
+            return Forbid();
+        }
+
         if (file == null ||
             file.Length == 0)
         {
@@ -181,6 +195,21 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> PreviewReport(
     long reportId)
     {
+        var roleCodes = User
+    .FindAll(ClaimTypes.Role)
+    .Select(claim => claim.Value)
+    .ToList();
+
+        var allowed =
+            await _reportService.CanExecuteReportAsync(
+                reportId,
+                roleCodes);
+
+        if (!allowed)
+        {
+            return Forbid();
+        }
+
         var report =
             await _dbContext.Reports
                 .AsNoTracking()
@@ -240,5 +269,85 @@ public class ReportsController : ControllerBase
                         ex.Message
                 });
         }
+    }
+
+    [HttpPatch("{reportId:long}/status")]
+    public async Task<IActionResult> UpdateReportStatus(
+    long reportId,
+    [FromBody] UpdateReportStatusRequest request)
+    {
+        // 取得目前登入者的角色
+        var roleCodes = User
+            .FindAll(ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .ToList();
+
+        // 檢查是否有啟用／停用報表的權限
+        var allowed =
+            await _reportService.CanEnableDisableReportAsync(
+                reportId,
+                roleCodes);
+
+        if (!allowed)
+        {
+            return Forbid();
+        }
+
+        // 取得目前登入者 UserId
+        var userIdValue =
+            User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!long.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // 查詢報表
+        var report =
+            await _dbContext.Reports
+                .FirstOrDefaultAsync(
+                    x => x.ReportId == reportId);
+
+        if (report == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "找不到指定的報表。"
+            });
+        }
+
+        // 修改啟用狀態
+        report.IsEnabled = request.IsEnabled;
+        report.UpdatedBy = userId;
+        report.UpdatedAt = DateTime.UtcNow;
+
+        // 寫入操作紀錄
+        _dbContext.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            ReportId = reportId,
+            Action = request.IsEnabled
+                ? "ENABLE_REPORT"
+                : "DISABLE_REPORT",
+            Result = "SUCCESS",
+            Details = request.IsEnabled
+                ? $"啟用報表：{report.ReportName}"
+                : $"停用報表：{report.ReportName}",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new
+        {
+            success = true,
+            reportId = report.ReportId,
+            reportName = report.ReportName,
+            isEnabled = report.IsEnabled,
+            message = request.IsEnabled
+                ? "報表已啟用。"
+                : "報表已停用。"
+        });
     }
 }

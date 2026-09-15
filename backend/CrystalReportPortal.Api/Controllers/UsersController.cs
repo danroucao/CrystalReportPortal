@@ -9,7 +9,7 @@ namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
 [Route("api/users")]
-[Authorize(Roles = "ADMIN")]
+[Authorize(Policy = "BackOffice")]
 public class UsersController : ControllerBase
 {
     private readonly AppDbContext db;
@@ -47,5 +47,96 @@ public class UsersController : ControllerBase
         db.Users.Add(user);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(GetUsers), new { userId = user.UserId }, new ManagedUserDto { UserId = user.UserId, EmployeeNo = user.EmployeeNo, Account = user.Account, UserName = user.UserName, IsEnabled = user.IsEnabled, RoleCodes = roles.Select(x => x.RoleCode).ToList() });
+    }
+
+    [HttpPut("{userId:long}/roles")]
+    public async Task<IActionResult> UpdateUserRoles(
+    long userId,
+    UpdateUserRolesRequest request)
+    {
+        var user = await db.Users
+            .Include(candidate => candidate.UserRoles)
+            .FirstOrDefaultAsync(
+                candidate =>
+                    candidate.UserId == userId);
+
+        if (user == null)
+        {
+            return NotFound(new
+            {
+                message = "找不到指定的使用者"
+            });
+        }
+
+        var requestedRoleCodes = request.RoleCodes
+            .Where(roleCode =>
+                !string.IsNullOrWhiteSpace(roleCode))
+            .Select(roleCode =>
+                roleCode.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var roles = await db.Roles
+            .Where(role =>
+                role.IsEnabled &&
+                requestedRoleCodes.Contains(role.RoleCode))
+            .ToListAsync();
+
+        if (roles.Count != requestedRoleCodes.Count)
+        {
+            return BadRequest(new
+            {
+                message = "包含不存在或已停用的角色"
+            });
+        }
+
+        var requestedRoleIds = roles
+            .Select(role => role.RoleId)
+            .ToHashSet();
+
+        // 移除這次沒有選擇的角色
+        var userRolesToRemove = user.UserRoles
+            .Where(userRole =>
+                !requestedRoleIds.Contains(userRole.RoleId))
+            .ToList();
+
+        db.UserRoles.RemoveRange(userRolesToRemove);
+
+        // 加入原本沒有的新角色
+        foreach (var role in roles)
+        {
+            var alreadyAssigned = user.UserRoles
+                .Any(userRole =>
+                    userRole.RoleId == role.RoleId);
+
+            if (!alreadyAssigned)
+            {
+                user.UserRoles.Add(
+                    new UserRole
+                    {
+                        UserId = user.UserId,
+                        RoleId = role.RoleId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+            }
+        }
+
+        // 讓使用者原本的前台 Token 失效
+        user.TokenVersion += 1;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        return Ok(new ManagedUserDto
+        {
+            UserId = user.UserId,
+            EmployeeNo = user.EmployeeNo,
+            Account = user.Account,
+            UserName = user.UserName,
+            IsEnabled = user.IsEnabled,
+            RoleCodes = roles
+                .Select(role => role.RoleCode)
+                .ToList()
+        });
     }
 }

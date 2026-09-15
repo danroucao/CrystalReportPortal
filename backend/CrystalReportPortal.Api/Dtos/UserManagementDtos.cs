@@ -25,3 +25,8 @@ public class RoleOptionDto
     public string RoleCode { get; set; } = string.Empty;
     public string RoleName { get; set; } = string.Empty;
 }
+
+public class UpdateUserRolesRequest
+{
+    public List<string> RoleCodes { get; set; } = [];
+}

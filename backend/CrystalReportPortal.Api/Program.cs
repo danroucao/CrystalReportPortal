@@ -20,7 +20,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Services
 // =========================================================
 
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBackOfficeAuthService, BackOfficeAuthService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ICredentialProtector, CredentialProtector>();
 builder.Services.AddScoped<ICrystalProcessService, CrystalProcessService>();
@@ -109,7 +111,19 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        "BackOffice",
+        policy =>
+        {
+            policy.RequireAuthenticatedUser();
+
+            policy.RequireClaim(
+                "TokenType",
+                "BackOffice");
+        });
+});
 
 builder.Services.AddCors(options => { options.AddPolicy("Frontend", policy => policy.WithOrigins("http://localhost:4200", "https://localhost:4200").AllowAnyHeader().AllowAnyMethod()); });
 

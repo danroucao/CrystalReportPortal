@@ -66,20 +66,13 @@ public class ReportService : IReportService
 
                 Permissions = new ReportPermissionDto
                 {
-                    CanExecute =
-                        group.Any(
-                            permission =>
-                                permission.CanExecute),
-
-                    CanExport =
-                        group.Any(
-                            permission =>
-                                permission.CanExport),
-
-                    CanPrint =
-                        group.Any(
-                            permission =>
-                                permission.CanPrint)
+                    CanExecute = group.Any(permission => permission.CanExecute),
+                    CanExport = group.Any(permission => permission.CanExport),
+                    CanPrint = group.Any(permission => permission.CanPrint),
+                    CanUpload = group.Any(permission => permission.CanUpload),
+                    CanMaintain = group.Any(permission => permission.CanMaintain),
+                    CanSetParameters = group.Any(permission => permission.CanSetParameters),
+                    CanEnableDisable = group.Any(permission => permission.CanEnableDisable)
                 }
             })
             .OrderBy(
@@ -110,6 +103,94 @@ public class ReportService : IReportService
                 permission.Report.IsEnabled &&
                 permission.Report.Category.IsEnabled &&
                 permission.CanExecute);
+    }
+
+    public async Task<bool> CanExportReportAsync(
+    long reportId,
+    List<string> roleCodes)
+    {
+        return await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .AnyAsync(permission =>
+                permission.ReportId == reportId &&
+                roleCodes.Contains(
+                    permission.Role.RoleCode) &&
+                permission.Role.IsEnabled &&
+                permission.Report.IsEnabled &&
+                permission.Report.Category.IsEnabled &&
+                permission.CanExport);
+    }
+
+    public async Task<bool> CanUploadReportAsync(
+    long reportId,
+    List<string> roleCodes)
+    {
+        return await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .AnyAsync(permission =>
+                permission.ReportId == reportId &&
+                roleCodes.Contains(
+                    permission.Role.RoleCode) &&
+                permission.Role.IsEnabled &&
+                permission.CanUpload);
+    }
+
+    public async Task<bool> CanPrintReportAsync(
+    long reportId,
+    List<string> roleCodes)
+    {
+        return await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .AnyAsync(permission =>
+                permission.ReportId == reportId &&
+                roleCodes.Contains(
+                    permission.Role.RoleCode) &&
+                permission.Role.IsEnabled &&
+                permission.Report.IsEnabled &&
+                permission.Report.Category.IsEnabled &&
+                permission.CanPrint);
+    }
+
+    public async Task<bool> CanMaintainReportAsync(
+    long reportId,
+    List<string> roleCodes)
+    {
+        return await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .AnyAsync(permission =>
+                permission.ReportId == reportId &&
+                roleCodes.Contains(
+                    permission.Role.RoleCode) &&
+                permission.Role.IsEnabled &&
+                permission.CanMaintain);
+    }
+
+    public async Task<bool> CanSetParametersReportAsync(
+    long reportId,
+    List<string> roleCodes)
+    {
+        return await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .AnyAsync(permission =>
+                permission.ReportId == reportId &&
+                roleCodes.Contains(
+                    permission.Role.RoleCode) &&
+                permission.Role.IsEnabled &&
+                permission.CanSetParameters);
+    }
+
+    public async Task<bool> CanEnableDisableReportAsync(
+    long reportId,
+    List<string> roleCodes)
+    {
+        return await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .AnyAsync(permission =>
+                permission.ReportId == reportId &&
+                roleCodes.Contains(
+                    permission.Role.RoleCode) &&
+                permission.Role.IsEnabled &&
+                permission.CanEnableDisable);
     }
 
     public async Task<ReportParameterResponse> GetReportParametersAsync(
