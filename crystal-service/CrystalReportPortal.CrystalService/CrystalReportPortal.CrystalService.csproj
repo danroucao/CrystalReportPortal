@@ -69,6 +69,10 @@
 		<Compile Include="Models\CrystalExportParameter.cs" />
 		<Compile Include="Models\CrystalExportResponse.cs" />
 		<Compile Include="Models\CrystalDataSourceInfo.cs" />
+		<Compile Include="Models\CrystalDatabaseTestResponse.cs" />
+		<Compile Include="Models\CrystalLovOption.cs" />
+		<Compile Include="Models\CrystalLovRequest.cs" />
+		<Compile Include="Models\CrystalLovResponse.cs" />
 
 		<Compile Include="Program.cs" />
 		<Compile Include="Properties\AssemblyInfo.cs" />

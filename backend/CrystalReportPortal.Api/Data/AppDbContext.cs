@@ -290,13 +290,18 @@ public class AppDbContext : DbContext
                 .HasMaxLength(20)
                 .IsRequired();
 
-            entity.Property(x => x.Username)
-                .HasMaxLength(255)
+            entity.Property(x => x.AuthenticationType)
+                .HasMaxLength(20)
+                .HasDefaultValue(
+                    "SqlServer",
+                    "DF_DataSourceCredentials_AuthenticationType")
                 .IsRequired();
 
+            entity.Property(x => x.Username)
+                .HasMaxLength(255);
+
             entity.Property(x => x.EncryptedPassword)
-                .HasColumnType("nvarchar(max)")
-                .IsRequired();
+                .HasColumnType("nvarchar(max)");
 
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
@@ -312,6 +317,9 @@ public class AppDbContext : DbContext
                 .WithMany(x => x.Credentials)
                 .HasForeignKey(x => x.DataSourceId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => new { x.DataSourceId, x.CredentialType })
+                .IsUnique();
         });
     }
 
