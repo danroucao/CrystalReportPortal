@@ -5,66 +5,31 @@ using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace CrystalReportPortal.CrystalService.Services
 {
     public class CrystalReportService
     {
+        private static readonly bool DiagnosticsEnabled =
+            string.Equals(
+                Environment.GetEnvironmentVariable(
+                    "CRYSTAL_SERVICE_DIAGNOSTICS"),
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+
         public CrystalDatabaseTestResponse TestDatabaseConnection(CrystalDatabaseConfig database)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                if (database == null)
-                {
-                    throw new ArgumentNullException(
-                        nameof(database));
-                }
-
-                if (string.IsNullOrWhiteSpace(database.Server))
-                {
-                    throw new ArgumentException("Database.Server 不可為空白。");
-                }
-
-                if (string.IsNullOrWhiteSpace(database.Database))
-                {
-                    throw new ArgumentException("Database.Database 不可為空白。");
-                }
-
-                if (!database.IntegratedSecurity)
-                {
-                    if (string.IsNullOrWhiteSpace(database.Username))
-                    {
-                        throw new ArgumentException("SQL Server Authentication 模式下 Username 不可為空白。");
-                    }
-
-                    if (string.IsNullOrWhiteSpace(database.Password))
-                    {
-                        throw new ArgumentException("SQL Server Authentication 模式下 Password 不可為空白。");
-                    }
-                }
+                ValidateDatabaseConfig(database);
 
                 var builder =
-                    new SqlConnectionStringBuilder
-                    {
-                        DataSource = database.Server,
-                        InitialCatalog = database.Database,
-                        IntegratedSecurity =
-                            database.IntegratedSecurity,
-                        ConnectTimeout = 10,
-                        TrustServerCertificate = true,
-                        ApplicationName =
-                            "CrystalReportPortal.CrystalService"
-                    };
-
-                if (!database.IntegratedSecurity)
-                {
-                    builder.UserID = database.Username;
-
-                    builder.Password = database.Password;
-                }
+                    CreateConnectionStringBuilder(database);
 
                 using (var connection = new SqlConnection(builder.ConnectionString))
                 {
@@ -73,11 +38,7 @@ namespace CrystalReportPortal.CrystalService.Services
                     const string sql = @"
                     SELECT
                         CAST(SYSTEM_USER AS NVARCHAR(128)) AS LoginName,
-                        DB_NAME() AS DatabaseName,
-                        (
-                            SELECT COUNT_BIG(*)
-                            FROM dbo.v_SalesDetail
-                        ) AS DetailCount;";
+                        DB_NAME() AS DatabaseName;";
 
                     using (var command = new SqlCommand(sql, connection))
                     {
@@ -105,9 +66,8 @@ namespace CrystalReportPortal.CrystalService.Services
                                 LoginName =
                                     reader["LoginName"]
                                         .ToString(),
-                                DetailCount =
-                                    Convert.ToInt64(
-                                        reader["DetailCount"]),
+                                // 通用連線測試不依賴任何特定資料表。
+                                DetailCount = 0,
                                 ElapsedMilliseconds =
                                     stopwatch.ElapsedMilliseconds,
                                 Message =
@@ -136,46 +96,129 @@ namespace CrystalReportPortal.CrystalService.Services
             }
         }
 
-        public void ExportPdf(
-            string rptPath,
-            string outputPath)
+        public CrystalLovResponse GetLovOptions(CrystalLovRequest request)
         {
-            if (string.IsNullOrWhiteSpace(rptPath))
+            var stopwatch = Stopwatch.StartNew();
+
+            try
             {
-                throw new ArgumentException(
-                    "RPT 路徑不可為空。",
-                    nameof(rptPath));
+                if (request == null)
+                {
+                    throw new ArgumentNullException(
+                        nameof(request));
+                }
+
+                ValidateDatabaseConfig(
+                    request.Database);
+
+                ValidateLovQuery(
+                    request.SqlQuery);
+
+                if (string.IsNullOrWhiteSpace(
+                        request.ValueField))
+                {
+                    throw new ArgumentException(
+                        "ValueField 不可為空白。");
+                }
+
+                if (string.IsNullOrWhiteSpace(
+                        request.DisplayField))
+                {
+                    throw new ArgumentException(
+                        "DisplayField 不可為空白。");
+                }
+
+                var maxRows =
+                    request.MaxRows <= 0
+                        ? 1000
+                        : Math.Min(request.MaxRows, 5000);
+
+                var builder =
+                    CreateConnectionStringBuilder(
+                        request.Database);
+
+                var options =
+                    new List<CrystalLovOption>();
+
+                using (var connection =
+                       new SqlConnection(
+                           builder.ConnectionString))
+                {
+                    connection.Open();
+
+                    using (var command =
+                           new SqlCommand(
+                               request.SqlQuery,
+                               connection))
+                    {
+                        command.CommandTimeout = 15;
+
+                        using (var reader =
+                               command.ExecuteReader())
+                        {
+                            var valueOrdinal =
+                                reader.GetOrdinal(
+                                    request.ValueField);
+
+                            var displayOrdinal =
+                                reader.GetOrdinal(
+                                    request.DisplayField);
+
+                            while (reader.Read() &&
+                                   options.Count < maxRows)
+                            {
+                                var value =
+                                    reader.IsDBNull(valueOrdinal)
+                                        ? string.Empty
+                                        : Convert.ToString(
+                                            reader.GetValue(
+                                                valueOrdinal));
+
+                                var label =
+                                    reader.IsDBNull(displayOrdinal)
+                                        ? string.Empty
+                                        : Convert.ToString(
+                                            reader.GetValue(
+                                                displayOrdinal));
+
+                                options.Add(
+                                    new CrystalLovOption
+                                    {
+                                        Value = value,
+                                        Label = label
+                                    });
+                            }
+                        }
+                    }
+                }
+
+                stopwatch.Stop();
+
+                return new CrystalLovResponse
+                {
+                    Success = true,
+                    Message =
+                        "LOV options loaded successfully.",
+                    Count = options.Count,
+                    ElapsedMilliseconds =
+                        stopwatch.ElapsedMilliseconds,
+                    Options = options
+                };
             }
-
-            if (string.IsNullOrWhiteSpace(outputPath))
+            catch (Exception ex)
             {
-                throw new ArgumentException(
-                    "輸出路徑不可為空。",
-                    nameof(outputPath));
-            }
+                stopwatch.Stop();
 
-            if (!File.Exists(rptPath))
-            {
-                throw new FileNotFoundException(
-                    "找不到指定的 RPT 報表檔案。",
-                    rptPath);
-            }
-
-            string outputDirectory =
-                Path.GetDirectoryName(outputPath);
-
-            if (!string.IsNullOrWhiteSpace(outputDirectory))
-            {
-                Directory.CreateDirectory(outputDirectory);
-            }
-
-            using (var report = new ReportDocument())
-            {
-                report.Load(rptPath);
-
-                report.ExportToDisk(
-                    ExportFormatType.PortableDocFormat,
-                    outputPath);
+                return new CrystalLovResponse
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Count = 0,
+                    ElapsedMilliseconds =
+                        stopwatch.ElapsedMilliseconds,
+                    Options =
+                        new List<CrystalLovOption>()
+                };
             }
         }
 
@@ -239,6 +282,8 @@ namespace CrystalReportPortal.CrystalService.Services
         {
             try
             {
+                ValidateExportRequest(request);
+
                 var outputDirectory =
                     Path.GetDirectoryName(request.OutputPath);
 
@@ -251,17 +296,23 @@ namespace CrystalReportPortal.CrystalService.Services
                 {
                     report.Load(request.RptPath);
 
-                    DumpRasTables(
-                        report,
-                        "BEFORE COMMAND REPLACE");
+                    if (DiagnosticsEnabled)
+                    {
+                        DumpRasTables(
+                            report,
+                            "BEFORE DATABASE CONNECTION");
+                    }
 
                     ApplyRasCommandConnection(
                         report,
                         request.Database);
 
-                    DumpRasTables(
-                        report,
-                        "AFTER COMMAND REPLACE");
+                    if (DiagnosticsEnabled)
+                    {
+                        DumpRasTables(
+                            report,
+                            "AFTER DATABASE CONNECTION");
+                    }
 
                     SetParameters(
                         report,
@@ -281,10 +332,14 @@ namespace CrystalReportPortal.CrystalService.Services
             }
             catch (Exception ex)
             {
+                Console.Error.WriteLine(
+                    "Crystal report export failed: " +
+                    ex);
+
                 return new CrystalExportResponse
                 {
                     Success = false,
-                    Message = ex.ToString(),
+                    Message = "報表匯出失敗。請查看服務端錯誤紀錄。",
                     OutputPath = null
                 };
             }
@@ -1037,12 +1092,14 @@ namespace CrystalReportPortal.CrystalService.Services
                                                 item.Attributes[
                                                     $"Attribute[{i}].Nested[{j}].Value"
                                                 ] =
-                                                    nestedPair.Value ==
-                                                    null
-                                                        ? "(null)"
-                                                        : nestedPair
-                                                            .Value
-                                                            .ToString();
+                                                    IsSensitiveAttributeName(
+                                                        nestedPair.Name == null
+                                                            ? null
+                                                            : nestedPair.Name.ToString())
+                                                        ? "<redacted>"
+                                                        : nestedPair.Value == null
+                                                            ? "(null)"
+                                                            : nestedPair.Value.ToString();
 
                                                 item.Attributes[
                                                     $"Attribute[{i}].Nested[{j}].ValueType"
@@ -1072,10 +1129,14 @@ namespace CrystalReportPortal.CrystalService.Services
                                     item.Attributes[
                                         $"Attribute[{i}].Value"
                                     ] =
-                                        pair.Value == null
-                                            ? "(null)"
-                                            : pair.Value
-                                                .ToString();
+                                        IsSensitiveAttributeName(
+                                            pair.Name == null
+                                                ? null
+                                                : pair.Name.ToString())
+                                            ? "<redacted>"
+                                            : pair.Value == null
+                                                ? "(null)"
+                                                : pair.Value.ToString();
                                 }
                             }
                             catch (Exception ex)
@@ -1105,28 +1166,31 @@ namespace CrystalReportPortal.CrystalService.Services
             switch (dataType)
             {
                 case "Date":
-
-                    return DateTime
-                        .Parse(value)
-                        .Date;
+                case "DateField":
+                    return DateTime.Parse(
+                        value,
+                        CultureInfo.InvariantCulture).Date;
 
                 case "DateTime":
-
+                case "DateTimeField":
                     return DateTime.Parse(
-                        value);
+                        value,
+                        CultureInfo.InvariantCulture);
 
                 case "Number":
-
+                case "NumberField":
+                case "CurrencyField":
                     return decimal.Parse(
-                        value);
+                        value,
+                        CultureInfo.InvariantCulture);
 
                 case "Boolean":
+                case "BooleanField":
+                    return bool.Parse(value);
 
-                    return bool.Parse(
-                        value);
-
+                case "String":
+                case "StringField":
                 default:
-
                     return value;
             }
         }
@@ -1451,6 +1515,13 @@ namespace CrystalReportPortal.CrystalService.Services
     ReportDocument report,
     CrystalDatabaseConfig database)
         {
+            if (report == null)
+            {
+                throw new ArgumentNullException(nameof(report));
+            }
+
+            ValidateDatabaseConfig(database);
+
             var rcd =
                 report.ReportClientDocument;
 
@@ -1461,6 +1532,8 @@ namespace CrystalReportPortal.CrystalService.Services
                 databaseController
                     .Database
                     .Tables;
+
+            var replacedCommandCount = 0;
 
             for (int i = 0;
                  i < tables.Count;
@@ -1481,9 +1554,13 @@ namespace CrystalReportPortal.CrystalService.Services
                     continue;
                 }
 
-                Console.Error.WriteLine();
-                Console.Error.WriteLine(
-                    $"Applying RAS Command connection: {oldCommandTable.Name}");
+                if (DiagnosticsEnabled)
+                {
+                    Console.Error.WriteLine();
+
+                    Console.Error.WriteLine(
+                        $"Applying RAS Command connection: {oldCommandTable.Name}");
+                }
 
                 // =====================================================
                 // 1. Deep clone 原 CommandTable
@@ -1659,6 +1736,202 @@ namespace CrystalReportPortal.CrystalService.Services
                 databaseController.SetTableLocation(
                     oldCommandTable,
                     newCommandTable);
+
+                replacedCommandCount++;
+            }
+
+            if (replacedCommandCount == 0)
+            {
+                throw new NotSupportedException(
+                    "目前此匯出流程僅支援主報表的 Command Table，" +
+                    "但指定的 RPT 找不到可替換的 Command Table。");
+            }
+        }
+
+        private void ValidateExportRequest(
+            CrystalExportRequest request)
+        {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RptPath))
+            {
+                throw new ArgumentException("RptPath 不可為空白。");
+            }
+
+            if (!File.Exists(request.RptPath))
+            {
+                throw new FileNotFoundException(
+                    "找不到指定的 RPT 報表檔案。",
+                    request.RptPath);
+            }
+
+            if (string.IsNullOrWhiteSpace(request.OutputPath))
+            {
+                throw new ArgumentException("OutputPath 不可為空白。");
+            }
+
+            ValidateDatabaseConfig(request.Database);
+        }
+
+        private bool IsSensitiveAttributeName(
+            string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return false;
+            }
+
+            return
+                name.IndexOf(
+                    "password",
+                    StringComparison.OrdinalIgnoreCase) >= 0 ||
+                name.IndexOf(
+                    "secret",
+                    StringComparison.OrdinalIgnoreCase) >= 0 ||
+                name.IndexOf(
+                    "token",
+                    StringComparison.OrdinalIgnoreCase) >= 0 ||
+                name.IndexOf(
+                    "connection string",
+                    StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private void ValidateDatabaseConfig(
+    CrystalDatabaseConfig database)
+        {
+            if (database == null)
+            {
+                throw new ArgumentNullException(
+                    nameof(database));
+            }
+
+            if (string.IsNullOrWhiteSpace(database.Server))
+            {
+                throw new ArgumentException(
+                    "Database.Server 不可為空白。");
+            }
+
+            if (string.IsNullOrWhiteSpace(database.Database))
+            {
+                throw new ArgumentException(
+                    "Database.Database 不可為空白。");
+            }
+
+            if (!database.IntegratedSecurity)
+            {
+                if (string.IsNullOrWhiteSpace(
+                        database.Username))
+                {
+                    throw new ArgumentException(
+                        "SQL Server Authentication 模式下 Username 不可為空白。");
+                }
+
+                if (string.IsNullOrWhiteSpace(
+                        database.Password))
+                {
+                    throw new ArgumentException(
+                        "SQL Server Authentication 模式下 Password 不可為空白。");
+                }
+            }
+        }
+
+        private SqlConnectionStringBuilder
+            CreateConnectionStringBuilder(
+                CrystalDatabaseConfig database)
+        {
+            var builder =
+                new SqlConnectionStringBuilder
+                {
+                    DataSource = database.Server,
+                    InitialCatalog = database.Database,
+                    IntegratedSecurity =
+                        database.IntegratedSecurity,
+                    ConnectTimeout = 10,
+                    TrustServerCertificate = true,
+                    ApplicationName =
+                        "CrystalReportPortal.CrystalService"
+                };
+
+            if (!database.IntegratedSecurity)
+            {
+                builder.UserID =
+                    database.Username;
+
+                builder.Password =
+                    database.Password;
+            }
+
+            return builder;
+        }
+
+        private void ValidateLovQuery(
+            string sqlQuery)
+        {
+            if (string.IsNullOrWhiteSpace(sqlQuery))
+            {
+                throw new ArgumentException(
+                    "SqlQuery 不可為空白。");
+            }
+
+            var normalized =
+                sqlQuery.Trim();
+
+            if (!Regex.IsMatch(
+                    normalized,
+                    @"^SELECT\s+",
+                    RegexOptions.IgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "LOV 僅允許執行 SELECT 查詢。");
+            }
+
+            if (normalized.Contains(";") ||
+                normalized.Contains("--") ||
+                normalized.Contains("/*") ||
+                normalized.Contains("*/"))
+            {
+                throw new InvalidOperationException(
+                    "LOV SQL 不允許多段敘述或 SQL 註解。");
+            }
+
+            var prohibitedKeywords =
+                new[]
+                {
+            "INSERT",
+            "INTO",
+            "UPDATE",
+            "DELETE",
+            "DROP",
+            "ALTER",
+            "CREATE",
+            "TRUNCATE",
+            "MERGE",
+            "EXEC",
+            "EXECUTE",
+            "GRANT",
+            "REVOKE",
+            "DENY",
+            "BACKUP",
+            "RESTORE",
+            "DBCC"
+                };
+
+            foreach (var keyword in prohibitedKeywords)
+            {
+                if (Regex.IsMatch(
+                        normalized,
+                        @"\b" +
+                        Regex.Escape(keyword) +
+                        @"\b",
+                        RegexOptions.IgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "LOV SQL 含有不允許的關鍵字：" +
+                        keyword);
+                }
             }
         }
     }

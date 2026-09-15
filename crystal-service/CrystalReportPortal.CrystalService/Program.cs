@@ -72,36 +72,48 @@ namespace CrystalReportPortal.CrystalService
 
                 if (command == "preview")
                 {
-                    if (args.Length < 3)
+                    if (args.Length < 2)
                     {
                         throw new ArgumentException(
-                            "請指定 RPT 路徑與 PDF 輸出路徑。");
+                            "請指定 preview request JSON 路徑。");
                     }
 
-                    var rptPath =
-                        args[1];
+                    var requestPath = args[1];
 
-                    var outputPath =
-                        args[2];
+                    if (!File.Exists(requestPath))
+                    {
+                        throw new FileNotFoundException(
+                            "找不到 preview request JSON。",
+                            requestPath);
+                    }
 
-                    service.ExportPdf(
-                        rptPath,
-                        outputPath);
+                    var json =
+                        File.ReadAllText(requestPath);
+
+                    var request =
+                        serializer.Deserialize<
+                            CrystalExportRequest>(
+                            json);
+
+                    if (request == null)
+                    {
+                        throw new InvalidOperationException(
+                            "Preview request JSON 解析失敗。");
+                    }
 
                     var response =
-                        new CrystalExportResponse
-                        {
-                            Success = true,
-                            Message =
-                                "Preview generated successfully.",
-                            OutputPath =
-                                outputPath
-                        };
+                        service.ExportReport(request);
+
+                    if (response.Success)
+                    {
+                        response.Message =
+                            "Preview generated successfully.";
+                    }
 
                     Console.WriteLine(
                         serializer.Serialize(response));
 
-                    return 0;
+                    return response.Success ? 0 : 1;
                 }
 
                 // ============================
@@ -203,6 +215,51 @@ namespace CrystalReportPortal.CrystalService
                     var response =
                         service.TestDatabaseConnection(
                             database);
+
+                    Console.WriteLine(
+                        serializer.Serialize(response));
+
+                    return response.Success ? 0 : 1;
+                }
+
+                // ============================
+                // lov-options
+                // ============================
+
+                if (command == "lov-options")
+                {
+                    if (args.Length < 2)
+                    {
+                        throw new ArgumentException(
+                            "請指定 LOV request JSON 路徑。");
+                    }
+
+                    var requestPath = args[1];
+
+                    if (!File.Exists(requestPath))
+                    {
+                        throw new FileNotFoundException(
+                            "找不到 LOV request JSON。",
+                            requestPath);
+                    }
+
+                    var json =
+                        File.ReadAllText(requestPath);
+
+                    var request =
+                        serializer.Deserialize<
+                            CrystalLovRequest>(
+                            json);
+
+                    if (request == null)
+                    {
+                        throw new InvalidOperationException(
+                            "LOV request JSON 解析失敗。");
+                    }
+
+                    var response =
+                        service.GetLovOptions(
+                            request);
 
                     Console.WriteLine(
                         serializer.Serialize(response));
