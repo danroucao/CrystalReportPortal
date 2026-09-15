@@ -33,7 +33,7 @@ app-demo-portal .operation-log-page {
   padding: 1.25rem;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #fdfcf9;
+  background: var(--color-surface);
 }
 app-demo-portal .operation-log-heading,
 app-demo-portal .operation-log-results-bar {
@@ -69,7 +69,7 @@ app-demo-portal .operation-log-filters {
   padding: 1rem;
   border: 1px solid #e8e4dc;
   border-radius: 6px;
-  background: #fff;
+  background: #fdfcf9;
 }
 app-demo-portal .operation-log-filters label {
   display: grid;
@@ -84,25 +84,61 @@ app-demo-portal .operation-log-filters input {
   width: 100%;
   min-width: 0;
   min-height: 38px;
+  padding: 0 0.6rem;
+  border: 1px solid #aaa69e;
+  border-radius: 5px;
+  background: var(--color-surface);
+  font: inherit;
 }
 app-demo-portal .operation-log-table-frame {
   overflow-x: auto;
-  border: 1px solid #e8e4dc;
-  border-radius: 6px;
-  background: #fff;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 app-demo-portal .operation-log-table {
-  min-width: 940px;
+  width: 100%;
+  min-width: 1040px;
+  border-collapse: collapse;
+  text-align: left;
   table-layout: fixed;
 }
-app-demo-portal .operation-log-table th {
-  padding: 0.65rem 0.75rem;
-  background: #f7f4ef;
-  white-space: nowrap;
-}
+
+app-demo-portal .operation-log-table th,
 app-demo-portal .operation-log-table td {
   padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.875rem;
+  vertical-align: top;
 }
+
+app-demo-portal .operation-log-table th {
+  padding: 0.65rem 0.75rem;
+  color: var(--color-muted);
+  background: var(--color-surface);
+  font-weight: 800;
+  line-height: 1.5;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+app-demo-portal .operation-log-table th.is-sorted {
+  color: var(--color-primary);
+}
+
+app-demo-portal .operation-log-row {
+  cursor: pointer;
+}
+
+app-demo-portal .operation-log-row:hover > td {
+  background: #fdf7f8;
+}
+
+app-demo-portal .operation-log-row:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
 app-demo-portal .operation-log-table th:nth-child(1) {
   width: 132px;
 }
@@ -113,10 +149,16 @@ app-demo-portal .operation-log-table th:nth-child(3),
 app-demo-portal .operation-log-table th:nth-child(4) {
   width: 80px;
 }
+app-demo-portal .operation-log-table th:nth-child(5) {
+  width: 94px;
+}
 app-demo-portal .operation-log-table th:nth-child(6) {
-  width: 108px;
+  width: 20ch;
 }
 app-demo-portal .operation-log-table th:nth-child(7) {
+  width: 108px;
+}
+app-demo-portal .operation-log-table th:nth-child(8) {
   width: 94px;
 }
 app-demo-portal .operation-log-time,
@@ -257,6 +299,17 @@ app-demo-portal .visually-hidden {
     grid-column: span 2;
   }
 }
+
+@media (max-width: 760px) {
+  app-demo-portal .operation-log-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  app-demo-portal .operation-log-search {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 620px) {
   app-demo-portal .operation-log-page {
     padding: 1rem;
@@ -267,13 +320,23 @@ app-demo-portal .visually-hidden {
     flex-direction: column;
   }
   app-demo-portal .operation-log-filters {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   app-demo-portal .operation-log-search {
-    grid-column: auto;
+    grid-column: 1 / -1;
   }
   app-demo-portal .operation-log-detail-overview {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  app-demo-portal .operation-log-filters {
+    grid-template-columns: 1fr;
+  }
+
+  app-demo-portal .operation-log-search {
+    grid-column: auto;
   }
 }
 

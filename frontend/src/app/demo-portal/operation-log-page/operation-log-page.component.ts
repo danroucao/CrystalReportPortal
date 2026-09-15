@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
@@ -26,9 +26,8 @@ interface OperationLogCategoryOption {
   standalone: true,
   imports: [CommonModule, FormsModule, PortalPaginationComponent],
   templateUrl: './operation-log-page.component.html',
-  styleUrl: './operation-log-page.component.scss',
 })
-export class OperationLogPageComponent implements OnInit {
+export class OperationLogPageComponent {
   readonly PaginationPageSize = 10;
   readonly Auth = inject(AuthService);
   readonly AuditLog = inject(MockAuditLogService);
@@ -36,18 +35,18 @@ export class OperationLogPageComponent implements OnInit {
     Record<OperationLogSourceFilter, readonly OperationLogCategoryOption[]>
   > = {
     ALL: [
-      { Value: 'ALL', Label: '全部分類' },
+      { Value: 'ALL', Label: '' },
       { Value: 'PermissionChange', Label: '權限異動' },
       { Value: 'ReportAction', Label: '報表操作' },
       { Value: 'AccountManagement', Label: '帳號管理' },
     ],
     BackOffice: [
-      { Value: 'ALL', Label: '全部分類' },
+      { Value: 'ALL', Label: '' },
       { Value: 'PermissionChange', Label: '權限異動' },
       { Value: 'AccountManagement', Label: '帳號管理' },
     ],
     FrontOffice: [
-      { Value: 'ALL', Label: '全部分類' },
+      { Value: 'ALL', Label: '' },
       { Value: 'ReportAction', Label: '報表操作' },
     ],
   };
@@ -61,10 +60,6 @@ export class OperationLogPageComponent implements OnInit {
   OperationLogSortField: OperationLogSortField = 'OccurredAt';
   OperationLogSortDirection: OperationLogSortDirection = 'desc';
   SelectedOperationLog: MockAuditLogEntry | null = null;
-
-  ngOnInit(): void {
-    this.InitializeOperationLogDateRange();
-  }
 
   get CanAccessOperationLog(): boolean {
     return this.Auth.HasManagementPermission('OperationLog');
@@ -229,6 +224,10 @@ export class OperationLogPageComponent implements OnInit {
         REPORT_EXPORT: '匯出報表',
         REPORT_PRINT: '列印報表',
         CREATE_USER: '建立帳號',
+        CREATE_FRONT_OFFICE_USER: '新增使用者',
+        UPDATE_ROLE: '更新角色權限',
+        CREATE_ROLE: '新增角色',
+        BACKOFFICE_BINDING: '後台身分綁定',
         UPDATE_USER: '更新帳號',
         DISABLE_USER: '停用帳號',
       }[Action] ?? Action
@@ -248,11 +247,6 @@ export class OperationLogPageComponent implements OnInit {
       minute: '2-digit',
       hour12: false,
     });
-  }
-
-  private InitializeOperationLogDateRange(): void {
-    this.OperationLogEndDate = this.OperationLogMaximumDate;
-    this.OperationLogStartDate = this.ToDateInputValue(this.GetDateDaysAgo(6));
   }
 
   private GetDateDaysAgo(DaysAgo: number): Date {

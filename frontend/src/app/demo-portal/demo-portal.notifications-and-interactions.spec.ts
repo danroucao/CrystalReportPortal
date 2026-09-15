@@ -59,9 +59,19 @@ describe('portal notifications and extracted interactions', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
+    expect(component.OperationLogStartDate).toBe('');
+    expect(component.OperationLogEndDate).toBe('');
+    expect(component.FilteredOperationLogs).toHaveSize(15);
     expect(component.PagedOperationLogs).toHaveSize(10);
+    expect(component.PagedOperationLogs[0]).toEqual(
+      jasmine.objectContaining({
+        OccurredAt: jasmine.stringMatching(/^2026-09-12T/),
+        Action: 'REPORT_DOWNLOAD',
+        Summary: '下載「月結損益表.rpt」（PDF）',
+      }),
+    );
     component.GoToOperationLogPage(2);
-    expect(component.PagedOperationLogs).toHaveSize(1);
+    expect(component.PagedOperationLogs).toHaveSize(5);
     component.OperationLogCategoryFilter = 'ReportAction';
     component.OnOperationLogFilterChange();
     expect(component.OperationLogCurrentPage).toBe(1);
