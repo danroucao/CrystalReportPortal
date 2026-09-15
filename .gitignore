@@ -45,9 +45,13 @@ reports/Output/
 # Backend runtime uploaded reports
 backend/CrystalReportPortal.Api/reports/
 
-# Local Crystal export test request
+# Crystal Service local test requests and outputs
 crystal-service/export-request.json
-
+/database-test.json
+/export-retail-test.json
+/preview-retail-test.json
+/lov-*-test.json
+/reports/output/
 
 # ==============================
 # Temporary project files
