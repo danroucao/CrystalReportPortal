@@ -465,17 +465,6 @@ export class MockRbacService {
       .map((Report) => this.ToReportReadModel(Report));
   }
 
-  GetAllEnabledReportCategories(): readonly MockReportCategory[] {
-    const ReportCategoryIds = new Set(
-      this.GetAllEnabledReports().map((Report) => Report.CategoryId),
-    );
-    return this.CategoryStore.filter(
-      (Category) =>
-        !Category.IsSystemReserved &&
-        ReportCategoryIds.has(Category.CategoryId),
-    ).map((Category) => ({ ...Category }));
-  }
-
   GetAccessibleReports(Roles: readonly MockRoleKey[]): readonly MockReportReadModel[] {
     const NormalizedRoles = this.NormalizeRoles(Roles);
     return this.GetAllEnabledReports().filter(

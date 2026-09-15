@@ -4,7 +4,6 @@ export const MockAuthenticationProvider: MockAuthenticationProviderModel = {
   IsEnabled: false,
   BackOfficeAccount: null,
   AuthenticateBackOffice(): null { return null; },
-  DemoUsers: [],
   GetInitialUsers() {
     return [];
   },

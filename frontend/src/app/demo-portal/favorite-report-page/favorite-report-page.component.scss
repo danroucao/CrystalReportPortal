@@ -1,0 +1,37 @@
+:host {
+  display: block;
+}
+
+.content-card {
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 6px 18px rgb(32 32 31 / 5%);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.875rem;
+  vertical-align: top;
+}
+
+th {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
+th.is-sorted {
+  color: var(--color-primary);
+}

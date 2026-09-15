@@ -14,20 +14,8 @@ export interface MockCenterNotification {
   ReadAt: string | null;
 }
 
-export interface MockWorkItem {
-  readonly Id: string;
-  readonly Type: 'ReportCategoryPermissionReview';
-  readonly Title: string;
-  readonly Summary: string;
-  readonly CreatedAt: string;
-  Status: 'Pending' | 'Completed' | 'Cancelled';
-  Resolution: string;
-  readonly CategoryId: string | null;
-}
-
 @Injectable({ providedIn: 'root' })
 export class MockNotificationCenterService {
-  private readonly WorkItems: MockWorkItem[] = [];
   private readonly Notifications: MockCenterNotification[] = [
     {
       Id: 'NOTICE_6',
@@ -90,7 +78,6 @@ export class MockNotificationCenterService {
       ReadAt: '2026-09-10T10:05:00.000Z',
     },
   ];
-  private NextWorkItem = 1;
   private NextNotification = 7;
 
   constructor(private readonly rbac: MockRbacService) {}
@@ -103,20 +90,10 @@ export class MockNotificationCenterService {
       .sort((Left, Right) => Right.CreatedAt.localeCompare(Left.CreatedAt));
   }
 
-  GetWorkItems(): readonly MockWorkItem[] {
-    return this.WorkItems.map((Item) => ({ ...Item })).sort((Left, Right) =>
-      Right.CreatedAt.localeCompare(Left.CreatedAt),
-    );
-  }
-
   GetUnreadNotificationCount(Account: string): number {
     return this.Notifications.filter(
       (Item) => Item.RecipientAccount === Account && !Item.ReadAt,
     ).length;
-  }
-
-  GetOpenWorkItemCount(): number {
-    return this.WorkItems.filter((Item) => Item.Status === 'Pending').length;
   }
 
   MarkNotificationRead(Id: string, Account: string): void {
@@ -130,35 +107,12 @@ export class MockNotificationCenterService {
     Category: MockReportCategory,
     CreatorAccount: string,
   ): void {
-    this.WorkItems.push({
-      Id: `WORK_${this.NextWorkItem++}`,
-      Type: 'ReportCategoryPermissionReview',
-      Title: '待檢查新報表分類權限',
-      Summary: `${CreatorAccount} 新增「${Category.CategoryName}」，請確認角色授權策略。`,
-      CreatedAt: this.Now(),
-      Status: 'Pending',
-      Resolution: '',
-      CategoryId: Category.CategoryId,
-    });
     this.CreateNotification(
       'admin@example.com',
       '新增報表分類待開權限',
       `「${Category.CategoryName}」已新增，請確認需要授權的角色。`,
       `前台使用者 ${CreatorAccount} 已新增報表分類「${Category.CategoryName}」。請前往「 使用者管理 > 編輯角色」，確認分類後為相關角色設定報表查閱、匯出及列印權限。`,
     );
-  }
-
-  CompleteCategoryReview(Id: string, Resolution: string): boolean {
-    const WorkItem = this.FindWorkItem(Id);
-    if (
-      !WorkItem ||
-      WorkItem.Type !== 'ReportCategoryPermissionReview' ||
-      WorkItem.Status !== 'Pending'
-    )
-      return false;
-    WorkItem.Status = 'Completed';
-    WorkItem.Resolution = Resolution.trim() || '已確認暫不授權。';
-    return true;
   }
 
   CaptureAccess(Account: string): string {
@@ -270,9 +224,6 @@ export class MockNotificationCenterService {
     });
   }
 
-  private FindWorkItem(Id: string): MockWorkItem | undefined {
-    return this.WorkItems.find((Item) => Item.Id === Id);
-  }
   private Now(): string {
     return new Date().toISOString();
   }

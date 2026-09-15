@@ -14,7 +14,6 @@ export const MockAuthenticationProvider: MockAuthenticationProviderModel = {
     return Account === 'admin@example.com' && Password === 'admin123'
       ? { Account, DisplayName: '系統設定' } : null;
   },
-  DemoUsers: MockUsers.map(ToReadModel),
   GetInitialUsers(): readonly MockUserCredential[] {
     return MockUsers.map((User) => ({ ...User, Roles: [...User.Roles] }));
   },

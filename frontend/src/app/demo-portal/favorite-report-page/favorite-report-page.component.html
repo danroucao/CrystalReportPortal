@@ -1,0 +1,192 @@
+<section *ngIf="Auth.IsFrontOffice" class="content-card">
+  <div class="favorite-search-toolbar" role="search">
+    <label class="favorite-category-field" for="favorite-report-category">
+      報表分類
+      <select
+        id="favorite-report-category"
+        [(ngModel)]="SelectedFavoriteCategoryId"
+        (ngModelChange)="SetFavoriteCategory($event)"
+      >
+        <option [value]="AllCategoryFilterValue">全部</option>
+        <option
+          *ngFor="let Category of FavoriteReportCategories"
+          [value]="Category.CategoryId"
+        >
+          {{ Category.CategoryName }}
+        </option>
+      </select>
+    </label>
+    <label class="favorite-search-field" for="favorite-report-search">
+      搜尋報表
+      <input
+        id="favorite-report-search"
+        [(ngModel)]="FavoriteSearchText"
+        placeholder="請輸入報表名稱或報表說明"
+      />
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="10.8" cy="10.8" r="5.8"></circle>
+        <path d="m15.2 15.2 4 4"></path>
+      </svg>
+    </label>
+  </div>
+  <div class="table-scroll">
+    <table class="report-list-table favorite-report-table">
+      <thead>
+        <tr>
+          <th scope="col">收藏</th>
+          <th
+            scope="col"
+            [attr.aria-sort]="GetFavoriteReportAriaSort('ReportName')"
+            [class.is-sorted]="
+              IsFavoriteReportSortActive &&
+              FavoriteReportSortField === 'ReportName'
+            "
+          >
+            <button
+              type="button"
+              class="favorite-sort-button favorite-report-name-sort-button"
+              (click)="ToggleFavoriteReportNameSort()"
+            >
+              報表名稱
+              <svg
+                class="sort-indicator"
+                [class.is-ascending]="
+                  GetFavoriteReportSortIndicator('ReportName') === '↑'
+                "
+                [class.is-descending]="
+                  GetFavoriteReportSortIndicator('ReportName') === '↓'
+                "
+                viewBox="0 0 16 24"
+                aria-hidden="true"
+              >
+                <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+              </svg>
+            </button>
+          </th>
+          <th>報表分類</th>
+          <th
+            scope="col"
+            [attr.aria-sort]="GetFavoriteReportAriaSort('FavoritedAt')"
+            [class.is-sorted]="
+              IsFavoriteReportSortActive &&
+              FavoriteReportSortField === 'FavoritedAt'
+            "
+          >
+            <button
+              type="button"
+              class="favorite-sort-button favorite-at-sort-button"
+              (click)="ToggleFavoriteAtSort()"
+            >
+              收藏時間
+              <svg
+                class="sort-indicator"
+                [class.is-ascending]="
+                  GetFavoriteReportSortIndicator('FavoritedAt') === '↑'
+                "
+                [class.is-descending]="
+                  GetFavoriteReportSortIndicator('FavoritedAt') === '↓'
+                "
+                viewBox="0 0 16 24"
+                aria-hidden="true"
+              >
+                <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+              </svg>
+            </button>
+          </th>
+          <th
+            scope="col"
+            [attr.aria-sort]="GetFavoriteReportAriaSort('LastUsedAt')"
+            [class.is-sorted]="
+              IsFavoriteReportSortActive &&
+              FavoriteReportSortField === 'LastUsedAt'
+            "
+          >
+            <button
+              type="button"
+              class="favorite-sort-button favorite-last-used-sort-button"
+              (click)="ToggleFavoriteLastUsedSort()"
+            >
+              最近使用日期
+              <svg
+                class="sort-indicator"
+                [class.is-ascending]="
+                  GetFavoriteReportSortIndicator('LastUsedAt') === '↑'
+                "
+                [class.is-descending]="
+                  GetFavoriteReportSortIndicator('LastUsedAt') === '↓'
+                "
+                viewBox="0 0 16 24"
+                aria-hidden="true"
+              >
+                <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+              </svg>
+            </button>
+          </th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let Favorite of DisplayedFavoriteReports"
+          class="report-entry-row"
+          (click)="SelectReportByKey(Favorite.Report.ReportKey)"
+        >
+          <td>
+            <button
+              type="button"
+              class="favorite-star-button is-favorite"
+              [attr.aria-label]="'取消收藏 ' + Favorite.Report.ReportName"
+              [title]="'取消收藏 ' + Favorite.Report.ReportName"
+              (click)="RemoveFavoriteReport(Favorite); $event.stopPropagation()"
+            >
+              <svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="m12 2.8 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.37l-5.7 2.99 1.09-6.35-4.62-4.5 6.38-.93L12 2.8Z"
+                />
+              </svg>
+            </button>
+          </td>
+          <td class="report-name-cell" [title]="Favorite.Report.ReportName">
+            {{ Favorite.Report.ReportName }}
+          </td>
+          <td>{{ Favorite.Report.CategoryName }}</td>
+          <td>{{ FormatFavoriteAt(Favorite.FavoritedAt) }}</td>
+          <td>{{ FormatFavoriteLastUsedAt(Favorite.LastUsedAt) }}</td>
+          <td>
+            <button
+              type="button"
+              (click)="SelectReportByKey(Favorite.Report.ReportKey); $event.stopPropagation()"
+            >
+              預覽報表
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="!DisplayedFavoriteReports.length">
+          <td colspan="6" class="favorite-empty-state">
+            <div class="favorite-empty-content">
+              <div class="favorite-empty-illustration" aria-hidden="true">
+                <svg viewBox="0 0 80 80">
+                  <path d="M24 14h26l10 10v38H24zM50 14v11h10M34 39h16M34 47h16" />
+                  <path d="m54 55 3.3 6.7 7.4 1.1-5.3 5.2 1.3 7.3-6.7-3.5-6.7 3.5 1.3-7.3-5.3-5.2 7.4-1.1z" />
+                </svg>
+              </div>
+              <h2>{{ FavoriteReports.length ? '找不到符合條件的收藏報表' : '尚未收藏報表' }}</h2>
+              <p>{{ FavoriteReports.length ? '請調整搜尋文字或報表分類後再試一次。' : '目前沒有收藏的報表。從所有報表預覽後，可將常用報表加入收藏。' }}</p>
+              <button
+                *ngIf="!FavoriteReports.length"
+                type="button"
+                class="secondary-button favorite-empty-action"
+                (click)="BrowseAllReports()"
+              >
+                瀏覽所有報表
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

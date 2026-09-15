@@ -1,0 +1,705 @@
+app-demo-portal .report-management-description {
+  color: var(--color-muted);
+}
+app-demo-portal .report-management-timestamp,
+app-demo-portal .report-enabled-control {
+  white-space: nowrap;
+  font-size: 0.8125rem;
+}
+app-demo-portal .report-management-table .report-management-actions-cell {
+  overflow: visible;
+  white-space: normal;
+}
+app-demo-portal .report-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  min-width: max-content;
+  white-space: nowrap;
+}
+app-demo-portal .report-row-actions .secondary-button {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.45rem;
+}
+app-demo-portal .report-management-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-muted);
+}
+app-demo-portal .report-editor-modal {
+  width: min(32rem, 100%);
+  padding: 1.35rem;
+}
+app-demo-portal .report-editor-form {
+  display: grid;
+  gap: 1rem;
+}
+app-demo-portal .report-editor-category-field {
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+}
+app-demo-portal .report-editor-category-field > label {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .report-category-quick-add-trigger {
+  flex: 0 0 auto;
+  min-height: 38px;
+}
+app-demo-portal .report-category-quick-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+app-demo-portal .report-category-quick-add label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .report-category-quick-add input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font: inherit;
+}
+app-demo-portal .report-category-quick-add-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+app-demo-portal .report-category-quick-add .field-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+app-demo-portal .report-editor-enabled {
+  align-self: auto;
+  min-height: 0;
+}
+app-demo-portal .report-file-field {
+  gap: 0.55rem;
+}
+app-demo-portal .report-file-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 4.25rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  background: #faf9f6;
+  cursor: pointer;
+}
+app-demo-portal .report-file-picker input {
+  width: 10rem;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+app-demo-portal .current-report-file,
+app-demo-portal .selected-report-file {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+app-demo-portal .report-editor-actions {
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+/* Full-page upload workflow: form, review, and completion use one stable layout. */
+app-demo-portal .report-upload-page {
+  width: min(100%, 70rem);
+  margin: 0;
+  padding-bottom: 1.5rem;
+}
+app-demo-portal .report-upload-header {
+  margin-bottom: 1.75rem;
+}
+app-demo-portal .report-upload-breadcrumb {
+  margin: 0 0 0.8rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+app-demo-portal .report-upload-breadcrumb span {
+  margin: 0 0.4rem;
+  color: #8b8985;
+}
+app-demo-portal .report-upload-header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.5vw, 1.9rem);
+}
+app-demo-portal .report-upload-header > p:last-child {
+  margin: 0.55rem 0 0;
+  color: var(--color-muted);
+}
+app-demo-portal .report-upload-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 1.75rem;
+  padding: 0;
+  list-style: none;
+}
+app-demo-portal .report-upload-steps li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+app-demo-portal .report-upload-steps li:not(:last-child)::after {
+  position: absolute;
+  top: 1.2rem;
+  left: calc(50% + 1.2rem);
+  width: calc(100% - 2.4rem);
+  height: 1px;
+  background: #cbc7c0;
+  content: '';
+}
+app-demo-portal .report-upload-steps li.is-complete:not(:last-child)::after {
+  background: var(--color-primary);
+}
+app-demo-portal .report-upload-steps span {
+  z-index: 1;
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border: 1px solid #b9b5ad;
+  border-radius: 50%;
+  color: #6d6b66;
+  background: var(--color-surface);
+  font-weight: 800;
+}
+app-demo-portal .report-upload-steps li.is-active,
+app-demo-portal .report-upload-steps li.is-complete {
+  color: var(--color-text);
+}
+app-demo-portal .report-upload-steps li.is-active span,
+app-demo-portal .report-upload-steps li.is-complete span {
+  border-color: var(--color-primary);
+  color: #fff;
+  background: var(--color-primary);
+}
+app-demo-portal .report-upload-form {
+  display: grid;
+  gap: 1rem;
+}
+app-demo-portal .report-upload-panel {
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+app-demo-portal .report-upload-panel > header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+app-demo-portal .report-upload-panel > header > svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+app-demo-portal .report-upload-panel > header h2,
+app-demo-portal .report-upload-panel > header p {
+  margin: 0;
+}
+app-demo-portal .report-upload-panel > header h2 {
+  font-size: 1.125rem;
+}
+app-demo-portal .report-upload-panel > header p {
+  margin-top: 0.25rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+app-demo-portal .report-upload-fields {
+  display: grid;
+  gap: 1.1rem;
+  padding-top: 1.25rem;
+}
+app-demo-portal .report-upload-fields label,
+app-demo-portal .report-upload-category-row > label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .report-upload-fields input,
+app-demo-portal .report-upload-fields select,
+app-demo-portal .report-upload-fields textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font: inherit;
+}
+app-demo-portal .report-upload-fields input,
+app-demo-portal .report-upload-fields select {
+  min-height: 2.5rem;
+  padding: 0 0.7rem;
+}
+app-demo-portal .report-upload-fields textarea {
+  min-height: 6.5rem;
+  padding: 0.7rem;
+  resize: vertical;
+}
+app-demo-portal .report-upload-fields input:focus,
+app-demo-portal .report-upload-fields select:focus,
+app-demo-portal .report-upload-fields textarea:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid rgb(174 22 43 / 12%);
+  outline-offset: 0;
+}
+app-demo-portal .report-upload-fields small {
+  justify-self: end;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+app-demo-portal .report-upload-category-row {
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+}
+app-demo-portal .report-upload-category-row > label {
+  flex: 1 1 auto;
+}
+app-demo-portal button.report-upload-add-category,
+app-demo-portal button.report-upload-secondary-action {
+  width: 10rem;
+  min-width: 10rem;
+  min-height: 3rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: none;
+}
+app-demo-portal button.report-upload-add-category {
+  min-height: 2.5rem;
+}
+app-demo-portal button.report-upload-add-category:hover:not(:disabled),
+app-demo-portal button.report-upload-add-category:focus-visible,
+app-demo-portal button.report-upload-secondary-action:hover:not(:disabled),
+app-demo-portal button.report-upload-secondary-action:focus-visible {
+  border-color: var(--color-primary-hover);
+  color: #fff;
+  background: var(--color-primary);
+}
+app-demo-portal .report-upload-quick-add {
+  margin-top: -0.15rem;
+}
+app-demo-portal .report-upload-enabled {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+app-demo-portal .report-upload-enabled .form-field-label {
+  margin-right: 0.2rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .report-upload-file-panel {
+  padding-bottom: 1.5rem;
+}
+app-demo-portal .report-upload-dropzone {
+  display: grid;
+  min-height: 12rem;
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.55rem;
+  border: 1px dashed #b9b5ad;
+  border-radius: 6px;
+  color: var(--color-text);
+  background: #faf9f6;
+  cursor: pointer;
+  text-align: center;
+}
+app-demo-portal .report-upload-dropzone > svg {
+  width: 2.5rem;
+  height: 2.5rem;
+  fill: none;
+  stroke: #797671;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+app-demo-portal .report-upload-dropzone > span:not(.report-upload-file-button) {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+app-demo-portal .report-upload-file-button {
+  min-width: 6.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 5px;
+  color: var(--color-primary);
+  background: #fff;
+  font-weight: 700;
+}
+app-demo-portal .report-upload-dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+app-demo-portal .report-upload-selected-file {
+  margin: 0.85rem 0 0;
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+app-demo-portal .report-upload-selected-file span {
+  display: inline-grid;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-right: 0.35rem;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--color-primary);
+  font-size: 0.7rem;
+}
+app-demo-portal .report-upload-error {
+  margin: 0;
+}
+app-demo-portal .report-upload-info {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-muted);
+  background: #faf9f6;
+}
+app-demo-portal .report-upload-info span {
+  display: grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #73716c;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+app-demo-portal .report-upload-review-grid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.9fr) minmax(0, 1.1fr);
+  gap: 1rem;
+}
+app-demo-portal .report-upload-file-summary,
+app-demo-portal .report-upload-complete-panel {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+}
+app-demo-portal .report-upload-file-summary h2,
+app-demo-portal .report-upload-details-summary h2 {
+  width: 100%;
+  margin: 0;
+  font-size: 1.125rem;
+  text-align: left;
+}
+app-demo-portal .report-upload-document-illustration {
+  width: 8.5rem;
+  height: 8.5rem;
+  margin: 1.25rem 0 0.8rem;
+  fill: none;
+  stroke: #85827e;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+app-demo-portal .report-upload-file-summary > span {
+  margin-top: 0.35rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+app-demo-portal .report-upload-details-summary dl,
+app-demo-portal .report-upload-published-summary {
+  width: 100%;
+  margin: 1rem 0 0;
+}
+app-demo-portal .report-upload-details-summary dl > div,
+app-demo-portal .report-upload-published-summary > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  border-top: 1px solid var(--color-border);
+}
+app-demo-portal .report-upload-details-summary dt,
+app-demo-portal .report-upload-details-summary dd,
+app-demo-portal .report-upload-published-summary dt,
+app-demo-portal .report-upload-published-summary dd {
+  margin: 0;
+  padding: 0.85rem 0.75rem;
+  line-height: 1.5;
+}
+app-demo-portal .report-upload-details-summary dt,
+app-demo-portal .report-upload-published-summary dt {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .report-upload-details-summary dd {
+  overflow-wrap: anywhere;
+}
+app-demo-portal .report-upload-category-chip {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  color: var(--color-primary);
+  background: #fbedef;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .report-upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin: 1.5rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+app-demo-portal .report-upload-actions .primary-button {
+  width: 10rem;
+  min-width: 10rem;
+  min-height: 3rem;
+}
+app-demo-portal .report-upload-form-actions {
+  margin-top: 1.25rem;
+}
+app-demo-portal .report-upload-complete {
+  min-height: 31rem;
+}
+app-demo-portal .report-upload-complete-panel {
+  min-height: 25rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+app-demo-portal .report-upload-success-illustration {
+  display: grid;
+  width: 6rem;
+  height: 6rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #f7f3ec;
+}
+app-demo-portal .report-upload-success-illustration svg {
+  width: 4.75rem;
+  height: 4.75rem;
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+app-demo-portal .report-upload-complete h2 {
+  margin: 1rem 0 0;
+  font-size: 1.5rem;
+}
+app-demo-portal .report-upload-complete-panel > p {
+  margin: 0.5rem 0 1.25rem;
+  color: var(--color-muted);
+}
+app-demo-portal .report-upload-published-summary {
+  max-width: 44rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  text-align: left;
+}
+app-demo-portal .report-upload-published-summary > div:first-child {
+  border-top: 0;
+}
+app-demo-portal .report-upload-complete-actions {
+  margin-top: 1.25rem;
+}
+@media (max-width: 620px) {
+  app-demo-portal .report-upload-page {
+    padding-bottom: 1.25rem;
+  }
+  app-demo-portal .report-upload-header {
+    margin-bottom: 1.25rem;
+  }
+  app-demo-portal .report-upload-steps {
+    margin-bottom: 1.25rem;
+  }
+  app-demo-portal .report-upload-steps li {
+    gap: 0.4rem;
+    font-size: 0.75rem;
+  }
+  app-demo-portal .report-upload-steps span {
+    width: 2rem;
+    height: 2rem;
+  }
+  app-demo-portal .report-upload-steps li:not(:last-child)::after {
+    top: 1rem;
+    left: calc(50% + 1rem);
+    width: calc(100% - 2rem);
+  }
+  app-demo-portal .report-upload-category-row,
+  app-demo-portal .report-upload-review-grid {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    flex-direction: column;
+  }
+  app-demo-portal .report-upload-category-row > label,
+  app-demo-portal button.report-upload-add-category {
+    width: 100%;
+  }
+  app-demo-portal .report-upload-actions,
+  app-demo-portal .report-upload-complete-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+  app-demo-portal .report-upload-actions button,
+  app-demo-portal .report-upload-actions .primary-button {
+    width: 100%;
+    min-width: 0;
+  }
+  app-demo-portal .report-upload-details-summary dl > div,
+  app-demo-portal .report-upload-published-summary > div {
+    grid-template-columns: 1fr;
+  }
+  app-demo-portal .report-upload-details-summary dt,
+  app-demo-portal .report-upload-details-summary dd,
+  app-demo-portal .report-upload-published-summary dt,
+  app-demo-portal .report-upload-published-summary dd {
+    padding-block: 0.55rem;
+  }
+  app-demo-portal .report-upload-details-summary dd,
+  app-demo-portal .report-upload-published-summary dd {
+    padding-top: 0;
+  }
+}
+app-demo-portal .report-discard-confirmation-backdrop {
+  z-index: 11;
+  background: rgb(32 32 31 / 55%);
+}
+app-demo-portal .report-discard-confirmation-modal {
+  width: min(27rem, 100%);
+  padding: 1.5rem;
+}
+app-demo-portal .report-discard-confirmation-modal h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.125rem;
+}
+app-demo-portal .report-discard-confirmation-modal > p:not(.report-discard-confirmation-hint) {
+  margin: 0.65rem 0 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+app-demo-portal .report-discard-confirmation-actions {
+  margin-top: 1.5rem;
+}
+app-demo-portal .report-discard-confirmation-hint {
+  margin: 1rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+app-demo-portal .report-delete-dialog {
+  width: min(28rem, 100%);
+}
+app-demo-portal .report-delete-target {
+  padding: 0.75rem;
+  border-radius: 5px;
+  background: #f7f4ee;
+  font-weight: 700;
+}
+@media (max-width: 760px) {
+  app-demo-portal .report-management-page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  app-demo-portal .report-management-header-actions {
+    width: 100%;
+  }
+  app-demo-portal .report-management-header-actions button {
+    flex: 1 1 0;
+  }
+  app-demo-portal .category-create-form,
+  app-demo-portal .category-management-row,
+  app-demo-portal .report-category-quick-add {
+    grid-template-columns: 1fr;
+  }
+  app-demo-portal .category-management-row {
+    gap: 0.45rem;
+  }
+  app-demo-portal .category-management-action-slot,
+  app-demo-portal .category-management-actions {
+    justify-content: flex-start;
+  }
+  app-demo-portal .report-editor-category-field {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  app-demo-portal .report-category-quick-add-actions {
+    justify-content: flex-end;
+  }
+  app-demo-portal .report-file-picker {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 1200px) {
+  app-demo-portal .parameter-search-toolbar,
+  app-demo-portal .report-management-toolbar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  app-demo-portal .parameter-search-field {
+    grid-column: 1 / span 2;
+  }
+  app-demo-portal .report-management-search {
+    grid-column: 1 / -1;
+  }
+}

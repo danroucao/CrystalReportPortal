@@ -16,7 +16,6 @@ export class AuthService {
   constructor(private readonly MockRbac: MockRbacService) {}
 
   get IsDemoAuthenticationEnabled(): boolean { return this.MockRbac.IsEnabled; }
-  get DemoUsers(): readonly MockUser[] { return this.MockRbac.Users; }
   get CurrentIdentity(): AuthIdentity | null {
     if (this.Identity?.Kind === 'FrontUser' && !this.CurrentUser) return null;
     return this.Identity;
