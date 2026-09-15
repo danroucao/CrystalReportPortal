@@ -80,7 +80,7 @@
           </small>
         </div>
 
-        <button class="submit-button" type="submit" [disabled]="isSubmitting">
+        <button class="submit-button primary-button" type="submit" [disabled]="isSubmitting">
           <span class="spinner" *ngIf="isSubmitting" aria-hidden="true"></span>
           {{ isSubmitting ? "登入中…" : "登入" }}
         </button>
@@ -136,7 +136,7 @@
       <p id="login-notice-message">{{ noticeMessage }}</p>
       <button
         type="button"
-        class="notification-modal__button"
+        class="notification-modal__button primary-button"
         autofocus
         (click)="clearNotice()"
       >

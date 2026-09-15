@@ -70,7 +70,7 @@
           <button
             *ngIf="HasParameterReportFilters"
             type="button"
-            class="secondary-button parameter-clear-filters-button"
+            class="tertiary-button parameter-clear-filters-button"
             (click)="ClearParameterReportFilters()"
           >
             清除篩選
@@ -263,12 +263,13 @@
                 <td>
                   <button
                     type="button"
+                    class="secondary-button"
                     (click)="
                       SelectReportForPreview(Report.ReportKey);
                       $event.stopPropagation()
                     "
                   >
-                    預覽報表
+                    預覽
                   </button>
                 </td>
               </tr>
@@ -321,7 +322,7 @@
               </button>
               <button
                 type="button"
-                class="secondary-button"
+                class="tertiary-button"
                 (click)="ClearParameterReportFilters()"
               >
                 瀏覽所有報表
@@ -349,7 +350,7 @@
           </div>
           <button
             type="button"
-            class="secondary-button"
+            class="tertiary-button"
             (click)="ReturnToParameterReportSearch()"
           >
             重新選擇報表
@@ -557,7 +558,7 @@
           <button
             *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
             type="button"
-            class="secondary-button"
+            class="tertiary-button"
             (click)="ResetReportParameters()"
           >
             重設
@@ -571,4 +572,3 @@
         </form>
       </ng-template>
     </section>
-

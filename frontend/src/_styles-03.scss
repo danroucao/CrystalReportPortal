@@ -113,7 +113,7 @@ app-demo-portal .modal-actions {
   gap: 0.75rem;
   margin-top: 2.5rem;
 }
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   app-demo-portal .user-management-toolbar {
     align-items: stretch;
     flex-wrap: wrap;
@@ -378,22 +378,12 @@ app-demo-portal .role-card-action {
   margin-top: 1.25rem;
   min-height: 40px;
   padding: 0 1rem;
-  border: 1px solid var(--color-primary);
   border-radius: 6px;
-  color: #fff;
-  background: var(--color-primary);
   font-size: 0.875rem;
   font-weight: 700;
-  transition:
-    color 160ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease;
 }
 app-demo-portal .role-card-action:hover:not(:disabled),
 app-demo-portal .role-card-action:focus-visible {
-  border-color: var(--color-primary);
-  color: #fff;
-  background: #8f0f22;
   text-decoration: none;
 }
 app-demo-portal .role-change-card {
@@ -606,17 +596,8 @@ app-demo-portal button.favorite-empty-action {
   min-width: 12.5rem;
   min-height: 40px;
   margin-top: 1.25rem;
-  border: 1px solid var(--color-primary);
   border-radius: 6px;
-  color: var(--color-primary);
-  background: #fff;
   box-shadow: none;
-}
-app-demo-portal button.favorite-empty-action:hover:not(:disabled),
-app-demo-portal button.favorite-empty-action:focus-visible {
-  border-color: var(--color-primary-hover);
-  color: #fff;
-  background: var(--color-primary);
 }
 app-demo-portal .role-editor-fields {
   display: grid;

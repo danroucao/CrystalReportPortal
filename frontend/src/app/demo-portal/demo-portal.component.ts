@@ -22,7 +22,6 @@ import {
   ActivatedRoute,
   Router,
   RouterLink,
-  RouterLinkActive,
 } from '@angular/router';
 
 import {
@@ -64,6 +63,7 @@ import { BoringAvatarComponent } from '../shared/boring-avatar.component';
 import { PortalPaginationComponent } from '../shared/portal-pagination.component';
 import { FavoriteReportPageComponent } from './favorite-report-page/favorite-report-page.component';
 import { OperationLogPageComponent } from './operation-log-page/operation-log-page.component';
+import { PortalNavigationComponent } from './portal-navigation/portal-navigation.component';
 import { ReportEditorFormComponent } from './report-editor-form/report-editor-form.component';
 import { ReportManagementPageComponent } from './report-management-page/report-management-page.component';
 import { ReportParameterPageComponent } from './report-parameter-page/report-parameter-page.component';
@@ -124,9 +124,9 @@ type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
     FormsModule,
     ReactiveFormsModule,
     RouterLink,
-    RouterLinkActive,
     BoringAvatarComponent,
     PortalPaginationComponent,
+    PortalNavigationComponent,
     FavoriteReportPageComponent,
     OperationLogPageComponent,
     ReportEditorFormComponent,
@@ -155,6 +155,8 @@ export class DemoPortalComponent
 
   readonly Page = this.route.snapshot.data['Page'] as DemoPortalPage;
   IsNotificationPanelOpen = false;
+  IsMobileNavigationOpen = false;
+  IsCompactNavigation = false;
   SelectedCenterNotification: MockCenterNotification | null = null;
   IsProfileMenuOpen = false;
   BackOfficeBindingAccount = '';
@@ -195,6 +197,8 @@ export class DemoPortalComponent
   private ShouldFocusNotificationDetailClose = false;
   @ViewChild('notificationDetailDialog')
   private notificationDetailDialog?: ElementRef<HTMLElement>;
+  @ViewChild('mobileNavigationTrigger')
+  private mobileNavigationTrigger?: ElementRef<HTMLButtonElement>;
   @ViewChild('notificationDetailCloseButton')
   private notificationDetailCloseButton?: ElementRef<HTMLButtonElement>;
   @ViewChild('reportEditorDialog')
@@ -205,6 +209,7 @@ export class DemoPortalComponent
   private reportDiscardContinueButton?: ElementRef<HTMLButtonElement>;
   @ViewChild(ReportManagementPageComponent)
   private reportManagementPage?: ReportManagementPageComponent;
+  private ShouldFocusMobileNavigationTrigger = false;
 
   get AccessNotice(): string {
     const State = this.route.snapshot.queryParamMap?.get('state');
@@ -216,6 +221,7 @@ export class DemoPortalComponent
   }
 
   ngOnInit(): void {
+    this.UpdateCompactNavigationState();
     this.LoadAccountSettings();
     if (this.Page === 'ReportUpload') this.InitializeReportUploadFlow();
     const NavigationState =
@@ -225,6 +231,13 @@ export class DemoPortalComponent
   }
 
   ngAfterViewChecked(): void {
+    if (this.ShouldFocusMobileNavigationTrigger) {
+      const Trigger = this.mobileNavigationTrigger?.nativeElement;
+      if (Trigger) {
+        Trigger.focus();
+        this.ShouldFocusMobileNavigationTrigger = false;
+      }
+    }
     if (this.ShouldFocusNotificationDetailClose) {
       const CloseButton = this.notificationDetailCloseButton?.nativeElement;
       if (CloseButton) {
@@ -332,6 +345,40 @@ export class DemoPortalComponent
   ToggleProfileMenu(): void {
     this.IsNotificationPanelOpen = false;
     this.IsProfileMenuOpen = !this.IsProfileMenuOpen;
+  }
+
+  @HostListener('window:resize')
+  OnWindowResize(): void {
+    this.UpdateCompactNavigationState();
+  }
+
+  @HostListener('document:keydown.escape')
+  OnEscapeKey(): void {
+    if (this.IsMobileNavigationOpen) {
+      this.CloseMobileNavigation();
+      return;
+    }
+    this.IsNotificationPanelOpen = false;
+    this.IsProfileMenuOpen = false;
+  }
+
+  ToggleMobileNavigation(): void {
+    if (!this.IsCompactNavigation) return;
+    this.IsNotificationPanelOpen = false;
+    this.IsProfileMenuOpen = false;
+    this.IsMobileNavigationOpen = !this.IsMobileNavigationOpen;
+  }
+
+  CloseMobileNavigation(): void {
+    if (!this.IsMobileNavigationOpen) return;
+    this.IsMobileNavigationOpen = false;
+    this.ShouldFocusMobileNavigationTrigger = true;
+  }
+
+  private UpdateCompactNavigationState(): void {
+    this.IsCompactNavigation =
+      typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+    if (!this.IsCompactNavigation) this.IsMobileNavigationOpen = false;
   }
 
   SetNotificationPopoverTab(

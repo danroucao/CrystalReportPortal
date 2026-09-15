@@ -15,7 +15,9 @@ import { BoringAvatarBeamModule } from 'ngx-boring-avatars';
       [colors]="colors"
     />
   `,
-  styles: [':host { display: inline-flex; flex: 0 0 auto; line-height: 0; }'],
+  styles: [
+    ':host { display: inline-flex; flex: 0 0 auto; overflow: hidden; border-radius: 50%; line-height: 0; }',
+  ],
 })
 export class BoringAvatarComponent {
   @Input({ required: true }) name = '';

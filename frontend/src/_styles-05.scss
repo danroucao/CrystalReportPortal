@@ -18,7 +18,8 @@ app-demo-portal .report-row-actions {
   min-width: max-content;
   white-space: nowrap;
 }
-app-demo-portal .report-row-actions .secondary-button {
+app-demo-portal .report-row-actions .secondary-button,
+app-demo-portal .report-row-actions .tertiary-button {
   min-width: 2rem;
   min-height: 2rem;
   padding: 0.25rem 0.45rem;
@@ -305,22 +306,11 @@ app-demo-portal button.report-upload-secondary-action {
   width: 10rem;
   min-width: 10rem;
   min-height: 3rem;
-  border: 1px solid var(--color-primary);
   border-radius: 6px;
-  color: var(--color-primary);
-  background: var(--color-surface);
   box-shadow: none;
 }
 app-demo-portal button.report-upload-add-category {
   min-height: 2.5rem;
-}
-app-demo-portal button.report-upload-add-category:hover:not(:disabled),
-app-demo-portal button.report-upload-add-category:focus-visible,
-app-demo-portal button.report-upload-secondary-action:hover:not(:disabled),
-app-demo-portal button.report-upload-secondary-action:focus-visible {
-  border-color: var(--color-primary-hover);
-  color: #fff;
-  background: var(--color-primary);
 }
 app-demo-portal .report-upload-quick-add {
   margin-top: -0.15rem;
@@ -560,7 +550,7 @@ app-demo-portal .report-upload-published-summary > div:first-child {
 app-demo-portal .report-upload-complete-actions {
   margin-top: 1.25rem;
 }
-@media (max-width: 620px) {
+@media (max-width: 768px) {
   app-demo-portal .report-upload-page {
     padding-bottom: 1.25rem;
   }
@@ -654,7 +644,7 @@ app-demo-portal .report-delete-target {
   background: #f7f4ee;
   font-weight: 700;
 }
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   app-demo-portal .report-management-page-header {
     align-items: flex-start;
     flex-direction: column;

@@ -17,7 +17,7 @@
       <ng-container *ngTemplateOutlet="FilePicker"></ng-container>
       <ng-container *ngTemplateOutlet="FormError"></ng-container>
       <footer class="report-upload-actions report-upload-form-actions">
-        <button type="button" class="report-upload-secondary-action" (click)="cancelRequested.emit()">取消</button>
+        <button type="button" class="tertiary-button report-upload-secondary-action" (click)="cancelRequested.emit()">取消</button>
         <button type="submit" class="primary-button">下一步：確認內容</button>
       </footer>
     </section>
@@ -33,7 +33,7 @@
     <ng-container *ngTemplateOutlet="FormError"></ng-container>
     <div class="modal-actions report-editor-actions">
       <button type="submit" class="primary-button">儲存</button>
-      <button type="button" class="secondary-button" (click)="cancelRequested.emit()">取消</button>
+      <button type="button" class="tertiary-button" (click)="cancelRequested.emit()">取消</button>
     </div>
   </ng-template>
 
@@ -80,7 +80,7 @@
       <button
         *ngIf="canAddCategory"
         type="button"
-        [class]="IsUploadPage ? 'report-upload-add-category' : 'secondary-button report-category-quick-add-trigger'"
+        [class]="IsUploadPage ? 'secondary-button report-upload-add-category' : 'secondary-button report-category-quick-add-trigger'"
         (click)="quickAddRequested.emit()"
       ><span aria-hidden="true">＋</span> 新增分類</button>
     </div>
@@ -99,7 +99,7 @@
       </label>
       <div class="report-category-quick-add-actions">
         <button type="button" class="primary-button" (click)="quickAddSubmitted.emit()">新增</button>
-        <button type="button" class="secondary-button" (click)="quickAddCancelled.emit()">取消</button>
+        <button type="button" class="tertiary-button" (click)="quickAddCancelled.emit()">取消</button>
       </div>
       <p *ngIf="quickAddError" class="field-error" role="alert">{{ quickAddError }}</p>
     </div>

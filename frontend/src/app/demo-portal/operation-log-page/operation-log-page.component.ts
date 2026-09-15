@@ -35,18 +35,18 @@ export class OperationLogPageComponent {
     Record<OperationLogSourceFilter, readonly OperationLogCategoryOption[]>
   > = {
     ALL: [
-      { Value: 'ALL', Label: '' },
+      { Value: 'ALL', Label: '全部' },
       { Value: 'PermissionChange', Label: '權限異動' },
       { Value: 'ReportAction', Label: '報表操作' },
       { Value: 'AccountManagement', Label: '帳號管理' },
     ],
     BackOffice: [
-      { Value: 'ALL', Label: '' },
+      { Value: 'ALL', Label: '全部' },
       { Value: 'PermissionChange', Label: '權限異動' },
       { Value: 'AccountManagement', Label: '帳號管理' },
     ],
     FrontOffice: [
-      { Value: 'ALL', Label: '' },
+      { Value: 'ALL', Label: '全部' },
       { Value: 'ReportAction', Label: '報表操作' },
     ],
   };

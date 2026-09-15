@@ -65,8 +65,8 @@
           </td>
           <td class="report-management-timestamp">{{ Report.CreatedAt }}</td><td class="report-management-timestamp">{{ Report.UpdatedAt }}</td>
           <td class="report-management-actions-cell"><div class="report-row-actions">
-            <button type="button" class="secondary-button" [attr.aria-label]="'編輯 ' + Report.ReportName" title="編輯報表" (click)="OpenEditReportDialog(Report.ReportKey); $event.stopPropagation()">✎</button>
-            <button type="button" class="secondary-button" [attr.aria-label]="'刪除 ' + Report.ReportName" title="刪除報表" (click)="OpenDeleteReportDialog(Report.ReportKey); $event.stopPropagation()">🗑</button>
+            <button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + Report.ReportName" title="編輯報表" (click)="OpenEditReportDialog(Report.ReportKey); $event.stopPropagation()">✎</button>
+            <button type="button" class="tertiary-button" [attr.aria-label]="'刪除 ' + Report.ReportName" title="刪除報表" (click)="OpenDeleteReportDialog(Report.ReportKey); $event.stopPropagation()">🗑</button>
           </div></td>
         </tr>
         <tr *ngIf="!DisplayedManagedReports.length"><td colspan="8" class="report-management-empty">找不到符合條件的報表。</td></tr>
@@ -109,13 +109,13 @@
         <div class="category-management-action-slot">
           <span *ngIf="Category.IsSystemReserved" class="category-system-reserved">系統保留</span>
           <div *ngIf="!Category.IsSystemReserved" class="category-management-actions">
-            <ng-container *ngIf="EditingCategoryId === Category.CategoryId; else CategoryActions"><button type="button" class="primary-button" (click)="SaveCategoryEdit()">儲存</button><button type="button" class="secondary-button" (click)="CancelCategoryEdit()">取消</button></ng-container>
-            <ng-template #CategoryActions><button type="button" class="secondary-button" [attr.aria-label]="'編輯 ' + Category.CategoryName" title="編輯分類" (click)="StartCategoryEdit(Category)">✎</button><button type="button" class="secondary-button" [attr.aria-label]="'刪除 ' + Category.CategoryName" title="刪除分類" (click)="OpenDeleteCategoryDialog(Category.CategoryId)">🗑</button></ng-template>
+            <ng-container *ngIf="EditingCategoryId === Category.CategoryId; else CategoryActions"><button type="button" class="primary-button" (click)="SaveCategoryEdit()">儲存</button><button type="button" class="tertiary-button" (click)="CancelCategoryEdit()">取消</button></ng-container>
+            <ng-template #CategoryActions><button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + Category.CategoryName" title="編輯分類" (click)="StartCategoryEdit(Category)">✎</button><button type="button" class="tertiary-button" [attr.aria-label]="'刪除 ' + Category.CategoryName" title="刪除分類" (click)="OpenDeleteCategoryDialog(Category.CategoryId)">🗑</button></ng-template>
           </div>
         </div>
       </div>
     </section>
-    <div class="modal-actions category-management-close-action"><button type="button" class="secondary-button" (click)="CloseCategoryManagementDialog()">關閉</button></div>
+    <div class="modal-actions category-management-close-action"><button type="button" class="tertiary-button" (click)="CloseCategoryManagementDialog()">關閉</button></div>
   </section>
 </section>
 
@@ -125,13 +125,13 @@
     <ng-container *ngIf="GetCategoryUsageCount(DeletingCategory.CategoryId) as UsageCount"><p>「{{ DeletingCategory.CategoryName }}」目前仍有 {{ UsageCount }} 份報表使用中。</p><p>若刪除此分類，這些報表將自動移至「未分類」。</p><p class="muted">刪除完成後，請重新替這些報表設定正確分類。</p></ng-container>
     <p *ngIf="!GetCategoryUsageCount(DeletingCategory.CategoryId)">確定要刪除報表分類「{{ DeletingCategory.CategoryName }}」嗎？</p>
     <p *ngIf="CategoryDeleteError" class="field-error" role="alert">{{ CategoryDeleteError }}</p>
-    <div class="modal-actions category-delete-actions"><button type="button" class="role-delete-button danger-button" (click)="ConfirmDeleteCategory()">{{ GetCategoryUsageCount(DeletingCategory.CategoryId) ? '確認移動並刪除' : '確認刪除' }}</button><button type="button" class="secondary-button" (click)="CloseDeleteCategoryDialog()">取消</button></div>
+    <div class="modal-actions category-delete-actions"><button type="button" class="role-delete-button danger-button" (click)="ConfirmDeleteCategory()">{{ GetCategoryUsageCount(DeletingCategory.CategoryId) ? '確認移動並刪除' : '確認刪除' }}</button><button type="button" class="tertiary-button" (click)="CloseDeleteCategoryDialog()">取消</button></div>
   </section>
 </section>
 
 <section *ngIf="DeletingReport" class="modal-backdrop" (click)="CloseDeleteReportDialog()">
   <section class="edit-user-modal report-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-report-title" (click)="$event.stopPropagation()">
     <h2 id="delete-report-title">刪除報表</h2><p>確定要刪除此報表嗎？</p><p class="report-delete-target">報表：{{ DeletingReport.ReportName }}</p>
-    <div class="modal-actions report-editor-actions"><button type="button" class="role-delete-button danger-button" (click)="ConfirmDeleteReport()">刪除</button><button type="button" class="secondary-button" (click)="CloseDeleteReportDialog()">取消</button></div>
+    <div class="modal-actions report-editor-actions"><button type="button" class="role-delete-button danger-button" (click)="ConfirmDeleteReport()">刪除</button><button type="button" class="tertiary-button" (click)="CloseDeleteReportDialog()">取消</button></div>
   </section>
 </section>

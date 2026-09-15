@@ -1,5 +1,5 @@
 
-@media (max-width: 620px) {
+@media (max-width: 768px) {
   app-demo-portal .parameter-search-toolbar,
   app-demo-portal .report-management-toolbar,
   app-demo-portal .favorite-search-toolbar {
@@ -317,16 +317,7 @@ app-demo-portal .account-settings-actions {
 }
 app-demo-portal button.account-password-action {
   min-height: 40px;
-  border: 1px solid var(--color-primary);
   border-radius: 6px;
-  color: var(--color-primary);
-  background: var(--color-surface);
-}
-app-demo-portal button.account-password-action:hover:not(:disabled),
-app-demo-portal button.account-password-action:focus-visible {
-  border-color: var(--color-primary-hover);
-  color: #fff;
-  background: var(--color-primary);
 }
 
 /* Existing table sort controls share a text-only header treatment. */
@@ -379,7 +370,7 @@ app-demo-portal
     max-width: none;
   }
 }
-@media (max-width: 620px) {
+@media (max-width: 768px) {
   app-demo-portal .create-role-modal {
     width: min(100%, calc(100% - 1rem));
     padding: 1.25rem;
@@ -546,7 +537,7 @@ app-demo-portal
   font-size: 0.75rem;
   text-align: center;
 }
-@media (max-width: 620px) {
+@media (max-width: 768px) {
   .profile-trigger-name,
   .profile-trigger-chevron {
     display: none;
@@ -656,7 +647,7 @@ app-demo-portal .portal-header .profile-logout {
   min-height: 46px;
   padding: 0.65rem 1.45rem;
 }
-@media (max-width: 620px) {
+@media (max-width: 768px) {
   app-demo-portal .profile-trigger-details,
   app-demo-portal .portal-header .profile-trigger-chevron {
     display: none;

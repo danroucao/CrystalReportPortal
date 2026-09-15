@@ -50,15 +50,15 @@ describe('report catalog and extracted report pages', () => {
     expect(rbac.GetFavoriteReports('warehouse@example.com')).toHaveSize(1);
   });
 
-  it('renders a favorite table empty state while preserving its table structure', () => {
+  it('renders a standalone favorite empty state without a table header', () => {
     const auth = TestBed.inject(AuthService);
     expect(auth.Login('user@example.com', 'user123')).toBeTrue();
     const fixture = TestBed.createComponent(FavoriteReportPageComponent);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('.favorite-report-table')).not.toBeNull();
-    expect(host.querySelectorAll('.favorite-report-table th')).toHaveSize(6);
+    expect(host.querySelector('.favorite-report-table')).toBeNull();
+    expect(host.querySelectorAll('.favorite-report-table th')).toHaveSize(0);
     expect(host.querySelector('.favorite-empty-state')).not.toBeNull();
   });
 
