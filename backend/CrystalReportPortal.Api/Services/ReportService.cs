@@ -261,26 +261,54 @@ public class ReportService : IReportService
 
         if (credential == null)
         {
-            // 沒有設定 ReadOnly Credential
-            // → 使用 Windows Authentication
-            connectionStringBuilder.IntegratedSecurity = true;
+            throw new InvalidOperationException(
+                "資料來源尚未設定 ReadOnly 憑證。");
         }
-        else
+
+        var integratedSecurity =
+            string.Equals(
+                credential.AuthenticationType,
+                "Windows",
+                StringComparison.OrdinalIgnoreCase);
+
+        if (integratedSecurity)
         {
-            // 有 ReadOnly Credential
-            // → 使用 SQL Server Authentication
+            connectionStringBuilder.IntegratedSecurity = true;
+
+            // 避免連線字串中殘留 SQL Server 帳密。
+            connectionStringBuilder.Remove("User ID");
+            connectionStringBuilder.Remove("Password");
+        }
+        else if (string.Equals(
+                     credential.AuthenticationType,
+                     "SqlServer",
+                     StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(credential.Username))
+            {
+                throw new InvalidOperationException(
+                    "SQL Server Authentication 缺少資料庫帳號。");
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    credential.EncryptedPassword))
+            {
+                throw new InvalidOperationException(
+                    "SQL Server Authentication 缺少資料庫密碼。");
+            }
+
             var password =
                 _credentialProtector.Unprotect(
                     credential.EncryptedPassword);
 
-            connectionStringBuilder.UserID =
-                credential.Username;
-
-            connectionStringBuilder.Password =
-                password;
-
-            connectionStringBuilder.IntegratedSecurity =
-                false;
+            connectionStringBuilder.IntegratedSecurity = false;
+            connectionStringBuilder.UserID = credential.Username;
+            connectionStringBuilder.Password = password;
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"不支援的資料庫驗證方式：{credential.AuthenticationType}");
         }
 
         var result =

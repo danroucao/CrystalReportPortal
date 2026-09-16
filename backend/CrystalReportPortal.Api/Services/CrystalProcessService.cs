@@ -289,4 +289,183 @@ public class CrystalProcessService : ICrystalProcessService
             }
         }
     }
+
+    public async Task<CrystalDatabaseTestResponse>
+    TestDatabaseConnectionAsync(
+        CrystalDatabaseTestRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Server))
+        {
+            throw new ArgumentException(
+                "資料庫伺服器不可空白。",
+                nameof(request));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Database))
+        {
+            throw new ArgumentException(
+                "資料庫名稱不可空白。",
+                nameof(request));
+        }
+
+        var exePath =
+            _configuration["CrystalService:ExePath"];
+
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            throw new InvalidOperationException(
+                "尚未設定 CrystalService:ExePath。");
+        }
+
+        if (!File.Exists(exePath))
+        {
+            throw new FileNotFoundException(
+                "找不到 Crystal Service 執行檔。",
+                exePath);
+        }
+
+        var tempDirectory =
+            Path.Combine(
+                Path.GetTempPath(),
+                "CrystalReportPortal",
+                "DatabaseTests");
+
+        Directory.CreateDirectory(tempDirectory);
+
+        var requestPath =
+            Path.Combine(
+                tempDirectory,
+                $"{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var json =
+                JsonSerializer.Serialize(
+                    request,
+                    new JsonSerializerOptions
+                    {
+                        WriteIndented = false
+                    });
+
+            await File.WriteAllTextAsync(
+                requestPath,
+                json,
+                new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false));
+
+            var startInfo =
+                new ProcessStartInfo
+                {
+                    FileName = exePath,
+
+                    UseShellExecute = false,
+
+                    RedirectStandardOutput = true,
+
+                    RedirectStandardError = true,
+
+                    StandardOutputEncoding = Encoding.UTF8,
+
+                    StandardErrorEncoding = Encoding.UTF8,
+
+                    CreateNoWindow = true
+                };
+
+            startInfo.ArgumentList.Add("test-connection");
+            startInfo.ArgumentList.Add(requestPath);
+
+            using var process =
+                new Process
+                {
+                    StartInfo = startInfo
+                };
+
+            if (!process.Start())
+            {
+                throw new InvalidOperationException(
+                    "無法啟動 Crystal Service。");
+            }
+
+            var outputTask =
+                process.StandardOutput.ReadToEndAsync();
+
+            var errorTask =
+                process.StandardError.ReadToEndAsync();
+
+            await process.WaitForExitAsync();
+
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                throw new InvalidOperationException(
+                    "Crystal Service 沒有回傳連線測試結果。"
+                    + Environment.NewLine
+                    + error);
+            }
+
+            CrystalDatabaseTestResponse? response;
+
+            try
+            {
+                response =
+                    JsonSerializer.Deserialize<
+                        CrystalDatabaseTestResponse>(
+                        output.Trim(),
+                        new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException(
+                    "Crystal Service 回傳的連線測試結果"
+                    + "不是有效的 JSON。"
+                    + Environment.NewLine
+                    + output,
+                    ex);
+            }
+
+            if (response == null)
+            {
+                throw new InvalidOperationException(
+                    "無法解析 Crystal Service 的"
+                    + "連線測試結果。");
+            }
+
+            /*
+             * 連線失敗也可能由 Crystal Service 以 JSON 正常回傳，
+             * 所以優先回傳 response，讓 Controller 決定 HTTP 狀態。
+             */
+            if (process.ExitCode != 0 &&
+                response.Success)
+            {
+                throw new InvalidOperationException(
+                    $"Crystal Service 執行失敗，"
+                    + $"ExitCode={process.ExitCode}。"
+                    + Environment.NewLine
+                    + error);
+            }
+
+            return response;
+        }
+        finally
+        {
+            if (File.Exists(requestPath))
+            {
+                try
+                {
+                    File.Delete(requestPath);
+                }
+                catch
+                {
+                    // 暫存檔刪除失敗不覆蓋原本測試結果。
+                }
+            }
+        }
+    }
 }
