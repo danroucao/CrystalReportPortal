@@ -99,8 +99,8 @@ public class RoleReportPermissionsController : ControllerBase
         permission.UpdatedAt = now;
 
         var operatorIdText =
-            User.FindFirstValue(
-                ClaimTypes.NameIdentifier);
+            HttpContext.Session.GetString(
+                "BackOffice.OperatorUserId");
 
         if (!long.TryParse(
                 operatorIdText,
@@ -144,5 +144,69 @@ public class RoleReportPermissionsController : ControllerBase
                 CanEnableDisable =
                     permission.CanEnableDisable
             });
+    }
+
+    [HttpGet("roles/{roleId:int}/reports")]
+    public async Task<IActionResult> GetPermissions(int roleId)
+    {
+        var role = await _dbContext.Roles
+            .AsNoTracking()
+            .SingleOrDefaultAsync(item => item.RoleId == roleId);
+
+        if (role == null)
+        {
+            return NotFound(new
+            {
+                message = "找不到指定的角色"
+            });
+        }
+
+        var reports = await _dbContext.Reports
+            .AsNoTracking()
+            .OrderBy(report => report.ReportName)
+            .Select(report => new
+            {
+                report.ReportId,
+                report.ReportCode,
+                report.ReportName,
+                report.IsEnabled
+            })
+            .ToListAsync();
+
+        var permissions = await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .Where(item => item.RoleId == roleId)
+            .ToDictionaryAsync(item => item.ReportId);
+
+        var result = reports.Select(report =>
+        {
+            permissions.TryGetValue(
+                report.ReportId,
+                out var permission);
+
+            return new
+            {
+                role.RoleId,
+                role.RoleCode,
+                role.RoleName,
+
+                report.ReportId,
+                report.ReportCode,
+                report.ReportName,
+                report.IsEnabled,
+
+                CanExecute = permission?.CanExecute ?? false,
+                CanExport = permission?.CanExport ?? false,
+                CanPrint = permission?.CanPrint ?? false,
+                CanUpload = permission?.CanUpload ?? false,
+                CanMaintain = permission?.CanMaintain ?? false,
+                CanSetParameters =
+                    permission?.CanSetParameters ?? false,
+                CanEnableDisable =
+                    permission?.CanEnableDisable ?? false
+            };
+        }).ToList();
+
+        return Ok(result);
     }
 }

@@ -8,5 +8,5 @@ public interface IBackOfficeAuthService
         BackOfficeLoginRequest request);
 
     Task<BackOfficeOperatorResponse> VerifyOperatorAsync(
-        BackOfficeOperatorRequest request);
+        BackOfficeOperatorLoginRequest request);
 }

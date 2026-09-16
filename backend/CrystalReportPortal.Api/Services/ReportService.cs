@@ -37,11 +37,10 @@ public class ReportService : IReportService
         var reports = await _dbContext.RoleReportPermissions
             .AsNoTracking()
             .Where(permission =>
-                roleCodes.Contains(permission.Role.RoleCode) &&
-                permission.Role.IsEnabled &&
-                permission.Report.IsEnabled &&
-                permission.Report.Category.IsEnabled &&
-                permission.CanExecute)
+    roleCodes.Contains(permission.Role.RoleCode) &&
+    permission.Role.IsEnabled &&
+    permission.Report.IsEnabled &&
+    permission.Report.Category.IsEnabled)
             .GroupBy(permission => new
             {
                 permission.Report.ReportId,
@@ -51,6 +50,8 @@ public class ReportService : IReportService
                 permission.Report.Category.CategoryId,
                 permission.Report.Category.CategoryName
             })
+.Where(group => group.Any(permission => permission.CanExecute))
+
             .Select(group => new ReportDto
             {
                 ReportId = group.Key.ReportId,

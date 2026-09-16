@@ -31,6 +31,8 @@ public class AppDbContext : DbContext
     public DbSet<ReportExecution> ReportExecutions => Set<ReportExecution>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Printer> Printers => Set<Printer>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     // =========================
     // Model Configuration
@@ -39,7 +41,61 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Permission>(entity =>
+        {
+            entity.ToTable("Permissions");
 
+            entity.HasKey(x => x.PermissionId);
+
+            entity.HasIndex(x => x.PermissionCode)
+                .IsUnique();
+
+            entity.Property(x => x.PermissionCode)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(x => x.PermissionName)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(x => x.Description)
+                .HasMaxLength(500);
+
+            entity.Property(x => x.IsEnabled)
+                .HasDefaultValue(true);
+
+            entity.Property(x => x.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql("(sysdatetime())");
+
+            entity.Property(x => x.UpdatedAt)
+                .HasColumnType("datetime2");
+        });
+
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.ToTable("RolePermissions");
+
+            entity.HasKey(x => new
+            {
+                x.RoleId,
+                x.PermissionId
+            });
+
+            entity.Property(x => x.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql("(sysdatetime())");
+
+            entity.HasOne(x => x.Role)
+                .WithMany(x => x.RolePermissions)
+                .HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Permission)
+                .WithMany(x => x.RolePermissions)
+                .HasForeignKey(x => x.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         ConfigureUsers(modelBuilder);
         ConfigureRoles(modelBuilder);
         ConfigureUserRoles(modelBuilder);

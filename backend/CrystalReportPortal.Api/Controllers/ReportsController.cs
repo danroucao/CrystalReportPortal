@@ -142,6 +142,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpPost("{reportId:long}/rpt")]
+    [Authorize(Policy = "Report.Upload")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadRpt(
     long reportId,
@@ -272,6 +273,7 @@ public class ReportsController : ControllerBase
     }
 
     [HttpPatch("{reportId:long}/status")]
+    [Authorize(Policy = "Report.EnableDisable")]
     public async Task<IActionResult> UpdateReportStatus(
     long reportId,
     [FromBody] UpdateReportStatusRequest request)

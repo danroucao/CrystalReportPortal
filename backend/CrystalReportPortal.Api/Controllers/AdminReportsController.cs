@@ -10,7 +10,7 @@ namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/reports")]
-[Authorize(Roles = "ADMIN")]
+[Authorize(Policy = "BackOffice")]
 public class AdminReportsController : ControllerBase
 {
     private readonly AppDbContext db;
@@ -81,9 +81,9 @@ public class AdminReportsController : ControllerBase
         }
 
         if (!long.TryParse(
-                User.FindFirstValue(
-                    ClaimTypes.NameIdentifier),
-                out var userId))
+        HttpContext.Session.GetString(
+            "BackOffice.OperatorUserId"),
+        out var userId))
         {
             return Unauthorized();
         }

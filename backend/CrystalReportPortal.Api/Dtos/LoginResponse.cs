@@ -31,6 +31,8 @@ public class LoginUserDto
     public string UserName { get; set; } = string.Empty;
 
     public List<string> Roles { get; set; } = [];
+
+    public List<string> Permissions { get; set; } = [];
 }
 
 public class ChangePasswordRequest

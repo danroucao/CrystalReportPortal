@@ -21,6 +21,24 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // =========================================================
 
 builder.Services.AddMemoryCache();
+// Session 使用的伺服器端儲存空間
+builder.Services.AddDistributedMemoryCache();
+
+// 設定後台 Session
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".CrystalReportPortal.BackOffice";
+
+    // 不允許前端 JavaScript 直接讀取 Session Cookie
+    options.Cookie.HttpOnly = true;
+
+    options.Cookie.IsEssential = true;
+
+    options.Cookie.SameSite = SameSiteMode.Lax;
+
+    // 30 分鐘沒有使用，Session 就過期
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+});
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBackOfficeAuthService, BackOfficeAuthService>();
 builder.Services.AddScoped<IReportService, ReportService>();
@@ -113,19 +131,64 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy(
-        "BackOffice",
-        policy =>
+    // 後台：檢查 Session 是否已有操作者
+    options.AddPolicy("BackOffice", policy =>
+    {
+        policy.RequireAssertion(context =>
+        {
+            if (context.Resource is not HttpContext httpContext)
+            {
+                return false;
+            }
+
+            var operatorUserId =
+                httpContext.Session.GetString(
+                    "BackOffice.OperatorUserId");
+
+            return long.TryParse(
+                       operatorUserId,
+                       out var userId)
+                   && userId > 0;
+        });
+    });
+
+    // 前台：註冊功能權限規則
+    // 注意：這段在 BackOffice 規則外面
+    var permissionCodes = new[]
+    {
+        "Report.Upload",
+        "Report.Maintain",
+        "Report.SetParameters",
+        "Report.EnableDisable",
+        "AuditLog.View"
+    };
+
+    foreach (var permissionCode in permissionCodes)
+    {
+        options.AddPolicy(permissionCode, policy =>
         {
             policy.RequireAuthenticatedUser();
 
             policy.RequireClaim(
-                "TokenType",
-                "BackOffice");
+                "Permission",
+                permissionCode);
         });
+    }
 });
 
-builder.Services.AddCors(options => { options.AddPolicy("Frontend", policy => policy.WithOrigins("http://localhost:4200", "https://localhost:4200").AllowAnyHeader().AllowAnyMethod()); });
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:4200",
+                "https://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 // =========================================================
 // Controllers / OpenAPI
@@ -148,6 +211,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("Frontend");
+
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();
