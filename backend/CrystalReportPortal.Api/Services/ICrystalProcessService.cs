@@ -9,4 +9,8 @@ public interface ICrystalProcessService
 
     Task<byte[]> PreviewAsync(
         string rptPath);
+
+    Task<CrystalDatabaseTestResponse>
+        TestDatabaseConnectionAsync(
+            CrystalDatabaseTestRequest request);
 }

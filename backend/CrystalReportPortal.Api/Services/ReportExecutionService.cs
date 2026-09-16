@@ -39,21 +39,107 @@ public class ReportExecutionService : IReportExecutionService
             if (values.Count > 0) exportParameters.Add(new CrystalExportProcessParameter { Name = parameter.ParameterName, DataType = parameter.DataType, Values = values });
         }
 
-        var credential = report.DataSource.Credentials.FirstOrDefault(x => string.Equals(x.CredentialType, report.CredentialType, StringComparison.OrdinalIgnoreCase));
-        var execution = new ReportExecution { ExecutionId = Guid.NewGuid(), ReportId = reportId, UserId = userId, ParametersJson = JsonSerializer.Serialize(request.Parameters), Status = "Running", StartedAt = DateTime.UtcNow };
+        var credential =
+            report.DataSource.Credentials
+                .FirstOrDefault(x =>
+                    string.Equals(
+                        x.CredentialType,
+                        report.CredentialType,
+                        StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException(
+                $"資料來源尚未設定 {report.CredentialType} 憑證。");
+
+        var integratedSecurity =
+            string.Equals(
+                credential.AuthenticationType,
+                "Windows",
+                StringComparison.OrdinalIgnoreCase);
+
+        string username;
+        string password;
+
+        if (integratedSecurity)
+        {
+            username = string.Empty;
+            password = string.Empty;
+        }
+        else if (string.Equals(
+                     credential.AuthenticationType,
+                     "SqlServer",
+                     StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(credential.Username))
+            {
+                throw new InvalidOperationException(
+                    "SQL Server Authentication 缺少資料庫帳號。");
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    credential.EncryptedPassword))
+            {
+                throw new InvalidOperationException(
+                    "SQL Server Authentication 缺少資料庫密碼。");
+            }
+
+            username = credential.Username;
+            password = credentials.Unprotect(
+                credential.EncryptedPassword);
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"不支援的資料庫驗證方式：{credential.AuthenticationType}");
+        }
+
+        var execution = new ReportExecution
+        {
+            ExecutionId = Guid.NewGuid(),
+            ReportId = reportId,
+            UserId = userId,
+            ParametersJson =
+                JsonSerializer.Serialize(request.Parameters),
+            Status = "Running",
+            StartedAt = DateTime.UtcNow
+        };
+
         db.ReportExecutions.Add(execution);
         await db.SaveChangesAsync();
+
         try
         {
-            var pdf = await crystal.ExportPdfAsync(new CrystalExportProcessRequest
-            {
-                RptPath = report.RptFilePath,
-                Database = new CrystalExportDatabase { Server = $"{report.DataSource.ServerHost},{report.DataSource.Port}", Database = report.DataSource.DatabaseName, IntegratedSecurity = credential is null, Username = credential?.Username, Password = credential is null ? null : credentials.Unprotect(credential.EncryptedPassword) },
-                Parameters = exportParameters,
-            });
+            var pdf =
+                await crystal.ExportPdfAsync(
+                    new CrystalExportProcessRequest
+                    {
+                        RptPath = report.RptFilePath,
+
+                        Database = new CrystalExportDatabase
+                        {
+                            Server =
+                                $"{report.DataSource.ServerHost}," +
+                                $"{report.DataSource.Port}",
+
+                            Database =
+                                report.DataSource.DatabaseName,
+
+                            IntegratedSecurity =
+                                integratedSecurity,
+
+                            Username =
+                                username,
+
+                            Password =
+                                password
+                        },
+
+                        Parameters = exportParameters
+                    });
+
             execution.Status = "Completed";
             execution.CompletedAt = DateTime.UtcNow;
+
             await db.SaveChangesAsync();
+
             return (execution.ExecutionId, pdf);
         }
         catch (Exception ex)
@@ -61,7 +147,9 @@ public class ReportExecutionService : IReportExecutionService
             execution.Status = "Failed";
             execution.ErrorMessage = ex.Message;
             execution.CompletedAt = DateTime.UtcNow;
+
             await db.SaveChangesAsync();
+
             throw;
         }
     }
