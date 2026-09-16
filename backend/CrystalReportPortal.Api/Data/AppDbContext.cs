@@ -1,13 +1,20 @@
 using CrystalReportPortal.Api.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace CrystalReportPortal.Api.Data;
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options)
+    private readonly IHttpContextAccessor?
+        _httpContextAccessor;
+
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        IHttpContextAccessor? httpContextAccessor = null)
         : base(options)
     {
+        _httpContextAccessor = httpContextAccessor;
     }
 
     // =========================
@@ -748,6 +755,9 @@ public class AppDbContext : DbContext
             entity.Property(x => x.ErrorMessage)
                 .HasColumnType("nvarchar(max)");
 
+            entity.Property(x => x.IpAddress)
+                .HasMaxLength(45);
+
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
                 .HasDefaultValueSql(
@@ -775,5 +785,59 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+    }
+
+    public override int SaveChanges()
+    {
+        PopulateAuditLogIpAddresses();
+
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        PopulateAuditLogIpAddresses();
+
+        return base.SaveChangesAsync(
+            cancellationToken);
+    }
+
+    private void PopulateAuditLogIpAddresses()
+    {
+        var remoteIpAddress =
+            _httpContextAccessor?
+                .HttpContext?
+                .Connection
+                .RemoteIpAddress;
+
+        if (remoteIpAddress == null)
+        {
+            return;
+        }
+
+        if (remoteIpAddress.IsIPv4MappedToIPv6)
+        {
+            remoteIpAddress =
+                remoteIpAddress.MapToIPv4();
+        }
+
+        var ipAddress =
+            remoteIpAddress.ToString();
+
+        var auditLogEntries =
+            ChangeTracker
+                .Entries<AuditLog>()
+                .Where(entry =>
+                    entry.State ==
+                        EntityState.Added &&
+                    string.IsNullOrWhiteSpace(
+                        entry.Entity.IpAddress));
+
+        foreach (var entry in auditLogEntries)
+        {
+            entry.Entity.IpAddress =
+                ipAddress;
+        }
     }
 }

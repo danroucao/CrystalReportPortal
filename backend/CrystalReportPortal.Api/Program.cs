@@ -1,5 +1,6 @@
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Services;
+using CrystalReportPortal.Api.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -21,6 +22,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // =========================================================
 
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
 // Session 使用的伺服器端儲存空間
 builder.Services.AddDistributedMemoryCache();
 
@@ -154,14 +156,7 @@ builder.Services.AddAuthorization(options =>
 
     // 前台：註冊功能權限規則
     // 注意：這段在 BackOffice 規則外面
-    var permissionCodes = new[]
-    {
-        "Report.Upload",
-        "Report.Maintain",
-        "Report.SetParameters",
-        "Report.EnableDisable",
-        "AuditLog.View"
-    };
+    var permissionCodes = PermissionCodes.All;
 
     foreach (var permissionCode in permissionCodes)
     {

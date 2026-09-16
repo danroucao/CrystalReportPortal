@@ -20,6 +20,8 @@ public class AuditLog
 
     public string? ErrorMessage { get; set; }
 
+    public string? IpAddress { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
 

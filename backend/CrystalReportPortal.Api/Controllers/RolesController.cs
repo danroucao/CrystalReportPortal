@@ -1,6 +1,7 @@
 ﻿using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
+using CrystalReportPortal.Api.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -184,27 +185,32 @@ public class RolesController : ControllerBase
         {
             new
             {
-                Code = "Report.Upload",
+                Code = PermissionCodes.ReportUpload,
                 Name = "上傳報表"
             },
             new
             {
-                Code = "Report.Maintain",
+                Code = PermissionCodes.ReportMaintain,
                 Name = "維護報表"
             },
             new
             {
-                Code = "Report.SetParameters",
+                Code = PermissionCodes.ReportSetParameters,
                 Name = "設定報表參數"
             },
             new
             {
-                Code = "Report.EnableDisable",
+                Code = PermissionCodes.ReportEnableDisable,
                 Name = "啟用或停用報表"
             },
             new
             {
-                Code = "AuditLog.View",
+                Code = PermissionCodes.DataSourceManage,
+                Name = "管理 MSSQL 資料來源"
+            },
+            new
+            {
+                Code = PermissionCodes.AuditLogView,
                 Name = "查詢操作紀錄"
             }
         };

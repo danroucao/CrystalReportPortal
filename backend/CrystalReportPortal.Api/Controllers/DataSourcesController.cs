@@ -1,6 +1,7 @@
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Services;
+using CrystalReportPortal.Api.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
 [Route("api/data-sources")]
-[Authorize(Roles = "ADMIN")]
+[Authorize(Policy = PermissionCodes.DataSourceManage)]
 public class DataSourcesController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
