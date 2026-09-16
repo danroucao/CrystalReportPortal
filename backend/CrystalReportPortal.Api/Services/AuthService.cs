@@ -38,6 +38,8 @@ public class AuthService : IAuthService
         var user = await _dbContext.Users
             .Include(u => u.UserRoles)
             .ThenInclude(userRole => userRole.Role)
+            .ThenInclude(role => role.RolePermissions)
+            .ThenInclude(rolePermission => rolePermission.Permission)
             .SingleOrDefaultAsync(
                 u => u.Account == request.Account);
 
@@ -121,6 +123,15 @@ public class AuthService : IAuthService
             .Distinct()
             .ToList();
 
+        var permissions = user.UserRoles
+    .Where(userRole => userRole.Role.IsEnabled)
+    .SelectMany(userRole => userRole.Role.RolePermissions)
+    .Where(item => item.Permission.IsEnabled)
+    .Select(item => item.Permission.PermissionCode)
+    .Distinct()
+    .OrderBy(code => code)
+    .ToList();
+
         var jwtKey =
             _configuration["Jwt:Key"]
             ?? throw new InvalidOperationException(
@@ -170,6 +181,10 @@ public class AuthService : IAuthService
                         ClaimTypes.Role,
                         role)));
 
+        claims.AddRange(
+    permissions.Select(permission =>
+        new Claim("Permission", permission)));
+
         var securityKey =
             new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(jwtKey));
@@ -214,7 +229,8 @@ public class AuthService : IAuthService
                 Account = user.Account,
                 EmployeeNo = user.EmployeeNo,
                 UserName = user.UserName,
-                Roles = roles
+                Roles = roles,
+                Permissions = permissions
             }
         };
     }

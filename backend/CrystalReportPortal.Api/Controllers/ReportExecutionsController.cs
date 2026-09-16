@@ -11,16 +11,72 @@ namespace CrystalReportPortal.Api.Controllers;
 [Authorize]
 public class ReportExecutionsController : ControllerBase
 {
-    private readonly IReportExecutionService executions;
-    public ReportExecutionsController(IReportExecutionService executions) => this.executions = executions;
+    private readonly IReportExecutionService _executions;
+    private readonly IReportService _reportService;
+
+    public ReportExecutionsController(
+    IReportExecutionService executions,
+    IReportService reportService)
+    {
+        _executions = executions;
+        _reportService = reportService;
+    }
 
     [HttpPost("{reportId:long}/execute")]
-    public async Task<IActionResult> Execute(long reportId, ReportExecutionRequest request)
+    public async Task<IActionResult> Execute(
+        long reportId,
+        ReportExecutionRequest request)
     {
-        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)) return Unauthorized();
-        var roles = User.FindAll(ClaimTypes.Role).Select(x => x.Value).ToList();
-        var result = await executions.ExecuteAsync(reportId, userId, roles, request);
-        Response.Headers.Append("X-Report-Execution-Id", result.ExecutionId.ToString());
-        return File(result.Pdf, "application/pdf", $"report-{reportId}-{result.ExecutionId:N}.pdf");
+        var userIdText =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!long.TryParse(
+                userIdText,
+                out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var roleCodes = User
+            .FindAll(ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .ToList();
+
+        var canExecute =
+            await _reportService.CanExecuteReportAsync(
+                reportId,
+                roleCodes);
+
+        if (!canExecute)
+        {
+            return Forbid();
+        }
+
+        var canExport =
+            await _reportService.CanExportReportAsync(
+                reportId,
+                roleCodes);
+
+        if (!canExport)
+        {
+            return Forbid();
+        }
+
+        var result =
+            await _executions.ExecuteAsync(
+                reportId,
+                userId,
+                roleCodes,
+                request);
+
+        Response.Headers.Append(
+            "X-Report-Execution-Id",
+            result.ExecutionId.ToString());
+
+        return File(
+            result.Pdf,
+            "application/pdf",
+            $"report-{reportId}-{result.ExecutionId:N}.pdf");
     }
 }

@@ -4,6 +4,7 @@ using CrystalReportPortal.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CrystalReportPortal.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260908091818_AddReportMaintenancePermissions")]
+    partial class AddReportMaintenancePermissions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -84,13 +87,6 @@ namespace CrystalReportPortal.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("CredentialId"));
 
-                    b.Property<string>("AuthenticationType")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("SqlServer", "DF_DataSourceCredentials_AuthenticationType");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -105,19 +101,20 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("EncryptedPassword")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Username")
+                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
                     b.HasKey("CredentialId");
 
-                    b.HasIndex("DataSourceId", "CredentialType")
-                        .IsUnique();
+                    b.HasIndex("DataSourceId");
 
                     b.ToTable("DataSourceCredentials", (string)null);
                 });
@@ -166,49 +163,6 @@ namespace CrystalReportPortal.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("ParameterLovConfigs", (string)null);
-                });
-
-            modelBuilder.Entity("CrystalReportPortal.Api.Entities.Permission", b =>
-                {
-                    b.Property<int>("PermissionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PermissionId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("(sysdatetime())");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<bool>("IsEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("PermissionCode")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("PermissionName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("PermissionId");
-
-                    b.HasIndex("PermissionCode")
-                        .IsUnique();
-
-                    b.ToTable("Permissions", (string)null);
                 });
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.Printer", b =>
@@ -572,26 +526,6 @@ namespace CrystalReportPortal.Api.Migrations
                     b.ToTable("Roles", (string)null);
                 });
 
-            modelBuilder.Entity("CrystalReportPortal.Api.Entities.RolePermission", b =>
-                {
-                    b.Property<int>("RoleId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PermissionId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("(sysdatetime())");
-
-                    b.HasKey("RoleId", "PermissionId");
-
-                    b.HasIndex("PermissionId");
-
-                    b.ToTable("RolePermissions", (string)null);
-                });
-
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.RoleReportPermission", b =>
                 {
                     b.Property<int>("RoleId")
@@ -839,25 +773,6 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Navigation("Report");
                 });
 
-            modelBuilder.Entity("CrystalReportPortal.Api.Entities.RolePermission", b =>
-                {
-                    b.HasOne("CrystalReportPortal.Api.Entities.Permission", "Permission")
-                        .WithMany("RolePermissions")
-                        .HasForeignKey("PermissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CrystalReportPortal.Api.Entities.Role", "Role")
-                        .WithMany("RolePermissions")
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Permission");
-
-                    b.Navigation("Role");
-                });
-
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.RoleReportPermission", b =>
                 {
                     b.HasOne("CrystalReportPortal.Api.Entities.Report", "Report")
@@ -894,11 +809,6 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CrystalReportPortal.Api.Entities.Permission", b =>
-                {
-                    b.Navigation("RolePermissions");
                 });
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.Printer", b =>
@@ -943,8 +853,6 @@ namespace CrystalReportPortal.Api.Migrations
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.Role", b =>
                 {
-                    b.Navigation("RolePermissions");
-
                     b.Navigation("RoleReportPermissions");
 
                     b.Navigation("UserRoles");
