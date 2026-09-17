@@ -64,10 +64,10 @@ describe('LoginComponent', () => {
     expect(DemoAccounts.querySelectorAll('tbody tr').length).toBe(2);
     expect(DemoAccounts.textContent).toContain('user@example.com');
     expect(DemoAccounts.textContent).toContain('user123');
-    expect(DemoAccounts.textContent).toContain('一般使用者');
+    expect(DemoAccounts.textContent).toContain('前台使用者');
     expect(DemoAccounts.textContent).toContain('admin@example.com');
     expect(DemoAccounts.textContent).toContain('admin123');
-    expect(DemoAccounts.textContent).toContain('系統管理員');
+    expect(DemoAccounts.textContent).toContain('後台系統設定');
     expect(DemoAccounts.textContent).not.toContain('FINANCE');
     expect(DemoAccounts.textContent).not.toContain('ADMIN');
     expect(DemoAccounts.textContent).not.toContain('admin2@example.com');
@@ -87,7 +87,7 @@ describe('LoginComponent', () => {
     expect(Header.querySelector('.login-support')?.textContent).toContain('系統支援');
   });
 
-  it('navigates a MEMBER demo account to ReportParameter', fakeAsync(() => {
+  it('navigates a front user to ReportParameter', fakeAsync(() => {
     const fixture = TestBed.createComponent(LoginComponent);
     const router = TestBed.inject(Router);
     const Notifications = TestBed.inject(NotificationService);
@@ -104,9 +104,10 @@ describe('LoginComponent', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/reports/parameters']);
     expect(Notifications.SuccessMessage).toBe('登入成功！');
     expect(component.loginForm.enabled).toBeTrue();
+    tick(3000);
   }));
 
-  it('navigates an ADMIN demo account to ReportParameter', fakeAsync(() => {
+  it('navigates the back-office account to UserManagement', fakeAsync(() => {
     const fixture = TestBed.createComponent(LoginComponent);
     const router = TestBed.inject(Router);
     const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
@@ -117,7 +118,8 @@ describe('LoginComponent', () => {
     component.submit();
     tick(700);
 
-    expect(navigateSpy).toHaveBeenCalledWith(['/reports/parameters']);
+    expect(navigateSpy).toHaveBeenCalledWith(['/admin/users']);
+    tick(3000);
   }));
 
   it('rejects an account outside the local Demo list', fakeAsync(() => {

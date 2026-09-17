@@ -1,0 +1,689 @@
+
+@media (max-width: 768px) {
+  app-demo-portal .parameter-search-toolbar,
+  app-demo-portal .report-management-toolbar,
+  app-demo-portal .favorite-search-toolbar {
+    grid-template-columns: 1fr;
+  }
+  app-demo-portal .parameter-search-field,
+  app-demo-portal .report-management-search {
+    grid-column: auto;
+  }
+  app-demo-portal .parameter-clear-filters-button {
+    justify-self: start;
+  }
+  app-demo-portal .parameter-report-empty-panel {
+    min-height: 14rem;
+    padding: 1.5rem 1rem;
+  }
+  app-demo-portal .parameter-report-empty-actions {
+    width: 100%;
+  }
+  app-demo-portal .parameter-report-empty-actions button {
+    width: 100%;
+  }
+  app-demo-portal .notification-empty-state,
+  app-demo-portal .favorite-empty-content {
+    min-height: 15rem;
+    padding: 1.5rem 0.75rem;
+  }
+  app-demo-portal .notification-empty-illustration,
+  app-demo-portal .favorite-empty-illustration {
+    width: 4.5rem;
+    height: 4.5rem;
+  }
+  app-demo-portal .notification-empty-illustration svg,
+  app-demo-portal .favorite-empty-illustration svg {
+    width: 3.6rem;
+    height: 3.6rem;
+  }
+}
+
+/* Role editor and account settings layout refinements. */
+app-demo-portal .create-role-modal {
+  box-sizing: border-box;
+  width: min(46rem, calc(100vw - 3rem));
+  padding: 2rem;
+}
+app-demo-portal .create-role-modal .modal-heading {
+  align-items: center;
+}
+app-demo-portal .create-role-modal .modal-heading h2 {
+  font-size: 1.5rem;
+}
+app-demo-portal .create-role-modal .modal-close-button {
+  width: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border-radius: 0.3rem;
+  color: #d4d4d6;
+  background: transparent;
+  font-size: 2.5rem;
+  font-weight: 300;
+}
+app-demo-portal .create-role-modal .modal-close-button:hover {
+  color: var(--color-muted);
+  background: transparent;
+}
+app-demo-portal .role-editor-fields {
+  display: flex;
+  align-items: end;
+  gap: 2.25rem;
+  margin: 1.8rem 0 1.5rem;
+}
+app-demo-portal .role-name-field {
+  display: grid;
+  flex: 1 1 20.5rem;
+  gap: 0.45rem;
+  max-width: 20.5rem;
+  margin: 0;
+}
+app-demo-portal .role-name-field .form-field-label {
+  display: inline-flex;
+  align-items: baseline;
+  width: max-content;
+}
+app-demo-portal .role-name-field input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.4rem;
+}
+app-demo-portal .role-editor-fields .role-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: end;
+  gap: 0.3rem;
+  min-height: 2.4rem;
+  padding: 0 0.75rem;
+  white-space: nowrap;
+}
+app-demo-portal .role-delete-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+app-demo-portal .create-role-permissions h3 {
+  margin: 0 0 0.8rem;
+  font-size: 1rem;
+}
+app-demo-portal .create-role-permissions .table-scroll {
+  width: 100%;
+  overflow: visible;
+}
+app-demo-portal .create-role-modal .table-scroll > .role-permission-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+app-demo-portal .role-permission-table th,
+app-demo-portal .role-permission-table td {
+  height: 2.8rem;
+  padding: 0.45rem 0.65rem;
+  vertical-align: middle;
+}
+app-demo-portal .role-permission-table th:first-child,
+app-demo-portal .role-permission-table td:first-child {
+  width: 46%;
+}
+app-demo-portal .role-permission-table th:not(:first-child),
+app-demo-portal .role-permission-table td:not(:first-child) {
+  width: 18%;
+  text-align: center;
+}
+app-demo-portal .role-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 1.5rem 0 0;
+}
+app-demo-portal .role-modal-primary-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+app-demo-portal .role-modal-primary-actions button {
+  min-height: 2.35rem;
+}
+app-demo-portal .account-settings-card {
+  max-width: 74rem;
+  padding: clamp(1.25rem, 2.5vw, 2.25rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+app-demo-portal .account-settings-heading {
+  margin-bottom: 1.5rem;
+}
+app-demo-portal .account-settings-heading > p {
+  margin: 0 0 0.4rem;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+app-demo-portal .account-settings-heading h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.2vw, 1.875rem);
+}
+app-demo-portal .account-settings-heading > span {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--color-muted);
+}
+app-demo-portal .account-profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+app-demo-portal .account-profile-summary > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+app-demo-portal .account-profile-summary strong {
+  font-size: 1.05rem;
+}
+app-demo-portal .account-profile-summary span:not(.account-status-chip) {
+  overflow: hidden;
+  color: var(--color-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+app-demo-portal .account-status-chip {
+  margin-left: auto;
+  padding: 0.3rem 0.55rem;
+  border-radius: 4px;
+  color: #5d6570;
+  background: #eceeef;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+app-demo-portal .account-settings-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+app-demo-portal .account-settings-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: clamp(1.1rem, 2vw, 1.5rem);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+app-demo-portal .account-settings-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-bottom: 1.35rem;
+}
+app-demo-portal .account-settings-panel-heading > svg {
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+app-demo-portal .account-settings-panel-heading h3,
+app-demo-portal .account-settings-panel-heading p {
+  margin: 0;
+}
+app-demo-portal .account-settings-panel-heading h3 {
+  font-size: 1.125rem;
+}
+app-demo-portal .account-settings-panel-heading p {
+  margin-top: 0.3rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+app-demo-portal .account-settings-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
+}
+app-demo-portal .account-settings-form label {
+  display: grid;
+  min-width: 0;
+  gap: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .account-settings-form small {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+app-demo-portal .account-settings-form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0 0.65rem;
+  border: 1px solid #aaa69e;
+  border-radius: 0.35rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font: inherit;
+}
+app-demo-portal .account-settings-form input:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid rgb(174 22 43 / 12%);
+  outline-offset: 0;
+}
+/* Read-only values use the same visual treatment as the account field. */
+app-demo-portal input:disabled:not([type="checkbox"]):not([type="radio"]),
+app-demo-portal input[readonly] {
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border-color: #b9b5ad;
+  color: #5d6570;
+  background: #f8f7f4;
+  cursor: default;
+  font-weight: 700;
+  opacity: 1;
+}
+app-demo-portal .account-settings-notice {
+  margin: 1rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 5px;
+  color: var(--color-primary);
+  background: #fdf0f2;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+app-demo-portal .account-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 1.5rem;
+}
+app-demo-portal button.account-password-action {
+  min-height: 40px;
+  border-radius: 6px;
+}
+
+/* Existing table sort controls share a text-only header treatment. */
+app-demo-portal button.favorite-sort-button,
+app-demo-portal button.sortable-table-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.2rem 0.35rem;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  white-space: nowrap;
+}
+app-demo-portal button.favorite-sort-button:hover,
+app-demo-portal button.favorite-sort-button:focus-visible,
+app-demo-portal button.sortable-table-header:hover,
+app-demo-portal button.sortable-table-header:focus-visible {
+  color: inherit;
+  background: transparent;
+}
+app-demo-portal .sort-indicator {
+  width: 1rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: #6d6b66;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+app-demo-portal th.is-sorted .sort-indicator {
+  stroke: #6d6b66;
+}
+app-demo-portal th.is-sorted .sort-indicator.is-ascending .sort-indicator-up,
+app-demo-portal
+  th.is-sorted
+  .sort-indicator.is-descending
+  .sort-indicator-down {
+  stroke: var(--color-primary);
+}
+@media (max-width: 1100px) {
+  app-demo-portal .account-settings-card {
+    max-width: none;
+  }
+}
+@media (max-width: 768px) {
+  app-demo-portal .create-role-modal {
+    width: min(100%, calc(100% - 1rem));
+    padding: 1.25rem;
+  }
+  app-demo-portal .role-editor-fields {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  app-demo-portal .role-name-field {
+    max-width: none;
+  }
+  app-demo-portal .role-editor-fields .role-delete-button {
+    align-self: flex-start;
+  }
+  app-demo-portal .role-permission-table th,
+  app-demo-portal .role-permission-table td {
+    padding-inline: 0.35rem;
+  }
+  app-demo-portal .create-role-permissions .table-scroll {
+    overflow-x: auto;
+  }
+  app-demo-portal .create-role-modal .table-scroll > .role-permission-table {
+    min-width: 28rem;
+  }
+  app-demo-portal .account-settings-card {
+    padding: 1.25rem 0;
+  }
+  app-demo-portal .account-profile-summary {
+    align-items: flex-start;
+    padding: 1rem;
+  }
+  app-demo-portal .account-profile-summary ngx-boring-avatar {
+    flex: 0 0 auto;
+  }
+  app-demo-portal .account-settings-layout {
+    grid-template-columns: 1fr;
+  }
+  app-demo-portal .account-settings-actions,
+  app-demo-portal .account-settings-actions button {
+    width: 100%;
+  }
+}
+
+.notification-popover-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 -0.15rem 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.notification-popover-tabs button {
+  min-height: 30px;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: var(--color-muted);
+  background: transparent;
+  font-size: 0.75rem;
+}
+.notification-popover-tabs button.is-active,
+.notification-popover-tabs button:hover {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+.profile-menu {
+  position: relative;
+}
+.profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.15rem 0.3rem;
+  color: var(--color-text);
+  background: transparent;
+}
+.profile-trigger:hover,
+.profile-trigger[aria-expanded="true"] {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+.profile-trigger-name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+.profile-trigger-chevron {
+  color: var(--color-muted);
+  font-size: 1rem;
+}
+.profile-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  width: min(330px, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 18%);
+}
+.profile-popover-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #fdfcf9;
+}
+.profile-popover-identity strong,
+.profile-popover-identity span,
+.profile-popover-identity small {
+  display: block;
+}
+.profile-popover-identity span {
+  margin-top: 0.2rem;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+.profile-popover-identity small {
+  margin-top: 0.35rem;
+  color: var(--color-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.profile-popover-links {
+  display: grid;
+  padding: 0.45rem;
+}
+.profile-popover-links a,
+.profile-popover-links button,
+.profile-logout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 0.55rem 0.7rem;
+  border-radius: 4px;
+  color: var(--color-text);
+  background: transparent;
+  text-align: left;
+  text-decoration: none;
+}
+.profile-popover-links a:hover,
+.profile-popover-links button:hover,
+.profile-logout:hover {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+.profile-logout {
+  width: 100%;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  color: var(--color-primary);
+}
+.profile-link-count {
+  min-width: 20px;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--color-primary);
+  font-size: 0.75rem;
+  text-align: center;
+}
+@media (max-width: 768px) {
+  .profile-trigger-name,
+  .profile-trigger-chevron {
+    display: none;
+  }
+  .profile-popover {
+    right: -0.25rem;
+  }
+}
+
+/* Header account area: keep the existing avatar component unchanged, refine its surrounding layout. */
+app-demo-portal .portal-header .notification-menu {
+  padding-right: 0.65rem;
+  border-right: 1px solid var(--color-border);
+}
+app-demo-portal .portal-header .notification-bell {
+  display: grid;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  place-items: center;
+  padding: 0;
+  color: var(--color-text);
+  background: transparent;
+}
+app-demo-portal .portal-header .notification-bell:hover:not(:disabled),
+app-demo-portal .portal-header .notification-bell[aria-expanded="true"] {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+app-demo-portal .portal-header .profile-menu {
+  position: relative;
+}
+app-demo-portal .portal-header .profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 52px;
+  padding: 0.25rem 0.35rem;
+  color: var(--color-text);
+  background: transparent;
+}
+app-demo-portal .profile-trigger-details {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+  text-align: left;
+}
+app-demo-portal .profile-trigger-details small {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+app-demo-portal .portal-header .profile-trigger-chevron {
+  margin-left: 0.1rem;
+  font-size: 1.1rem;
+}
+app-demo-portal .portal-header .profile-popover {
+  width: min(340px, calc(100vw - 2rem));
+  border-color: #d8d2c9;
+  border-radius: 8px;
+  box-shadow: 0 14px 32px rgb(32 32 31 / 18%);
+}
+app-demo-portal .portal-header .profile-popover-identity {
+  gap: 0.9rem;
+  padding: 1.1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: #fdfcf9;
+}
+app-demo-portal .profile-popover-person {
+  min-width: 0;
+}
+app-demo-portal .portal-header .profile-popover-overline,
+app-demo-portal .portal-header .profile-popover-actions-title {
+  margin: 0 0 0.3rem;
+  color: var(--color-secondary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+app-demo-portal .portal-header .profile-popover-person strong,
+app-demo-portal .portal-header .profile-popover-person span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+app-demo-portal .portal-header .profile-popover-person small {
+  display: inline-flex;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  color: #674a1f;
+  background: #fdf3df;
+}
+app-demo-portal .portal-header .profile-popover-links {
+  padding: 0.75rem;
+}
+app-demo-portal .portal-header .profile-popover-links a,
+app-demo-portal .portal-header .profile-popover-links button {
+  gap: 0.75rem;
+  padding: 0.65rem 0.7rem;
+}
+app-demo-portal .portal-header .profile-logout {
+  min-height: 46px;
+  padding: 0.65rem 1.45rem;
+}
+@media (max-width: 768px) {
+  app-demo-portal .profile-trigger-details,
+  app-demo-portal .portal-header .profile-trigger-chevron {
+    display: none;
+  }
+  app-demo-portal .portal-header .notification-menu {
+    padding-right: 0.35rem;
+  }
+}
+
+/* The account trigger intentionally shows only the display name: roles are many-to-many. */
+app-demo-portal .portal-header .profile-trigger {
+  gap: 0.8rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.35rem;
+}
+app-demo-portal .profile-trigger-details {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  gap: 0;
+}
+app-demo-portal .portal-header .profile-trigger-chevron {
+  display: grid;
+  width: 1.9rem;
+  height: 1.45rem;
+  flex: 0 0 1.9rem;
+  place-items: center;
+  margin-left: 0.35rem;
+}
+app-demo-portal .portal-header .profile-trigger-chevron svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.1;
+}
+

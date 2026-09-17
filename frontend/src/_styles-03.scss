@@ -1,0 +1,679 @@
+app-demo-portal .created-user-credentials dl div {
+  display: grid;
+  grid-template-columns: 5.25rem minmax(0, 1fr);
+  gap: 0.5rem;
+}
+app-demo-portal .created-user-credentials dt {
+  white-space: nowrap;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+app-demo-portal .created-user-credentials dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+app-demo-portal .created-user-password-row dd {
+  overflow-x: auto;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  letter-spacing: 0.035em;
+}
+app-demo-portal .created-user-copy-button {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  display: inline-grid;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-items: center;
+  place-items: center;
+  border: 0;
+  color: var(--color-text);
+  background: transparent;
+}
+app-demo-portal .created-user-copy-button:hover,
+app-demo-portal .created-user-copy-button:focus-visible {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+app-demo-portal .created-user-copy-button svg {
+  display: block;
+  flex: 0 0 auto;
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+app-demo-portal .created-user-success-modal > .created-user-copy-notice {
+  min-height: 1.25rem;
+  margin: 0.65rem 0 0;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+app-demo-portal .created-user-success-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.35rem;
+}
+app-demo-portal .created-user-success-actions button {
+  min-width: 5rem;
+  min-height: 2.5rem;
+}
+app-demo-portal .edit-user-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(
+      8.5rem,
+      0.75fr
+    );
+  gap: 1.25rem;
+  margin: 1.5rem 0 1.25rem;
+}
+app-demo-portal .edit-user-form label {
+  min-width: 0;
+}
+app-demo-portal .edit-user-form input,
+app-demo-portal .edit-user-form select {
+  width: 100%;
+}
+app-demo-portal .edit-user-modal .edit-status-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-self: start;
+  gap: 0.4rem 0.5rem;
+  min-height: auto;
+}
+app-demo-portal .edit-user-modal .edit-status-field .form-field-label {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+app-demo-portal .edit-user-role-option input[type="checkbox"] {
+  width: 18px;
+  min-width: 18px;
+  margin: 0;
+}
+app-demo-portal .edit-user-role-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+app-demo-portal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 2.5rem;
+}
+@media (max-width: 768px) {
+  app-demo-portal .user-management-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  app-demo-portal .role-permission-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  app-demo-portal .user-search-field {
+    order: 3;
+    flex-basis: 100%;
+  }
+  app-demo-portal .edit-user-modal {
+    padding: 1.5rem 1rem;
+  }
+  app-demo-portal .edit-user-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 1.5rem;
+  }
+  app-demo-portal .create-user-modal {
+    padding: 1.25rem;
+  }
+}
+@media (max-width: 460px) {
+  app-demo-portal .edit-user-form {
+    grid-template-columns: 1fr;
+  }
+  app-demo-portal .create-user-identity-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+app-demo-portal .account-status-column {
+  min-width: 10rem;
+  white-space: nowrap;
+}
+app-demo-portal .account-status-switch {
+  position: relative;
+  width: 44px;
+  min-height: 24px;
+  height: 24px;
+  margin-right: 0.5rem;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  vertical-align: middle;
+  background: #d4d4d6;
+}
+app-demo-portal .account-status-switch:hover {
+  background: #d4d4d6;
+}
+app-demo-portal .account-status-switch.is-enabled,
+app-demo-portal .account-status-switch.is-enabled:hover {
+  background: var(--color-primary);
+}
+app-demo-portal .account-status-switch.is-tbd,
+app-demo-portal .account-status-switch.is-tbd:hover {
+  background: var(--color-secondary);
+}
+app-demo-portal .account-status-switch-thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  transition: transform 160ms ease;
+}
+app-demo-portal .account-status-switch.is-enabled .account-status-switch-thumb {
+  transform: translateX(20px);
+}
+app-demo-portal .account-status-switch:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+app-demo-portal .account-status-text {
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+app-demo-portal .role-management-section,
+app-demo-portal .user-management-section {
+  display: grid;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+app-demo-portal .user-management {
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+app-demo-portal .role-management-section {
+  overflow: hidden;
+}
+app-demo-portal .section-eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--color-secondary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+app-demo-portal .management-card-heading .section-eyebrow + h2 {
+  margin-bottom: 0.4rem;
+}
+app-demo-portal .management-card-heading .muted {
+  margin: 0;
+}
+app-demo-portal .management-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+app-demo-portal .management-card-heading > div {
+  min-width: 0;
+}
+app-demo-portal .section-header-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45rem;
+}
+app-demo-portal .section-header-action span {
+  font-size: 1.1em;
+  line-height: 1;
+}
+app-demo-portal .role-card-carousel {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+app-demo-portal .role-card-viewport {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+app-demo-portal .role-card-viewport::-webkit-scrollbar {
+  display: none;
+}
+app-demo-portal .role-card-grid {
+  display: flex;
+  min-width: 100%;
+  width: max-content;
+  flex-wrap: nowrap;
+  gap: 0.9rem;
+  padding: 0.25rem;
+}
+app-demo-portal .role-card-grid.has-overflow {
+  padding-inline: 3rem;
+}
+app-demo-portal .role-carousel-nav {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  display: grid;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.75rem;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+app-demo-portal .role-carousel-nav.is-previous {
+  left: 0.25rem;
+}
+app-demo-portal .role-carousel-nav.is-next {
+  right: 0.25rem;
+}
+app-demo-portal .role-card {
+  box-sizing: border-box;
+  flex: 0 0 clamp(13rem, 21vw, 16rem);
+  min-height: 9.75rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-surface);
+}
+app-demo-portal .role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+app-demo-portal .role-card-count {
+  margin: 0 0 0.8rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+app-demo-portal .role-card-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 0.8rem;
+}
+app-demo-portal .role-global-permissions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+app-demo-portal .role-global-permissions h3 {
+  width: 100%;
+  margin: 0;
+}
+app-demo-portal .role-global-permissions label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+app-demo-portal .role-card-summary .role-card-count {
+  margin: 0;
+}
+app-demo-portal .role-avatar-group {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+app-demo-portal .role-avatar-group ngx-boring-avatar {
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+}
+app-demo-portal .role-avatar-group ngx-boring-avatar + ngx-boring-avatar {
+  margin-left: -0.5rem;
+}
+app-demo-portal .role-avatar-placeholder {
+  display: block;
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: #e8e4dc;
+}
+app-demo-portal .role-card h3 {
+  margin: 0;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 1rem;
+}
+app-demo-portal .role-card-action {
+  margin-top: 1.25rem;
+  min-height: 40px;
+  padding: 0 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+app-demo-portal .role-card-action:hover:not(:disabled),
+app-demo-portal .role-card-action:focus-visible {
+  text-decoration: none;
+}
+app-demo-portal .role-change-card {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fdfcf9;
+}
+app-demo-portal .role-change-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+app-demo-portal .role-change-card .muted {
+  margin: 0.35rem 0 0.85rem;
+}
+app-demo-portal .table-scroll {
+  overflow-x: auto;
+}
+app-demo-portal .table-scroll > table {
+  min-width: 42rem;
+}
+app-demo-portal .report-list-table {
+  min-width: 64rem;
+  table-layout: fixed;
+}
+app-demo-portal .report-list-table th:nth-child(1) {
+  width: 17%;
+}
+app-demo-portal .report-list-table th:nth-child(2) {
+  width: 10%;
+}
+app-demo-portal .report-list-table th:nth-child(3) {
+  width: 20%;
+}
+app-demo-portal .report-list-table th:nth-child(4) {
+  width: 29%;
+}
+app-demo-portal .report-list-table th:nth-child(5) {
+  width: 8%;
+}
+app-demo-portal .report-list-table th:nth-child(6) {
+  width: 10%;
+}
+app-demo-portal .report-name-cell,
+app-demo-portal .report-description-cell,
+app-demo-portal .report-file-name-cell {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+app-demo-portal .report-file-name-cell code {
+  font-size: 0.75rem;
+  white-space: normal;
+}
+app-demo-portal .report-status {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  color: #195c36;
+  background: #e8f5eb;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+app-demo-portal .report-status.is-disabled {
+  color: var(--color-muted);
+  background: #eeece8;
+}
+app-demo-portal .report-enabled-control {
+  min-width: 9.5rem;
+  white-space: nowrap;
+}
+app-demo-portal .report-list-table button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+app-demo-portal .favorite-category-tabs,
+app-demo-portal .parameter-category-tabs {
+  display: flex;
+  gap: 0.2rem;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 0 1rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+  scrollbar-width: thin;
+}
+app-demo-portal .favorite-category-tabs button,
+app-demo-portal .parameter-category-tabs button {
+  min-height: 40px;
+  padding: 0 0.65rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  color: var(--color-muted);
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+app-demo-portal .favorite-category-tabs button:hover,
+app-demo-portal .favorite-category-tabs button:focus-visible,
+app-demo-portal .parameter-category-tabs button:hover,
+app-demo-portal .parameter-category-tabs button:focus-visible {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+app-demo-portal .favorite-category-tabs button.is-active,
+app-demo-portal .parameter-category-tabs button.is-active {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+}
+app-demo-portal .favorite-report-table {
+  min-width: 60rem;
+}
+app-demo-portal .report-entry-row {
+  cursor: pointer;
+}
+app-demo-portal .report-entry-row:hover > td,
+app-demo-portal .user-entry-row:hover > td,
+app-demo-portal .database-connection-row:hover > td {
+  background: #fdf7f8;
+}
+app-demo-portal .favorite-report-table th:nth-child(1) {
+  width: 7%;
+}
+app-demo-portal .favorite-report-table th:nth-child(2) {
+  width: 26%;
+}
+app-demo-portal .favorite-report-table th:nth-child(3) {
+  width: 15%;
+}
+app-demo-portal .favorite-report-table th:nth-child(4) {
+  width: 18%;
+}
+app-demo-portal .favorite-report-table th:nth-child(5) {
+  width: 22%;
+}
+app-demo-portal .favorite-report-table th:nth-child(6) {
+  width: 12%;
+}
+app-demo-portal .favorite-star-button,
+app-demo-portal .favorite-sort-button {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text);
+  background: transparent;
+}
+app-demo-portal .favorite-star-button {
+  display: inline-grid;
+  width: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  place-items: center;
+  color: #b9132b;
+  line-height: 1;
+  background: transparent !important;
+  box-shadow: none;
+}
+app-demo-portal .favorite-star-button svg {
+  // 調整收藏icon大小
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-width: 2.1;
+}
+app-demo-portal .parameter-favorite-button {
+  color: #b9132b;
+}
+app-demo-portal .parameter-favorite-button.is-favorite {
+  color: #b9132b;
+}
+app-demo-portal .favorite-star-button.is-favorite svg {
+  fill: currentColor;
+}
+app-demo-portal .favorite-star-button:hover,
+app-demo-portal .favorite-star-button:focus-visible {
+  color: #8f0f22;
+  background: transparent;
+  transform: scale(1.08);
+}
+app-demo-portal .favorite-sort-button {
+  color: var(--color-muted);
+  font-size: inherit;
+  font-weight: 800;
+}
+app-demo-portal .favorite-sort-button:hover,
+app-demo-portal .favorite-sort-button:focus-visible {
+  color: var(--color-primary);
+  background: transparent;
+  text-decoration: underline;
+}
+app-demo-portal .favorite-empty-state {
+  padding: 0 !important;
+  text-align: center;
+  vertical-align: middle;
+}
+app-demo-portal .favorite-empty-content {
+  display: grid;
+  min-height: 18rem;
+  place-items: center;
+  align-content: center;
+  padding: 2rem 1rem;
+}
+app-demo-portal button.favorite-empty-action {
+  min-width: 12.5rem;
+  min-height: 40px;
+  margin-top: 1.25rem;
+  border-radius: 6px;
+  box-shadow: none;
+}
+app-demo-portal .role-editor-fields {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(16rem, 1.2fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+app-demo-portal .role-name-field,
+app-demo-portal .role-description-field {
+  max-width: none;
+  margin: 0;
+}
+app-demo-portal .role-description-field {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+app-demo-portal .role-description-field textarea {
+  width: 100%;
+  min-height: 6.5rem;
+  padding: 0.6rem;
+  resize: vertical;
+  border: 1px solid #aaa69e;
+  border-radius: 5px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font: inherit;
+}
+app-demo-portal .role-description-field textarea:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+app-demo-portal .account-status-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+app-demo-portal .parameter-form-fields {
+  align-items: start;
+}
+app-demo-portal .parameter-search-toolbar,
+app-demo-portal .report-management-toolbar,
+app-demo-portal .favorite-search-toolbar {
+  display: grid;
+  gap: 0.75rem;
+  align-items: end;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fdfcf9;
+}
+app-demo-portal .parameter-search-toolbar {
+  margin-bottom: 1.25rem;
+}
+app-demo-portal .report-management-toolbar {
+  grid-template-columns:
+    minmax(0, 0.9fr)
+    minmax(0, 0.9fr)
+    minmax(0, 1.05fr)
+    minmax(0, 1.75fr);
+}
+app-demo-portal .parameter-search-toolbar {
+  grid-template-columns:
+    minmax(0, 0.85fr)
+    minmax(0, 0.85fr)
+    minmax(0, 1.05fr)
+    minmax(13rem, 1.75fr)
+    auto;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+app-demo-portal .favorite-search-toolbar {
+  grid-template-columns: minmax(11rem, 13rem) minmax(20rem, 1fr);
+  margin-bottom: 1rem;
+}

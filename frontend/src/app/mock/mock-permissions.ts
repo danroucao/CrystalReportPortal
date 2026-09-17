@@ -3,7 +3,6 @@ import type { MockReportCategoryId } from './mock-report-categories';
 export type MockRoleKey = string;
 
 export type MockManagementPermission =
-  | 'UserManagement'
   | 'RptManagement'
   | 'DatabaseConnection'
   | 'OperationLog';
@@ -17,7 +16,7 @@ export interface MockRole {
 
 export interface MockCategoryPermission {
   CanExecute: boolean;
-  CanExportPdf: boolean;
+  CanExport: boolean;
   CanPrint: boolean;
 }
 
@@ -27,17 +26,11 @@ export interface MockCategoryPermissionEntry {
   Permission: MockCategoryPermission;
 }
 
-const AllManagementPermissions: readonly MockManagementPermission[] = [
-  'UserManagement', 'RptManagement',
-  'DatabaseConnection', 'OperationLog',
-];
-
-const FullPermission = (): MockCategoryPermission => ({ CanExecute: true, CanExportPdf: true, CanPrint: true });
-const NoPermission = (): MockCategoryPermission => ({ CanExecute: false, CanExportPdf: false, CanPrint: false });
+const FullPermission = (): MockCategoryPermission => ({ CanExecute: true, CanExport: true, CanPrint: true });
+const NoPermission = (): MockCategoryPermission => ({ CanExecute: false, CanExport: false, CanPrint: false });
 
 export const MockRoles: readonly MockRole[] = [
-  { Key: 'ADMIN', DisplayName: '系統管理員', Description: '可檢視一般報表與所有既有管理 UI。', ManagementPermissions: AllManagementPermissions },
-  { Key: 'FINANCE', DisplayName: '財務人員', Description: '可使用財務與活動分類已授權報表。', ManagementPermissions: [] },
+  { Key: 'FINANCE', DisplayName: '財務人員', Description: '可使用財務與活動分類已授權報表及所有管理功能。', ManagementPermissions: ['RptManagement', 'DatabaseConnection', 'OperationLog'] },
   { Key: 'PURCHASE', DisplayName: '採購人員', Description: '可使用採購與生產分類已授權報表。', ManagementPermissions: [] },
   { Key: 'WAREHOUSE', DisplayName: '倉管人員', Description: '可使用倉儲分類已授權報表。', ManagementPermissions: [] },
 ];

@@ -80,7 +80,7 @@
           </small>
         </div>
 
-        <button class="submit-button" type="submit" [disabled]="isSubmitting">
+        <button class="submit-button primary-button" type="submit" [disabled]="isSubmitting">
           <span class="spinner" *ngIf="isSubmitting" aria-hidden="true"></span>
           {{ isSubmitting ? "登入中…" : "登入" }}
         </button>
@@ -105,12 +105,12 @@
             <tr>
               <td>user&#64;example.com</td>
               <td>user123</td>
-              <td>一般使用者</td>
+              <td>前台使用者</td>
             </tr>
             <tr>
               <td>admin&#64;example.com</td>
               <td>admin123</td>
-              <td>系統管理員</td>
+              <td>後台系統設定</td>
             </tr>
           </tbody>
         </table>
@@ -136,7 +136,7 @@
       <p id="login-notice-message">{{ noticeMessage }}</p>
       <button
         type="button"
-        class="notification-modal__button"
+        class="notification-modal__button primary-button"
         autofocus
         (click)="clearNotice()"
       >

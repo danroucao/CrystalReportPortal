@@ -1,0 +1,124 @@
+<section *ngIf="Auth.SelectedReport as Report" class="content-card">
+  <div class="preview-report-summary">
+    <div>
+      <p class="selected-parameter-report-label">目前預覽報表</p>
+      <h2>{{ Report.ReportName }}</h2>
+    </div>
+    <dl>
+      <div>
+        <dt>報表分類</dt>
+        <dd>{{ Report.CategoryName }}</dd>
+      </div>
+      <ng-container *ngIf="Auth.SelectedReportSearchCriteria as Criteria">
+        <div>
+          <dt>開始日期</dt>
+          <dd>{{ Criteria.StartDate }}</dd>
+        </div>
+        <div>
+          <dt>結束日期</dt>
+          <dd>{{ Criteria.EndDate }}</dd>
+        </div>
+      </ng-container>
+    </dl>
+  </div>
+
+  <div class="preview-placeholder">Frontend Mock Preview</div>
+
+  <div class="preview-output-bar">
+    <div class="output-actions">
+      <div
+        *ngIf="Auth.SelectedReportCategoryPermission.CanExport"
+        class="export-dropdown"
+      >
+        <button
+          type="button"
+          class="export-trigger secondary-button"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="IsExportMenuOpen"
+          (click)="ToggleExportMenu()"
+        >
+          <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
+          </svg>
+          匯出
+          <svg class="export-chevron" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m7 10 5 5 5-5" />
+          </svg>
+        </button>
+        <div
+          *ngIf="IsExportMenuOpen"
+          class="export-menu"
+          role="menu"
+          aria-label="報表匯出格式"
+        >
+          <button
+            *ngFor="let Option of ExportOptions"
+            type="button"
+            role="menuitem"
+            [disabled]="!Option.Enabled"
+            (click)="SelectExportOption(Option)"
+          >
+            <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
+            </svg>
+            {{ Option.Label }}
+          </button>
+        </div>
+      </div>
+
+      <div
+        *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
+        class="print-dropdown"
+      >
+        <button
+          type="button"
+          class="print-trigger secondary-button"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="IsPrintMenuOpen"
+          (click)="TogglePrintMenu()"
+        >
+          <svg class="print-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 9V3h10v6M7 17H5V9h14v8h-2M7 14h10v7H7z" />
+          </svg>
+          列印
+          <svg class="print-chevron" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m7 10 5 5 5-5" />
+          </svg>
+        </button>
+        <div
+          *ngIf="IsPrintMenuOpen"
+          class="print-menu"
+          role="menu"
+          aria-label="報表列印方式"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            (click)="SelectOutputAction('BrowserPrint')"
+          >
+            瀏覽器列印
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            (click)="SelectOutputAction('FixedPrinterPrint')"
+          >
+            固定印表機列印
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      class="secondary-button preview-return-button"
+      (click)="ReturnToReportList()"
+    >
+      {{ ReportPreviewReturnLabel }}
+    </button>
+  </div>
+
+  <p *ngIf="MockNotice" class="mock-notice" role="status" aria-live="polite">
+    {{ MockNotice }}
+  </p>
+</section>

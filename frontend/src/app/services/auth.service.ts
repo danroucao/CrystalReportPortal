@@ -1,87 +1,127 @@
 import { Injectable } from '@angular/core';
 
-import { MockCategoryPermission, MockManagementPermission, MockRole, MockRoleKey } from '../mock/mock-permissions';
+import { MockAuthenticationProvider } from '../mock/mock-authentication.provider';
+import { EmptyMockCategoryPermission, MockCategoryPermission, MockManagementPermission, MockRoleKey } from '../mock/mock-permissions';
 import { MockReportKey, MockReportReadModel } from '../mock/mock-reports';
 import { MockUser } from '../mock/mock-users';
+import { AuthIdentity } from './auth-identity';
 import { MockRbacService, MockReportSearchCriteria } from './mock-rbac.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private CurrentMockUser: MockUser | null = null;
-  private ActiveRolesOverride: readonly MockRoleKey[] | null = null;
+  private Identity: AuthIdentity | null = null;
+  private BoundBackOfficeUserAccount: string | null = null;
+  private BackOfficeIdentityBindingFailure: 'invalid-credentials' | 'disabled' | null = null;
 
   constructor(private readonly MockRbac: MockRbacService) {}
 
-  get IsDemoAuthenticationEnabled(): boolean {
-    return this.MockRbac.IsEnabled;
+  get IsDemoAuthenticationEnabled(): boolean { return this.MockRbac.IsEnabled; }
+  get CurrentIdentity(): AuthIdentity | null {
+    if (this.Identity?.Kind === 'FrontUser' && !this.CurrentUser) return null;
+    return this.Identity;
   }
-
-  get DemoUsers(): readonly MockUser[] {
-    return this.MockRbac.Users;
-  }
-
   get CurrentUser(): MockUser | null {
-    return this.CurrentMockUser;
+    if (this.Identity?.Kind !== 'FrontUser') return null;
+    const User = this.MockRbac.GetUser(this.Identity.Account);
+    return User?.Enabled ? User : null;
   }
-
-  get IsAuthenticated(): boolean {
-    return this.CurrentMockUser !== null;
+  get IsAuthenticated(): boolean { return this.CurrentIdentity !== null; }
+  get IsFrontOffice(): boolean { return this.CurrentUser !== null; }
+  get IsBackOffice(): boolean { return this.Identity?.Kind === 'BackOffice'; }
+  get IsBackOfficeIdentityBound(): boolean {
+    return this.IsBackOffice && this.BoundBackOfficeUser !== null;
   }
-
-  get IsAdmin(): boolean {
-    return this.CurrentMockUser?.Roles.includes('ADMIN') ?? false;
+  get RequiresBackOfficeIdentityBinding(): boolean {
+    return this.IsBackOffice && !this.IsBackOfficeIdentityBound;
   }
-
-  get CanSwitchDemoRole(): boolean { return this.IsAdmin; }
-  get ActiveRoles(): readonly MockRoleKey[] { return this.ActiveRolesOverride ?? this.CurrentMockUser?.Roles ?? []; }
-  get ActiveRoleNames(): string { return this.ActiveRoles.map((Role) => this.MockRbac.GetRole(Role)?.DisplayName ?? Role).join('、'); }
-  get DemoRoles(): readonly MockRole[] { return this.MockRbac.Roles; }
+  get BoundBackOfficeUser(): MockUser | null {
+    if (!this.IsBackOffice || !this.BoundBackOfficeUserAccount) return null;
+    const User = this.MockRbac.GetUser(this.BoundBackOfficeUserAccount);
+    return User?.Enabled ? User : null;
+  }
+  get BoundBackOfficeUserId(): string | null {
+    return this.BoundBackOfficeUser?.Account ?? null;
+  }
+  get LastBackOfficeIdentityBindingFailure(): 'invalid-credentials' | 'disabled' | null {
+    return this.BackOfficeIdentityBindingFailure;
+  }
+  get CanOperateBackOffice(): boolean { return this.IsBackOfficeIdentityBound; }
+  get DisplayName(): string {
+    return this.Identity?.Kind === 'BackOffice'
+      ? this.Identity.DisplayName : this.CurrentUser?.DisplayName ?? '';
+  }
+  get HomeRoute(): string { return this.IsBackOffice ? '/admin/users' : '/reports/parameters'; }
+  get ActiveRoles(): readonly MockRoleKey[] { return this.CurrentUser?.Roles ?? []; }
+  get ActiveRoleNames(): string {
+    return this.ActiveRoles.map((Role) => this.MockRbac.GetRole(Role)?.DisplayName ?? Role).join('、');
+  }
   get AccessibleReports(): readonly MockReportReadModel[] {
-    return this.MockRbac.GetAccessibleReports(this.ActiveRoles);
+    return this.IsFrontOffice ? this.MockRbac.GetAccessibleReports(this.ActiveRoles) : [];
   }
   get SelectedReport(): MockReportReadModel | null {
-    return this.MockRbac.GetSelectedReport(this.ActiveRoles);
+    return this.IsFrontOffice ? this.MockRbac.GetSelectedReport(this.ActiveRoles) : null;
   }
   get SelectedReportSearchCriteria(): MockReportSearchCriteria | null {
-    return this.MockRbac.GetSelectedReportSearchCriteria();
+    return this.SelectedReport ? this.MockRbac.GetSelectedReportSearchCriteria() : null;
   }
 
   Login(Account: string, Password: string): boolean {
-    const AuthenticatedUser = this.MockRbac.Authenticate(Account, Password);
-    this.CurrentMockUser = AuthenticatedUser;
-    this.ActiveRolesOverride = null;
-    this.MockRbac.ClearSelectedReport();
-    return AuthenticatedUser !== null;
+    // A login attempt replaces the previous identity, even on failure.
+    this.Logout();
+    if (!this.IsDemoAuthenticationEnabled) return false;
+    const BackOffice = MockAuthenticationProvider.AuthenticateBackOffice(Account, Password);
+    if (BackOffice) {
+      this.Identity = { Kind: 'BackOffice', ...BackOffice };
+      return true;
+    }
+    const User = this.MockRbac.Authenticate(Account, Password);
+    if (!User) return false;
+    this.Identity = { Kind: 'FrontUser', Account: User.Account };
+    return true;
   }
-
+  BindBackOfficeIdentity(Account: string, Password: string): boolean {
+    this.BackOfficeIdentityBindingFailure = null;
+    if (!this.IsBackOffice || !this.IsDemoAuthenticationEnabled) {
+      this.BackOfficeIdentityBindingFailure = 'invalid-credentials';
+      return false;
+    }
+    const RequestedUser = this.MockRbac.GetUser(Account);
+    if (!RequestedUser) {
+      this.BackOfficeIdentityBindingFailure = 'invalid-credentials';
+      return false;
+    }
+    if (!RequestedUser.Enabled) {
+      this.BackOfficeIdentityBindingFailure = 'disabled';
+      return false;
+    }
+    const User = this.MockRbac.Authenticate(Account, Password);
+    if (!User) {
+      this.BackOfficeIdentityBindingFailure = 'invalid-credentials';
+      return false;
+    }
+    this.BoundBackOfficeUserAccount = User.Account;
+    return true;
+  }
   Logout(): void {
-    this.CurrentMockUser = null;
-    this.ActiveRolesOverride = null;
+    this.Identity = null;
+    this.BoundBackOfficeUserAccount = null;
     this.MockRbac.ClearSelectedReport();
   }
-
-  RefreshCurrentUser(PreviousAccount: string, CurrentAccount: string): void {
-    if (this.CurrentMockUser?.Account !== PreviousAccount) return;
-    this.CurrentMockUser = this.MockRbac.GetUser(CurrentAccount);
-    if (!this.IsAdmin) this.ActiveRolesOverride = null;
+  CanExecuteReport(ReportKey: MockReportKey): boolean {
+    return this.AccessibleReports.some((Report) => Report.ReportKey === ReportKey);
   }
-
-  SwitchDemoRole(Role: MockRoleKey): void { if (this.CanSwitchDemoRole) this.ActiveRolesOverride = [Role]; }
-  SelectReport(
-    ReportKey: MockReportKey,
-    SearchCriteria: MockReportSearchCriteria | null = null,
-  ): void { this.MockRbac.SelectReport(ReportKey, SearchCriteria); }
-
+  SelectReport(ReportKey: MockReportKey, SearchCriteria: MockReportSearchCriteria | null = null): void {
+    this.MockRbac.ClearSelectedReport();
+    if (this.CanExecuteReport(ReportKey)) this.MockRbac.SelectReport(ReportKey, SearchCriteria);
+  }
   get SelectedReportCategoryPermission(): MockCategoryPermission {
-    return this.SelectedReport
-      ? this.MockRbac.GetEffectiveCategoryPermission(
-          this.ActiveRoles,
-          this.SelectedReport.CategoryId,
-        )
-      : { CanExecute: false, CanExportPdf: false, CanPrint: false };
+    const Report = this.SelectedReport;
+    return Report
+      ? this.MockRbac.GetEffectiveCategoryPermission(this.ActiveRoles, Report.CategoryId)
+      : EmptyMockCategoryPermission();
   }
-
   HasManagementPermission(Permission: MockManagementPermission): boolean {
-    return this.IsAdmin && this.MockRbac.HasManagementPermission('ADMIN', Permission);
+    return this.IsFrontOffice && this.ActiveRoles.some((Role) =>
+      this.MockRbac.HasManagementPermission(Role, Permission));
   }
 }
