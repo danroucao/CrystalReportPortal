@@ -1,3 +1,15 @@
+<nav class="management-tabs" aria-label="報表管理功能">
+  <button type="button" [class.is-active]="ActiveManagementTab === 'reports'"
+    [attr.aria-current]="ActiveManagementTab === 'reports' ? 'page' : null"
+    (click)="ActiveManagementTab = 'reports'">報表管理</button>
+  <button type="button" [class.is-active]="ActiveManagementTab === 'common-parameters'"
+    [attr.aria-current]="ActiveManagementTab === 'common-parameters' ? 'page' : null"
+    (click)="ActiveManagementTab = 'common-parameters'">常用參數</button>
+</nav>
+
+<app-common-parameter-template-page *ngIf="ActiveManagementTab === 'common-parameters'" />
+
+<ng-container *ngIf="ActiveManagementTab === 'reports'">
 <section class="management-section report-management">
   <div class="report-management-toolbar">
     <label for="report-management-start-date">開始日期
@@ -75,6 +87,7 @@
   </div>
   <app-portal-pagination [CurrentPage]="ReportManagementCurrentPage" [TotalPages]="ReportManagementTotalPages" [PageNumbers]="ReportManagementPageNumbers" AriaLabel="報表管理分頁" (PageChange)="GoToReportManagementPage($event)" />
 </section>
+</ng-container>
 
 <section *ngIf="IsUploadReportDialogOpen" class="modal-backdrop" (click)="RequestCloseReportEditor()">
   <section class="edit-user-modal report-editor-modal" role="dialog" aria-modal="true" aria-labelledby="report-editor-title" [attr.aria-hidden]="IsReportDiscardConfirmationOpen ? 'true' : null" [attr.inert]="IsReportDiscardConfirmationOpen ? '' : null" (click)="$event.stopPropagation()">

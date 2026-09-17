@@ -1,0 +1,118 @@
+<section class="common-parameter-page" aria-labelledby="common-parameter-title">
+  <div class="common-parameter-heading">
+    <div>
+      <h2 id="common-parameter-title">常用參數</h2>
+      <p>上傳 RPT 時，系統會依匹配名稱自動套用已啟用的設定。</p>
+    </div>
+    <button type="button" class="primary-button" (click)="openCreateEditor()">＋ 新增常用參數</button>
+  </div>
+
+  <div class="common-parameter-filters">
+    <label for="common-parameter-status">狀態
+      <select id="common-parameter-status" [(ngModel)]="enabledFilter" (ngModelChange)="loadTemplates()">
+        <option value="all">全部</option>
+        <option value="enabled">啟用</option>
+        <option value="disabled">停用</option>
+      </select>
+    </label>
+    <label for="common-parameter-search">搜尋
+      <input id="common-parameter-search" [(ngModel)]="searchText" placeholder="代碼、名稱或匹配名稱" />
+    </label>
+  </div>
+
+  <p *ngIf="loadError" class="field-error" role="alert">
+    {{ loadError }}
+    <button type="button" class="tertiary-button" (click)="loadTemplates()">重試</button>
+  </p>
+  <p *ngIf="isLoading" class="common-parameter-state" role="status">載入常用參數中…</p>
+
+  <div *ngIf="!isLoading" class="table-scroll">
+    <table class="common-parameter-table">
+      <thead>
+        <tr>
+          <th>名稱</th><th>匹配名稱</th><th>輸入方式</th><th>資料來源</th><th>狀態</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let template of displayedTemplates; trackBy: trackByTemplateId">
+          <td><strong>{{ template.templateName }}</strong><small>{{ template.templateCode }}</small></td>
+          <td><code>{{ template.normalizedParameterName }}</code></td>
+          <td>{{ template.dataType }} / {{ template.inputType }}</td>
+          <td>{{ template.valueSourceType === 'SqlLov' ? (template.dataSourceName || '資料來源 #' + template.dataSourceId) : template.valueSourceType }}</td>
+          <td>
+            <button type="button" class="account-status-switch" role="switch"
+              [class.is-enabled]="template.isEnabled" [attr.aria-checked]="template.isEnabled"
+              [attr.aria-label]="template.templateName + (template.isEnabled ? '已啟用，點擊可停用' : '已停用，點擊可啟用')"
+              (click)="setEnabled(template, !template.isEnabled)">
+              <span class="account-status-switch-thumb"></span>
+            </button>
+            <span>{{ template.isEnabled ? '啟用' : '停用' }}</span>
+          </td>
+          <td><button type="button" class="tertiary-button" (click)="openEditEditor(template)">編輯</button></td>
+        </tr>
+        <tr *ngIf="!displayedTemplates.length">
+          <td colspan="6" class="common-parameter-empty">目前沒有符合條件的常用參數。</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section *ngIf="isEditorOpen" class="modal-backdrop" (click)="closeEditor()">
+  <section class="edit-user-modal common-parameter-editor" role="dialog" aria-modal="true"
+    aria-labelledby="common-parameter-editor-title" (click)="$event.stopPropagation()">
+    <div class="modal-heading">
+      <h2 id="common-parameter-editor-title">{{ editingTemplateId === null ? '新增常用參數' : '編輯常用參數' }}</h2>
+      <button type="button" class="modal-close-button" aria-label="關閉常用參數編輯視窗" (click)="closeEditor()">×</button>
+    </div>
+
+    <form class="common-parameter-form" (ngSubmit)="saveTemplate()" novalidate>
+      <label>參數代碼<span class="required-indicator">*</span>
+        <input name="templateCode" [(ngModel)]="draft.templateCode" placeholder="例如 COMMON_START_DATE" required />
+      </label>
+      <label>顯示名稱<span class="required-indicator">*</span>
+        <input name="templateName" [(ngModel)]="draft.templateName" placeholder="例如 開始日期" required />
+      </label>
+      <label>匹配用參數名稱<span class="required-indicator">*</span>
+        <input name="normalizedParameterName" [(ngModel)]="draft.normalizedParameterName" placeholder="例如 STARTDATE 或 CT" required />
+      </label>
+      <label>資料型別
+        <select name="dataType" [(ngModel)]="draft.dataType"><option *ngFor="let value of dataTypes" [value]="value">{{ value }}</option></select>
+      </label>
+      <label>輸入元件
+        <select name="inputType" [(ngModel)]="draft.inputType"><option *ngFor="let value of inputTypes" [value]="value">{{ value }}</option></select>
+      </label>
+      <label>值來源
+        <select name="valueSourceType" [(ngModel)]="draft.valueSourceType" (ngModelChange)="onValueSourceChange()"><option *ngFor="let value of valueSourceTypes" [value]="value">{{ value }}</option></select>
+      </label>
+
+      <ng-container *ngIf="isSqlLov">
+        <label>資料來源 ID<span class="required-indicator">*</span>
+          <input name="dataSourceId" type="number" min="1" [(ngModel)]="draft.dataSourceId" required />
+        </label>
+        <label class="common-parameter-wide">查詢 SQL<span class="required-indicator">*</span>
+          <textarea name="sqlQuery" rows="4" [(ngModel)]="draft.sqlQuery" placeholder="僅允許單一 SELECT 查詢" required></textarea>
+        </label>
+        <label>值欄位<span class="required-indicator">*</span><input name="valueField" [(ngModel)]="draft.valueField" required /></label>
+        <label>顯示欄位<span class="required-indicator">*</span><input name="displayField" [(ngModel)]="draft.displayField" required /></label>
+      </ng-container>
+
+      <label>預設值<input name="defaultValue" [(ngModel)]="draft.defaultValue" /></label>
+      <label class="common-parameter-wide">說明<textarea name="description" rows="3" [(ngModel)]="draft.description"></textarea></label>
+
+      <fieldset class="common-parameter-flags common-parameter-wide">
+        <legend>行為設定</legend>
+        <label><input name="isRequired" type="checkbox" [(ngModel)]="draft.isRequired" /> 必填</label>
+        <label><input name="allowMultipleValues" type="checkbox" [(ngModel)]="draft.allowMultipleValues" /> 允許多值</label>
+        <label><input name="allowRangeValues" type="checkbox" [(ngModel)]="draft.allowRangeValues" /> 允許範圍</label>
+        <label><input name="isVisible" type="checkbox" [(ngModel)]="draft.isVisible" /> 顯示於執行頁</label>
+      </fieldset>
+
+      <p *ngIf="editorError" class="field-error common-parameter-wide" role="alert">{{ editorError }}</p>
+      <div class="modal-actions common-parameter-wide">
+        <button type="button" class="tertiary-button" [disabled]="isSaving" (click)="closeEditor()">取消</button>
+        <button type="submit" class="primary-button" [disabled]="isSaving">{{ isSaving ? '儲存中…' : '儲存' }}</button>
+      </div>
+    </form>
+  </section>
+</section>
