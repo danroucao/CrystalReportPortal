@@ -17,6 +17,7 @@ public class AdminReportDto
     public string ReportName { get; set; } = string.Empty;
     public string? Description { get; set; }
     public bool IsEnabled { get; set; }
+    public string ConfigurationStatus { get; set; } = "Draft";
     public string RptFileName { get; set; } = string.Empty;
 }
 

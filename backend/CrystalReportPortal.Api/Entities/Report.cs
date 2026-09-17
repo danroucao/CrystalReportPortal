@@ -22,6 +22,8 @@ public class Report
 
     public bool IsEnabled { get; set; }
 
+    public string ConfigurationStatus { get; set; } = "Draft";
+
     public long CreatedBy { get; set; }
 
     public DateTime CreatedAt { get; set; }

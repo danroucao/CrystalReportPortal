@@ -275,7 +275,7 @@ public class ReportsController : ControllerBase
     [HttpPatch("{reportId:long}/status")]
     [Authorize(Policy = "Report.EnableDisable")]
     public async Task<IActionResult> UpdateReportStatus(
-    long reportId,
+        long reportId,
     [FromBody] UpdateReportStatusRequest request)
     {
         // 取得目前登入者的角色
@@ -317,6 +317,52 @@ public class ReportsController : ControllerBase
                 success = false,
                 message = "找不到指定的報表。"
             });
+        }
+
+        if (request.IsEnabled)
+        {
+            if (!string.Equals(
+                    report.ConfigurationStatus,
+                    "Ready",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "報表參數尚未完成設定，不能啟用。"
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(report.RptFilePath) ||
+                !System.IO.File.Exists(report.RptFilePath))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "找不到報表 RPT 檔案，不能啟用。"
+                });
+            }
+
+            var hasInvalidParameter =
+                await _dbContext.ReportParameters
+                    .AnyAsync(parameter =>
+                        parameter.ReportId == reportId &&
+                        (
+                            !parameter.IsConfigured ||
+                            (
+                                parameter.ValueSourceType == "SqlLov" &&
+                                parameter.LovConfig == null
+                            )
+                        ));
+
+            if (hasInvalidParameter)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "仍有尚未完成設定的報表參數，不能啟用。"
+                });
+            }
         }
 
         // 修改啟用狀態

@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
 
     public DbSet<ReportParameter> ReportParameters => Set<ReportParameter>();
     public DbSet<ParameterLovConfig> ParameterLovConfigs => Set<ParameterLovConfig>();
+    public DbSet<CommonParameterTemplate> CommonParameterTemplates => Set<CommonParameterTemplate>();
 
     public DbSet<ReportExecution> ReportExecutions => Set<ReportExecution>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -115,6 +116,7 @@ public class AppDbContext : DbContext
         ConfigureRoleReportPermissions(modelBuilder);
 
         ConfigureReportParameters(modelBuilder);
+        ConfigureCommonParameterTemplates(modelBuilder);
         ConfigureParameterLovConfigs(modelBuilder);
 
         ConfigureReportExecutions(modelBuilder);
@@ -424,6 +426,11 @@ public class AppDbContext : DbContext
                 .HasMaxLength(1000)
                 .IsRequired();
 
+            entity.Property(x => x.ConfigurationStatus)
+                .HasMaxLength(20)
+                .HasDefaultValue("Draft", "DF_Reports_ConfigurationStatus")
+                .IsRequired();
+
             entity.Property(x => x.IsEnabled)
                 .HasDefaultValue(
                     true,
@@ -558,6 +565,10 @@ public class AppDbContext : DbContext
                     "DF_ReportParameters_IsVisible")
                 .IsRequired();
 
+            entity.Property(x => x.IsConfigured)
+                .HasDefaultValue(false, "DF_ReportParameters_IsConfigured")
+                .IsRequired();
+
             entity.Property(x => x.DefaultValue)
                 .HasColumnType("nvarchar(max)");
 
@@ -581,6 +592,37 @@ public class AppDbContext : DbContext
                 .WithMany(x => x.ReportParameters)
                 .HasForeignKey(x => x.ReportId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(parameter => parameter.CommonTemplate)
+                .WithMany(template => template.ReportParameters)
+                .HasForeignKey(parameter => parameter.CommonTemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureCommonParameterTemplates(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CommonParameterTemplate>(entity =>
+        {
+            entity.ToTable("CommonParameterTemplates");
+            entity.HasKey(x => x.TemplateId);
+            entity.HasIndex(x => x.TemplateCode).IsUnique();
+            entity.Property(x => x.TemplateCode).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.TemplateName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.NormalizedParameterName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.DataType).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.InputType).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.ValueSourceType).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.SqlQuery).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.ValueField).HasMaxLength(200);
+            entity.Property(x => x.DisplayField).HasMaxLength(200);
+            entity.Property(x => x.DefaultValue).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.CreatedAt).HasColumnType("datetime2").HasDefaultValueSql("(sysdatetime())");
+            entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+            entity.HasOne(x => x.DataSource).WithMany().HasForeignKey(x => x.DataSourceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Creator).WithMany().HasForeignKey(x => x.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Updater).WithMany().HasForeignKey(x => x.UpdatedBy).OnDelete(DeleteBehavior.Restrict);
         });
     }
 

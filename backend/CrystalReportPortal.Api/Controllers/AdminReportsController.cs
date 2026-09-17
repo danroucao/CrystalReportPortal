@@ -18,7 +18,7 @@ public class AdminReportsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<List<AdminReportDto>>> GetReports() => Ok(await db.Reports.AsNoTracking().OrderBy(x => x.ReportName)
-        .Select(x => new AdminReportDto { ReportId = x.ReportId, ReportCode = x.ReportCode, ReportName = x.ReportName, Description = x.Description, IsEnabled = x.IsEnabled, RptFileName = x.RptFileName }).ToListAsync());
+        .Select(x => new AdminReportDto { ReportId = x.ReportId, ReportCode = x.ReportCode, ReportName = x.ReportName, Description = x.Description, IsEnabled = x.IsEnabled, ConfigurationStatus = x.ConfigurationStatus, RptFileName = x.RptFileName }).ToListAsync());
 
     [HttpGet("categories")]
     public async Task<ActionResult<List<CategoryOptionDto>>> GetCategories() => Ok(await db.ReportCategories.AsNoTracking().Where(x => x.IsEnabled).OrderBy(x => x.DisplayOrder)
@@ -120,7 +120,10 @@ public class AdminReportsController : ControllerBase
                     string.Empty,
 
                 IsEnabled =
-                    true,
+                    false,
+
+                ConfigurationStatus =
+                    "Draft",
 
                 CreatedBy =
                     userId,
@@ -238,6 +241,9 @@ public class AdminReportsController : ControllerBase
 
                 IsEnabled =
                     report.IsEnabled,
+
+                ConfigurationStatus =
+                    report.ConfigurationStatus,
 
                 RptFileName =
                     report.RptFileName

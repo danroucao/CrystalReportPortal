@@ -40,6 +40,7 @@ public class ReportService : IReportService
     roleCodes.Contains(permission.Role.RoleCode) &&
     permission.Role.IsEnabled &&
     permission.Report.IsEnabled &&
+    permission.Report.ConfigurationStatus == "Ready" &&
     permission.Report.Category.IsEnabled)
             .GroupBy(permission => new
             {
@@ -102,6 +103,7 @@ public class ReportService : IReportService
                     permission.Role.RoleCode) &&
                 permission.Role.IsEnabled &&
                 permission.Report.IsEnabled &&
+                permission.Report.ConfigurationStatus == "Ready" &&
                 permission.Report.Category.IsEnabled &&
                 permission.CanExecute);
     }
@@ -118,6 +120,7 @@ public class ReportService : IReportService
                     permission.Role.RoleCode) &&
                 permission.Role.IsEnabled &&
                 permission.Report.IsEnabled &&
+                permission.Report.ConfigurationStatus == "Ready" &&
                 permission.Report.Category.IsEnabled &&
                 permission.CanExport);
     }
@@ -148,6 +151,7 @@ public class ReportService : IReportService
                     permission.Role.RoleCode) &&
                 permission.Role.IsEnabled &&
                 permission.Report.IsEnabled &&
+                permission.Report.ConfigurationStatus == "Ready" &&
                 permission.Report.Category.IsEnabled &&
                 permission.CanPrint);
     }
@@ -215,6 +219,7 @@ public class ReportService : IReportService
                 .Where(parameter =>
                     parameter.ReportId == reportId &&
                     parameter.Report.IsEnabled &&
+                    parameter.Report.ConfigurationStatus == "Ready" &&
                     parameter.Report.Category.IsEnabled)
                 .OrderBy(parameter =>
                     parameter.DisplayOrder)
@@ -563,6 +568,17 @@ public class ReportService : IReportService
             var responseParameters =
                 new List<RptUploadParameterDto>();
 
+            // 只允許套用系統中已啟用、且適用於本報表資料來源的常用參數。
+            // RPT 參數名稱中即使帶有 SQL，也不在上傳時直接信任或建立 LOV。
+            var commonTemplates =
+                await _dbContext.CommonParameterTemplates
+                    .AsNoTracking()
+                    .Where(template =>
+                        template.IsEnabled &&
+                        (template.DataSourceId == null ||
+                         template.DataSourceId == report.DataSourceId))
+                    .ToListAsync();
+
             var displayOrder = 1;
 
             foreach (var crystalParameter
@@ -572,77 +588,100 @@ public class ReportService : IReportService
                     MapCrystalParameter(
                         crystalParameter);
 
+                var commonTemplate =
+                    FindCommonTemplate(
+                        commonTemplates,
+                        crystalParameter,
+                        mapping,
+                        report.DataSourceId);
+
                 var parameter =
                     new ReportParameter
                     {
                         ReportId = reportId,
 
+                        CommonTemplateId =
+                            commonTemplate?.TemplateId,
+
                         ParameterName =
                             crystalParameter.Name,
 
                         DisplayName =
+                            commonTemplate?.TemplateName ??
                             mapping.DisplayName,
 
                         DataType =
+                            commonTemplate?.DataType ??
                             mapping.DataType,
 
                         InputType =
+                            commonTemplate?.InputType ??
                             mapping.InputType,
 
                         ValueSourceType =
+                            commonTemplate?.ValueSourceType ??
                             mapping.ValueSourceType,
 
                         IsRequired =
+                            commonTemplate?.IsRequired ??
                             !crystalParameter.IsOptional,
 
                         AllowMultipleValues =
+                            commonTemplate?.AllowMultipleValues ??
                             crystalParameter.AllowMultipleValues,
 
                         AllowRangeValues =
+                            commonTemplate?.AllowRangeValues ??
                             crystalParameter.AllowRangeValues,
 
                         IsVisible =
+                            commonTemplate?.IsVisible ??
                             mapping.IsVisible,
+
+                        DefaultValue =
+                            commonTemplate?.DefaultValue,
+
+                        Description =
+                            commonTemplate?.Description,
+
+                        IsConfigured =
+                            commonTemplate != null,
 
                         DisplayOrder =
                             displayOrder++,
 
                         CreatedAt =
-                            DateTime.Now
+                            DateTime.UtcNow
                     };
 
                 // ===============================
                 // SQL LOV
                 // ===============================
 
-                if (mapping.ValueSourceType == "SqlLov")
+                if (commonTemplate != null &&
+                    string.Equals(
+                        commonTemplate.ValueSourceType,
+                        "SqlLov",
+                        StringComparison.OrdinalIgnoreCase))
                 {
-                    if (IsSqlLovParameter(
-                           crystalParameter.Name))
-                    {
-                        var lov =
-                            ParseSqlLov(
-                                crystalParameter.Name);
+                    parameter.LovConfig =
+                        new ParameterLovConfig
+                        {
+                            DataSourceId =
+                                commonTemplate.DataSourceId!.Value,
 
-                        parameter.LovConfig =
-                            new ParameterLovConfig
-                            {
-                                DataSourceId =
-                                    report.DataSourceId,
+                            SqlQuery =
+                                commonTemplate.SqlQuery!,
 
-                                SqlQuery =
-                                    lov.SqlQuery,
+                            ValueField =
+                                commonTemplate.ValueField!,
 
-                                ValueField =
-                                    lov.ValueField,
+                            DisplayField =
+                                commonTemplate.DisplayField!,
 
-                                DisplayField =
-                                    lov.DisplayField,
-
-                                CreatedAt =
-                                    DateTime.Now
-                            };
-                    }
+                            CreatedAt =
+                                DateTime.UtcNow
+                        };
                 }
 
                 newParameters.Add(parameter);
@@ -686,11 +725,22 @@ public class ReportService : IReportService
             report.RptFilePath =
                 fullPath;
 
+            var allParametersConfigured =
+                newParameters.All(parameter =>
+                    parameter.IsConfigured);
+
+            report.ConfigurationStatus = allParametersConfigured
+                ? "PendingReview"
+                : "Draft";
+
+            // 上傳新版 RPT 後必須由具備啟停權限的人員再次確認並啟用。
+            report.IsEnabled = false;
+
             report.UpdatedBy =
                 userId;
 
             report.UpdatedAt =
-                DateTime.Now;
+                DateTime.UtcNow;
 
             await _dbContext.SaveChangesAsync();
 
@@ -720,8 +770,9 @@ public class ReportService : IReportService
             {
                 Success = true,
 
-                Message =
-                    "RPT 上傳並解析成功。",
+                Message = allParametersConfigured
+                    ? "RPT 上傳並套用常用參數成功；請完成測試預覽與確認。"
+                    : "RPT 上傳並解析成功；尚有未設定參數，報表已保留為草稿。",
 
                 Data =
                     new RptUploadResultDto
@@ -919,6 +970,92 @@ public class ReportService : IReportService
         };
     }
 
+    private static CommonParameterTemplate? FindCommonTemplate(
+        IReadOnlyCollection<CommonParameterTemplate> templates,
+        CrystalParameterDto crystalParameter,
+        CrystalParameterMapping mapping,
+        long reportDataSourceId)
+    {
+        var normalizedName =
+            NormalizeParameterName(
+                crystalParameter.Name);
+
+        var candidates = templates
+            .Where(template =>
+                string.Equals(
+                    template.NormalizedParameterName,
+                    normalizedName,
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(
+                    template.DataType,
+                    mapping.DataType,
+                    StringComparison.OrdinalIgnoreCase) &&
+                template.AllowMultipleValues ==
+                    crystalParameter.AllowMultipleValues &&
+                template.AllowRangeValues ==
+                    crystalParameter.AllowRangeValues &&
+                IsUsableCommonTemplate(template))
+            .ToList();
+
+        // 同名模板若同時存在全域版與資料來源專用版，優先使用專用版。
+        var dataSourceSpecificCandidates = candidates
+            .Where(template =>
+                template.DataSourceId == reportDataSourceId)
+            .ToList();
+
+        if (dataSourceSpecificCandidates.Count == 1)
+        {
+            return dataSourceSpecificCandidates[0];
+        }
+
+        if (dataSourceSpecificCandidates.Count > 1)
+        {
+            // 避免不明確的自動套用；交由管理者人工選擇。
+            return null;
+        }
+
+        var globalCandidates = candidates
+            .Where(template =>
+                template.DataSourceId == null)
+            .ToList();
+
+        return globalCandidates.Count == 1
+            ? globalCandidates[0]
+            : null;
+    }
+
+    private static bool IsUsableCommonTemplate(
+        CommonParameterTemplate template)
+    {
+        if (!string.Equals(
+                template.ValueSourceType,
+                "SqlLov",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // SQL LOV 只能來自完整且已核准的模板，不能從 RPT 名稱推導後直接執行。
+        return template.DataSourceId.HasValue &&
+               !string.IsNullOrWhiteSpace(template.SqlQuery) &&
+               !string.IsNullOrWhiteSpace(template.ValueField) &&
+               !string.IsNullOrWhiteSpace(template.DisplayField);
+    }
+
+    private static string NormalizeParameterName(
+        string parameterName)
+    {
+        var name = parameterName.Trim();
+        var atIndex = name.IndexOf('@');
+
+        if (atIndex > 0)
+        {
+            name = name[..atIndex];
+        }
+
+        return name.Trim().ToUpperInvariant();
+    }
+
     private static string GetParameterPrefix(
         string name)
     {
@@ -931,73 +1068,6 @@ public class ReportService : IReportService
         }
 
         return name[..index];
-    }
-
-    // ==========================================
-    // SQL LOV Parsing
-    // ==========================================
-
-    private static SqlLovParseResult ParseSqlLov(
-        string parameterName)
-    {
-        var atIndex = parameterName.IndexOf('@');
-
-        if (atIndex < 0 ||
-            atIndex >= parameterName.Length - 1)
-        {
-            throw new InvalidOperationException(
-                $"SQL LOV Parameter 格式錯誤：{parameterName}");
-        }
-
-        var sql = parameterName[(atIndex + 1)..].Trim();
-
-        if (!sql.StartsWith(
-                "select ",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"目前僅支援 SELECT 型 SQL LOV：{parameterName}");
-        }
-
-        var fromIndex = sql.IndexOf(
-            " from ",
-            StringComparison.OrdinalIgnoreCase);
-
-        if (fromIndex < 0)
-        {
-            throw new InvalidOperationException(
-                $"SQL LOV 缺少 FROM：{parameterName}");
-        }
-
-        var selectPart =
-            sql["select ".Length..fromIndex].Trim();
-
-        if (selectPart.StartsWith(
-                "distinct ",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            selectPart =
-                selectPart["distinct ".Length..].Trim();
-        }
-
-        var columns = selectPart
-            .Split(',')
-            .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToArray();
-
-        if (columns.Length < 2)
-        {
-            throw new InvalidOperationException(
-                $"SQL LOV 至少需要兩個欄位：{parameterName}");
-        }
-
-        return new SqlLovParseResult
-        {
-            SqlQuery = sql,
-            ValueField = columns[0],
-            DisplayField = columns[1]
-        };
     }
 
     private static bool IsSqlLovParameter(
@@ -1038,13 +1108,6 @@ public class ReportService : IReportService
         public string InputType { get; set; } = string.Empty;
         public string ValueSourceType { get; set; } = string.Empty;
         public bool IsVisible { get; set; }
-    }
-
-    private class SqlLovParseResult
-    {
-        public string SqlQuery { get; set; } = string.Empty;
-        public string ValueField { get; set; } = string.Empty;
-        public string DisplayField { get; set; } = string.Empty;
     }
 
 }
