@@ -63,3 +63,8 @@ export interface SaveCommonParameterTemplateRequest {
   defaultValue: string | null;
   description: string | null;
 }
+
+export interface CommonParameterDataSourceOption {
+  readonly dataSourceId: number;
+  readonly dataSourceName: string;
+}

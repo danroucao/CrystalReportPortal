@@ -10,6 +10,7 @@ import {
   CommonParameterTemplate,
   CommonParameterValueSourceType,
   SaveCommonParameterTemplateRequest,
+  CommonParameterDataSourceOption,
 } from '../../services/common-parameter-template-api.models';
 import { CommonParameterTemplateService } from '../../services/common-parameter-template.service';
 
@@ -32,6 +33,7 @@ export class CommonParameterTemplatePageComponent implements OnInit {
   readonly valueSourceTypes: readonly CommonParameterValueSourceType[] =
     ['UserInput', 'SqlLov', 'CurrentUser'];
 
+  dataSourceOptions: readonly CommonParameterDataSourceOption[] = [];
   templates: readonly CommonParameterTemplate[] = [];
   enabledFilter: EnabledFilter = 'all';
   searchText = '';
@@ -61,6 +63,7 @@ export class CommonParameterTemplatePageComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadDataSourceOptions();
     this.loadTemplates();
   }
 
@@ -77,6 +80,17 @@ export class CommonParameterTemplatePageComponent implements OnInit {
         next: (templates) => (this.templates = templates),
         error: (error: unknown) => (this.loadError = this.getErrorMessage(error)),
       });
+  }
+
+  loadDataSourceOptions(): void {
+    this.api.getDataSourceOptions().subscribe({
+      next: (options) => {
+        this.dataSourceOptions = options;
+      },
+      error: (error: unknown) => {
+        this.loadError = this.getErrorMessage(error);
+      },
+    });
   }
 
   openCreateEditor(): void {

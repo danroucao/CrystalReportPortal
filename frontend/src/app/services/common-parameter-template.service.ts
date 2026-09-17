@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from './api.config';
 import {
+  CommonParameterDataSourceOption,
   CommonParameterTemplate,
   SaveCommonParameterTemplateRequest,
 } from './common-parameter-template-api.models';
@@ -43,6 +44,14 @@ export class CommonParameterTemplateService {
     return this.http.patch<CommonParameterTemplate>(
       `${this.endpoint}/${templateId}/status`,
       { isEnabled },
+    );
+  }
+
+  getDataSourceOptions(): Observable<
+    readonly CommonParameterDataSourceOption[]
+  > {
+    return this.http.get<readonly CommonParameterDataSourceOption[]>(
+      `${this.endpoint}/data-sources`,
     );
   }
 }

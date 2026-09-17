@@ -45,6 +45,24 @@ public class CommonParameterTemplatesController : ControllerBase
         _dbContext = dbContext;
     }
 
+    [HttpGet("data-sources")]
+    public async Task<ActionResult<IReadOnlyList<DataSourceOptionDto>>>
+    GetDataSourceOptions()
+    {
+        var dataSources = await _dbContext.ReportDataSources
+            .AsNoTracking()
+            .Where(dataSource => dataSource.IsEnabled)
+            .OrderBy(dataSource => dataSource.DataSourceName)
+            .Select(dataSource => new DataSourceOptionDto
+            {
+                DataSourceId = dataSource.DataSourceId,
+                DataSourceName = dataSource.DataSourceName
+            })
+            .ToListAsync();
+
+        return Ok(dataSources);
+    }
+
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CommonParameterTemplateDto>>> GetTemplates(
         [FromQuery] bool? isEnabled = null)

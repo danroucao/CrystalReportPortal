@@ -87,8 +87,20 @@
       </label>
 
       <ng-container *ngIf="isSqlLov">
-        <label>資料來源 ID<span class="required-indicator">*</span>
-          <input name="dataSourceId" type="number" min="1" [(ngModel)]="draft.dataSourceId" required />
+        <label>資料來源<span class="required-indicator">*</span>
+          <select
+            name="dataSourceId"
+            [(ngModel)]="draft.dataSourceId"
+            required
+          >
+            <option [ngValue]="null">請選擇資料來源</option>
+            <option
+              *ngFor="let dataSource of dataSourceOptions"
+              [ngValue]="dataSource.dataSourceId"
+            >
+              {{ dataSource.dataSourceName }}
+            </option>
+          </select>
         </label>
         <label class="common-parameter-wide">查詢 SQL<span class="required-indicator">*</span>
           <textarea name="sqlQuery" rows="4" [(ngModel)]="draft.sqlQuery" placeholder="僅允許單一 SELECT 查詢" required></textarea>
