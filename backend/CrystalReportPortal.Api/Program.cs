@@ -2,6 +2,7 @@ using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Services;
 using CrystalReportPortal.Api.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -43,6 +44,7 @@ builder.Services.AddSession(options =>
 });
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IBackOfficeAuthService, BackOfficeAuthService>();
+builder.Services.AddScoped<IAuthorizationHandler, BackOfficeAuthorizationHandler>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ICredentialProtector, CredentialProtector>();
 builder.Services.AddScoped<ICrystalProcessService, CrystalProcessService>();
@@ -133,26 +135,12 @@ builder.Services
 
 builder.Services.AddAuthorization(options =>
 {
-    // 後台：檢查 Session 是否已有操作者
-    options.AddPolicy("BackOffice", policy =>
-    {
-        policy.RequireAssertion(context =>
+    options.AddPolicy(
+        "BackOffice",
+        policy =>
         {
-            if (context.Resource is not HttpContext httpContext)
-            {
-                return false;
-            }
-
-            var operatorUserId =
-                httpContext.Session.GetString(
-                    "BackOffice.OperatorUserId");
-
-            return long.TryParse(
-                       operatorUserId,
-                       out var userId)
-                   && userId > 0;
+            policy.AddRequirements(new BackOfficeRequirement());
         });
-    });
 
     // 前台：註冊功能權限規則
     // 注意：這段在 BackOffice 規則外面

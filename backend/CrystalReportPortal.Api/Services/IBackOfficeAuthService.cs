@@ -9,4 +9,6 @@ public interface IBackOfficeAuthService
 
     Task<BackOfficeOperatorResponse> VerifyOperatorAsync(
         BackOfficeOperatorLoginRequest request);
+
+    Task LogLogoutAsync(long operatorUserId);
 }

@@ -26,6 +26,8 @@ public class BackOfficeOperatorResponse
 
     public string Message { get; set; } = string.Empty;
 
+    public bool PasswordExpired { get; set; }
+
     public BackOfficeOperatorDto? Operator { get; set; }
 }
 

@@ -1,8 +1,9 @@
-﻿using CrystalReportPortal.Api.Dtos;
+﻿using System.Globalization;
+using CrystalReportPortal.Api.Authorization;
+using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
 
 namespace CrystalReportPortal.Api.Controllers;
 
@@ -10,38 +11,54 @@ namespace CrystalReportPortal.Api.Controllers;
 [Route("api/backoffice-auth")]
 public class BackOfficeAuthController : ControllerBase
 {
-    private readonly IBackOfficeAuthService _backOfficeAuthService;
+    private const int MaximumOperatorFailures = 3;
+
+    private static readonly TimeSpan
+        SharedVerificationLifetime =
+            TimeSpan.FromMinutes(5);
+
+    private readonly IBackOfficeAuthService
+        _backOfficeAuthService;
 
     public BackOfficeAuthController(
         IBackOfficeAuthService backOfficeAuthService)
     {
-        _backOfficeAuthService = backOfficeAuthService;
+        _backOfficeAuthService =
+            backOfficeAuthService;
     }
 
     [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login(
-    BackOfficeLoginRequest request)
+        BackOfficeLoginRequest request)
     {
-        // 重新登入時，先清除上一次的後台登入狀態
-        HttpContext.Session.Remove("BackOffice.SharedVerified");
-        HttpContext.Session.Remove("BackOffice.OperatorUserId");
-        HttpContext.Session.Remove("BackOffice.OperatorAccount");
-        HttpContext.Session.Remove("BackOffice.OperatorUserName");
+        BackOfficeSessionKeys.ClearAll(
+            HttpContext.Session);
 
-        // 比對共用後台帳密
         var result =
-            await _backOfficeAuthService.LoginAsync(request);
+            await _backOfficeAuthService
+                .LoginAsync(request);
 
         if (!result.Success)
         {
             return Unauthorized(result);
         }
 
-        // 帳密正確：由伺服器記住第一關已通過
+        var verifiedAt =
+            DateTimeOffset.UtcNow
+                .ToUnixTimeSeconds()
+                .ToString(
+                    CultureInfo.InvariantCulture);
+
         HttpContext.Session.SetString(
-            "BackOffice.SharedVerified",
-            "true");
+            BackOfficeSessionKeys
+                .SharedVerifiedAtUtc,
+            verifiedAt);
+
+        HttpContext.Session.SetInt32(
+            BackOfficeSessionKeys
+                .OperatorVerifyFailedCount,
+            0);
 
         return Ok(result);
     }
@@ -49,86 +66,159 @@ public class BackOfficeAuthController : ControllerBase
     [AllowAnonymous]
     [HttpPost("verify-operator")]
     public async Task<IActionResult> VerifyOperator(
-    BackOfficeOperatorLoginRequest request)
+        BackOfficeOperatorLoginRequest request)
     {
-        // 讀取第一關是否通過
-        var sharedVerified =
-            HttpContext.Session.GetString(
-                "BackOffice.SharedVerified");
-
-        // 沒通過第一關，不能進行個人帳密比對
-        if (sharedVerified != "true")
+        if (!IsSharedVerificationValid())
         {
-            return Unauthorized(new BackOfficeOperatorResponse
-            {
-                Success = false,
-                Message = "請先完成共用後台帳密驗證"
-            });
-        }
+            BackOfficeSessionKeys
+                .ClearSharedVerification(
+                    HttpContext.Session);
 
-        // 查資料庫，比對個人帳密
-        var result =
-            await _backOfficeAuthService.VerifyOperatorAsync(request);
-
-        if (!result.Success)
-        {
-            return Unauthorized(result);
-        }
-
-        var operatorInfo = result.Operator;
-
-        // 避免 Service 回傳成功，卻沒有操作者資料
-        if (operatorInfo == null)
-        {
-            return StatusCode(
-                StatusCodes.Status500InternalServerError,
+            return Unauthorized(
                 new BackOfficeOperatorResponse
                 {
                     Success = false,
-                    Message = "驗證結果缺少操作者資料"
+                    Message =
+                        "後台帳密驗證已失效，請重新登入"
                 });
         }
 
-        // 驗證成功，記住實際操作者
-        HttpContext.Session.SetString(
-            "BackOffice.OperatorUserId",
-            operatorInfo.UserId.ToString());
+        var result =
+            await _backOfficeAuthService
+                .VerifyOperatorAsync(request);
+
+        if (!result.Success)
+        {
+            var failureCount =
+                (HttpContext.Session.GetInt32(
+                    BackOfficeSessionKeys
+                        .OperatorVerifyFailedCount)
+                 ?? 0) + 1;
+
+            if (failureCount >=
+                MaximumOperatorFailures)
+            {
+                BackOfficeSessionKeys
+                    .ClearSharedVerification(
+                        HttpContext.Session);
+
+                result.Message +=
+                    "；操作者驗證失敗次數已達上限，"
+                    + "請重新輸入共用後台帳密";
+            }
+            else
+            {
+                HttpContext.Session.SetInt32(
+                    BackOfficeSessionKeys
+                        .OperatorVerifyFailedCount,
+                    failureCount);
+            }
+
+            return Unauthorized(result);
+        }
+
+        var operatorInfo =
+            result.Operator;
+
+        if (operatorInfo == null)
+        {
+            BackOfficeSessionKeys.ClearAll(
+                HttpContext.Session);
+
+            return StatusCode(
+                StatusCodes
+                    .Status500InternalServerError,
+                new BackOfficeOperatorResponse
+                {
+                    Success = false,
+                    Message =
+                        "驗證結果缺少操作者資料"
+                });
+        }
 
         HttpContext.Session.SetString(
-            "BackOffice.OperatorAccount",
+            BackOfficeSessionKeys.OperatorUserId,
+            operatorInfo.UserId.ToString(
+                CultureInfo.InvariantCulture));
+
+        HttpContext.Session.SetString(
+            BackOfficeSessionKeys.OperatorAccount,
             operatorInfo.Account);
 
         HttpContext.Session.SetString(
-            "BackOffice.OperatorUserName",
+            BackOfficeSessionKeys.OperatorUserName,
             operatorInfo.UserName);
 
-        // 第一關的通關狀態已用完
-        // 如要換另一位操作者，必須重新走第一關
-        HttpContext.Session.Remove(
-            "BackOffice.SharedVerified");
+        BackOfficeSessionKeys
+            .ClearSharedVerification(
+                HttpContext.Session);
 
         return Ok(result);
     }
+
     [Authorize(Policy = "BackOffice")]
     [HttpPost("logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
-        HttpContext.Session.Remove(
-            "BackOffice.SharedVerified");
+        var operatorUserIdText =
+            HttpContext.Session.GetString(
+                BackOfficeSessionKeys.OperatorUserId);
 
-        HttpContext.Session.Remove(
-            "BackOffice.OperatorUserId");
+        long.TryParse(
+            operatorUserIdText,
+            out var operatorUserId);
 
-        HttpContext.Session.Remove(
-            "BackOffice.OperatorAccount");
+        BackOfficeSessionKeys.ClearAll(
+            HttpContext.Session);
 
-        HttpContext.Session.Remove(
-            "BackOffice.OperatorUserName");
+        if (operatorUserId > 0)
+        {
+            await _backOfficeAuthService
+                .LogLogoutAsync(operatorUserId);
+        }
 
         return Ok(new
         {
             success = true,
             message = "後台登出成功"
         });
+    }
+
+    private bool IsSharedVerificationValid()
+    {
+        var verifiedAtText =
+            HttpContext.Session.GetString(
+                BackOfficeSessionKeys
+                    .SharedVerifiedAtUtc);
+
+        if (!long.TryParse(
+                verifiedAtText,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var verifiedAtUnix))
+        {
+            return false;
+        }
+
+        DateTimeOffset verifiedAt;
+
+        try
+        {
+            verifiedAt =
+                DateTimeOffset
+                    .FromUnixTimeSeconds(
+                        verifiedAtUnix);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return false;
+        }
+
+        var elapsed =
+            DateTimeOffset.UtcNow - verifiedAt;
+
+        return elapsed >= TimeSpan.Zero &&
+               elapsed <=
+                   SharedVerificationLifetime;
     }
 }
