@@ -18,12 +18,65 @@ describe('report catalog and extracted report pages', () => {
   it('filters, sorts, selects, and removes only the signed-in users favorite reports', () => {
     const auth = TestBed.inject(AuthService);
     const rbac = TestBed.inject(MockRbacService);
+    const warehousePermissions =
+      rbac.GetCategoryPermissionEntries('WAREHOUSE');
+
+    const warehouseFinancePermission =
+      warehousePermissions.find(
+        (entry) => entry.CategoryId === 'FINANCE',
+      );
+
+    expect(warehouseFinancePermission).toBeDefined();
+
+    warehouseFinancePermission!.Permission = {
+      CanExecute: true,
+      CanExport: false,
+      CanPrint: false,
+    };
+
+    rbac.SaveCategoryPermissions(
+      'WAREHOUSE',
+      warehousePermissions,
+    );
+    const otherAccount = 'warehouse@example.com';
+
+    const otherUserHasAccountBalance = rbac
+      .GetFavoriteReports(otherAccount)
+      .some(
+        (favorite) =>
+          favorite.Report.ReportKey === 'AccountBalance',
+      );
+
+    if (!otherUserHasAccountBalance) {
+      expect(
+        rbac.ToggleFavoriteReport(
+          otherAccount,
+          'AccountBalance',
+        ),
+      ).toBeTrue();
+    }
+
     const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
     expect(LoginFrontManager(auth, false)).toBeTrue();
     for (const key of ['AccountBalance', 'Activity', 'ProductionOrder'] as const) {
-      rbac.ToggleFavoriteReport('user@example.com', key);
+      const isAlreadyFavorite = rbac
+        .GetFavoriteReports('user@example.com')
+        .some((favorite) => favorite.Report.ReportKey === key);
+
+      if (!isAlreadyFavorite) {
+        rbac.ToggleFavoriteReport('user@example.com', key);
+      }
     }
-    rbac.ToggleFavoriteReport('warehouse@example.com', 'AccountBalance');
+
+    const warehouseHasAccountBalance = rbac
+      .GetFavoriteReports('warehouse@example.com')
+      .some(
+        (favorite) => favorite.Report.ReportKey === 'AccountBalance',
+      );
+
+    if (!warehouseHasAccountBalance) {
+      rbac.ToggleFavoriteReport('warehouse@example.com', 'AccountBalance');
+    }
 
     const fixture = TestBed.createComponent(FavoriteReportPageComponent);
     const component = fixture.componentInstance;
@@ -47,12 +100,19 @@ describe('report catalog and extracted report pages', () => {
 
     component.RemoveFavoriteReport(component.FavoriteReports[0]);
     expect(component.FavoriteReports).toHaveSize(2);
-    expect(rbac.GetFavoriteReports('warehouse@example.com')).toHaveSize(1);
+    expect(
+      rbac
+        .GetFavoriteReports(otherAccount)
+        .some(
+          (favorite) =>
+            favorite.Report.ReportKey === 'AccountBalance',
+        ),
+    ).toBeTrue();
   });
 
   it('renders a standalone favorite empty state without a table header', () => {
     const auth = TestBed.inject(AuthService);
-    expect(auth.Login('user@example.com', 'user123')).toBeTrue();
+    expect(LoginFrontManager(auth)).toBeTrue();
     const fixture = TestBed.createComponent(FavoriteReportPageComponent);
     fixture.detectChanges();
 

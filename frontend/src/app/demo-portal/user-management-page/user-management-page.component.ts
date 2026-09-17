@@ -173,6 +173,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
     this.UserDraft = this.CreateUserDraft();
     this.CreateUserValidationErrors = {};
     this.IsCreateUserDialogOpen = true;
+    this.IsCreateRoleDialogOpen = false;
     this.FocusModalSoon();
   }
 
@@ -299,6 +300,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
     this.RoleDraft = this.CreateRoleDraft();
     this.RoleDraftError = '';
     this.IsCreateRoleDialogOpen = true;
+    this.IsCreateUserDialogOpen = false;
     this.FocusModalSoon();
   }
 

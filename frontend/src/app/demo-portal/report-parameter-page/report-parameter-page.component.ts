@@ -22,6 +22,7 @@ import { AuthService } from '../../services/auth.service';
 import { MockRbacService } from '../../services/mock-rbac.service';
 import { MockReportParameterService } from '../../services/mock-report-parameter.service';
 import { NotificationService } from '../../services/notification.service';
+import { ReportService } from '../../services/report.service';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
 
 type MockParameterFormValue =
@@ -73,6 +74,7 @@ export class ReportParameterPageComponent implements OnInit {
   private readonly MockRbac = inject(MockRbacService);
   private readonly ReportParameters = inject(MockReportParameterService);
   private readonly Notifications = inject(NotificationService);
+  private readonly Reports = inject(ReportService);
   private readonly router = inject(Router);
 
   SelectedParameterReportCategoryId = this.AllCategoryFilterValue;
@@ -91,11 +93,16 @@ export class ReportParameterPageComponent implements OnInit {
   LastMockExecutionParameters: Readonly<
     Record<string, MockParameterFormValue>
   > | null = null;
+  IsLoadingReports = false;
+  ReportLoadError = '';
+  private FavoriteReportKeys = new Set<MockReportKey>();
 
   @ViewChild('parameterReportSearchInput')
   private parameterReportSearchInput?: ElementRef<HTMLInputElement>;
 
   ngOnInit(): void {
+    this.LoadFavoriteReports();
+    this.LoadReports();
     const NavigationState =
       this.router.getCurrentNavigation()?.extras.state ?? history.state;
     this.RestoreParameterSearchState(NavigationState?.['ParameterSearchState']);
@@ -115,18 +122,22 @@ export class ReportParameterPageComponent implements OnInit {
 
   get ParameterReportCategoryTabs(): readonly ParameterReportCategoryTab[] {
     const Reports = this.ParameterReports;
+    const Categories = new Map<string, string>();
+    Reports.forEach((Report) =>
+      Categories.set(Report.CategoryId, Report.CategoryName),
+    );
     return [
       {
         CategoryId: this.AllCategoryFilterValue,
         CategoryName: '全部',
         Count: Reports.length,
       },
-      ...this.MockRbac.GetReportFilterCategories(this.Auth.ActiveRoles).map(
-        (Category) => ({
-          CategoryId: Category.CategoryId,
-          CategoryName: Category.CategoryName,
+      ...Array.from(Categories.entries()).map(
+        ([CategoryId, CategoryName]) => ({
+          CategoryId,
+          CategoryName,
           Count: Reports.filter(
-            (Report) => Report.CategoryId === Category.CategoryId,
+            (Report) => Report.CategoryId === CategoryId,
           ).length,
         }),
       ),
@@ -326,16 +337,19 @@ export class ReportParameterPageComponent implements OnInit {
   }
 
   IsFavoriteReport(ReportKey: MockReportKey): boolean {
-    const Account = this.Auth.CurrentUser?.Account;
-    return Account && this.Auth.IsFrontOffice
-      ? this.MockRbac.IsFavoriteReport(Account, ReportKey)
-      : false;
+    return this.FavoriteReportKeys.has(ReportKey);
   }
 
   ToggleFavoriteReport(ReportKey: MockReportKey): void {
     const Account = this.Auth.CurrentUser?.Account;
     if (!Account || !this.Auth.IsFrontOffice) return;
-    const IsFavorite = this.MockRbac.ToggleFavoriteReport(Account, ReportKey);
+    const IsFavorite = !this.FavoriteReportKeys.has(ReportKey);
+    if (IsFavorite) this.FavoriteReportKeys.add(ReportKey);
+    else this.FavoriteReportKeys.delete(ReportKey);
+    sessionStorage.setItem(
+      this.GetFavoriteStorageKey(Account),
+      JSON.stringify([...this.FavoriteReportKeys]),
+    );
     const Report = this.Auth.AccessibleReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
@@ -505,14 +519,66 @@ export class ReportParameterPageComponent implements OnInit {
     void this.router.navigate(['/reports/preview']);
   }
 
+  LoadReports(): void {
+    this.IsLoadingReports = true;
+    this.ReportLoadError = '';
+
+    this.Reports.GetReports().subscribe({
+      next: (Reports) => {
+        this.Auth.SetAccessibleReports(Reports);
+        this.IsLoadingReports = false;
+        this.ParameterReportCurrentPage = 1;
+      },
+      error: () => {
+        this.Auth.SetAccessibleReports([]);
+        this.IsLoadingReports = false;
+        this.ReportLoadError =
+          '目前無法取得報表清單，請確認後端服務後再試一次。';
+      },
+    });
+  }
+
+  private LoadFavoriteReports(): void {
+    const Account = this.Auth.CurrentUser?.Account;
+    if (!Account) return;
+
+    try {
+      const Stored = JSON.parse(
+        sessionStorage.getItem(this.GetFavoriteStorageKey(Account)) ?? '[]',
+      ) as unknown;
+      this.FavoriteReportKeys = new Set(
+        Array.isArray(Stored)
+          ? Stored.filter((Value): Value is string => typeof Value === 'string')
+          : [],
+      );
+    } catch {
+      this.FavoriteReportKeys.clear();
+    }
+  }
+
+  private GetFavoriteStorageKey(Account: string): string {
+    return `crystal-report-favorites:${Account}`;
+  }
+
   private LoadReportParameterForm(): void {
-    const ReportKey = this.SelectedReportKey;
-    this.ReportParameterDefinitions = ReportKey
-      ? this.ReportParameters.GetDefinitions(ReportKey)
-      : [];
-    this.ReportParameterForm = this.BuildParameterForm(
-      this.VisibleReportParameters,
-    );
+    const Report = this.Auth.SelectedReport;
+    const ReportKey = Report?.ReportKey;
+    if (!ReportKey || !Report?.ReportId) {
+      this.ReportParameterDefinitions = [];
+      this.ReportParameterForm = new FormGroup({});
+      return;
+    }
+    this.ReportParameters.LoadDefinitions(Report.ReportId, ReportKey).subscribe({
+      next: (Definitions) => {
+        this.ReportParameterDefinitions = Definitions;
+        this.ReportParameterForm = this.BuildParameterForm(this.VisibleReportParameters);
+      },
+      error: () => {
+        this.ReportParameterDefinitions = [];
+        this.ReportParameterForm = new FormGroup({});
+        this.ParameterReportSelectionNotice = '目前無法載入報表參數，請稍後再試。';
+      },
+    });
     Object.keys(this.ParameterRangeErrors).forEach(
       (Key) => delete this.ParameterRangeErrors[Key],
     );

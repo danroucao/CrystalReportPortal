@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { finalize } from 'rxjs';
 
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
@@ -10,7 +12,7 @@ type NoticeKind =
   | 'credential-error'
   | 'service-error'
   | 'session-expired'
-  | 'demo-unavailable'
+  | 'password-expired'
   | null;
 
 @Component({
@@ -50,6 +52,7 @@ export class LoginComponent implements OnInit {
   get account() {
     return this.loginForm.controls.account;
   }
+
   get password() {
     return this.loginForm.controls.password;
   }
@@ -62,8 +65,8 @@ export class LoginComponent implements OnInit {
         return '目前無法完成登入，請稍後再試。';
       case 'session-expired':
         return '登入已逾時，請重新登入。';
-      case 'demo-unavailable':
-        return '目前環境未啟用 Demo 登入。';
+      case 'password-expired':
+        return '密碼已過期，請先修改密碼。';
       default:
         return '';
     }
@@ -92,25 +95,36 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    if (!this.Auth.IsDemoAuthenticationEnabled) {
-      this.notice = 'demo-unavailable';
-      return;
-    }
-
     this.isSubmitting = true;
     this.loginForm.disable();
 
-    // Local Demo only: AuthService can later be replaced by the ASP.NET Core Login API implementation.
-    window.setTimeout(() => {
-      this.isSubmitting = false;
-      this.loginForm.enable();
-      if (!this.Auth.Login(this.account.value, this.password.value)) {
-        this.notice = 'credential-error';
-        return;
-      }
+    this.Auth.Login(this.account.value, this.password.value)
+      .pipe(
+        finalize(() => {
+          this.isSubmitting = false;
+          this.loginForm.enable();
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.Notifications.ShowSuccess('登入成功！');
+          void this.router.navigate([this.Auth.HomeRoute]);
+        },
+        error: (Error: unknown) => {
+          if (Error instanceof HttpErrorResponse) {
+            if (Error.status === 401) {
+              this.notice = 'credential-error';
+              return;
+            }
 
-      this.Notifications.ShowSuccess('登入成功！');
-      void this.router.navigate([this.Auth.HomeRoute]);
-    }, 700);
+            if (Error.status === 403 && Error.error?.passwordExpired === true) {
+              this.notice = 'password-expired';
+              return;
+            }
+          }
+
+          this.notice = 'service-error';
+        },
+      });
   }
 }

@@ -1,20 +1,39 @@
 import { AuthService } from './auth.service';
 import { MockAuditLogService } from './mock-audit-log.service';
-import { MockRbacService } from './mock-rbac.service';
 
 describe('MockAuditLogService', () => {
-  it('records a back-office action with the bound front-office user id only after step two', () => {
-    const Auth = new AuthService(new MockRbacService());
+  it('records a back-office action only after an operator identity is bound', () => {
+    let BoundOperatorAccount: string | null = null;
+    const Auth = {
+      get BoundBackOfficeUserId(): string | null {
+        return BoundOperatorAccount;
+      },
+
+      get CanOperateBackOffice(): boolean {
+        return BoundOperatorAccount !== null;
+      },
+    } as unknown as AuthService;
+
     const AuditLog = new MockAuditLogService(Auth);
     const InitialCount = AuditLog.OperationLogs.length;
 
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
     AuditLog.RecordBackOfficeAction('更新使用者權限', '測試');
     expect(AuditLog.OperationLogs).toHaveSize(InitialCount);
 
-    expect(Auth.BindBackOfficeIdentity('user@example.com', 'user123')).toBeTrue();
-    AuditLog.RecordBackOfficeAction('更新使用者權限', '測試');
+    BoundOperatorAccount = 'user@example.com';
+    AuditLog.RecordBackOfficeAction(
+      '更新使用者權限',
+      '測試',
+    );
+
     expect(AuditLog.OperationLogs).toHaveSize(InitialCount + 1);
-    expect(AuditLog.OperationLogs[0].UserId).toBe('user@example.com');
+
+    const NewLog = AuditLog.OperationLogs[0];
+
+    expect(NewLog.UserId).toBe('user@example.com');
+    expect(NewLog.Source).toBe('BackOffice');
+    expect(NewLog.Category).toBe('AccountManagement');
+    expect(NewLog.Action).toBe('更新使用者權限');
+    expect(NewLog.Summary).toBe('測試');
   });
 });
