@@ -8,6 +8,8 @@ namespace CrystalReportPortal.Api.Services;
 
 public class ReportExecutionService : IReportExecutionService
 {
+    private const string ExecuteReportAction = "EXECUTE_REPORT";
+
     private readonly AppDbContext db;
     private readonly IReportService reports;
     private readonly ICredentialProtector credentials;
@@ -138,6 +140,18 @@ public class ReportExecutionService : IReportExecutionService
             execution.Status = "Completed";
             execution.CompletedAt = DateTime.UtcNow;
 
+            db.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                ReportId = reportId,
+                ExecutionId = execution.ExecutionId,
+                Action = ExecuteReportAction,
+                Result = "SUCCESS",
+                Details =
+                    $"成功執行報表 {report.ReportCode} 並產生 PDF。",
+                CreatedAt = DateTime.UtcNow
+            });
+
             await db.SaveChangesAsync();
 
             return (execution.ExecutionId, pdf);
@@ -147,6 +161,18 @@ public class ReportExecutionService : IReportExecutionService
             execution.Status = "Failed";
             execution.ErrorMessage = ex.Message;
             execution.CompletedAt = DateTime.UtcNow;
+
+            db.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                ReportId = reportId,
+                ExecutionId = execution.ExecutionId,
+                Action = ExecuteReportAction,
+                Result = "FAILED",
+                Details = $"執行報表 {report.ReportCode} 失敗。",
+                ErrorMessage = ex.Message,
+                CreatedAt = DateTime.UtcNow
+            });
 
             await db.SaveChangesAsync();
 
