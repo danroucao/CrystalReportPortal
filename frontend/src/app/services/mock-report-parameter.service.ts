@@ -1,65 +1,78 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-
-import {
-  MockLovStatus,
-  MockParameterOption,
-  MockReportParameterDefinition,
-  MockReportParameterDefinitions,
-} from '../mock/mock-report-parameters';
+import { Observable, catchError, forkJoin, map, of, switchMap, tap, throwError } from 'rxjs';
+import { MockLovStatus, MockParameterDataType, MockParameterInputType, MockParameterOption, MockReportParameterDefinition } from '../mock/mock-report-parameters';
 import { MockReportKey } from '../mock/mock-reports';
+import { API_BASE_URL } from './api.config';
+import { ReportParameterListResponse, ReportParameterOptionsResponse, ReportParameterResponse } from './report-parameter-api.models';
 
 @Injectable({ providedIn: 'root' })
 export class MockReportParameterService {
-  private readonly LovStatusOverrides = new Map<string, MockLovStatus>();
+  private readonly Definitions = new Map<MockReportKey, MockReportParameterDefinition[]>();
+  private readonly LovStatuses = new Map<string, MockLovStatus>();
+  constructor(private readonly Http: HttpClient) {}
+
+  LoadDefinitions(ReportId: number, ReportKey: MockReportKey): Observable<MockReportParameterDefinition[]> {
+    return this.Http.get<ReportParameterListResponse>(`${API_BASE_URL}/Reports/${ReportId}/parameters`).pipe(
+      map((Response) => Response.data.map((Item) => this.MapDefinition(Item))),
+      switchMap((Definitions) => {
+        this.Definitions.set(ReportKey, Definitions);
+        const Lov = Definitions.filter((Item) => Item.ValueSourceType === 'SqlLov' && Item.ParameterId);
+        if (!Lov.length) return of(this.GetDefinitions(ReportKey));
+        return forkJoin(Lov.map((Item) => this.LoadOptions(ReportId, ReportKey, Item).pipe(catchError(() => of(null)))))
+          .pipe(map(() => this.GetDefinitions(ReportKey)));
+      }),
+    );
+  }
 
   GetDefinitions(ReportKey: MockReportKey): MockReportParameterDefinition[] {
-    return (MockReportParameterDefinitions[ReportKey] ?? []).map((Definition) => ({
-      ...Definition,
-      Options: Definition.Options?.map((Option) => ({ ...Option })),
-    }));
+    return (this.Definitions.get(ReportKey) ?? []).map((Item) => ({ ...Item, Options: Item.Options?.map((Option) => ({ ...Option })) }));
   }
-
-  GetLovStatus(
-    ReportKey: MockReportKey,
-    ParameterName: string,
-  ): MockLovStatus {
-    return (
-      this.LovStatusOverrides.get(this.GetLovStateKey(ReportKey, ParameterName)) ??
-      this.GetDefinition(ReportKey, ParameterName)?.InitialLovStatus ??
-      'success'
-    );
+  GetLovStatus(ReportKey: MockReportKey, ParameterName: string): MockLovStatus {
+    return this.LovStatuses.get(this.Key(ReportKey, ParameterName)) ?? 'success';
   }
-
-  GetLovOptions(
-    ReportKey: MockReportKey,
-    ParameterName: string,
-  ): readonly MockParameterOption[] {
+  GetLovOptions(ReportKey: MockReportKey, ParameterName: string): readonly MockParameterOption[] {
     if (this.GetLovStatus(ReportKey, ParameterName) !== 'success') return [];
-    return this.GetDefinition(ReportKey, ParameterName)?.Options ?? [];
+    return this.GetDefinitions(ReportKey).find((Item) => Item.ParameterName === ParameterName)?.Options ?? [];
   }
-
-  SetLovStatus(
-    ReportKey: MockReportKey,
-    ParameterName: string,
-    Status: MockLovStatus,
-  ): void {
-    this.LovStatusOverrides.set(this.GetLovStateKey(ReportKey, ParameterName), Status);
+  SetLovStatus(ReportKey: MockReportKey, ParameterName: string, Status: MockLovStatus): void {
+    this.LovStatuses.set(this.Key(ReportKey, ParameterName), Status);
   }
-
   RetryLov(ReportKey: MockReportKey, ParameterName: string): void {
-    this.LovStatusOverrides.delete(this.GetLovStateKey(ReportKey, ParameterName));
+    const Definition = this.Definitions.get(ReportKey)?.find((Item) => Item.ParameterName === ParameterName);
+    const ReportId = Number(ReportKey);
+    if (Definition?.ParameterId && Number.isFinite(ReportId)) this.LoadOptions(ReportId, ReportKey, Definition).subscribe();
   }
 
-  private GetDefinition(
-    ReportKey: MockReportKey,
-    ParameterName: string,
-  ): MockReportParameterDefinition | undefined {
-    return (MockReportParameterDefinitions[ReportKey] ?? []).find(
-      (Definition) => Definition.ParameterName === ParameterName,
+  private LoadOptions(ReportId: number, ReportKey: MockReportKey, Definition: MockReportParameterDefinition): Observable<unknown> {
+    const Key = this.Key(ReportKey, Definition.ParameterName);
+    this.LovStatuses.set(Key, 'loading');
+    return this.Http.get<ReportParameterOptionsResponse>(`${API_BASE_URL}/Reports/${ReportId}/parameters/${Definition.ParameterId}/options`).pipe(
+      tap((Response) => {
+        const Options = Response.data.map((Option) => ({ Value: Option.value, DisplayText: Option.label }));
+        const Definitions = this.Definitions.get(ReportKey) ?? [];
+        const Index = Definitions.findIndex((Item) => Item.ParameterName === Definition.ParameterName);
+        if (Index >= 0) Definitions[Index] = { ...Definitions[Index], Options };
+        this.LovStatuses.set(Key, Options.length ? 'success' : 'empty');
+      }),
+      catchError((Error) => { this.LovStatuses.set(Key, 'error'); return throwError(() => Error); }),
     );
   }
 
-  private GetLovStateKey(ReportKey: MockReportKey, ParameterName: string): string {
-    return `${ReportKey}:${ParameterName}`;
+  private MapDefinition(Item: ReportParameterResponse): MockReportParameterDefinition {
+    return { ParameterId: Item.parameterId, ParameterName: Item.name, DisplayName: Item.displayName,
+      DataType: this.MapDataType(Item.dataType), InputType: this.MapInputType(Item.inputType),
+      ValueSourceType: Item.valueSource === 'SqlLov' ? 'SqlLov' : 'None', IsRequired: Item.required,
+      AllowMultipleValues: Item.multiple, AllowRangeValues: Item.range, IsVisible: Item.visible,
+      DefaultValue: Item.multiple ? [] : Item.dataType === 'Boolean' ? false : '', DisplayOrder: Item.displayOrder,
+      Options: [], InitialLovStatus: Item.valueSource === 'SqlLov' ? 'loading' : 'success' };
   }
+  private MapDataType(Value: string): MockParameterDataType {
+    const Allowed: MockParameterDataType[] = ['Date', 'DateTime', 'Text', 'Integer', 'Float', 'Boolean'];
+    return Allowed.includes(Value as MockParameterDataType) ? Value as MockParameterDataType : 'Text';
+  }
+  private MapInputType(Value: string): MockParameterInputType {
+    return ({ DatePicker: 'Date', DateTimePicker: 'DateTime', Text: 'Text', TextArea: 'LongText', Number: 'Number', Checkbox: 'Checkbox', SingleSelect: 'SingleSelect', MultiSelect: 'MultiSelect' } as Record<string, MockParameterInputType>)[Value] ?? 'Text';
+  }
+  private Key(ReportKey: MockReportKey, ParameterName: string): string { return `${ReportKey}:${ParameterName}`; }
 }

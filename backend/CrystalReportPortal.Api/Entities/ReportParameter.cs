@@ -6,6 +6,10 @@ public class ReportParameter
 
     public long ReportId { get; set; }
 
+    public long? CommonTemplateId { get; set; }
+
+    public bool IsConfigured { get; set; }
+
     public string ParameterName { get; set; } = null!;
 
     public string DisplayName { get; set; } = null!;
@@ -39,4 +43,6 @@ public class ReportParameter
     public Report Report { get; set; } = null!;
 
     public ParameterLovConfig? LovConfig { get; set; }
+
+    public CommonParameterTemplate? CommonTemplate { get; set; }
 }

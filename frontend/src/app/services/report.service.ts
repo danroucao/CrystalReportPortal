@@ -1,83 +1,182 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 
 import { API_BASE_URL } from './api.config';
-
-export interface ReportPermission {
-  canExecute: boolean;
-  canExport: boolean;
-  canPrint: boolean;
-}
-
-export interface ReportSummary {
-  reportId: number;
-  reportCode: string;
-  reportName: string;
-  description: string | null;
-  category: { categoryId: number; categoryName: string };
-  permissions: ReportPermission;
-}
-
-export interface ReportParameter {
-  parameterId: number;
-  name: string;
-  displayName: string;
-  dataType: string;
-  inputType: string;
-  required: boolean;
-  multiple: boolean;
-  range: boolean;
-  valueSource: string;
-  visible: boolean;
-  displayOrder: number;
-}
-
-interface ReportListResponse {
-  success: boolean;
-  reports: ReportSummary[];
-}
-
-interface ReportParameterResponse {
-  success: boolean;
-  data: ReportParameter[];
-}
-
-interface ParameterOptionResponse {
-  success: boolean;
-  data: { value: string; label: string }[];
-}
+import {
+  CreateManagedReportRequest,
+  ManagedReport,
+  ManagedReportCategoryOption,
+  ManagedReportDataSourceOption,
+  ManagedReportParameterOptionsResponse,
+  ManagedReportParameter,
+  ManagedReportParametersResponse,
+  UpdateManagedReportParameterRequest,
+  CompleteManagedReportParametersResult,
+  ReportTestPreviewRequest,
+  ApproveReportConfigurationResult,
+  RptUploadResult,
+  UpdateReportStatusResult,
+} from './managed-report-api.models';
+import {
+  PortalReport,
+  ReportExecutionRequest,
+  ReportListResponse,
+} from './report-api.models';
 
 @Injectable({ providedIn: 'root' })
 export class ReportService {
-  private readonly selectedReportStorageKey = 'crystal-report-selected-report';
+  private readonly managementEndpoint = `${API_BASE_URL}/backoffice/reports`;
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly Http: HttpClient) {}
 
-  get selectedReport(): ReportSummary | null {
-    const serialized = sessionStorage.getItem(this.selectedReportStorageKey);
-    if (!serialized) return null;
-    try {
-      return JSON.parse(serialized) as ReportSummary;
-    } catch {
-      sessionStorage.removeItem(this.selectedReportStorageKey);
-      return null;
-    }
+  GetReports(): Observable<PortalReport[]> {
+    return this.Http.get<ReportListResponse>(`${API_BASE_URL}/Reports`).pipe(
+      map((Response) =>
+        Response.reports.map((Report) => ({
+          ReportId: Report.reportId,
+          ReportKey: Report.reportId.toString(),
+          ReportCode: Report.reportCode,
+          ReportName: Report.reportName,
+          CategoryId: Report.category.categoryId.toString(),
+          CategoryName: Report.category.categoryName,
+          Description: Report.description ?? '',
+          FileName: '',
+          Enabled: true,
+          CreatedAt: '',
+          UpdatedAt: '',
+          Permissions: {
+            CanExecute: Report.permissions.canExecute,
+            CanExport: Report.permissions.canExport,
+            CanPrint: Report.permissions.canPrint,
+            CanUpload: Report.permissions.canUpload,
+            CanMaintain: Report.permissions.canMaintain,
+            CanSetParameters: Report.permissions.canSetParameters,
+            CanEnableDisable: Report.permissions.canEnableDisable,
+          },
+        })),
+      ),
+    );
   }
 
-  selectReport(report: ReportSummary): void {
-    sessionStorage.setItem(this.selectedReportStorageKey, JSON.stringify(report));
+  ExecuteReport(
+    reportId: number,
+    request: ReportExecutionRequest,
+  ): Observable<Blob> {
+    return this.Http.post(`${API_BASE_URL}/reports/${reportId}/execute`, request, {
+      responseType: 'blob',
+    });
   }
 
-  getReports(): Observable<ReportListResponse> {
-    return this.http.get<ReportListResponse>(`${API_BASE_URL}/reports`);
+  GetReportPreview(reportId: number): Observable<Blob> {
+    return this.Http.get(`${API_BASE_URL}/Reports/${reportId}/preview`, {
+      responseType: 'blob',
+    });
   }
 
-  getParameters(reportId: number): Observable<ReportParameterResponse> {
-    return this.http.get<ReportParameterResponse>(`${API_BASE_URL}/reports/${reportId}/parameters`);
+  GetManagedReports(): Observable<readonly ManagedReport[]> {
+    return this.Http.get<readonly ManagedReport[]>(this.managementEndpoint);
   }
 
-  getParameterOptions(reportId: number, parameterId: number): Observable<ParameterOptionResponse> {
-    return this.http.get<ParameterOptionResponse>(`${API_BASE_URL}/reports/${reportId}/parameters/${parameterId}/options`);
+  GetManagedReportCategories(): Observable<readonly ManagedReportCategoryOption[]> {
+    return this.Http.get<readonly ManagedReportCategoryOption[]>(
+      `${this.managementEndpoint}/categories`,
+    );
+  }
+
+  GetManagedReportDataSources(): Observable<readonly ManagedReportDataSourceOption[]> {
+    return this.Http.get<readonly ManagedReportDataSourceOption[]>(
+      `${this.managementEndpoint}/data-sources`,
+    );
+  }
+
+  CreateManagedReport(request: CreateManagedReportRequest): Observable<ManagedReport> {
+    return this.Http.post<ManagedReport>(this.managementEndpoint, request);
+  }
+
+  UploadRpt(reportId: number, file: File): Observable<RptUploadResult> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    return this.Http.post<RptUploadResult>(
+      `${API_BASE_URL}/Reports/${reportId}/rpt`,
+      formData,
+    );
+  }
+
+  UpdateManagedReportStatus(
+    reportId: number,
+    isEnabled: boolean,
+  ): Observable<UpdateReportStatusResult> {
+    return this.Http.patch<UpdateReportStatusResult>(
+      `${API_BASE_URL}/Reports/${reportId}/status`,
+      { isEnabled },
+    );
+  }
+
+  DeleteManagedReport(reportId: number): Observable<void> {
+    return this.Http.delete<void>(`${this.managementEndpoint}/${reportId}`);
+  }
+
+  GetManagedReportParameters(
+    reportId: number,
+  ): Observable<ManagedReportParametersResponse> {
+    return this.Http.get<ManagedReportParametersResponse>(
+      `${this.managementEndpoint}/${reportId}/parameters`,
+    );
+  }
+
+  GetManagedReportParameterOptions(
+    reportId: number,
+    parameterId: number,
+  ): Observable<ManagedReportParameterOptionsResponse> {
+    return this.Http.get<ManagedReportParameterOptionsResponse>(
+      `${this.managementEndpoint}/${reportId}/parameters/${parameterId}/options`,
+    );
+  }
+
+  UpdateManagedReportParameter(
+    reportId: number,
+    parameterId: number,
+    request: UpdateManagedReportParameterRequest,
+  ): Observable<ManagedReportParameter> {
+    return this.Http.put<ManagedReportParameter>(
+      `${this.managementEndpoint}/${reportId}/parameters/${parameterId}`,
+      request,
+    );
+  }
+
+  CompleteManagedReportParameters(
+    reportId: number,
+  ): Observable<CompleteManagedReportParametersResult> {
+    return this.Http.post<CompleteManagedReportParametersResult>(
+      `${this.managementEndpoint}/${reportId}/parameters/complete`,
+      {},
+    );
+  }
+
+  TestPreviewManagedReport(
+    reportId: number,
+    request: ReportTestPreviewRequest,
+    useSavedDataOnly = false,
+  ): Observable<Blob> {
+    return this.Http.post(
+      `${this.managementEndpoint}/${reportId}/test-preview`,
+      request,
+      {
+        params: useSavedDataOnly
+          ? { useSavedDataOnly: 'true' }
+          : {},
+        responseType: 'blob',
+      },
+    );
+  }
+
+  ApproveManagedReportConfiguration(
+    reportId: number,
+  ): Observable<ApproveReportConfigurationResult> {
+    return this.Http.post<ApproveReportConfigurationResult>(
+      `${this.managementEndpoint}/${reportId}/configuration/approve`,
+      {},
+    );
   }
 }

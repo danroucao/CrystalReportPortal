@@ -1,6 +1,8 @@
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Services;
+using CrystalReportPortal.Api.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -20,7 +22,29 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Services
 // =========================================================
 
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
+// Session 使用的伺服器端儲存空間
+builder.Services.AddDistributedMemoryCache();
+
+// 設定後台 Session
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".CrystalReportPortal.BackOffice";
+
+    // 不允許前端 JavaScript 直接讀取 Session Cookie
+    options.Cookie.HttpOnly = true;
+
+    options.Cookie.IsEssential = true;
+
+    options.Cookie.SameSite = SameSiteMode.Lax;
+
+    // 30 分鐘沒有使用，Session 就過期
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+});
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBackOfficeAuthService, BackOfficeAuthService>();
+builder.Services.AddScoped<IAuthorizationHandler, BackOfficeAuthorizationHandler>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ICredentialProtector, CredentialProtector>();
 builder.Services.AddScoped<ICrystalProcessService, CrystalProcessService>();
@@ -109,9 +133,45 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        "BackOffice",
+        policy =>
+        {
+            policy.AddRequirements(new BackOfficeRequirement());
+        });
 
-builder.Services.AddCors(options => { options.AddPolicy("Frontend", policy => policy.WithOrigins("http://localhost:4200", "https://localhost:4200").AllowAnyHeader().AllowAnyMethod()); });
+    // 前台：註冊功能權限規則
+    // 注意：這段在 BackOffice 規則外面
+    var permissionCodes = PermissionCodes.All;
+
+    foreach (var permissionCode in permissionCodes)
+    {
+        options.AddPolicy(permissionCode, policy =>
+        {
+            policy.RequireAuthenticatedUser();
+
+            policy.RequireClaim(
+                "Permission",
+                permissionCode);
+        });
+    }
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:4200",
+                "https://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 // =========================================================
 // Controllers / OpenAPI
@@ -134,6 +194,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("Frontend");
+
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();

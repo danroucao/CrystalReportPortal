@@ -1,6 +1,8 @@
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Services;
+using CrystalReportPortal.Api.Authorization;
+using CrystalReportPortal.Api.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +11,7 @@ namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
 [Route("api/data-sources")]
-[Authorize(Roles = "ADMIN")]
+[Authorize(Policy = PermissionCodes.DataSourceManage)]
 public class DataSourcesController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
@@ -27,6 +29,272 @@ public class DataSourcesController : ControllerBase
         _credentialProtector = credentialProtector;
         _crystalProcessService = crystalProcessService;
         _logger = logger;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<DataSourceManagementDto>>> GetDataSources()
+    {
+        var dataSources = await _dbContext.ReportDataSources
+            .AsNoTracking()
+            .Include(source => source.Credentials)
+            .OrderBy(source => source.DataSourceName)
+            .Select(source => new DataSourceManagementDto
+            {
+                DataSourceId = source.DataSourceId,
+                DataSourceName = source.DataSourceName,
+                ServerHost = source.ServerHost,
+                Port = source.Port,
+                DatabaseName = source.DatabaseName,
+                IsEnabled = source.IsEnabled,
+                AuthenticationType = source.Credentials
+                    .Where(credential => credential.CredentialType == "ReadOnly")
+                    .Select(credential => credential.AuthenticationType)
+                    .FirstOrDefault() ?? "SqlServer",
+                Username = source.Credentials
+                    .Where(credential => credential.CredentialType == "ReadOnly")
+                    .Select(credential => credential.Username)
+                    .FirstOrDefault() ?? string.Empty,
+                HasPassword = source.Credentials.Any(credential =>
+                    credential.CredentialType == "ReadOnly" &&
+                    credential.EncryptedPassword != string.Empty)
+            }).ToListAsync();
+        return Ok(dataSources);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<DataSourceManagementDto>> CreateDataSource(SaveDataSourceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.DataSourceName) ||
+            string.IsNullOrWhiteSpace(request.ServerHost) ||
+            string.IsNullOrWhiteSpace(request.DatabaseName) || request.Port <= 0)
+        {
+            return BadRequest(new { message = "資料來源、主機、連接埠與資料庫名稱為必填。" });
+        }
+        var source = new ReportDataSource
+        {
+            DataSourceName = request.DataSourceName.Trim(),
+            ServerHost = request.ServerHost.Trim(),
+            Port = request.Port,
+            DatabaseName = request.DatabaseName.Trim(),
+            IsEnabled = request.IsEnabled,
+            CreatedAt = DateTime.UtcNow
+        };
+        source.Credentials.Add(new DataSourceCredential
+        {
+            CredentialType = "ReadOnly",
+            AuthenticationType = "SqlServer",
+            Username = string.Empty,
+            EncryptedPassword = string.Empty,
+            CreatedAt = DateTime.UtcNow
+        });
+        _dbContext.ReportDataSources.Add(source);
+        await _dbContext.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetDataSources), new { id = source.DataSourceId }, new DataSourceManagementDto
+        {
+            DataSourceId = source.DataSourceId, DataSourceName = source.DataSourceName,
+            ServerHost = source.ServerHost, Port = source.Port, DatabaseName = source.DatabaseName,
+            IsEnabled = source.IsEnabled
+        });
+    }
+
+    [HttpPut("{dataSourceId:long}")]
+    public async Task<ActionResult<DataSourceManagementDto>> UpdateDataSource(long dataSourceId, SaveDataSourceRequest request)
+    {
+        var source = await _dbContext.ReportDataSources.FindAsync(dataSourceId);
+        if (source == null) return NotFound(new { message = "找不到指定的資料來源。" });
+        source.DataSourceName = request.DataSourceName.Trim();
+        source.ServerHost = request.ServerHost.Trim();
+        source.Port = request.Port;
+        source.DatabaseName = request.DatabaseName.Trim();
+        source.IsEnabled = request.IsEnabled;
+        source.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+        return Ok(new DataSourceManagementDto
+        {
+            DataSourceId = source.DataSourceId, DataSourceName = source.DataSourceName,
+            ServerHost = source.ServerHost, Port = source.Port, DatabaseName = source.DatabaseName,
+            IsEnabled = source.IsEnabled
+        });
+    }
+
+    [HttpGet("{dataSourceId:long}/credentials/read-only")]
+    public async Task<ActionResult<DataSourceCredentialResponse>>
+    GetReadOnlyCredential(long dataSourceId)
+    {
+        var dataSource =
+            await _dbContext.ReportDataSources
+                .AsNoTracking()
+                .Include(x => x.Credentials)
+                .FirstOrDefaultAsync(x =>
+                    x.DataSourceId == dataSourceId);
+
+        if (dataSource == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "找不到指定的資料來源。"
+            });
+        }
+
+        var credential =
+            dataSource.Credentials.FirstOrDefault(x =>
+                string.Equals(
+                    x.CredentialType,
+                    "ReadOnly",
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (credential == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "此資料來源尚未建立 ReadOnly 憑證。"
+            });
+        }
+
+        return Ok(new DataSourceCredentialResponse
+        {
+            DataSourceId = dataSource.DataSourceId,
+            CredentialType = credential.CredentialType,
+            AuthenticationType = credential.AuthenticationType,
+            Username = credential.Username,
+            HasPassword =
+                !string.IsNullOrWhiteSpace(
+                    credential.EncryptedPassword),
+            UpdatedAt = credential.UpdatedAt
+        });
+    }
+
+    [HttpPut("{dataSourceId:long}/credentials/read-only")]
+    public async Task<ActionResult<DataSourceCredentialResponse>>
+    UpdateReadOnlyCredential(
+        long dataSourceId,
+        [FromBody] UpdateDataSourceCredentialRequest request)
+    {
+        var authenticationType =
+            request.AuthenticationType?.Trim();
+
+        if (!string.Equals(
+                authenticationType,
+                "Windows",
+                StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(
+                authenticationType,
+                "SqlServer",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message =
+                    "AuthenticationType 只能是 Windows 或 SqlServer。"
+            });
+        }
+
+        var dataSource =
+            await _dbContext.ReportDataSources
+                .Include(x => x.Credentials)
+                .FirstOrDefaultAsync(x =>
+                    x.DataSourceId == dataSourceId);
+
+        if (dataSource == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "找不到指定的資料來源。"
+            });
+        }
+
+        var credential =
+            dataSource.Credentials.FirstOrDefault(x =>
+                string.Equals(
+                    x.CredentialType,
+                    "ReadOnly",
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (credential == null)
+        {
+            credential = new DataSourceCredential
+            {
+                DataSourceId = dataSource.DataSourceId,
+                CredentialType = "ReadOnly",
+                AuthenticationType = "SqlServer",
+                Username = string.Empty,
+                EncryptedPassword = string.Empty,
+                CreatedAt = DateTime.UtcNow
+            };
+            dataSource.Credentials.Add(credential);
+        }
+
+        if (string.Equals(
+                authenticationType,
+                "SqlServer",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var username = request.Username?.Trim();
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message =
+                        "使用 SQL Server Authentication 時必須輸入帳號。"
+                });
+            }
+
+            var hasNewPassword =
+                !string.IsNullOrEmpty(request.Password);
+
+            var hasExistingPassword =
+                !string.IsNullOrWhiteSpace(
+                    credential.EncryptedPassword);
+
+            if (!hasNewPassword && !hasExistingPassword)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message =
+                        "使用 SQL Server Authentication 時必須輸入密碼。"
+                });
+            }
+
+            credential.AuthenticationType = "SqlServer";
+            credential.Username = username;
+
+            if (hasNewPassword)
+            {
+                // 密碼不可 Trim，避免改變真正密碼內容。
+                credential.EncryptedPassword =
+                    _credentialProtector.Protect(
+                        request.Password!);
+            }
+        }
+        else
+        {
+            credential.AuthenticationType = "Windows";
+            credential.Username = string.Empty;
+            credential.EncryptedPassword = string.Empty;
+        }
+
+        credential.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new DataSourceCredentialResponse
+        {
+            DataSourceId = dataSource.DataSourceId,
+            CredentialType = credential.CredentialType,
+            AuthenticationType = credential.AuthenticationType,
+            Username = credential.Username,
+            HasPassword =
+                !string.IsNullOrWhiteSpace(
+                    credential.EncryptedPassword),
+            UpdatedAt = credential.UpdatedAt
+        });
     }
 
     [HttpPost("{dataSourceId:long}/test")]

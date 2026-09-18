@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using CrystalReportPortal.Api.Dtos;
+using CrystalReportPortal.Api.Entities;
 
 namespace CrystalReportPortal.Api.Controllers;
 
@@ -127,7 +129,6 @@ public class ReportsController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = "ADMIN")]
     [HttpGet("test-crystal-parameters")]
     public async Task<IActionResult> TestCrystalParameters()
     {
@@ -140,13 +141,27 @@ public class ReportsController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = "ADMIN")]
     [HttpPost("{reportId:long}/rpt")]
+    [Authorize(Policy = "Report.Upload")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadRpt(
     long reportId,
     IFormFile file)
     {
+        var roleCodes = User
+    .FindAll(ClaimTypes.Role)
+    .Select(claim => claim.Value)
+    .ToList();
+
+        var allowed = await _reportService.CanUploadReportAsync(
+            reportId,
+            roleCodes);
+
+        if (!allowed)
+        {
+            return Forbid();
+        }
+
         if (file == null ||
             file.Length == 0)
         {
@@ -168,19 +183,61 @@ public class ReportsController : ControllerBase
             return Unauthorized();
         }
 
-        var result =
-            await _reportService.UploadRptAsync(
-                reportId,
-                file,
-                userId);
+        try
+        {
+            var result =
+                await _reportService.UploadRptAsync(
+                    reportId,
+                    file,
+                    userId);
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
     }
 
     [HttpGet("{reportId:long}/preview")]
     public async Task<IActionResult> PreviewReport(
     long reportId)
     {
+        var roleCodes = User
+    .FindAll(ClaimTypes.Role)
+    .Select(claim => claim.Value)
+    .ToList();
+
+        var allowed =
+            await _reportService.CanExecuteReportAsync(
+                reportId,
+                roleCodes);
+
+        if (!allowed)
+        {
+            return Forbid();
+        }
+
         var report =
             await _dbContext.Reports
                 .AsNoTracking()
@@ -240,5 +297,132 @@ public class ReportsController : ControllerBase
                         ex.Message
                 });
         }
+    }
+
+    [HttpPatch("{reportId:long}/status")]
+    [Authorize(Policy = "Report.EnableDisable")]
+    public async Task<IActionResult> UpdateReportStatus(
+        long reportId,
+    [FromBody] UpdateReportStatusRequest request)
+    {
+        // 取得目前登入者的角色
+        var roleCodes = User
+            .FindAll(ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .ToList();
+
+        // 檢查是否有啟用／停用報表的權限
+        var allowed =
+            await _reportService.CanEnableDisableReportAsync(
+                reportId,
+                roleCodes);
+
+        if (!allowed)
+        {
+            return Forbid();
+        }
+
+        // 取得目前登入者 UserId
+        var userIdValue =
+            User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!long.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        // 查詢報表
+        var report =
+            await _dbContext.Reports
+                .FirstOrDefaultAsync(
+                    x => x.ReportId == reportId);
+
+        if (report == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "找不到指定的報表。"
+            });
+        }
+
+        if (request.IsEnabled)
+        {
+            if (!string.Equals(
+                    report.ConfigurationStatus,
+                    "Ready",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "報表參數尚未完成設定，不能啟用。"
+                });
+            }
+
+            if (string.IsNullOrWhiteSpace(report.RptFilePath) ||
+                !System.IO.File.Exists(report.RptFilePath))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "找不到報表 RPT 檔案，不能啟用。"
+                });
+            }
+
+            var hasInvalidParameter =
+                await _dbContext.ReportParameters
+                    .AnyAsync(parameter =>
+                        parameter.ReportId == reportId &&
+                        (
+                            !parameter.IsConfigured ||
+                            (
+                                parameter.ValueSourceType == "SqlLov" &&
+                                parameter.LovConfig == null
+                            )
+                        ));
+
+            if (hasInvalidParameter)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "仍有尚未完成設定的報表參數，不能啟用。"
+                });
+            }
+        }
+
+        // 修改啟用狀態
+        report.IsEnabled = request.IsEnabled;
+        report.UpdatedBy = userId;
+        report.UpdatedAt = DateTime.UtcNow;
+
+        // 寫入操作紀錄
+        _dbContext.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            ReportId = reportId,
+            Action = request.IsEnabled
+                ? "ENABLE_REPORT"
+                : "DISABLE_REPORT",
+            Result = "SUCCESS",
+            Details = request.IsEnabled
+                ? $"啟用報表：{report.ReportName}"
+                : $"停用報表：{report.ReportName}",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new
+        {
+            success = true,
+            reportId = report.ReportId,
+            reportName = report.ReportName,
+            isEnabled = report.IsEnabled,
+            message = request.IsEnabled
+                ? "報表已啟用。"
+                : "報表已停用。"
+        });
     }
 }

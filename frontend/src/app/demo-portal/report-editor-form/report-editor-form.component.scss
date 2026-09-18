@@ -1,0 +1,66 @@
+:host {
+  display: block;
+}
+
+// These base rules were previously supplied by DemoPortal view encapsulation.
+// Feature-specific overrides remain in the existing global stylesheet.
+select {
+  min-height: 38px;
+  padding: 0 0.6rem;
+  border: 1px solid #aaa69e;
+  border-radius: 5px;
+  font: inherit;
+}
+
+.edit-status-field {
+  display: flex;
+  align-items: center;
+  align-self: end;
+  gap: 0.5rem;
+  min-height: 38px;
+}
+.edit-status-field .form-field-label {
+  display: block;
+  margin-right: 0.25rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.account-status-switch {
+  display: inline-flex;
+  width: 40px;
+  min-width: 40px;
+  height: 22px;
+  min-height: 22px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  vertical-align: middle;
+  background: #a7adb5;
+  transition: background-color 160ms ease;
+}
+.account-status-switch:hover {
+  background: #8c949e;
+}
+.account-status-switch.is-enabled,
+.account-status-switch.is-enabled:hover {
+  background: var(--color-primary);
+}
+.account-status-switch-thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  transform: translateX(0);
+  transition: transform 160ms ease;
+}
+.account-status-switch.is-enabled .account-status-switch-thumb {
+  transform: translateX(18px);
+}
+.account-status-text {
+  display: inline-block;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}

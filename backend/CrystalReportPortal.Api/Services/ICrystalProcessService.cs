@@ -13,4 +13,7 @@ public interface ICrystalProcessService
     Task<CrystalDatabaseTestResponse>
         TestDatabaseConnectionAsync(
             CrystalDatabaseTestRequest request);
+
+    Task<CrystalLovResponse> GetLovOptionsAsync(
+        CrystalLovRequest request);
 }

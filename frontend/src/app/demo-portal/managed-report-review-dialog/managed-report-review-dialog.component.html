@@ -1,0 +1,99 @@
+<section class="modal-backdrop" (click)="close()">
+  <section class="review-dialog" role="dialog" aria-modal="true" aria-labelledby="review-title" (click)="$event.stopPropagation()">
+    <div class="modal-heading">
+      <div><h2 id="review-title">{{ isSavedDataPreview ? 'Saved Data 預覽' : '測試預覽' }}</h2><p>{{ report.reportName }}（{{ report.reportCode }}）</p></div>
+      <button type="button" class="modal-close-button" aria-label="關閉測試預覽" (click)="close()">×</button>
+    </div>
+
+    <div class="review-status">
+      <p *ngIf="isLoading" role="status">載入測試參數中…</p>
+      <p *ngIf="errorMessage" class="field-error" role="alert">{{ errorMessage }}</p>
+      <details *ngIf="errorDetails" class="review-error-details">
+        <summary>查看技術錯誤詳細內容</summary>
+        <pre>{{ errorDetails }}</pre>
+      </details>
+    </div>
+
+    <div *ngIf="!isLoading" class="review-content">
+      <form class="review-parameters" (ngSubmit)="isSavedDataPreview ? testPreview() : saveConfiguration()">
+        <h3>{{ isSavedDataPreview ? '預覽方式' : '測試條件' }}</h3>
+        <ng-container *ngIf="isSavedDataPreview; else PreviewParameters">
+          <p class="review-help">目前先使用 RPT 內嵌資料產生 PDF，暫不需要設定資料來源或參數。</p>
+          <button type="submit" class="primary-button" [disabled]="isPreviewing || isLoading">
+            {{ isPreviewing ? '產生中…' : '產生 Saved Data 預覽' }}
+          </button>
+        </ng-container>
+
+        <ng-template #PreviewParameters>
+        <label *ngFor="let parameter of visibleParameters">
+          {{ parameter.displayName }}<span *ngIf="parameter.isRequired" class="required-indicator">*</span>
+
+          <select *ngIf="parameter.valueSourceType === 'SqlLov' && parameter.allowMultipleValues"
+            multiple [name]="'parameter-' + parameter.parameterId"
+            (change)="selectMultiple(parameter.parameterId, $event)">
+            <option *ngFor="let option of options[parameter.parameterId]" [value]="option.value">{{ option.label }}</option>
+          </select>
+
+          <select *ngIf="parameter.valueSourceType === 'SqlLov' && !parameter.allowMultipleValues"
+            [name]="'parameter-' + parameter.parameterId"
+            [ngModel]="values[parameter.parameterId][0] || ''"
+            (ngModelChange)="setSingleValue(parameter.parameterId, $event)">
+            <option value="">請選擇</option>
+            <option *ngFor="let option of options[parameter.parameterId]" [value]="option.value">{{ option.label }}</option>
+          </select>
+
+          <input *ngIf="parameter.valueSourceType !== 'SqlLov'"
+            [type]="parameter.inputType === 'DatePicker' ? 'date' : (parameter.inputType === 'Number' ? 'number' : 'text')"
+            [name]="'parameter-' + parameter.parameterId"
+            [ngModel]="values[parameter.parameterId][0] || ''"
+            (ngModelChange)="setSingleValue(parameter.parameterId, $event)" />
+        </label>
+      <button
+        type="button"
+        class="primary-button"
+        [disabled]="isLoading || isPreviewing"
+        (click)="testPreview()"
+      >
+        {{
+          isPreviewing
+            ? '產生中…'
+            : isSavedDataPreview
+              ? '產生 Saved Data 預覽'
+              : '產生測試預覽'
+        }}
+      </button>
+        </ng-template>
+      </form>
+
+      <div class="review-preview">
+        <h3>PDF 預覽</h3>
+        <iframe *ngIf="previewUrl" [src]="previewUrl" title="報表測試預覽 PDF"></iframe>
+        <p *ngIf="!previewUrl" class="preview-empty">點擊按鈕後產生 PDF 預覽。</p>
+        <p
+          *ngIf="isSavedDataPreview"
+          class="saved-data-preview-notice"
+        >
+          此報表的參數尚未完成設定，目前將使用 RPT
+          內儲存的資料產生預覽，不會連線查詢資料庫。
+        </p>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="tertiary-button" [disabled]="isPreviewing || isApproving || isSavingConfiguration" (click)="close()">取消</button>
+      <button
+        *ngIf="!isSavedDataPreview"
+        type="button"
+        class="primary-button"
+        [disabled]="
+          !previewSucceeded ||
+          isPreviewing ||
+          isApproving
+        "
+        (click)="approve()"
+      >
+        {{ isApproving ? '確認中…' : '確認設定' }}
+      </button>
+    </div>
+  </section>
+</section>

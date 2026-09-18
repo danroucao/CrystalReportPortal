@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace CrystalReportPortal.CrystalService.Models
 {
-    public class CrystalExportRequest
+    public sealed class CrystalExportRequest
     {
         public string RptPath { get; set; }
 
@@ -12,5 +12,7 @@ namespace CrystalReportPortal.CrystalService.Models
 
         public List<CrystalExportParameter> Parameters { get; set; }
             = new List<CrystalExportParameter>();
+
+        public bool UseSavedDataOnly { get; set; }
     }
 }

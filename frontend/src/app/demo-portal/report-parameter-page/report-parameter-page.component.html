@@ -1,0 +1,590 @@
+<section class="content-card">
+      <ng-container *ngIf="!IsReportParameterMode; else ParameterFormMode">
+        <div class="parameter-search-toolbar">
+          <div class="parameter-search-row">
+            <label for="parameter-report-start-date">
+              開始日期
+              <input
+                id="parameter-report-start-date"
+                type="date"
+                [(ngModel)]="ParameterReportStartDate"
+                (change)="OnParameterReportDateChange()"
+              />
+            </label>
+            <label for="parameter-report-end-date">
+              結束日期
+              <input
+                id="parameter-report-end-date"
+                type="date"
+                [min]="ParameterReportStartDate || null"
+                [(ngModel)]="ParameterReportEndDate"
+                (change)="OnParameterReportDateChange()"
+              />
+            </label>
+            <label for="parameter-report-category">
+              報表分類
+              <select
+                id="parameter-report-category"
+                [(ngModel)]="SelectedParameterReportCategoryId"
+                (ngModelChange)="SetParameterReportCategory($event)"
+              >
+                <option [value]="AllCategoryFilterValue">全部</option>
+                <option
+                  *ngFor="let Category of ParameterReportCategories"
+                  [value]="Category.CategoryId"
+                >
+                  {{ Category.CategoryName }}
+                </option>
+              </select>
+            </label>
+          </div>
+          <label class="parameter-search-field" for="parameter-report-search">
+            搜尋報表
+            <input
+              #parameterReportSearchInput
+              id="parameter-report-search"
+              [(ngModel)]="ParameterReportSearchText"
+              (ngModelChange)="OnParameterReportSearchChange()"
+              placeholder="請輸入報表名稱或報表說明"
+              aria-label="請輸入報表名稱或報表說明"
+            />
+            <button
+              *ngIf="HasParameterReportSearchText; else ParameterSearchIcon"
+              type="button"
+              class="parameter-search-clear-button"
+              aria-label="清除搜尋關鍵字"
+              title="清除搜尋關鍵字"
+              (click)="ClearParameterReportSearch()"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 7l10 10M17 7 7 17"></path>
+              </svg>
+            </button>
+            <ng-template #ParameterSearchIcon>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.8" cy="10.8" r="5.8"></circle>
+                <path d="m15.2 15.2 4 4"></path>
+              </svg>
+            </ng-template>
+          </label>
+          <button
+            *ngIf="HasParameterReportFilters"
+            type="button"
+            class="tertiary-button parameter-clear-filters-button"
+            (click)="ClearParameterReportFilters()"
+          >
+            清除篩選
+          </button>
+          <p
+            *ngIf="ParameterReportDateValidationMessage"
+            class="parameter-search-error"
+            role="alert"
+          >
+            {{ ParameterReportDateValidationMessage }}
+          </p>
+          <p
+            *ngIf="ParameterReportSelectionNotice"
+            class="parameter-search-notice"
+            role="status"
+          >
+            {{ ParameterReportSelectionNotice }}
+          </p>
+        </div>
+        <h2 class="parameter-section-heading">報表列表</h2>
+        <div
+          *ngIf="
+            DisplayedParameterReports.length;
+            else ParameterReportEmptyState
+          "
+          class="table-scroll parameter-report-table-scroll"
+        >
+          <table class="parameter-report-table">
+            <thead>
+              <tr>
+                <th *ngIf="Auth.IsFrontOffice" scope="col">收藏</th>
+                <th
+                  [attr.aria-sort]="GetParameterReportAriaSort('ReportName')"
+                  [class.is-sorted]="ParameterReportSortField === 'ReportName'"
+                >
+                  <button
+                    type="button"
+                    class="sortable-table-header"
+                    (click)="ToggleParameterReportSort('ReportName')"
+                  >
+                    報表名稱
+                    <svg
+                      class="sort-indicator"
+                      [class.is-ascending]="
+                        GetParameterReportSortIndicator('ReportName') === '↑'
+                      "
+                      [class.is-descending]="
+                        GetParameterReportSortIndicator('ReportName') === '↓'
+                      "
+                      viewBox="0 0 16 24"
+                      aria-hidden="true"
+                    >
+                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
+                    </svg>
+                  </button>
+                </th>
+                <th>報表分類</th>
+                <th scope="col">報表說明</th>
+                <th
+                  scope="col"
+                  [attr.aria-sort]="GetParameterReportAriaSort('CreatedAt')"
+                  [class.is-sorted]="ParameterReportSortField === 'CreatedAt'"
+                >
+                  <button
+                    type="button"
+                    class="sortable-table-header"
+                    (click)="ToggleParameterReportSort('CreatedAt')"
+                  >
+                    建立時間
+                    <svg
+                      class="sort-indicator"
+                      [class.is-ascending]="
+                        GetParameterReportSortIndicator('CreatedAt') === '↑'
+                      "
+                      [class.is-descending]="
+                        GetParameterReportSortIndicator('CreatedAt') === '↓'
+                      "
+                      viewBox="0 0 16 24"
+                      aria-hidden="true"
+                    >
+                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
+                    </svg>
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  [attr.aria-sort]="GetParameterReportAriaSort('UpdatedAt')"
+                  [class.is-sorted]="ParameterReportSortField === 'UpdatedAt'"
+                >
+                  <button
+                    type="button"
+                    class="sortable-table-header"
+                    (click)="ToggleParameterReportSort('UpdatedAt')"
+                  >
+                    更新時間
+                    <svg
+                      class="sort-indicator"
+                      [class.is-ascending]="
+                        GetParameterReportSortIndicator('UpdatedAt') === '↑'
+                      "
+                      [class.is-descending]="
+                        GetParameterReportSortIndicator('UpdatedAt') === '↓'
+                      "
+                      viewBox="0 0 16 24"
+                      aria-hidden="true"
+                    >
+                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                      <path
+                        class="sort-indicator-down"
+                        d="m3 16 5 5 5-5"
+                      ></path>
+                    </svg>
+                  </button>
+                </th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let Report of PagedParameterReports"
+                class="report-entry-row"
+                (click)="SelectReportForPreview(Report.ReportKey)"
+              >
+                <td *ngIf="Auth.IsFrontOffice">
+                  <button
+                    type="button"
+                    class="favorite-star-button parameter-favorite-button"
+                    [class.is-favorite]="IsFavoriteReport(Report.ReportKey)"
+                    [attr.aria-label]="
+                      (IsFavoriteReport(Report.ReportKey)
+                        ? '取消收藏 '
+                        : '收藏 ') + Report.ReportName
+                    "
+                    [title]="
+                      (IsFavoriteReport(Report.ReportKey)
+                        ? '取消收藏 '
+                        : '收藏 ') + Report.ReportName
+                    "
+                    (click)="
+                      ToggleFavoriteReport(Report.ReportKey);
+                      $event.stopPropagation()
+                    "
+                  >
+                    <svg
+                      *ngIf="IsFavoriteReport(Report.ReportKey)"
+                      class="favorite-icon favorite-icon-filled"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="m12 2.8 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.37l-5.7 2.99 1.09-6.35-4.62-4.5 6.38-.93L12 2.8Z"
+                      />
+                    </svg>
+                    <svg
+                      *ngIf="!IsFavoriteReport(Report.ReportKey)"
+                      class="favorite-icon"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="m12 2.8 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.37l-5.7 2.99 1.09-6.35-4.62-4.5 6.38-.93L12 2.8Z"
+                      />
+                    </svg>
+                  </button>
+                </td>
+                <td class="report-name-cell" [title]="Report.ReportName">
+                  {{ Report.ReportName }}
+                </td>
+                <td>{{ Report.CategoryName }}</td>
+                <td
+                  class="parameter-report-description"
+                  [title]="Report.Description"
+                >
+                  {{ Report.Description }}
+                </td>
+                <td class="parameter-report-timestamp">
+                  {{ Report.CreatedAt || "—" }}
+                </td>
+                <td class="parameter-report-timestamp">
+                  {{ Report.UpdatedAt || "—" }}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    (click)="
+                      SelectReportForPreview(Report.ReportKey);
+                      $event.stopPropagation()
+                    "
+                  >
+                    預覽
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #ParameterReportEmptyState>
+          <section
+            class="parameter-report-empty-panel"
+            role="status"
+            aria-live="polite"
+          >
+            <svg
+              class="parameter-report-empty-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h6M9 17h6" />
+            </svg>
+            <h3>
+              {{
+                IsLoadingReports
+                  ? "正在載入報表…"
+                  : ReportLoadError
+                    ? "報表載入失敗"
+                    : HasParameterReportFilters
+                  ? "找不到符合條件的報表"
+                  : "目前沒有可使用的報表"
+              }}
+            </h3>
+            <p>
+              {{
+                IsLoadingReports
+                  ? "正在向系統取得您有權限使用的報表。"
+                  : ReportLoadError
+                    ? ReportLoadError
+                    : HasParameterReportFilters
+                  ? "請調整搜尋文字、報表分類或資料期間後再試一次。"
+                  : "目前沒有可供預覽的報表，請聯絡系統管理員確認報表權限或啟用狀態。"
+              }}
+            </p>
+            <button
+              *ngIf="ReportLoadError"
+              type="button"
+              class="secondary-button"
+              (click)="LoadReports()"
+            >
+              重新載入
+            </button>
+            <p
+              *ngIf="HasParameterReportFilters"
+              class="parameter-report-empty-filters"
+            >
+              已套用：{{ ParameterReportFilterSummary }}
+            </p>
+            <div
+              *ngIf="HasParameterReportFilters"
+              class="parameter-report-empty-actions"
+            >
+              <button
+                type="button"
+                class="primary-button"
+                (click)="ClearParameterReportFilters()"
+              >
+                清除篩選
+              </button>
+              <button
+                type="button"
+                class="tertiary-button"
+                (click)="ClearParameterReportFilters()"
+              >
+                瀏覽所有報表
+              </button>
+            </div>
+          </section>
+        </ng-template>
+        <app-portal-pagination
+          [CurrentPage]="ParameterReportCurrentPage"
+          [TotalPages]="ParameterReportTotalPages"
+          [PageNumbers]="ParameterReportPageNumbers"
+          AriaLabel="所有報表分頁"
+          (PageChange)="GoToParameterReportPage($event)"
+        />
+      </ng-container>
+
+      <ng-template #ParameterFormMode>
+        <div class="selected-parameter-report">
+          <div>
+            <p class="selected-parameter-report-label">已選擇報表</p>
+            <h2>
+              {{ Auth.SelectedReport?.ReportName }} /
+              {{ Auth.SelectedReport?.CategoryName }}
+            </h2>
+          </div>
+          <button
+            type="button"
+            class="tertiary-button"
+            (click)="ReturnToParameterReportSearch()"
+          >
+            重新選擇報表
+          </button>
+        </div>
+        <h2 class="parameter-section-heading">報表條件</h2>
+        <p>{{ Auth.SelectedReport?.ReportName }} 的 Mock 動態參數表單。</p>
+        <form
+          class="parameter-form"
+          [formGroup]="ReportParameterForm"
+          (ngSubmit)="ExecuteReport()"
+          novalidate
+        >
+          <div class="form-grid parameter-form-fields">
+            <ng-container *ngFor="let Definition of VisibleReportParameters">
+              <fieldset
+                *ngIf="GetControlKind(Definition) === 'range'"
+                class="parameter-range-field"
+                [formGroupName]="Definition.ParameterName"
+              >
+                <legend>
+                  {{ Definition.DisplayName
+                  }}<span
+                    *ngIf="Definition.IsRequired"
+                    class="required-indicator"
+                    aria-hidden="true"
+                    >*</span
+                  >
+                </legend>
+                <label>
+                  開始{{ Definition.DataType === "Date" ? "日期" : "值" }}
+                  <input
+                    [type]="GetInputHtmlType(Definition)"
+                    formControlName="Start"
+                    (change)="OnRangeValueChange(Definition)"
+                  />
+                </label>
+                <label>
+                  結束{{ Definition.DataType === "Date" ? "日期" : "值" }}
+                  <input
+                    [type]="GetInputHtmlType(Definition)"
+                    formControlName="End"
+                    [min]="GetRangeStartValue(Definition)"
+                    (change)="OnRangeValueChange(Definition)"
+                  />
+                </label>
+                <p
+                  *ngIf="GetParameterError(Definition)"
+                  class="parameter-field-error"
+                  role="alert"
+                >
+                  {{ GetParameterError(Definition) }}
+                </p>
+              </fieldset>
+
+              <label
+                *ngIf="GetControlKind(Definition) === 'input'"
+                class="parameter-field"
+              >
+                <span class="form-field-label"
+                  >{{ Definition.DisplayName
+                  }}<span
+                    *ngIf="Definition.IsRequired"
+                    class="required-indicator"
+                    aria-hidden="true"
+                    >*</span
+                  ></span
+                >
+                <input
+                  [type]="GetInputHtmlType(Definition)"
+                  [formControlName]="Definition.ParameterName"
+                />
+                <span
+                  *ngIf="GetParameterError(Definition)"
+                  class="parameter-field-error"
+                  role="alert"
+                  >{{ GetParameterError(Definition) }}</span
+                >
+              </label>
+
+              <label
+                *ngIf="GetControlKind(Definition) === 'textarea'"
+                class="parameter-field"
+              >
+                <span class="form-field-label"
+                  >{{ Definition.DisplayName
+                  }}<span
+                    *ngIf="Definition.IsRequired"
+                    class="required-indicator"
+                    aria-hidden="true"
+                    >*</span
+                  ></span
+                >
+                <textarea
+                  [formControlName]="Definition.ParameterName"
+                ></textarea>
+                <span
+                  *ngIf="GetParameterError(Definition)"
+                  class="parameter-field-error"
+                  role="alert"
+                  >{{ GetParameterError(Definition) }}</span
+                >
+              </label>
+
+              <label
+                *ngIf="GetControlKind(Definition) === 'checkbox'"
+                class="parameter-checkbox-field"
+              >
+                <input
+                  type="checkbox"
+                  [formControlName]="Definition.ParameterName"
+                />
+                <span>{{ Definition.DisplayName }}</span>
+              </label>
+
+              <div
+                *ngIf="GetControlKind(Definition) === 'select'"
+                class="parameter-field"
+              >
+                <label [for]="Definition.ParameterName">
+                  {{ Definition.DisplayName
+                  }}<span
+                    *ngIf="Definition.IsRequired"
+                    class="required-indicator"
+                    aria-hidden="true"
+                    >*</span
+                  >
+                </label>
+                <p
+                  *ngIf="
+                    UsesLov(Definition) &&
+                    GetLovStatus(Definition) === 'loading'
+                  "
+                  class="parameter-state"
+                >
+                  載入選項中…
+                </p>
+                <p
+                  *ngIf="
+                    UsesLov(Definition) && GetLovStatus(Definition) === 'empty'
+                  "
+                  class="parameter-state"
+                >
+                  目前無可選項。
+                </p>
+                <div
+                  *ngIf="
+                    UsesLov(Definition) && GetLovStatus(Definition) === 'error'
+                  "
+                  class="parameter-state parameter-state-error"
+                  role="alert"
+                >
+                  無法載入選項，請重試。
+                  <button
+                    type="button"
+                    class="secondary-button"
+                    (click)="RetryLov(Definition)"
+                  >
+                    重試
+                  </button>
+                </div>
+                <select
+                  [id]="Definition.ParameterName"
+                  [formControlName]="Definition.ParameterName"
+                  [multiple]="Definition.AllowMultipleValues"
+                  [disabled]="
+                    UsesLov(Definition) &&
+                    GetLovStatus(Definition) !== 'success'
+                  "
+                >
+                  <option
+                    *ngIf="!Definition.AllowMultipleValues"
+                    value=""
+                    [disabled]="Definition.IsRequired"
+                  >
+                    請選擇
+                  </option>
+                  <option
+                    *ngFor="let Option of GetLovOptions(Definition)"
+                    [value]="Option.Value"
+                  >
+                    {{ Option.DisplayText }}
+                  </option>
+                </select>
+                <span
+                  *ngIf="GetParameterError(Definition)"
+                  class="parameter-field-error"
+                  role="alert"
+                  >{{ GetParameterError(Definition) }}</span
+                >
+              </div>
+            </ng-container>
+          </div>
+          <p *ngIf="!VisibleReportParameters.length" class="muted">
+            此 Mock 報表沒有需要輸入的條件。
+          </p>
+          <button
+            *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
+            type="submit"
+            class="primary-button"
+            [disabled]="!CanGenerateReport"
+          >
+            產生報表
+          </button>
+          <button
+            *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
+            type="button"
+            class="tertiary-button"
+            (click)="ResetReportParameters()"
+          >
+            重設
+          </button>
+          <p
+            *ngIf="!Auth.SelectedReportCategoryPermission.CanExecute"
+            class="mock-notice"
+          >
+            目前角色沒有預覽權限。
+          </p>
+        </form>
+      </ng-template>
+    </section>

@@ -2,7 +2,8 @@ import { MockAuthenticationProviderModel } from './mock-authentication.provider.
 
 export const MockAuthenticationProvider: MockAuthenticationProviderModel = {
   IsEnabled: false,
-  DemoUsers: [],
+  BackOfficeAccount: null,
+  AuthenticateBackOffice(): null { return null; },
   GetInitialUsers() {
     return [];
   },

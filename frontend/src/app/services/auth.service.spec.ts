@@ -1,50 +1,126 @@
+import { HttpClient, provideHttpClient } from '@angular/common/http';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+
 import { AuthService } from './auth.service';
 import { MockRbacService } from './mock-rbac.service';
 
-describe('AuthService', () => {
+describe('AuthService API authentication', () => {
   let Auth: AuthService;
+  let HttpTesting: HttpTestingController;
+
+  const LoginResponse = {
+    success: true,
+    message: '登入成功',
+    passwordExpired: false,
+    token: 'jwt-token',
+    expiresAt: '2099-09-17T03:00:00Z',
+    user: {
+      userId: 1,
+      account: 'admin@example.com',
+      employeeNo: 'TEST001',
+      userName: '測試管理員',
+      roles: ['FINANCE_MANAGER'],
+      permissions: [
+        'AuditLog.View',
+        'DataSource.Manage',
+        'Report.EnableDisable',
+        'Report.Maintain',
+        'Report.SetParameters',
+        'Report.Upload',
+      ],
+    },
+  };
 
   beforeEach(() => {
-    Auth = new AuthService(new MockRbacService());
-  });
+    sessionStorage.clear();
 
-  it('authenticates the finance Demo account with accounts-receivable permission', () => {
-    expect(Auth.Login('user@example.com', 'user123')).toBeTrue();
-    expect(Auth.CurrentUser?.Roles).toEqual(['FINANCE']);
-    Auth.SelectReport('AccountBalance');
-    expect(Auth.SelectedReportCategoryPermission).toEqual({
-      CanExecute: true,
-      CanExportPdf: true,
-      CanPrint: true,
+    TestBed.configureTestingModule({
+      providers: [
+        AuthService,
+        MockRbacService,
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     });
-    expect(Auth.IsAdmin).toBeFalse();
-    expect(Auth.AccessibleReports.map((Report) => Report.ReportName)).toEqual([
-      'AccountBalance',
-      'MonthlyRevenue',
-      'Activity',
-    ]);
+
+    Auth = TestBed.inject(AuthService);
+    HttpTesting = TestBed.inject(HttpTestingController);
   });
 
-  it('authenticates the ADMIN Demo account with management access', () => {
-    expect(Auth.Login('admin@example.com', 'admin123')).toBeTrue();
-    expect(Auth.CurrentUser?.Roles).toEqual(['ADMIN']);
-    expect(Auth.HasManagementPermission('UserManagement')).toBeTrue();
+  afterEach(() => {
+    HttpTesting.verify();
+    sessionStorage.clear();
+  });
+
+  it('logs in through the API and stores the JWT session', () => {
+    let Completed = false;
+
+    Auth.Login('admin@example.com', 'admin123').subscribe(() => {
+      Completed = true;
+    });
+
+    const Request = HttpTesting.expectOne(
+      'http://localhost:5181/api/auth/login',
+    );
+    expect(Request.request.method).toBe('POST');
+    expect(Request.request.body).toEqual({
+      account: 'admin@example.com',
+      password: 'admin123',
+    });
+    Request.flush(LoginResponse);
+
+    expect(Completed).toBeTrue();
+    expect(Auth.IsAuthenticated).toBeTrue();
+    expect(Auth.IsFrontOffice).toBeTrue();
+    expect(Auth.DisplayName).toBe('測試管理員');
+    expect(Auth.ActiveRoles).toEqual(['FINANCE_MANAGER']);
+    expect(sessionStorage.getItem('crystal-report-token')).toBe('jwt-token');
+  });
+
+  it('maps backend permissions to frontend management features', () => {
+    Auth.Login('admin@example.com', 'admin123').subscribe();
+    HttpTesting.expectOne(
+      'http://localhost:5181/api/auth/login',
+    ).flush(LoginResponse);
+
+    expect(Auth.HasManagementPermission('RptManagement')).toBeTrue();
+    expect(Auth.HasManagementPermission('DatabaseConnection')).toBeTrue();
     expect(Auth.HasManagementPermission('OperationLog')).toBeTrue();
-    Auth.SwitchDemoRole('WAREHOUSE');
-    expect(Auth.AccessibleReports.map((Report) => Report.ReportName)).toEqual([
-      'InventoryTransfer_HANA',
-    ]);
-    expect(Auth.IsAdmin).toBeTrue();
   });
 
-  it('rejects incorrect credentials and clears the Demo login state on logout', () => {
-    expect(Auth.Login('unknown@example.com', 'wrong')).toBeFalse();
-    expect(Auth.IsAuthenticated).toBeFalse();
+  it('restores an unexpired session from session storage', () => {
+    Auth.Login('admin@example.com', 'admin123').subscribe();
+    HttpTesting.expectOne(
+      'http://localhost:5181/api/auth/login',
+    ).flush(LoginResponse);
 
-    Auth.Login('user@example.com', 'user123');
+    const Restored = TestBed.runInInjectionContext(
+      () => new AuthService(
+        TestBed.inject(HttpClient),
+        TestBed.inject(MockRbacService),
+      ),
+    );
+
+    expect(Restored.IsAuthenticated).toBeTrue();
+    expect(Restored.DisplayName).toBe('測試管理員');
+  });
+
+  it('clears local authentication data during logout', () => {
+    Auth.Login('admin@example.com', 'admin123').subscribe();
+    HttpTesting.expectOne(
+      'http://localhost:5181/api/auth/login',
+    ).flush(LoginResponse);
+
     Auth.Logout();
+    HttpTesting.expectOne(
+      'http://localhost:5181/api/auth/logout',
+    ).flush({ success: true });
 
-    expect(Auth.CurrentUser).toBeNull();
-    expect(Auth.SelectedReportCategoryPermission.CanExecute).toBeFalse();
+    expect(Auth.IsAuthenticated).toBeFalse();
+    expect(sessionStorage.getItem('crystal-report-token')).toBeNull();
   });
 });

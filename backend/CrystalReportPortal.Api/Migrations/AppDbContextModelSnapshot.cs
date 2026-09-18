@@ -49,6 +49,10 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Property<Guid?>("ExecutionId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
                     b.Property<long?>("PrinterId")
                         .HasColumnType("bigint");
 
@@ -74,6 +78,108 @@ namespace CrystalReportPortal.Api.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("AuditLogs", (string)null);
+                });
+
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.CommonParameterTemplate", b =>
+                {
+                    b.Property<long>("TemplateId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("TemplateId"));
+
+                    b.Property<bool>("AllowMultipleValues")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("AllowRangeValues")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(sysdatetime())");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DataSourceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DataType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DefaultValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("DisplayField")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("InputType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("NormalizedParameterName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SqlQuery")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TemplateCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TemplateName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ValueField")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ValueSourceType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("TemplateId");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("DataSourceId");
+
+                    b.HasIndex("TemplateCode")
+                        .IsUnique();
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.ToTable("CommonParameterTemplates", (string)null);
                 });
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.DataSourceCredential", b =>
@@ -168,6 +274,49 @@ namespace CrystalReportPortal.Api.Migrations
                     b.ToTable("ParameterLovConfigs", (string)null);
                 });
 
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.Permission", b =>
+                {
+                    b.Property<int>("PermissionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PermissionId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(sysdatetime())");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("PermissionCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PermissionName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("PermissionId");
+
+                    b.HasIndex("PermissionCode")
+                        .IsUnique();
+
+                    b.ToTable("Permissions", (string)null);
+                });
+
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.Printer", b =>
                 {
                     b.Property<long>("PrinterId")
@@ -219,6 +368,13 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ConfigurationStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Draft", "DF_Reports_ConfigurationStatus");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -232,7 +388,7 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<long>("DataSourceId")
+                    b.Property<long?>("DataSourceId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Description")
@@ -425,6 +581,9 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Property<bool>("AllowRangeValues")
                         .HasColumnType("bit");
 
+                    b.Property<long?>("CommonTemplateId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -455,6 +614,11 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<bool>("IsConfigured")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false, "DF_ReportParameters_IsConfigured");
+
                     b.Property<bool>("IsRequired")
                         .HasColumnType("bit");
 
@@ -480,6 +644,8 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.HasKey("ParameterId");
+
+                    b.HasIndex("CommonTemplateId");
 
                     b.HasIndex("ReportId");
 
@@ -529,6 +695,26 @@ namespace CrystalReportPortal.Api.Migrations
                     b.ToTable("Roles", (string)null);
                 });
 
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.RolePermission", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PermissionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(sysdatetime())");
+
+                    b.HasKey("RoleId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("RolePermissions", (string)null);
+                });
+
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.RoleReportPermission", b =>
                 {
                     b.Property<int>("RoleId")
@@ -537,13 +723,25 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Property<long>("ReportId")
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("CanEnableDisable")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("CanExecute")
                         .HasColumnType("bit");
 
                     b.Property<bool>("CanExport")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("CanMaintain")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("CanPrint")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanSetParameters")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanUpload")
                         .HasColumnType("bit");
 
                     b.Property<DateTime>("CreatedAt")
@@ -670,6 +868,31 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.CommonParameterTemplate", b =>
+                {
+                    b.HasOne("CrystalReportPortal.Api.Entities.User", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CrystalReportPortal.Api.Entities.ReportDataSource", "DataSource")
+                        .WithMany()
+                        .HasForeignKey("DataSourceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CrystalReportPortal.Api.Entities.User", "Updater")
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Creator");
+
+                    b.Navigation("DataSource");
+
+                    b.Navigation("Updater");
+                });
+
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.DataSourceCredential", b =>
                 {
                     b.HasOne("CrystalReportPortal.Api.Entities.ReportDataSource", "DataSource")
@@ -717,8 +940,7 @@ namespace CrystalReportPortal.Api.Migrations
                     b.HasOne("CrystalReportPortal.Api.Entities.ReportDataSource", "DataSource")
                         .WithMany("Reports")
                         .HasForeignKey("DataSourceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("CrystalReportPortal.Api.Entities.User", "Updater")
                         .WithMany("UpdatedReports")
@@ -755,13 +977,39 @@ namespace CrystalReportPortal.Api.Migrations
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.ReportParameter", b =>
                 {
+                    b.HasOne("CrystalReportPortal.Api.Entities.CommonParameterTemplate", "CommonTemplate")
+                        .WithMany("ReportParameters")
+                        .HasForeignKey("CommonTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CrystalReportPortal.Api.Entities.Report", "Report")
                         .WithMany("ReportParameters")
                         .HasForeignKey("ReportId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("CommonTemplate");
+
                     b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.RolePermission", b =>
+                {
+                    b.HasOne("CrystalReportPortal.Api.Entities.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CrystalReportPortal.Api.Entities.Role", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.RoleReportPermission", b =>
@@ -800,6 +1048,16 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.CommonParameterTemplate", b =>
+                {
+                    b.Navigation("ReportParameters");
+                });
+
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.Permission", b =>
+                {
+                    b.Navigation("RolePermissions");
                 });
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.Printer", b =>
@@ -844,6 +1102,8 @@ namespace CrystalReportPortal.Api.Migrations
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.Role", b =>
                 {
+                    b.Navigation("RolePermissions");
+
                     b.Navigation("RoleReportPermissions");
 
                     b.Navigation("UserRoles");

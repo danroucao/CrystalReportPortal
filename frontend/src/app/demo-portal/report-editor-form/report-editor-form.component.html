@@ -1,0 +1,134 @@
+<form [class]="IsUploadPage ? 'report-upload-form' : 'report-editor-form'" (ngSubmit)="submitRequested.emit()" novalidate>
+  <ng-container *ngIf="IsUploadPage; else ModalFields">
+    <section class="report-upload-panel">
+      <header>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h6M9 17h6" /></svg>
+        <div><h2>報表基本資料</h2><p>設定報表名稱、說明與分類。</p></div>
+      </header>
+      <div class="report-upload-fields">
+        <ng-container *ngTemplateOutlet="EditorFields"></ng-container>
+      </div>
+    </section>
+    <section class="report-upload-panel report-upload-file-panel">
+      <header>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12.5 13.5 4-4a3 3 0 0 0-4.2-4.3l-6.8 6.9a4.5 4.5 0 0 0 6.4 6.4l6.2-6.2" /></svg>
+        <div><h2>上傳 RPT 檔案</h2><p>請選擇要上傳的 Crystal Reports 檔案。</p></div>
+      </header>
+      <ng-container *ngTemplateOutlet="FilePicker"></ng-container>
+      <ng-container *ngTemplateOutlet="FormError"></ng-container>
+      <footer class="report-upload-actions report-upload-form-actions">
+        <button type="button" class="tertiary-button report-upload-secondary-action" (click)="cancelRequested.emit()">取消</button>
+        <button type="submit" class="primary-button">下一步：確認內容</button>
+      </footer>
+    </section>
+  </ng-container>
+
+  <ng-template #ModalFields>
+    <ng-container *ngTemplateOutlet="EditorFields"></ng-container>
+    <div class="report-file-field">
+      <span class="form-field-label">RPT 檔案<span *ngIf="!isEditing" class="required-indicator" aria-hidden="true">*</span></span>
+      <p *ngIf="isEditing" class="current-report-file">目前 RPT 檔案：{{ selectedFileName }}</p>
+      <ng-container *ngTemplateOutlet="FilePicker"></ng-container>
+    </div>
+    <ng-container *ngTemplateOutlet="FormError"></ng-container>
+    <div class="modal-actions report-editor-actions">
+      <button type="submit" class="primary-button">儲存</button>
+      <button type="button" class="tertiary-button" (click)="cancelRequested.emit()">取消</button>
+    </div>
+  </ng-template>
+
+  <ng-template #EditorFields>
+    <label [for]="IdPrefix + '-name'">
+      <span class="form-field-label">報表名稱<span class="required-indicator" aria-hidden="true">*</span></span>
+      <input
+        [id]="IdPrefix + '-name'"
+        [name]="IsUploadPage ? 'reportUploadName' : 'reportName'"
+        [ngModel]="draft.ReportName"
+        (ngModelChange)="UpdateDraft('ReportName', $event)"
+        [attr.aria-invalid]="error && !draft.ReportName.trim() ? 'true' : null"
+        [attr.placeholder]="IsUploadPage ? '請輸入報表名稱' : null"
+      />
+    </label>
+    <label [class.report-editor-description-field]="!IsUploadPage" [for]="IdPrefix + '-description'">
+      <span class="form-field-label">報表說明<span class="required-indicator" aria-hidden="true">*</span></span>
+      <textarea
+        [id]="IdPrefix + '-description'"
+        [name]="IsUploadPage ? 'reportUploadDescription' : 'reportDescription'"
+        [ngModel]="draft.Description"
+        (ngModelChange)="UpdateDraft('Description', $event)"
+        [rows]="IsUploadPage ? 4 : 3"
+        [maxlength]="IsUploadPage ? 500 : null"
+        placeholder="請輸入報表說明"
+        [attr.aria-invalid]="!IsUploadPage && error && !draft.Description.trim() ? 'true' : null"
+      ></textarea>
+      <small *ngIf="IsUploadPage">{{ draft.Description.length }} / 500</small>
+    </label>
+    <div [class]="IsUploadPage ? 'report-upload-category-row' : 'report-editor-category-field'">
+      <label [for]="IdPrefix + '-category'">
+        <span class="form-field-label">報表分類<span class="required-indicator" aria-hidden="true">*</span></span>
+        <select
+          [id]="IdPrefix + '-category'"
+          [name]="IsUploadPage ? 'reportUploadCategory' : 'reportCategory'"
+          [ngModel]="draft.CategoryId"
+          (ngModelChange)="UpdateDraft('CategoryId', $event)"
+          [attr.aria-invalid]="error && !draft.CategoryId ? 'true' : null"
+        >
+          <option value="" disabled>{{ IsUploadPage ? '請選擇報表分類' : '選擇報表分類' }}</option>
+          <option *ngFor="let Category of categories; trackBy: TrackCategoryById" [value]="Category.CategoryId">{{ Category.CategoryName }}</option>
+        </select>
+      </label>
+      <button
+        *ngIf="canAddCategory"
+        type="button"
+        [class]="IsUploadPage ? 'secondary-button report-upload-add-category' : 'secondary-button report-category-quick-add-trigger'"
+        (click)="quickAddRequested.emit()"
+      ><span aria-hidden="true">＋</span> 新增分類</button>
+    </div>
+    <div *ngIf="quickAddOpen" class="report-category-quick-add" [class.report-upload-quick-add]="IsUploadPage" role="group" [attr.aria-labelledby]="QuickAddLabelId">
+      <label [for]="QuickAddInputId">
+        <span [id]="QuickAddLabelId" class="form-field-label">分類名稱<span class="required-indicator" aria-hidden="true">*</span></span>
+        <input
+          [id]="QuickAddInputId"
+          [name]="IsUploadPage ? 'reportUploadQuickCategory' : 'quickAddCategoryName'"
+          [ngModel]="quickAddName"
+          (ngModelChange)="quickAddNameChange.emit($event)"
+          (keydown.enter)="OnQuickAddEnter($event)"
+          placeholder="請輸入新分類名稱"
+          [attr.aria-invalid]="quickAddError ? 'true' : null"
+        />
+      </label>
+      <div class="report-category-quick-add-actions">
+        <button type="button" class="primary-button" (click)="quickAddSubmitted.emit()">新增</button>
+        <button type="button" class="tertiary-button" (click)="quickAddCancelled.emit()">取消</button>
+      </div>
+      <p *ngIf="quickAddError" class="field-error" role="alert">{{ quickAddError }}</p>
+    </div>
+    <div [class]="IsUploadPage ? 'report-upload-enabled' : 'edit-status-field report-editor-enabled'">
+      <span class="form-field-label">啟用狀態</span>
+      <button type="button" class="account-status-switch" role="switch" [class.is-enabled]="draft.Enabled" [attr.aria-checked]="draft.Enabled" (click)="UpdateDraft('Enabled', !draft.Enabled)">
+        <span class="account-status-switch-thumb"></span>
+      </button>
+      <span [class.account-status-text]="!IsUploadPage">{{ draft.Enabled ? '啟用' : '停用' }}</span>
+    </div>
+  </ng-template>
+
+  <ng-template #FilePicker>
+    <label [class]="IsUploadPage ? 'report-upload-dropzone' : 'report-file-picker'" [for]="IdPrefix + '-file'">
+      <ng-container *ngIf="IsUploadPage; else ModalFileLabel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v5h14v-5" /></svg>
+        <strong>拖曳 .rpt 檔案到此處，或選擇檔案</strong>
+        <span>僅支援 .rpt 格式</span>
+        <span class="report-upload-file-button">選擇檔案</span>
+      </ng-container>
+      <ng-template #ModalFileLabel><span>{{ isEditing ? '選擇新 RPT 檔案（選填）' : '拖曳或選擇檔案上傳' }}</span></ng-template>
+      <input [id]="IdPrefix + '-file'" type="file" accept=".rpt" (change)="fileSelected.emit($event)" />
+    </label>
+    <p *ngIf="selectedFileName && (IsUploadPage || !isEditing)" [class]="IsUploadPage ? 'report-upload-selected-file' : 'selected-report-file'">
+      <span *ngIf="IsUploadPage" aria-hidden="true">✓</span> 已選擇檔案：{{ selectedFileName }}
+    </p>
+  </ng-template>
+
+  <ng-template #FormError>
+    <p *ngIf="error" class="field-error" [class.report-upload-error]="IsUploadPage" role="alert">{{ error }}</p>
+  </ng-template>
+</form>

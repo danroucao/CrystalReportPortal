@@ -1,13 +1,20 @@
 using CrystalReportPortal.Api.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace CrystalReportPortal.Api.Data;
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options)
+    private readonly IHttpContextAccessor?
+        _httpContextAccessor;
+
+    public AppDbContext(
+        DbContextOptions<AppDbContext> options,
+        IHttpContextAccessor? httpContextAccessor = null)
         : base(options)
     {
+        _httpContextAccessor = httpContextAccessor;
     }
 
     // =========================
@@ -27,10 +34,13 @@ public class AppDbContext : DbContext
 
     public DbSet<ReportParameter> ReportParameters => Set<ReportParameter>();
     public DbSet<ParameterLovConfig> ParameterLovConfigs => Set<ParameterLovConfig>();
+    public DbSet<CommonParameterTemplate> CommonParameterTemplates => Set<CommonParameterTemplate>();
 
     public DbSet<ReportExecution> ReportExecutions => Set<ReportExecution>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Printer> Printers => Set<Printer>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     // =========================
     // Model Configuration
@@ -39,7 +49,61 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Permission>(entity =>
+        {
+            entity.ToTable("Permissions");
 
+            entity.HasKey(x => x.PermissionId);
+
+            entity.HasIndex(x => x.PermissionCode)
+                .IsUnique();
+
+            entity.Property(x => x.PermissionCode)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(x => x.PermissionName)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(x => x.Description)
+                .HasMaxLength(500);
+
+            entity.Property(x => x.IsEnabled)
+                .HasDefaultValue(true);
+
+            entity.Property(x => x.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql("(sysdatetime())");
+
+            entity.Property(x => x.UpdatedAt)
+                .HasColumnType("datetime2");
+        });
+
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.ToTable("RolePermissions");
+
+            entity.HasKey(x => new
+            {
+                x.RoleId,
+                x.PermissionId
+            });
+
+            entity.Property(x => x.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql("(sysdatetime())");
+
+            entity.HasOne(x => x.Role)
+                .WithMany(x => x.RolePermissions)
+                .HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Permission)
+                .WithMany(x => x.RolePermissions)
+                .HasForeignKey(x => x.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         ConfigureUsers(modelBuilder);
         ConfigureRoles(modelBuilder);
         ConfigureUserRoles(modelBuilder);
@@ -52,6 +116,7 @@ public class AppDbContext : DbContext
         ConfigureRoleReportPermissions(modelBuilder);
 
         ConfigureReportParameters(modelBuilder);
+        ConfigureCommonParameterTemplates(modelBuilder);
         ConfigureParameterLovConfigs(modelBuilder);
 
         ConfigureReportExecutions(modelBuilder);
@@ -361,6 +426,11 @@ public class AppDbContext : DbContext
                 .HasMaxLength(1000)
                 .IsRequired();
 
+            entity.Property(x => x.ConfigurationStatus)
+                .HasMaxLength(20)
+                .HasDefaultValue("Draft", "DF_Reports_ConfigurationStatus")
+                .IsRequired();
+
             entity.Property(x => x.IsEnabled)
                 .HasDefaultValue(
                     true,
@@ -495,6 +565,10 @@ public class AppDbContext : DbContext
                     "DF_ReportParameters_IsVisible")
                 .IsRequired();
 
+            entity.Property(x => x.IsConfigured)
+                .HasDefaultValue(false, "DF_ReportParameters_IsConfigured")
+                .IsRequired();
+
             entity.Property(x => x.DefaultValue)
                 .HasColumnType("nvarchar(max)");
 
@@ -518,6 +592,37 @@ public class AppDbContext : DbContext
                 .WithMany(x => x.ReportParameters)
                 .HasForeignKey(x => x.ReportId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(parameter => parameter.CommonTemplate)
+                .WithMany(template => template.ReportParameters)
+                .HasForeignKey(parameter => parameter.CommonTemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureCommonParameterTemplates(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CommonParameterTemplate>(entity =>
+        {
+            entity.ToTable("CommonParameterTemplates");
+            entity.HasKey(x => x.TemplateId);
+            entity.HasIndex(x => x.TemplateCode).IsUnique();
+            entity.Property(x => x.TemplateCode).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.TemplateName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.NormalizedParameterName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.DataType).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.InputType).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.ValueSourceType).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.SqlQuery).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.ValueField).HasMaxLength(200);
+            entity.Property(x => x.DisplayField).HasMaxLength(200);
+            entity.Property(x => x.DefaultValue).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.CreatedAt).HasColumnType("datetime2").HasDefaultValueSql("(sysdatetime())");
+            entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+            entity.HasOne(x => x.DataSource).WithMany().HasForeignKey(x => x.DataSourceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Creator).WithMany().HasForeignKey(x => x.CreatedBy).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Updater).WithMany().HasForeignKey(x => x.UpdatedBy).OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -692,6 +797,9 @@ public class AppDbContext : DbContext
             entity.Property(x => x.ErrorMessage)
                 .HasColumnType("nvarchar(max)");
 
+            entity.Property(x => x.IpAddress)
+                .HasMaxLength(45);
+
             entity.Property(x => x.CreatedAt)
                 .HasColumnType("datetime2")
                 .HasDefaultValueSql(
@@ -719,5 +827,59 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+    }
+
+    public override int SaveChanges()
+    {
+        PopulateAuditLogIpAddresses();
+
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        PopulateAuditLogIpAddresses();
+
+        return base.SaveChangesAsync(
+            cancellationToken);
+    }
+
+    private void PopulateAuditLogIpAddresses()
+    {
+        var remoteIpAddress =
+            _httpContextAccessor?
+                .HttpContext?
+                .Connection
+                .RemoteIpAddress;
+
+        if (remoteIpAddress == null)
+        {
+            return;
+        }
+
+        if (remoteIpAddress.IsIPv4MappedToIPv6)
+        {
+            remoteIpAddress =
+                remoteIpAddress.MapToIPv4();
+        }
+
+        var ipAddress =
+            remoteIpAddress.ToString();
+
+        var auditLogEntries =
+            ChangeTracker
+                .Entries<AuditLog>()
+                .Where(entry =>
+                    entry.State ==
+                        EntityState.Added &&
+                    string.IsNullOrWhiteSpace(
+                        entry.Entity.IpAddress));
+
+        foreach (var entry in auditLogEntries)
+        {
+            entry.Entity.IpAddress =
+                ipAddress;
+        }
     }
 }

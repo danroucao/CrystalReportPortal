@@ -1,4 +1,5 @@
 using CrystalReportPortal.Api.Dtos;
+using Microsoft.EntityFrameworkCore;
 
 namespace CrystalReportPortal.Api.Services;
 
@@ -20,8 +21,36 @@ public interface IReportService
         long parameterId,
         List<string> roleCodes);
 
+    Task<ParameterOptionResponse> GetParameterOptionsForManagementAsync(
+        long reportId,
+        long parameterId);
+
     Task<RptUploadResponse> UploadRptAsync(
         long reportId,
         IFormFile file,
         long userId);
+
+    Task<bool> CanUploadReportAsync(
+    long reportId,
+    List<string> roleCodes);
+
+    Task<bool> CanExportReportAsync(
+    long reportId,
+    List<string> roleCodes);
+
+    Task<bool> CanPrintReportAsync(
+    long reportId,
+    List<string> roleCodes);
+
+    Task<bool> CanMaintainReportAsync(
+        long reportId,
+        List<string> roleCodes);
+
+    Task<bool> CanSetParametersReportAsync(
+        long reportId,
+        List<string> roleCodes);
+
+    Task<bool> CanEnableDisableReportAsync(
+        long reportId,
+        List<string> roleCodes);
 }

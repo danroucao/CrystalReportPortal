@@ -102,6 +102,11 @@ public class AuthController : ControllerBase
                 .Select(
                     claim => claim.Value)
                 .ToList();
+        var permissions = User
+    .FindAll("Permission")
+    .Select(claim => claim.Value)
+    .Distinct()
+    .ToList();
 
         return Ok(new
         {
@@ -113,7 +118,8 @@ public class AuthController : ControllerBase
                 userId,
                 employeeNo,
                 userName,
-                roles
+                roles,
+                permissions
             }
         });
     }

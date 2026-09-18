@@ -11,6 +11,7 @@ public class CrystalExportProcessRequest
     public string OutputPath { get; set; } = string.Empty;
     public CrystalExportDatabase Database { get; set; } = new();
     public List<CrystalExportProcessParameter> Parameters { get; set; } = [];
+    public bool UseSavedDataOnly { get; set; }
 }
 
 public class CrystalExportDatabase

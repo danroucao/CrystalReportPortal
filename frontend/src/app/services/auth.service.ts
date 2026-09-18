@@ -1,87 +1,419 @@
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { Observable, catchError, tap, throwError } from 'rxjs';
 
-import { MockCategoryPermission, MockManagementPermission, MockRole, MockRoleKey } from '../mock/mock-permissions';
+import {
+  EmptyMockCategoryPermission,
+  MockCategoryPermission,
+  MockManagementPermission,
+  MockRoleKey,
+} from '../mock/mock-permissions';
 import { MockReportKey, MockReportReadModel } from '../mock/mock-reports';
 import { MockUser } from '../mock/mock-users';
-import { MockRbacService, MockReportSearchCriteria } from './mock-rbac.service';
+import { API_BASE_URL } from './api.config';
+import {
+  AuthenticatedUser,
+  BackOfficeLoginResponse,
+  BackOfficeOperatorResponse,
+  LoginRequest,
+  LoginResponse,
+} from './auth-api.models';
+import { AuthIdentity } from './auth-identity';
+import {
+  MockRbacService,
+  MockReportSearchCriteria,
+} from './mock-rbac.service';
+
+const TOKEN_STORAGE_KEY = 'crystal-report-token';
+const USER_STORAGE_KEY = 'crystal-report-user';
+const EXPIRES_AT_STORAGE_KEY = 'crystal-report-token-expires-at';
+
+const MANAGEMENT_PERMISSION_MAP: Readonly<
+  Record<MockManagementPermission, readonly string[]>
+> = {
+  RptManagement: [
+    'Report.Upload',
+    'Report.Maintain',
+    'Report.SetParameters',
+    'Report.EnableDisable',
+  ],
+  DatabaseConnection: ['DataSource.Manage'],
+  OperationLog: ['AuditLog.View'],
+};
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private CurrentMockUser: MockUser | null = null;
-  private ActiveRolesOverride: readonly MockRoleKey[] | null = null;
+  private Identity: AuthIdentity | null = null;
+  private AuthenticatedUser: AuthenticatedUser | null = null;
+  private ApiReports: MockReportReadModel[] | null = null;
+  private SelectedApiReportKey: MockReportKey | null = null;
+  private SelectedApiReportSearchCriteria: MockReportSearchCriteria | null = null;
+  private BoundBackOfficeUserAccount: string | null = null;
+  private BoundBackOfficeOperator: BackOfficeOperatorResponse['operator'] | null = null;
+  private BackOfficeIdentityBindingFailure:
+    | 'invalid-credentials'
+    | 'disabled'
+    | null = null;
 
-  constructor(private readonly MockRbac: MockRbacService) {}
-
-  get IsDemoAuthenticationEnabled(): boolean {
-    return this.MockRbac.IsEnabled;
+  constructor(
+    private readonly Http: HttpClient,
+    private readonly MockRbac: MockRbacService,
+  ) {
+    this.RestoreSession();
   }
 
-  get DemoUsers(): readonly MockUser[] {
-    return this.MockRbac.Users;
+  get IsDemoAuthenticationEnabled(): boolean {
+    return false;
+  }
+
+  get CurrentIdentity(): AuthIdentity | null {
+    return this.Identity;
   }
 
   get CurrentUser(): MockUser | null {
-    return this.CurrentMockUser;
+    const User = this.AuthenticatedUser;
+    if (!User || this.Identity?.Kind !== 'FrontUser') return null;
+
+    return {
+      Account: User.account,
+      DisplayName: User.userName,
+      Roles: [...User.roles],
+      Enabled: true,
+      CreatedAt: '',
+      UpdatedAt: '',
+    };
   }
 
   get IsAuthenticated(): boolean {
-    return this.CurrentMockUser !== null;
+    return this.Identity !== null;
   }
 
-  get IsAdmin(): boolean {
-    return this.CurrentMockUser?.Roles.includes('ADMIN') ?? false;
+  get IsFrontOffice(): boolean {
+    return this.Identity?.Kind === 'FrontUser' && this.AuthenticatedUser !== null;
   }
 
-  get CanSwitchDemoRole(): boolean { return this.IsAdmin; }
-  get ActiveRoles(): readonly MockRoleKey[] { return this.ActiveRolesOverride ?? this.CurrentMockUser?.Roles ?? []; }
-  get ActiveRoleNames(): string { return this.ActiveRoles.map((Role) => this.MockRbac.GetRole(Role)?.DisplayName ?? Role).join('、'); }
-  get DemoRoles(): readonly MockRole[] { return this.MockRbac.Roles; }
+  get IsBackOffice(): boolean {
+    return this.Identity?.Kind === 'BackOffice';
+  }
+
+  get IsBackOfficeIdentityBound(): boolean {
+    return this.IsBackOffice && this.BoundBackOfficeUser !== null;
+  }
+
+  get RequiresBackOfficeIdentityBinding(): boolean {
+    return this.IsBackOffice && !this.IsBackOfficeIdentityBound;
+  }
+
+  get BoundBackOfficeUser(): MockUser | null {
+    if (!this.IsBackOffice || !this.BoundBackOfficeOperator) return null;
+    const Operator = this.BoundBackOfficeOperator;
+    return {
+      Account: Operator.account,
+      DisplayName: Operator.userName,
+      Roles: [],
+      Enabled: true,
+      CreatedAt: '',
+      UpdatedAt: '',
+    };
+  }
+
+  get BoundBackOfficeUserId(): string | null {
+    return this.BoundBackOfficeUser?.Account ?? null;
+  }
+
+  get LastBackOfficeIdentityBindingFailure():
+    | 'invalid-credentials'
+    | 'disabled'
+    | null {
+    return this.BackOfficeIdentityBindingFailure;
+  }
+
+  get CanOperateBackOffice(): boolean {
+    return this.IsBackOfficeIdentityBound;
+  }
+
+  get DisplayName(): string {
+    return this.Identity?.Kind === 'BackOffice'
+      ? this.Identity.DisplayName
+      : this.AuthenticatedUser?.userName ?? '';
+  }
+
+  get HomeRoute(): string {
+    return this.IsBackOffice ? '/admin/users' : '/reports/parameters';
+  }
+
+  get ActiveRoles(): readonly MockRoleKey[] {
+    return this.AuthenticatedUser?.roles ?? [];
+  }
+
+  get ActiveRoleNames(): string {
+    return this.ActiveRoles.map(
+      (Role) => this.MockRbac.GetRole(Role)?.DisplayName ?? Role,
+    ).join('、');
+  }
+
   get AccessibleReports(): readonly MockReportReadModel[] {
-    return this.MockRbac.GetAccessibleReports(this.ActiveRoles);
-  }
-  get SelectedReport(): MockReportReadModel | null {
-    return this.MockRbac.GetSelectedReport(this.ActiveRoles);
-  }
-  get SelectedReportSearchCriteria(): MockReportSearchCriteria | null {
-    return this.MockRbac.GetSelectedReportSearchCriteria();
+    if (this.ApiReports !== null) return this.ApiReports;
+    return this.IsFrontOffice
+      ? this.MockRbac.GetAccessibleReports(this.ActiveRoles)
+      : [];
   }
 
-  Login(Account: string, Password: string): boolean {
-    const AuthenticatedUser = this.MockRbac.Authenticate(Account, Password);
-    this.CurrentMockUser = AuthenticatedUser;
-    this.ActiveRolesOverride = null;
-    this.MockRbac.ClearSelectedReport();
-    return AuthenticatedUser !== null;
+  get SelectedReport(): MockReportReadModel | null {
+    if (this.ApiReports !== null) {
+      return this.ApiReports.find(
+        (Report) => Report.ReportKey === this.SelectedApiReportKey,
+      ) ?? null;
+    }
+    return this.IsFrontOffice
+      ? this.MockRbac.GetSelectedReport(this.ActiveRoles)
+      : null;
+  }
+
+  get SelectedReportSearchCriteria(): MockReportSearchCriteria | null {
+    if (this.ApiReports !== null) {
+      return this.SelectedApiReportSearchCriteria
+        ? { ...this.SelectedApiReportSearchCriteria }
+        : null;
+    }
+    return this.SelectedReport
+      ? this.MockRbac.GetSelectedReportSearchCriteria()
+      : null;
+  }
+
+  Login(Account: string, Password: string): Observable<LoginResponse> {
+    this.ClearSession();
+
+    const Request: LoginRequest = {
+      account: Account.trim(),
+      password: Password,
+    };
+
+    return this.Http.post<LoginResponse>(
+      `${API_BASE_URL}/auth/login`,
+      Request,
+    ).pipe(
+      tap((Response) => {
+        if (
+          !Response.success ||
+          !Response.token ||
+          !Response.user ||
+          !Response.expiresAt
+        ) {
+          throw new Error(Response.message || '登入回應格式不完整');
+        }
+
+        this.SaveSession(
+          Response.token,
+          Response.expiresAt,
+          Response.user,
+        );
+      }),
+    );
+  }
+
+  LoginUnified(
+    Account: string,
+    Password: string,
+  ): Observable<LoginResponse | BackOfficeLoginResponse> {
+    return this.Login(Account, Password).pipe(
+      catchError((Error: unknown) => {
+        if (!(Error instanceof HttpErrorResponse) || Error.status !== 401) {
+          return throwError(() => Error);
+        }
+        return this.LoginBackOffice(Account, Password);
+      }),
+    );
+  }
+
+  BindBackOfficeIdentity(Account: string, Password: string): boolean {
+    void Account;
+    void Password;
+    return false;
+  }
+
+  LoginBackOffice(
+    Account: string,
+    Password: string,
+  ): Observable<BackOfficeLoginResponse> {
+    this.ClearSession();
+    return this.Http.post<BackOfficeLoginResponse>(
+      `${API_BASE_URL}/backoffice-auth/login`,
+      { account: Account.trim(), password: Password },
+    ).pipe(
+      tap((Response) => {
+        if (!Response.success) {
+          throw new Error(Response.message || '後台共用帳密驗證失敗');
+        }
+        this.Identity = {
+          Kind: 'BackOffice',
+          Account: Account.trim(),
+          DisplayName: '後台共用帳號',
+        };
+      }),
+    );
+  }
+
+  VerifyBackOfficeOperator(
+    Account: string,
+    Password: string,
+  ): Observable<BackOfficeOperatorResponse> {
+    return this.Http.post<BackOfficeOperatorResponse>(
+      `${API_BASE_URL}/backoffice-auth/verify-operator`,
+      { account: Account.trim(), password: Password },
+    ).pipe(
+      tap((Response) => {
+        if (!Response.success || !Response.operator) {
+          throw new Error(Response.message || '操作者驗證失敗');
+        }
+        this.BoundBackOfficeUserAccount = Response.operator.account;
+        this.BoundBackOfficeOperator = Response.operator;
+        this.BackOfficeIdentityBindingFailure = null;
+      }),
+    );
   }
 
   Logout(): void {
-    this.CurrentMockUser = null;
-    this.ActiveRolesOverride = null;
+    if (this.IsBackOffice) {
+      this.Http.post(`${API_BASE_URL}/backoffice-auth/logout`, {}).subscribe({
+        error: () => {
+          // Local state is cleared even when the server is unavailable.
+        },
+      });
+      this.ClearSession();
+      return;
+    }
+    const HasToken = sessionStorage.getItem(TOKEN_STORAGE_KEY) !== null;
+
+    if (HasToken) {
+      this.Http.post(`${API_BASE_URL}/auth/logout`, {}).subscribe({
+        error: () => {
+          // Local session is cleared even when the server is unavailable.
+        },
+      });
+    }
+
+    this.ClearSession();
+  }
+
+  ClearSession(): void {
+    this.Identity = null;
+    this.AuthenticatedUser = null;
+    this.ApiReports = null;
+    this.SelectedApiReportKey = null;
+    this.SelectedApiReportSearchCriteria = null;
+    this.BoundBackOfficeUserAccount = null;
+    this.BoundBackOfficeOperator = null;
+    this.BackOfficeIdentityBindingFailure = null;
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    sessionStorage.removeItem(USER_STORAGE_KEY);
+    sessionStorage.removeItem(EXPIRES_AT_STORAGE_KEY);
     this.MockRbac.ClearSelectedReport();
   }
 
-  RefreshCurrentUser(PreviousAccount: string, CurrentAccount: string): void {
-    if (this.CurrentMockUser?.Account !== PreviousAccount) return;
-    this.CurrentMockUser = this.MockRbac.GetUser(CurrentAccount);
-    if (!this.IsAdmin) this.ActiveRolesOverride = null;
+  CanExecuteReport(ReportKey: MockReportKey): boolean {
+    return this.AccessibleReports.some(
+      (Report) => Report.ReportKey === ReportKey,
+    );
   }
 
-  SwitchDemoRole(Role: MockRoleKey): void { if (this.CanSwitchDemoRole) this.ActiveRolesOverride = [Role]; }
   SelectReport(
     ReportKey: MockReportKey,
     SearchCriteria: MockReportSearchCriteria | null = null,
-  ): void { this.MockRbac.SelectReport(ReportKey, SearchCriteria); }
+  ): void {
+    if (this.ApiReports !== null) {
+      this.SelectedApiReportKey = this.CanExecuteReport(ReportKey)
+        ? ReportKey
+        : null;
+      this.SelectedApiReportSearchCriteria = this.SelectedApiReportKey && SearchCriteria
+        ? { ...SearchCriteria }
+        : null;
+      return;
+    }
+    this.MockRbac.ClearSelectedReport();
+    if (this.CanExecuteReport(ReportKey)) {
+      this.MockRbac.SelectReport(ReportKey, SearchCriteria);
+    }
+  }
 
   get SelectedReportCategoryPermission(): MockCategoryPermission {
-    return this.SelectedReport
+    const Report = this.SelectedReport;
+    if (Report?.Permissions) {
+      return {
+        CanExecute: Report.Permissions.CanExecute,
+        CanExport: Report.Permissions.CanExport,
+        CanPrint: Report.Permissions.CanPrint,
+      };
+    }
+    return Report
       ? this.MockRbac.GetEffectiveCategoryPermission(
           this.ActiveRoles,
-          this.SelectedReport.CategoryId,
+          Report.CategoryId,
         )
-      : { CanExecute: false, CanExportPdf: false, CanPrint: false };
+      : EmptyMockCategoryPermission();
   }
 
   HasManagementPermission(Permission: MockManagementPermission): boolean {
-    return this.IsAdmin && this.MockRbac.HasManagementPermission('ADMIN', Permission);
+    if (!this.IsFrontOffice || !this.AuthenticatedUser) return false;
+
+    const RequiredCodes = MANAGEMENT_PERMISSION_MAP[Permission];
+    return RequiredCodes.some((Code) =>
+      this.AuthenticatedUser!.permissions.includes(Code),
+    );
+  }
+
+  SetAccessibleReports(Reports: readonly MockReportReadModel[]): void {
+    this.ApiReports = [...Reports];
+    if (
+      this.SelectedApiReportKey &&
+      !this.ApiReports.some(
+        (Report) => Report.ReportKey === this.SelectedApiReportKey,
+      )
+    ) {
+      this.SelectedApiReportKey = null;
+      this.SelectedApiReportSearchCriteria = null;
+    }
+  }
+
+  private SaveSession(
+    Token: string,
+    ExpiresAt: string,
+    User: AuthenticatedUser,
+  ): void {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, Token);
+    sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(User));
+    sessionStorage.setItem(EXPIRES_AT_STORAGE_KEY, ExpiresAt);
+    this.AuthenticatedUser = User;
+    this.Identity = { Kind: 'FrontUser', Account: User.account };
+  }
+
+  private RestoreSession(): void {
+    const Token = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    const UserJson = sessionStorage.getItem(USER_STORAGE_KEY);
+    const ExpiresAt = sessionStorage.getItem(EXPIRES_AT_STORAGE_KEY);
+
+    if (!Token || !UserJson || !ExpiresAt) {
+      this.ClearSession();
+      return;
+    }
+
+    const Expiration = Date.parse(ExpiresAt);
+    if (!Number.isFinite(Expiration) || Expiration <= Date.now()) {
+      this.ClearSession();
+      return;
+    }
+
+    try {
+      const User = JSON.parse(UserJson) as AuthenticatedUser;
+      if (!User.account || !Array.isArray(User.roles) || !Array.isArray(User.permissions)) {
+        this.ClearSession();
+        return;
+      }
+
+      this.AuthenticatedUser = User;
+      this.Identity = { Kind: 'FrontUser', Account: User.account };
+    } catch {
+      this.ClearSession();
+    }
   }
 }

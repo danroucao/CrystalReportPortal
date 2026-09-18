@@ -1,72 +1,186 @@
 <div class="portal-shell">
-  <header class="portal-header">
-    <a routerLink="/reports" class="portal-brand"
-      >Crystal Reports 外部報表系統</a
+  <header
+    class="portal-header"
+    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? '' : null"
+    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? 'true' : null"
+  >
+    <button
+      #mobileNavigationTrigger
+      type="button"
+      class="mobile-navigation-trigger"
+      [attr.aria-expanded]="IsMobileNavigationOpen"
+      aria-controls="mobile-portal-navigation"
+      aria-label="開啟導覽選單"
+      (click)="ToggleMobileNavigation()"
     >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+    </button>
+    <a [routerLink]="Auth.HomeRoute" class="portal-brand">
+      <span class="portal-brand-mark" aria-hidden="true">CR</span>
+      <span>Crystal Reports 外部報表系統</span>
+    </a>
     <div class="account-summary">
-      <span
-        >{{ Auth.CurrentUser?.DisplayName }}（{{ Auth.ActiveRoleNames }}）</span
-      >
-      <button type="button" (click)="Logout()">登出</button>
+      <div class="notification-menu">
+        <button
+          type="button"
+          class="notification-bell"
+          [attr.aria-expanded]="IsNotificationPanelOpen"
+          aria-label="開啟通知中心"
+          (click)="ToggleNotificationPanel()"
+        >
+          <svg class="header-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"
+            /></svg
+          ><span *ngIf="NotificationBadgeCount" class="notification-badge">{{
+            NotificationBadgeCount
+          }}</span>
+        </button>
+        <section
+          *ngIf="IsNotificationPanelOpen"
+          class="notification-popover"
+          aria-label="近期通知"
+        >
+          <div class="notification-popover-heading">
+            <strong>通知中心</strong
+            ><button
+              type="button"
+              class="notification-close"
+              aria-label="關閉"
+              (click)="IsNotificationPanelOpen = false"
+            >
+              ×
+            </button>
+          </div>
+          <div
+            class="notification-popover-tabs"
+            role="tablist"
+            aria-label="近期項目分類"
+          >
+            <ng-container *ngIf="Auth.IsAuthenticated">
+              <button
+                type="button"
+                [class.is-active]="NotificationPopoverTab === 'All'"
+                (click)="SetNotificationPopoverTab('All')"
+              >
+                全部（{{ CurrentNotifications.length }}）
+              </button>
+            </ng-container>
+            <ng-container *ngIf="Auth.IsAuthenticated">
+              <button
+                type="button"
+                [class.is-active]="NotificationPopoverTab === 'Unread'"
+                (click)="SetNotificationPopoverTab('Unread')"
+              >
+                未讀（{{ NotificationBadgeCount }}）
+              </button>
+            </ng-container>
+          </div>
+          <button
+            *ngFor="let Item of RecentCenterItems"
+            type="button"
+            class="notification-preview"
+            (click)="OpenNotificationCenter(NotificationPopoverTab)"
+          >
+            <strong>{{ Item.Title }}</strong
+            ><span>{{ Item.Summary }}</span>
+          </button>
+          <p *ngIf="!RecentCenterItems.length" class="muted">
+            目前沒有未讀通知。
+          </p>
+          <button
+            type="button"
+            class="notification-all-link"
+            (click)="OpenNotificationCenter('All')"
+          >
+            查看全部
+          </button>
+        </section>
+      </div>
+      <div class="profile-menu">
+        <button
+          type="button"
+          class="profile-trigger"
+          [attr.aria-expanded]="IsProfileMenuOpen"
+          aria-label="開啟帳號選單"
+          (click)="ToggleProfileMenu()"
+        >
+          <ngx-boring-avatar
+            *ngIf="Auth.CurrentIdentity as User"
+            variant="beam"
+            [name]="User.Account"
+            [size]="40"
+          />
+          <span class="profile-trigger-details">
+            <span class="profile-trigger-name">{{ Auth.DisplayName }}</span>
+          </span>
+          <span aria-hidden="true" class="profile-trigger-chevron">
+            <svg viewBox="0 0 24 24">
+              <path d="m6.5 9.5 5.5 5 5.5-5" />
+            </svg>
+          </span>
+        </button>
+        <section
+          *ngIf="IsProfileMenuOpen"
+          class="profile-popover"
+          aria-label="帳號選單"
+        >
+          <div class="profile-popover-identity">
+            <ngx-boring-avatar
+              *ngIf="Auth.CurrentIdentity as User"
+              variant="beam"
+              [name]="User.Account"
+              [size]="58"
+            />
+            <div class="profile-popover-person">
+              <p class="profile-popover-overline">目前登入身分</p>
+              <strong>{{ Auth.DisplayName }}</strong>
+              <span>{{ ProfileAccount }}</span>
+            </div>
+          </div>
+          <div class="profile-popover-links">
+            <p class="profile-popover-actions-title">帳號與通知</p>
+            <a
+              *ngIf="Auth.IsFrontOffice"
+              routerLink="/account/settings"
+              (click)="IsProfileMenuOpen = false"
+              >帳號設定</a
+            >
+            <button type="button" (click)="OpenNotificationCenter('All')">
+              通知中心<span
+                *ngIf="NotificationBadgeCount"
+                class="profile-link-count"
+                >{{ NotificationBadgeCount }}</span
+              >
+            </button>
+          </div>
+          <button type="button" class="profile-logout" (click)="Logout()">
+            登出
+          </button>
+        </section>
+      </div>
     </div>
   </header>
-  <aside class="portal-nav" aria-label="系統導覽">
-    <p class="nav-group-title">一般功能</p>
-    <a
-      routerLink="/reports/parameters"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      >所有報表</a
-    >
-    <!-- ReportParameter -->
-    <a
-      *ngIf="!Auth.IsAdmin"
-      routerLink="/reports"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      >收藏的報表</a
-    >
-    <a
-      *ngIf="!Auth.IsAdmin"
-      routerLink="/account/settings"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      >帳號設定</a
-    >
-    <!-- AccountSettings -->
-    <ng-container *ngIf="Auth.IsAdmin"
-      ><p class="nav-group-title">管理功能</p>
-      <a
-        routerLink="/admin/reports"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        >報表管理</a
-      >
-      <!-- RptManagement -->
-      <a
-        routerLink="/admin/users"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        >使用者管理</a
-      >
-      <!-- UserManagement -->
-      <a
-        routerLink="/admin/database-connections"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        >MSSQL 資料庫連線管理</a
-      >
-      <!-- DatabaseConnection -->
-      <a
-        routerLink="/admin/operation-logs"
-        routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        >操作紀錄查詢</a
-      >
-      <!-- OperationLog -->
-    </ng-container>
-  </aside>
-  <main class="portal-main">
+  <button
+    *ngIf="IsMobileNavigationOpen"
+    type="button"
+    class="mobile-navigation-backdrop"
+    aria-label="關閉導覽選單"
+    (click)="CloseMobileNavigation()"
+  ></button>
+  <app-portal-navigation
+    [IsCompactLayout]="IsCompactNavigation"
+    [IsDrawerOpen]="IsMobileNavigationOpen"
+    (CloseRequested)="CloseMobileNavigation()"
+    (LogoutRequested)="Logout()"
+  ></app-portal-navigation>
+  <main
+    *ngIf="CanAccessPage"
+    class="portal-main"
+    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? '' : null"
+    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? 'true' : null"
+  >
+    <p *ngIf="AccessNotice" class="mock-notice" role="status">{{ AccessNotice }}</p>
     <div
       *ngIf="Notifications.SuccessMessage"
       class="success-toast"
@@ -83,7 +197,7 @@
       <h1>{{ PageTitle }}</h1>
       <div class="report-management-header-actions">
         <button
-          *ngIf="Auth.IsAdmin"
+          *ngIf="Auth.HasManagementPermission('RptManagement')"
           type="button"
           class="secondary-button"
           (click)="OpenCategoryManagementDialog()"
@@ -92,2150 +206,443 @@
         </button>
         <button
           type="button"
-          class="section-header-action"
-          (click)="OpenUploadReportDialog()"
+          class="section-header-action primary-button"
+          (click)="StartReportUpload()"
         >
-          <span aria-hidden="true">＋</span>上傳報表
+          <span aria-hidden="true">＋</span>新增報表
         </button>
       </div>
     </div>
-    <ng-template #DefaultPageTitle
-      ><h1>{{ PageTitle }}</h1></ng-template
-    >
-    <section *ngIf="Page === 'ReportList'" class="content-card">
-      <div class="favorite-search-toolbar" role="search">
-        <label class="favorite-category-field" for="favorite-report-category">
-          報表分類
-          <select
-            id="favorite-report-category"
-            [(ngModel)]="SelectedFavoriteCategoryId"
-            (ngModelChange)="SetFavoriteCategory($event)"
-          >
-            <option [value]="AllCategoryFilterValue">全部</option>
-            <option
-              *ngFor="let Category of FavoriteReportCategories"
-              [value]="Category.CategoryId"
-            >
-              {{ Category.CategoryName }}
-            </option>
-          </select>
-        </label>
-        <label class="favorite-search-field" for="favorite-report-search">
-          搜尋報表
-          <input
-            id="favorite-report-search"
-            [(ngModel)]="FavoriteSearchText"
-            placeholder="輸入報表名稱或報表說明"
-          />
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <circle cx="10.8" cy="10.8" r="5.8"></circle>
-            <path d="m15.2 15.2 4 4"></path>
-          </svg>
-        </label>
-      </div>
-      <div class="table-scroll">
-        <table class="report-list-table favorite-report-table">
-          <thead>
-            <tr>
-              <th scope="col">收藏</th>
-              <th
-                scope="col"
-                [attr.aria-sort]="GetFavoriteReportAriaSort('ReportName')"
-                [class.is-sorted]="
-                  IsFavoriteReportSortActive &&
-                  FavoriteReportSortField === 'ReportName'
-                "
-              >
-                <button
-                  type="button"
-                  class="favorite-sort-button favorite-report-name-sort-button"
-                  (click)="ToggleFavoriteReportNameSort()"
-                >
-                  報表名稱
-                  <svg
-                    class="sort-indicator"
-                    [class.is-ascending]="
-                      GetFavoriteReportSortIndicator('ReportName') === '↑'
-                    "
-                    [class.is-descending]="
-                      GetFavoriteReportSortIndicator('ReportName') === '↓'
-                    "
-                    viewBox="0 0 16 24"
-                    aria-hidden="true"
-                  >
-                    <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                    <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
-                  </svg>
-                </button>
-              </th>
-              <th>報表分類</th>
-              <th
-                scope="col"
-                [attr.aria-sort]="GetFavoriteReportAriaSort('FavoritedAt')"
-                [class.is-sorted]="
-                  IsFavoriteReportSortActive &&
-                  FavoriteReportSortField === 'FavoritedAt'
-                "
-              >
-                <button
-                  type="button"
-                  class="favorite-sort-button favorite-at-sort-button"
-                  (click)="ToggleFavoriteAtSort()"
-                >
-                  收藏時間
-                  <svg
-                    class="sort-indicator"
-                    [class.is-ascending]="
-                      GetFavoriteReportSortIndicator('FavoritedAt') === '↑'
-                    "
-                    [class.is-descending]="
-                      GetFavoriteReportSortIndicator('FavoritedAt') === '↓'
-                    "
-                    viewBox="0 0 16 24"
-                    aria-hidden="true"
-                  >
-                    <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                    <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
-                  </svg>
-                </button>
-              </th>
-              <th
-                scope="col"
-                [attr.aria-sort]="GetFavoriteReportAriaSort('LastUsedAt')"
-                [class.is-sorted]="
-                  IsFavoriteReportSortActive &&
-                  FavoriteReportSortField === 'LastUsedAt'
-                "
-              >
-                <button
-                  type="button"
-                  class="favorite-sort-button favorite-last-used-sort-button"
-                  (click)="ToggleFavoriteLastUsedSort()"
-                >
-                  最近使用日期
-                  <svg
-                    class="sort-indicator"
-                    [class.is-ascending]="
-                      GetFavoriteReportSortIndicator('LastUsedAt') === '↑'
-                    "
-                    [class.is-descending]="
-                      GetFavoriteReportSortIndicator('LastUsedAt') === '↓'
-                    "
-                    viewBox="0 0 16 24"
-                    aria-hidden="true"
-                  >
-                    <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                    <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
-                  </svg>
-                </button>
-              </th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let Favorite of DisplayedFavoriteReports">
-              <td>
-                <button
-                  type="button"
-                  class="favorite-star-button is-favorite"
-                  [attr.aria-label]="'取消收藏 ' + Favorite.Report.ReportName"
-                  [title]="'取消收藏 ' + Favorite.Report.ReportName"
-                  (click)="RemoveFavoriteReport(Favorite)"
-                >
-                  <svg
-                    class="favorite-icon"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="m12 2.8 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.37l-5.7 2.99 1.09-6.35-4.62-4.5 6.38-.93L12 2.8Z"
-                    />
-                  </svg>
-                </button>
-              </td>
-              <td class="report-name-cell" [title]="Favorite.Report.ReportName">
-                {{ Favorite.Report.ReportName }}
-              </td>
-              <td>{{ Favorite.Report.CategoryName }}</td>
-              <td>{{ FormatFavoriteAt(Favorite.FavoritedAt) }}</td>
-              <td>{{ FormatFavoriteLastUsedAt(Favorite.LastUsedAt) }}</td>
-              <td>
-                <button
-                  type="button"
-                  (click)="SelectReportByKey(Favorite.Report.ReportKey)"
-                >
-                  選擇
-                </button>
-              </td>
-            </tr>
-            <tr *ngIf="!DisplayedFavoriteReports.length">
-              <td colspan="6" class="favorite-empty-state">
-                {{
-                  FavoriteReports.length
-                    ? "找不到符合條件的報表。"
-                    : "目前沒有收藏的報表。"
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-    <section *ngIf="Page === 'ReportParameter'" class="content-card">
-      <ng-container *ngIf="!IsReportParameterMode; else ParameterFormMode">
-        <div class="parameter-search-toolbar">
-          <div class="parameter-search-row">
-            <label for="parameter-report-start-date">
-              開始日期
-              <input
-                id="parameter-report-start-date"
-                type="date"
-                [(ngModel)]="ParameterReportStartDate"
-                (change)="OnParameterReportDateChange()"
-              />
-            </label>
-            <label for="parameter-report-end-date">
-              結束日期
-              <input
-                id="parameter-report-end-date"
-                type="date"
-                [min]="ParameterReportStartDate || null"
-                [(ngModel)]="ParameterReportEndDate"
-                (change)="OnParameterReportDateChange()"
-              />
-            </label>
-            <label for="parameter-report-category">
-              報表分類
-              <select
-                id="parameter-report-category"
-                [(ngModel)]="SelectedParameterReportCategoryId"
-                (ngModelChange)="SetParameterReportCategory($event)"
-              >
-                <option [value]="AllCategoryFilterValue">全部</option>
-                <option
-                  *ngFor="let Category of ParameterReportCategories"
-                  [value]="Category.CategoryId"
-                >
-                  {{ Category.CategoryName }}
-                </option>
-              </select>
-            </label>
-          </div>
-          <label class="parameter-search-field" for="parameter-report-search">
-            搜尋報表
-            <input
-              id="parameter-report-search"
-              [(ngModel)]="ParameterReportSearchText"
-              (ngModelChange)="OnParameterReportSearchChange()"
-              placeholder="輸入報表名稱或報表說明"
-              aria-label="輸入報表名稱或報表說明"
-            />
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="10.8" cy="10.8" r="5.8"></circle>
-              <path d="m15.2 15.2 4 4"></path>
-            </svg>
-          </label>
-          <p
-            *ngIf="ParameterReportDateValidationMessage"
-            class="parameter-search-error"
-            role="alert"
-          >
-            {{ ParameterReportDateValidationMessage }}
-          </p>
-          <p
-            *ngIf="ParameterReportSelectionNotice"
-            class="parameter-search-notice"
-            role="status"
-          >
-            {{ ParameterReportSelectionNotice }}
-          </p>
-        </div>
-        <h2 class="parameter-section-heading">報表列表</h2>
-        <div class="table-scroll parameter-report-table-scroll">
-          <table class="parameter-report-table">
-            <thead>
-              <tr>
-                <th scope="col">收藏</th>
-                <th
-                  [attr.aria-sort]="GetParameterReportAriaSort('ReportName')"
-                  [class.is-sorted]="ParameterReportSortField === 'ReportName'"
-                >
-                  <button
-                    type="button"
-                    class="sortable-table-header"
-                    (click)="ToggleParameterReportSort('ReportName')"
-                  >
-                    報表名稱
-                    <svg
-                      class="sort-indicator"
-                      [class.is-ascending]="
-                        GetParameterReportSortIndicator('ReportName') === '↑'
-                      "
-                      [class.is-descending]="
-                        GetParameterReportSortIndicator('ReportName') === '↓'
-                      "
-                      viewBox="0 0 16 24"
-                      aria-hidden="true"
-                    >
-                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path
-                        class="sort-indicator-down"
-                        d="m3 16 5 5 5-5"
-                      ></path>
-                    </svg>
-                  </button>
-                </th>
-                <th>報表分類</th>
-                <th scope="col">報表說明</th>
-                <th
-                  scope="col"
-                  [attr.aria-sort]="GetParameterReportAriaSort('CreatedAt')"
-                  [class.is-sorted]="ParameterReportSortField === 'CreatedAt'"
-                >
-                  <button
-                    type="button"
-                    class="sortable-table-header"
-                    (click)="ToggleParameterReportSort('CreatedAt')"
-                  >
-                    建立時間
-                    <svg
-                      class="sort-indicator"
-                      [class.is-ascending]="
-                        GetParameterReportSortIndicator('CreatedAt') === '↑'
-                      "
-                      [class.is-descending]="
-                        GetParameterReportSortIndicator('CreatedAt') === '↓'
-                      "
-                      viewBox="0 0 16 24"
-                      aria-hidden="true"
-                    >
-                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path
-                        class="sort-indicator-down"
-                        d="m3 16 5 5 5-5"
-                      ></path>
-                    </svg>
-                  </button>
-                </th>
-                <th
-                  scope="col"
-                  [attr.aria-sort]="GetParameterReportAriaSort('UpdatedAt')"
-                  [class.is-sorted]="ParameterReportSortField === 'UpdatedAt'"
-                >
-                  <button
-                    type="button"
-                    class="sortable-table-header"
-                    (click)="ToggleParameterReportSort('UpdatedAt')"
-                  >
-                    更新時間
-                    <svg
-                      class="sort-indicator"
-                      [class.is-ascending]="
-                        GetParameterReportSortIndicator('UpdatedAt') === '↑'
-                      "
-                      [class.is-descending]="
-                        GetParameterReportSortIndicator('UpdatedAt') === '↓'
-                      "
-                      viewBox="0 0 16 24"
-                      aria-hidden="true"
-                    >
-                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path
-                        class="sort-indicator-down"
-                        d="m3 16 5 5 5-5"
-                      ></path>
-                    </svg>
-                  </button>
-                </th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let Report of PagedParameterReports">
-                <td>
-                  <button
-                    type="button"
-                    class="favorite-star-button parameter-favorite-button"
-                    [class.is-favorite]="IsFavoriteReport(Report.ReportKey)"
-                    [attr.aria-label]="
-                      (IsFavoriteReport(Report.ReportKey)
-                        ? '取消收藏 '
-                        : '收藏 ') + Report.ReportName
-                    "
-                    [title]="
-                      (IsFavoriteReport(Report.ReportKey)
-                        ? '取消收藏 '
-                        : '收藏 ') + Report.ReportName
-                    "
-                    (click)="ToggleFavoriteReport(Report.ReportKey)"
-                  >
-                    <svg
-                      *ngIf="IsFavoriteReport(Report.ReportKey)"
-                      class="favorite-icon favorite-icon-filled"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="m12 2.8 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.37l-5.7 2.99 1.09-6.35-4.62-4.5 6.38-.93L12 2.8Z"
-                      />
-                    </svg>
-                    <svg
-                      *ngIf="!IsFavoriteReport(Report.ReportKey)"
-                      class="favorite-icon"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="m12 2.8 2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.37l-5.7 2.99 1.09-6.35-4.62-4.5 6.38-.93L12 2.8Z"
-                      />
-                    </svg>
-                  </button>
-                </td>
-                <td class="report-name-cell" [title]="Report.ReportName">
-                  {{ Report.ReportName }}
-                </td>
-                <td>{{ Report.CategoryName }}</td>
-                <td
-                  class="parameter-report-description"
-                  [title]="Report.Description"
-                >
-                  {{ Report.Description }}
-                </td>
-                <td class="parameter-report-timestamp">
-                  {{ Report.CreatedAt }}
-                </td>
-                <td class="parameter-report-timestamp">
-                  {{ Report.UpdatedAt }}
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    (click)="SelectReportForPreview(Report.ReportKey)"
-                  >
-                    選擇
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="!DisplayedParameterReports.length">
-                <td colspan="7" class="parameter-report-empty-state">
-                  {{
-                    HasParameterReportSearchText
-                      ? "找不到符合條件的報表。"
-                      : "目前沒有可使用的報表。"
-                  }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <nav
-          *ngIf="ParameterReportTotalPages > 1"
-          class="list-pagination"
-          aria-label="所有報表分頁"
-        >
-          <button
-            type="button"
-            class="list-pagination-previous"
-            [disabled]="ParameterReportCurrentPage === 1"
-            (click)="PreviousParameterReportPage()"
-          >
-            上一頁
-          </button>
-          <button
-            *ngFor="let Page of ParameterReportPageNumbers"
-            type="button"
-            [class.is-active]="Page === ParameterReportCurrentPage"
-            [attr.aria-current]="
-              Page === ParameterReportCurrentPage ? 'page' : null
-            "
-            (click)="GoToParameterReportPage(Page)"
-          >
-            {{ Page }}
-          </button>
-          <button
-            type="button"
-            class="list-pagination-next"
-            [disabled]="
-              ParameterReportCurrentPage === ParameterReportTotalPages
-            "
-            (click)="NextParameterReportPage()"
-          >
-            下一頁
-          </button>
-        </nav>
+    <ng-template #DefaultPageTitle>
+      <ng-container *ngIf="Page !== 'ReportUpload'">
+        <h1>{{ PageTitle }}</h1>
+        <p *ngIf="Page === 'OperationLog'" class="operation-log-page-subtitle">
+          集中檢視權限變動、報表操作與帳號管理事件。
+        </p>
       </ng-container>
-
-      <ng-template #ParameterFormMode>
-        <div class="selected-parameter-report">
-          <div>
-            <p class="selected-parameter-report-label">已選擇報表</p>
-            <h2>
-              {{ Auth.SelectedReport?.ReportName }} /
-              {{ Auth.SelectedReport?.CategoryName }}
-            </h2>
-          </div>
-          <button
-            type="button"
-            class="secondary-button"
-            (click)="ReturnToParameterReportSearch()"
-          >
-            重新選擇報表
-          </button>
-        </div>
-        <h2 class="parameter-section-heading">報表條件</h2>
-        <p>{{ Auth.SelectedReport?.ReportName }} 的 Mock 動態參數表單。</p>
-        <form
-          class="parameter-form"
-          [formGroup]="ReportParameterForm"
-          (ngSubmit)="ExecuteReport()"
-          novalidate
-        >
-          <div class="form-grid parameter-form-fields">
-            <ng-container *ngFor="let Definition of VisibleReportParameters">
-              <fieldset
-                *ngIf="GetControlKind(Definition) === 'range'"
-                class="parameter-range-field"
-                [formGroupName]="Definition.ParameterName"
-              >
-                <legend>
-                  {{ Definition.DisplayName
-                  }}<span
-                    *ngIf="Definition.IsRequired"
-                    class="required-indicator"
-                    aria-hidden="true"
-                    >*</span
-                  >
-                </legend>
-                <label>
-                  開始{{ Definition.DataType === "Date" ? "日期" : "值" }}
-                  <input
-                    [type]="GetInputHtmlType(Definition)"
-                    formControlName="Start"
-                    (change)="OnRangeValueChange(Definition)"
-                  />
-                </label>
-                <label>
-                  結束{{ Definition.DataType === "Date" ? "日期" : "值" }}
-                  <input
-                    [type]="GetInputHtmlType(Definition)"
-                    formControlName="End"
-                    [min]="GetRangeStartValue(Definition)"
-                    (change)="OnRangeValueChange(Definition)"
-                  />
-                </label>
-                <p
-                  *ngIf="GetParameterError(Definition)"
-                  class="parameter-field-error"
-                  role="alert"
-                >
-                  {{ GetParameterError(Definition) }}
-                </p>
-              </fieldset>
-
-              <label
-                *ngIf="GetControlKind(Definition) === 'input'"
-                class="parameter-field"
-              >
-                <span class="form-field-label"
-                  >{{ Definition.DisplayName
-                  }}<span
-                    *ngIf="Definition.IsRequired"
-                    class="required-indicator"
-                    aria-hidden="true"
-                    >*</span
-                  ></span
-                >
-                <input
-                  [type]="GetInputHtmlType(Definition)"
-                  [formControlName]="Definition.ParameterName"
-                />
-                <span
-                  *ngIf="GetParameterError(Definition)"
-                  class="parameter-field-error"
-                  role="alert"
-                  >{{ GetParameterError(Definition) }}</span
-                >
-              </label>
-
-              <label
-                *ngIf="GetControlKind(Definition) === 'textarea'"
-                class="parameter-field"
-              >
-                <span class="form-field-label"
-                  >{{ Definition.DisplayName
-                  }}<span
-                    *ngIf="Definition.IsRequired"
-                    class="required-indicator"
-                    aria-hidden="true"
-                    >*</span
-                  ></span
-                >
-                <textarea
-                  [formControlName]="Definition.ParameterName"
-                ></textarea>
-                <span
-                  *ngIf="GetParameterError(Definition)"
-                  class="parameter-field-error"
-                  role="alert"
-                  >{{ GetParameterError(Definition) }}</span
-                >
-              </label>
-
-              <label
-                *ngIf="GetControlKind(Definition) === 'checkbox'"
-                class="parameter-checkbox-field"
-              >
-                <input
-                  type="checkbox"
-                  [formControlName]="Definition.ParameterName"
-                />
-                <span>{{ Definition.DisplayName }}</span>
-              </label>
-
-              <div
-                *ngIf="GetControlKind(Definition) === 'select'"
-                class="parameter-field"
-              >
-                <label [for]="Definition.ParameterName">
-                  {{ Definition.DisplayName
-                  }}<span
-                    *ngIf="Definition.IsRequired"
-                    class="required-indicator"
-                    aria-hidden="true"
-                    >*</span
-                  >
-                </label>
-                <p
-                  *ngIf="
-                    UsesLov(Definition) &&
-                    GetLovStatus(Definition) === 'loading'
-                  "
-                  class="parameter-state"
-                >
-                  載入選項中…
-                </p>
-                <p
-                  *ngIf="
-                    UsesLov(Definition) && GetLovStatus(Definition) === 'empty'
-                  "
-                  class="parameter-state"
-                >
-                  目前無可選項。
-                </p>
-                <div
-                  *ngIf="
-                    UsesLov(Definition) && GetLovStatus(Definition) === 'error'
-                  "
-                  class="parameter-state parameter-state-error"
-                  role="alert"
-                >
-                  無法載入選項，請重試。
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    (click)="RetryLov(Definition)"
-                  >
-                    重試
-                  </button>
-                </div>
-                <select
-                  [id]="Definition.ParameterName"
-                  [formControlName]="Definition.ParameterName"
-                  [multiple]="Definition.AllowMultipleValues"
-                  [disabled]="
-                    UsesLov(Definition) &&
-                    GetLovStatus(Definition) !== 'success'
-                  "
-                >
-                  <option
-                    *ngIf="!Definition.AllowMultipleValues"
-                    value=""
-                    [disabled]="Definition.IsRequired"
-                  >
-                    請選擇
-                  </option>
-                  <option
-                    *ngFor="let Option of GetLovOptions(Definition)"
-                    [value]="Option.Value"
-                  >
-                    {{ Option.DisplayText }}
-                  </option>
-                </select>
-                <span
-                  *ngIf="GetParameterError(Definition)"
-                  class="parameter-field-error"
-                  role="alert"
-                  >{{ GetParameterError(Definition) }}</span
-                >
-              </div>
-            </ng-container>
-          </div>
-          <p *ngIf="!VisibleReportParameters.length" class="muted">
-            此 Mock 報表沒有需要輸入的條件。
-          </p>
-          <button
-            *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
-            type="submit"
-            [disabled]="!CanGenerateReport"
-          >
-            產生報表
-          </button>
-          <button
-            *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
-            type="button"
-            class="secondary-button"
-            (click)="ResetReportParameters()"
-          >
-            重設
-          </button>
-          <p
-            *ngIf="!Auth.SelectedReportCategoryPermission.CanExecute"
-            class="mock-notice"
-          >
-            目前測試角色沒有執行權限。
-          </p>
-        </form>
-      </ng-template>
-    </section>
-    <section *ngIf="Page === 'ReportPreview'" class="content-card">
-      <div class="preview-report-summary" *ngIf="Auth.SelectedReport as Report">
-        <div>
-          <p class="selected-parameter-report-label">目前預覽報表</p>
-          <h2>{{ Report.ReportName }}</h2>
-        </div>
-        <dl>
-          <div>
-            <dt>報表分類</dt>
-            <dd>{{ Report.CategoryName }}</dd>
-          </div>
-          <ng-container *ngIf="Auth.SelectedReportSearchCriteria as Criteria">
-            <div>
-              <dt>開始日期</dt>
-              <dd>{{ Criteria.StartDate }}</dd>
-            </div>
-            <div>
-              <dt>結束日期</dt>
-              <dd>{{ Criteria.EndDate }}</dd>
-            </div>
-          </ng-container>
-        </dl>
-      </div>
-      <div class="preview-placeholder">Frontend Mock Preview</div>
-      <!-- <p class="preview-mock-notice">
-        目前為前端 Mock 預覽，正式報表內容將由後端 Crystal Reports 服務產生。
-      </p> -->
-      <div class="preview-output-bar">
-        <div class="output-actions">
-          <div
-            *ngIf="Auth.SelectedReportCategoryPermission.CanExportPdf"
-            class="export-dropdown"
-          >
-            <button
-              type="button"
-              class="export-trigger"
-              aria-haspopup="menu"
-              [attr.aria-expanded]="IsExportMenuOpen"
-              (click)="ToggleExportMenu()"
-            >
-              <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
-              </svg>
-              匯出
-              <svg
-                class="export-chevron"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path d="m7 10 5 5 5-5" />
-              </svg>
-            </button>
-            <div
-              *ngIf="IsExportMenuOpen"
-              class="export-menu"
-              role="menu"
-              aria-label="報表匯出格式"
-            >
-              <button
-                *ngFor="let Option of ExportOptions"
-                type="button"
-                role="menuitem"
-                [disabled]="!Option.Enabled"
-                (click)="SelectExportOption(Option)"
-              >
-                <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
-                </svg>
-                {{ Option.Label }}
-              </button>
-            </div>
-          </div>
-          <button
-            *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
-            type="button"
-            (click)="SelectOutputAction('BrowserPrint')"
-          >
-            瀏覽器列印</button
-          ><button
-            *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
-            type="button"
-            (click)="SelectOutputAction('FixedPrinterPrint')"
-          >
-            固定印表機列印
-          </button>
-        </div>
+    </ng-template>
+    <section
+      *ngIf="Page === 'NotificationCenter'"
+      class="content-card notification-center-page"
+    >
+      <div
+        class="notification-center-tabs"
+        role="tablist"
+        aria-label="通知中心頁籤"
+      >
         <button
           type="button"
-          class="secondary-button preview-return-button"
-          (click)="ReturnToReportList()"
+          [class.is-active]="NotificationCenterTab === 'All'"
+          (click)="NotificationCenterTab = 'All'"
         >
-          返回報表列表
+          全部（{{ CurrentNotifications.length }}）
+        </button>
+        <button
+          type="button"
+          [class.is-active]="NotificationCenterTab === 'Unread'"
+          (click)="NotificationCenterTab = 'Unread'"
+        >
+          未讀（{{
+            NotificationCenter.GetUnreadNotificationCount(
+              CurrentNotificationAccount
+            )
+          }}）
         </button>
       </div>
-      <p *ngIf="MockNotice" class="mock-notice" role="status">
-        {{ MockNotice }}
-      </p>
-      <!-- <p class="muted">固定印表機的設定、服務與工作狀態仍為 TBD。</p> -->
+
+      <ng-container
+        *ngIf="
+          NotificationCenterTab === 'All' || NotificationCenterTab === 'Unread'
+        "
+      >
+        <article
+          *ngFor="let Item of DisplayedNotifications"
+          class="center-item"
+          [class.is-unread]="!Item.ReadAt"
+          (click)="MarkCenterNotificationRead(Item.Id)"
+        >
+          <div>
+            <h2>{{ Item.Title }}</h2>
+            <p>{{ Item.Summary }}</p>
+            <p class="muted">{{ Item.Detail }}</p>
+          </div>
+          <time>{{ Item.CreatedAt | date: "short" }}</time>
+        </article>
+        <section
+          *ngIf="!DisplayedNotifications.length"
+          class="notification-empty-state"
+          role="status"
+        >
+          <div class="notification-empty-illustration" aria-hidden="true">
+            <svg viewBox="0 0 80 80">
+              <path
+                d="M25 34a15 15 0 0 1 30 0c0 17 7 17 7 21H18c0-4 7-4 7-21Z"
+              />
+              <path d="M34 63h12M26 23l-5-5M54 23l5-5M18 35h-7M62 35h7" />
+              <path d="M25 55v9h30v-9" />
+            </svg>
+          </div>
+          <h2>
+            {{
+              NotificationCenterTab === "Unread"
+                ? "目前沒有未讀通知"
+                : "目前沒有通知"
+            }}
+          </h2>
+          <p>
+            {{
+              NotificationCenterTab === "Unread"
+                ? "已讀通知會保留在「全部」頁籤中。"
+                : "新的系統通知與權限提醒會顯示在這裡。"
+            }}
+          </p>
+        </section>
+      </ng-container>
     </section>
+    <app-favorite-report-page *ngIf="Page === 'ReportList'"></app-favorite-report-page>
+    <app-report-parameter-page *ngIf="Page === 'ReportParameter'" />
+    <app-report-preview-page *ngIf="Page === 'ReportPreview'" />
     <section
       *ngIf="Page === 'AccountSettings'"
-      class="content-card account-settings-card"
+      class="account-settings-card"
     >
-      <h2>帳號設定</h2>
-      <!-- <p class="muted">
-        Frontend Mock
-        Only：可修改自己的使用者名稱與新密碼；目前密碼驗證與正式儲存仍需後端支援。
-      </p> -->
-      <div class="account-settings-form">
-        <label
-          >使用者帳號 <input [value]="Auth.CurrentUser?.Account" disabled
-        /></label>
-        <label
-          ><span class="form-field-label"
-            >使用者名稱<span class="required-indicator" aria-hidden="true"
-              >*</span
-            ></span
-          ><input [(ngModel)]="AccountSettingsDraft.DisplayName"
-        /></label>
-        <label
-          >新密碼（可留空）
-          <input type="password" [(ngModel)]="AccountSettingsDraft.NewPassword"
-        /></label>
-        <label
-          >確認新密碼
-          <input type="password" [(ngModel)]="AccountSettingsConfirmation"
-        /></label>
+      <section class="account-profile-summary" aria-label="目前帳號摘要">
+        <ngx-boring-avatar
+          *ngIf="Auth.CurrentIdentity as User"
+          variant="beam"
+          [name]="User.Account"
+          [size]="52"
+        />
+        <div>
+          <strong>{{ Auth.DisplayName }}</strong
+          ><span>{{ ProfileAccount }}</span>
+        </div>
+        <span class="account-status-chip">已啟用</span>
+      </section>
+      <div class="account-settings-layout">
+        <section
+          class="account-settings-panel"
+          aria-labelledby="profile-settings-title"
+        >
+          <header class="account-settings-panel-heading">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="3.5" />
+              <path d="M5 21a7 7 0 0 1 14 0" />
+            </svg>
+            <div>
+              <h3 id="profile-settings-title">個人資料</h3>
+              <p>變更系統中顯示的名稱。</p>
+            </div>
+          </header>
+          <div class="account-settings-form">
+            <label
+              >帳號<input [value]="Auth.CurrentUser?.Account" disabled /><small
+                >帳號由系統建立，無法在此修改。</small
+              ></label
+            >
+            <label
+              >顯示名稱<input [(ngModel)]="AccountSettingsDraft.DisplayName"
+            /></label>
+          </div>
+          <p
+            *ngIf="AccountProfileNotice"
+            class="account-settings-notice"
+            role="status"
+          >
+            {{ AccountProfileNotice }}
+          </p>
+          <div class="account-settings-actions">
+            <button
+              type="button"
+              class="primary-button"
+              (click)="SaveAccountProfile()"
+            >
+              儲存個人資料
+            </button>
+          </div>
+        </section>
+        <section
+          class="account-settings-panel"
+          aria-labelledby="security-settings-title"
+        >
+          <header class="account-settings-panel-heading">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="10" width="14" height="10" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2" />
+            </svg>
+            <div>
+              <h3 id="security-settings-title">登入安全性</h3>
+              <p>設定新密碼後需重新登入。</p>
+            </div>
+          </header>
+          <div class="account-settings-form">
+            <label
+              >目前密碼<input
+                type="password"
+                name="account-settings-old-password"
+                autocomplete="current-password"
+                [(ngModel)]="AccountSettingsDraft.OldPassword"
+            /></label>
+            <label
+              >新密碼<input
+                type="password"
+                name="account-settings-new-password"
+                autocomplete="new-password"
+                [(ngModel)]="AccountSettingsDraft.NewPassword"
+              /><small>至少 8 碼。</small></label
+            >
+            <label
+              >確認新密碼<input
+                type="password"
+                name="account-settings-confirm-password"
+                autocomplete="new-password"
+                [(ngModel)]="AccountSettingsConfirmation"
+            /></label>
+          </div>
+          <p
+            *ngIf="AccountPasswordNotice"
+            class="account-settings-notice"
+            role="status"
+          >
+            {{ AccountPasswordNotice }}
+          </p>
+          <div class="account-settings-actions">
+            <button
+              type="button"
+              class="account-password-action secondary-button"
+              (click)="ChangePassword()"
+            >
+              變更密碼
+            </button>
+          </div>
+        </section>
       </div>
-      <p *ngIf="AccountSettingsNotice" class="mock-notice" role="status">
-        {{ AccountSettingsNotice }}
-      </p>
-      <button type="button" (click)="SaveAccountSettings()">
-        儲存帳號設定
-      </button>
     </section>
-    <section *ngIf="Auth.IsAdmin && IsAdministrationPage" class="content-card">
-      <p *ngIf="Page !== 'UserManagement' && Page !== 'RptManagement'">
+    <section
+      *ngIf="IsPasswordChangeSuccessModalOpen"
+      class="modal-backdrop created-user-success-backdrop"
+    >
+      <section
+        class="created-user-success-modal password-change-success-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="password-change-success-title"
+        aria-describedby="password-change-success-description"
+      >
+        <div class="created-user-success-icon" aria-hidden="true">✓</div>
+        <h2 id="password-change-success-title">密碼修改成功</h2>
+        <p id="password-change-success-description">
+          已成功修改密碼，請重新登入！
+        </p>
+        <div class="created-user-success-actions">
+          <button
+            type="button"
+            class="primary-button"
+            (click)="ConfirmPasswordChangeAndLogout()"
+          >
+            確認並登出
+          </button>
+        </div>
+      </section>
+    </section>
+    <section
+      *ngIf="Page === 'ReportUpload'"
+      class="report-upload-page"
+      aria-labelledby="report-upload-title"
+    >
+      <header class="report-upload-header">
+        <p class="report-upload-breadcrumb">
+          報表管理 <span aria-hidden="true">›</span> 上傳報表
+        </p>
+        <h1 id="report-upload-title">
+          {{
+            ReportUploadStep === "Complete"
+              ? "報表已發佈"
+              : ReportUploadStep === "Confirm"
+                ? "上傳內容確認"
+                : "上傳報表"
+          }}
+        </h1>
+        <p>
+          {{
+            ReportUploadStep === "Complete"
+              ? "報表已成功新增至報表管理。"
+              : ReportUploadStep === "Confirm"
+                ? "請確認內容無誤後再發佈。"
+                : "建立報表資料並上傳 RPT 檔案。"
+          }}
+        </p>
+      </header>
+
+      <ol class="report-upload-steps" aria-label="上傳報表步驟">
+        <li
+          [class.is-complete]="ReportUploadStepNumber > 1"
+          [class.is-active]="ReportUploadStepNumber === 1"
+        >
+          <span>{{ ReportUploadStepNumber > 1 ? "✓" : "1" }}</span
+          ><strong>填寫資料</strong>
+        </li>
+        <li
+          [class.is-complete]="ReportUploadStepNumber > 2"
+          [class.is-active]="ReportUploadStepNumber === 2"
+        >
+          <span>{{ ReportUploadStepNumber > 2 ? "✓" : "2" }}</span
+          ><strong>確認內容</strong>
+        </li>
+        <li [class.is-active]="ReportUploadStepNumber === 3">
+          <span>3</span><strong>發佈完成</strong>
+        </li>
+      </ol>
+
+      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [canAddCategory]="Auth.HasManagementPermission('RptManagement')" [quickAddOpen]="IsReportCategoryQuickAddOpen" [quickAddName]="QuickAddCategoryName" [quickAddError]="QuickAddCategoryError" (draftChange)="ReportEditorDraft = $event" (quickAddNameChange)="QuickAddCategoryName = $event; QuickAddCategoryError = ''" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (quickAddRequested)="OpenReportCategoryQuickAdd()" (quickAddCancelled)="CloseReportCategoryQuickAdd()" (quickAddSubmitted)="CreateReportCategoryQuickAdd()" (fileSelected)="OnReportFileSelected($event)" />
+      <section
+        *ngIf="ReportUploadStep === 'Confirm'"
+        class="report-upload-review"
+        aria-label="上傳內容確認"
+      >
+        <p class="report-upload-info">
+          <span aria-hidden="true">i</span> 發佈後可在報表管理中編輯。
+        </p>
+        <div class="report-upload-review-grid">
+          <section class="report-upload-panel report-upload-file-summary">
+            <h2>檔案摘要</h2>
+            <svg
+              class="report-upload-document-illustration"
+              viewBox="0 0 100 100"
+              aria-hidden="true"
+            >
+              <path
+                d="M28 12h31l13 13v55H28zM59 12v14h13M38 47h24M38 57h24M38 67h16"
+              />
+            </svg>
+            <strong>{{ SelectedReportFileName }}</strong
+            ><span>檔案檢查完成</span>
+          </section>
+          <section class="report-upload-panel report-upload-details-summary">
+            <h2>報表資料</h2>
+            <dl>
+              <div>
+                <dt>報表名稱</dt>
+                <dd>{{ ReportEditorDraft.ReportName }}</dd>
+              </div>
+              <div>
+                <dt>報表說明</dt>
+                <dd>{{ ReportEditorDraft.Description }}</dd>
+              </div>
+              <div>
+                <dt>報表分類</dt>
+                <dd>
+                  <span class="report-upload-category-chip">{{
+                    ReportUploadCategoryName
+                  }}</span>
+                </dd>
+              </div>
+              <div>
+                <dt>啟用狀態</dt>
+                <dd>{{ ReportEditorDraft.Enabled ? "已啟用" : "停用" }}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+        <footer class="report-upload-actions">
+          <button
+            type="button"
+            class="report-upload-secondary-action tertiary-button"
+            (click)="ReturnToReportUploadForm()"
+          >
+            返回修改
+          </button>
+          <button
+            type="button"
+            class="primary-button"
+            (click)="PublishReportUpload()"
+          >
+            確認並發佈
+          </button>
+        </footer>
+      </section>
+
+      <section
+        *ngIf="
+          ReportUploadStep === 'Complete' && PublishedUploadedReport as Report
+        "
+        class="report-upload-complete"
+        aria-live="polite"
+      >
+        <div class="report-upload-complete-panel">
+          <div class="report-upload-success-illustration" aria-hidden="true">
+            <svg viewBox="0 0 80 80">
+              <path d="M22 12h28l12 12v42H22zM50 12v13h12M33 47l6 6 11-13" />
+            </svg>
+          </div>
+          <h2>已成功上傳</h2>
+          <p>報表已發佈至報表管理。</p>
+          <dl class="report-upload-published-summary">
+            <div>
+              <dt>報表名稱</dt>
+              <dd>{{ Report.ReportName }}</dd>
+            </div>
+            <div>
+              <dt>報表分類</dt>
+              <dd>{{ Report.CategoryName }}</dd>
+            </div>
+            <div>
+              <dt>RPT 檔案</dt>
+              <dd>{{ Report.FileName }}</dd>
+            </div>
+            <div>
+              <dt>發佈時間</dt>
+              <dd>{{ Report.CreatedAt | date: "yyyy/MM/dd HH:mm" }}</dd>
+            </div>
+          </dl>
+        </div>
+        <footer class="report-upload-actions report-upload-complete-actions">
+          <button
+            type="button"
+            class="primary-button"
+            (click)="ReturnToReportManagement()"
+          >
+            回到報表管理
+          </button>
+        </footer>
+      </section>
+    </section>
+    <section *ngIf="IsReportDiscardConfirmationOpen" class="modal-backdrop report-discard-confirmation-backdrop" role="presentation">
+      <section class="edit-user-modal report-discard-confirmation-modal" role="alertdialog" aria-modal="true" aria-labelledby="report-discard-confirmation-title" aria-describedby="report-discard-confirmation-description">
+        <h2 id="report-discard-confirmation-title">捨棄未儲存變更？</h2>
+        <p id="report-discard-confirmation-description">你已修改報表資料。離開後無法還原。</p>
+        <div class="modal-actions report-discard-confirmation-actions"><button #reportDiscardContinueButton type="button" class="secondary-button" (click)="ContinueEditingReport()">繼續編輯</button><button type="button" class="danger-button" (click)="DiscardReportEditorChanges()">捨棄變更</button></div>
+      </section>
+    </section>
+    <section
+      *ngIf="CanAccessPage && IsManagementPage"
+      class="management-page-content"
+      [class.content-card]="Page !== 'OperationLog'"
+    >
+      <p
+        *ngIf="
+          Page !== 'UserManagement' &&
+          Page !== 'RptManagement' &&
+          Page !== 'OperationLog'
+        "
+      >
         {{ AdminDescription }}
       </p>
-      <section *ngIf="Page === 'UserManagement'" class="user-management">
-        <section
-          class="management-card role-management-section"
-          aria-labelledby="role-management-title"
-        >
-          <div class="management-card-heading">
-            <div>
-              <!-- <p class="section-eyebrow">角色管理</p> -->
-              <h2 id="role-management-title">角色與報表權限</h2>
-              <!-- <p class="muted">
-                角色決定使用者可使用的報表與操作權限；設定會即時更新此頁的 Mock
-                資料。
-              </p> -->
-            </div>
-            <button
-              type="button"
-              class="section-header-action"
-              (click)="OpenCreateRoleDialog()"
-            >
-              <span aria-hidden="true">＋</span>
-              新增角色
-            </button>
-          </div>
-          <div class="role-card-carousel">
-            <button
-              *ngIf="CanScrollRoleCardsLeft"
-              type="button"
-              class="role-carousel-nav is-previous"
-              aria-label="顯示前一組角色"
-              (click)="ScrollRoleCards(-1)"
-            >
-              <span aria-hidden="true">‹</span>
-            </button>
-            <div
-              #roleCardViewport
-              class="role-card-viewport"
-              (scroll)="UpdateRoleCardNavigation()"
-            >
-              <div
-                class="role-card-grid"
-                [class.has-overflow]="RoleCardHasOverflow"
-              >
-                <article *ngFor="let Role of MockRbac.Roles" class="role-card">
-                  <p class="role-card-count">
-                    {{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者
-                  </p>
-                  <h3>{{ Role.DisplayName }}</h3>
-                  <button
-                    type="button"
-                    class="role-card-action"
-                    (click)="OpenEditRoleDialog(Role.Key)"
-                  >
-                    編輯角色
-                  </button>
-                </article>
-              </div>
-            </div>
-            <button
-              *ngIf="CanScrollRoleCardsRight"
-              type="button"
-              class="role-carousel-nav is-next"
-              aria-label="顯示下一組角色"
-              (click)="ScrollRoleCards(1)"
-            >
-              <span aria-hidden="true">›</span>
-            </button>
-          </div>
-        </section>
-
-        <section
-          class="management-card user-management-section"
-          aria-labelledby="user-management-title"
-        >
-          <div class="management-card-heading">
-            <div>
-              <!-- <p class="section-eyebrow">使用者管理</p> -->
-              <h2 id="user-management-title">使用者帳號</h2>
-              <!-- <p class="muted">
-                搜尋、篩選與維護本機 Mock 使用者的角色及啟用狀態。
-              </p> -->
-            </div>
-            <button
-              type="button"
-              class="section-header-action"
-              (click)="OpenCreateUserDialog()"
-            >
-              <span aria-hidden="true">＋</span>
-              建立使用者
-            </button>
-          </div>
-
-          <p *ngIf="ManagementNotice" class="mock-notice" role="status">
-            {{ ManagementNotice }}
-          </p>
-
-          <section
-            *ngIf="MockRbac.RoleChangeRequests.length"
-            class="role-change-card"
-          >
-            <h3>角色變更申請</h3>
-            <p class="muted">系統管理員降職須由異動對象回應。</p>
-            <table>
-              <thead>
-                <tr>
-                  <th>申請人</th>
-                  <th>異動對象</th>
-                  <th>原角色</th>
-                  <th>新角色</th>
-                  <th>狀態</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let Request of MockRbac.RoleChangeRequests">
-                  <td>{{ Request.RequesterAccount }}</td>
-                  <td>{{ Request.TargetAccount }}</td>
-                  <td>
-                    {{ GetRoleNames(Request.PreviousRoles) }}
-                  </td>
-                  <td>
-                    {{ GetRoleNames(Request.RequestedRoles) }}
-                  </td>
-                  <td>
-                    <span
-                      class="request-status"
-                      [class.is-pending]="Request.Status === 'Pending'"
-                      [class.is-approved]="Request.Status === 'Approved'"
-                      [class.is-rejected]="Request.Status === 'Rejected'"
-                      >{{ Request.Status }}</span
-                    >
-                  </td>
-                  <td>
-                    <ng-container
-                      *ngIf="
-                        CanRespondToRoleChangeRequest(
-                          Request.TargetAccount,
-                          Request.Status
-                        );
-                        else waitingForResponse
-                      "
-                    >
-                      <button
-                        type="button"
-                        (click)="RespondToRoleChangeRequest(Request.Id, true)"
-                      >
-                        同意
-                      </button>
-                      <button
-                        type="button"
-                        class="secondary-button"
-                        (click)="RespondToRoleChangeRequest(Request.Id, false)"
-                      >
-                        拒絕
-                      </button>
-                    </ng-container>
-                    <ng-template #waitingForResponse
-                      >等待異動對象回應</ng-template
-                    >
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-
-          <div class="user-management-toolbar" role="search">
-            <label class="user-search-field">
-              <span class="sr-only">搜尋使用者</span>
-              <input
-                [(ngModel)]="UserSearchText"
-                (ngModelChange)="OnUserSearchChange()"
-                placeholder="搜尋使用者帳號或名稱"
-              />
-              <svg
-                class="user-search-icon"
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                focusable="false"
-              >
-                <circle cx="11" cy="11" r="5.5"></circle>
-                <path d="m15 15 4 4"></path>
-              </svg>
-            </label>
-          </div>
-
-          <nav class="role-filter-tabs" aria-label="依角色篩選使用者">
-            <button
-              type="button"
-              [class.is-active]="UserRoleFilter === null"
-              [attr.aria-pressed]="UserRoleFilter === null"
-              (click)="SetUserRoleFilter(null)"
-            >
-              全部 ({{ MockRbac.Users.length }})
-            </button>
-            <button
-              *ngFor="let Role of MockRbac.Roles"
-              type="button"
-              [class.is-active]="UserRoleFilter === Role.Key"
-              [attr.aria-pressed]="UserRoleFilter === Role.Key"
-              (click)="SetUserRoleFilter(Role.Key)"
-            >
-              {{ Role.DisplayName }} ({{ MockRbac.GetRoleUserCount(Role.Key) }})
-            </button>
-          </nav>
-
-          <div class="table-scroll user-table-scroll">
-            <div class="user-table-content-area">
-              <table class="user-management-table">
-                <thead>
-                  <tr>
-                    <th>帳號</th>
-                    <th>名稱</th>
-                    <th>角色</th>
-                    <th class="account-status-column">啟用狀態</th>
-                    <th>建立時間</th>
-                    <th>更新時間</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    *ngFor="let User of PagedUsers; trackBy: TrackUserByAccount"
-                  >
-                    <td class="user-account-cell" [title]="User.Account">
-                      <span>{{ User.Account }}</span>
-                    </td>
-                    <td>{{ User.DisplayName }}</td>
-                    <td>{{ GetRoleNames(User.Roles) }}</td>
-                    <td class="account-status-column">
-                      <button
-                        type="button"
-                        class="account-status-switch"
-                        role="switch"
-                        [class.is-enabled]="User.Enabled"
-                        [disabled]="User.Account === Auth.CurrentUser?.Account"
-                        [attr.aria-checked]="User.Enabled"
-                        [attr.aria-label]="
-                          User.Account === Auth.CurrentUser?.Account
-                            ? '目前登入的使用者不可停用'
-                            : User.Enabled
-                              ? '停用 ' + User.Account
-                              : '啟用 ' + User.Account
-                        "
-                        (click)="SetUserEnabled(User.Account, !User.Enabled)"
-                      >
-                        <span class="account-status-switch-thumb"></span>
-                      </button>
-                      <span class="account-status-text">{{
-                        User.Enabled ? "啟用" : "停用"
-                      }}</span>
-                    </td>
-                    <td>{{ User.CreatedAt }}</td>
-                    <td>{{ User.UpdatedAt }}</td>
-                    <td>
-                      <button
-                        type="button"
-                        class="secondary-button"
-                        [attr.aria-label]="'編輯 ' + User.Account"
-                        title="編輯使用者"
-                        (click)="EditUser(User.Account)"
-                      >
-                        ✎
-                      </button>
-                      <button
-                        type="button"
-                        class="secondary-button"
-                        [attr.aria-label]="'刪除 ' + User.Account"
-                        title="刪除使用者"
-                        (click)="OpenDeleteUserDialog(User.Account)"
-                      >
-                        🗑
-                      </button>
-                    </td>
-                  </tr>
-                  <tr *ngIf="!FilteredUsers.length">
-                    <td colspan="7">
-                      <div class="user-empty-state" role="status">
-                        找不到符合條件的使用者。
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <nav
-            *ngIf="UserTotalPages > 1"
-            class="list-pagination"
-            aria-label="使用者清單分頁"
-          >
-            <button
-              type="button"
-              class="list-pagination-previous"
-              [disabled]="UserCurrentPage === 1"
-              (click)="PreviousUserPage()"
-            >
-              上一頁
-            </button>
-            <button
-              *ngFor="let Page of UserPageNumbers"
-              type="button"
-              [class.is-active]="Page === UserCurrentPage"
-              [attr.aria-current]="Page === UserCurrentPage ? 'page' : null"
-              (click)="GoToUserPage(Page)"
-            >
-              {{ Page }}
-            </button>
-            <button
-              type="button"
-              class="list-pagination-next"
-              [disabled]="UserCurrentPage === UserTotalPages"
-              (click)="NextUserPage()"
-            >
-              下一頁
-            </button>
-          </nav>
-        </section>
-
-        <section
-          *ngIf="IsCreateUserDialogOpen"
-          class="modal-backdrop"
-          (click)="CloseCreateUserDialog()"
-        >
-          <section
-            class="edit-user-modal create-user-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-user-title"
-            tabindex="-1"
-            (click)="$event.stopPropagation()"
-          >
-            <div class="modal-heading">
-              <div>
-                <h2 id="create-user-title">建立使用者</h2>
-                <p class="muted">請設定帳號、初始密碼、角色與啟用狀態。</p>
-              </div>
-              <button
-                type="button"
-                class="modal-close-button edit-user-close-button"
-                aria-label="關閉建立使用者視窗"
-                (click)="CloseCreateUserDialog()"
-              >
-                ×
-              </button>
-            </div>
-            <form class="create-user-form" (ngSubmit)="SaveUser()" novalidate>
-              <div class="create-user-identity-fields">
-                <label>
-                  <span
-                    >使用者帳號
-                    <span class="required-indicator" aria-hidden="true"
-                      >*</span
-                    ></span
-                  >
-                  <input
-                    name="create-user-account"
-                    [(ngModel)]="UserDraft.Account"
-                    (ngModelChange)="ClearCreateUserValidationError('Account')"
-                    autocomplete="username"
-                    [attr.aria-invalid]="
-                      CreateUserValidationErrors.Account ? 'true' : null
-                    "
-                    [attr.aria-describedby]="
-                      CreateUserValidationErrors.Account
-                        ? 'create-user-account-error'
-                        : null
-                    "
-                  />
-                  <small
-                    *ngIf="CreateUserValidationErrors.Account"
-                    id="create-user-account-error"
-                    class="field-error"
-                    role="alert"
-                    >{{ CreateUserValidationErrors.Account }}</small
-                  >
-                </label>
-                <label>
-                  <span
-                    >使用者名稱
-                    <span class="required-indicator" aria-hidden="true"
-                      >*</span
-                    ></span
-                  >
-                  <input
-                    name="create-user-display-name"
-                    [(ngModel)]="UserDraft.DisplayName"
-                    (ngModelChange)="
-                      ClearCreateUserValidationError('DisplayName')
-                    "
-                    autocomplete="name"
-                    [attr.aria-invalid]="
-                      CreateUserValidationErrors.DisplayName ? 'true' : null
-                    "
-                    [attr.aria-describedby]="
-                      CreateUserValidationErrors.DisplayName
-                        ? 'create-user-display-name-error'
-                        : null
-                    "
-                  />
-                  <small
-                    *ngIf="CreateUserValidationErrors.DisplayName"
-                    id="create-user-display-name-error"
-                    class="field-error"
-                    role="alert"
-                    >{{ CreateUserValidationErrors.DisplayName }}</small
-                  >
-                </label>
-              </div>
-
-              <label class="create-user-password-field">
-                <span
-                  >初始密碼
-                  <span class="required-indicator" aria-hidden="true"
-                    >*</span
-                  ></span
-                >
-                <input
-                  name="create-user-password"
-                  type="password"
-                  [(ngModel)]="UserDraft.InitialPassword"
-                  (ngModelChange)="
-                    ClearCreateUserValidationError('InitialPassword')
-                  "
-                  autocomplete="new-password"
-                  [attr.aria-invalid]="
-                    CreateUserValidationErrors.InitialPassword ? 'true' : null
-                  "
-                  [attr.aria-describedby]="
-                    CreateUserValidationErrors.InitialPassword
-                      ? 'create-user-password-error'
-                      : null
-                  "
-                />
-                <small
-                  *ngIf="CreateUserValidationErrors.InitialPassword"
-                  id="create-user-password-error"
-                  class="field-error"
-                  role="alert"
-                  >{{ CreateUserValidationErrors.InitialPassword }}</small
-                >
-              </label>
-
-              <fieldset class="create-user-role-field">
-                <legend>
-                  所屬角色
-                  <span class="required-indicator" aria-hidden="true">*</span>
-                </legend>
-                <div
-                  class="create-user-role-options"
-                  role="group"
-                  aria-label="所屬角色"
-                >
-                  <label
-                    *ngFor="let Role of MockRbac.Roles"
-                    class="create-user-role-option"
-                    [class.is-admin-role]="Role.Key === 'ADMIN'"
-                    [class.is-selected]="
-                      IsRoleSelected(UserDraft.Roles, Role.Key)
-                    "
-                  >
-                    <input
-                      type="checkbox"
-                      [checked]="IsRoleSelected(UserDraft.Roles, Role.Key)"
-                      [disabled]="
-                        IsRoleOptionDisabled(UserDraft.Roles, Role.Key)
-                      "
-                      (click)="
-                        ToggleCreateUserRole(
-                          Role.Key,
-                          !IsRoleSelected(UserDraft.Roles, Role.Key)
-                        )
-                      "
-                    />
-                    <span>{{ Role.DisplayName }}</span>
-                  </label>
-                </div>
-                <small
-                  *ngIf="CreateUserValidationErrors.Roles"
-                  class="field-error"
-                  role="alert"
-                  >{{ CreateUserValidationErrors.Roles }}</small
-                >
-              </fieldset>
-
-              <div class="create-user-status-field">
-                <span class="form-field-label">啟用狀態</span>
-                <div>
-                  <button
-                    type="button"
-                    class="account-status-switch"
-                    role="switch"
-                    [class.is-enabled]="UserDraft.Enabled"
-                    [attr.aria-checked]="UserDraft.Enabled"
-                    (click)="UserDraft.Enabled = !UserDraft.Enabled"
-                  >
-                    <span class="account-status-switch-thumb"></span>
-                  </button>
-                  <span class="account-status-text">{{
-                    UserDraft.Enabled ? "啟用" : "停用"
-                  }}</span>
-                </div>
-                <!-- <p class="muted">新帳號預設為停用，可在建立前開啟。</p> -->
-              </div>
-
-              <div class="modal-actions create-user-actions">
-                <button type="submit">建立使用者</button>
-                <button
-                  type="button"
-                  class="secondary-button"
-                  (click)="CloseCreateUserDialog()"
-                >
-                  取消
-                </button>
-              </div>
-            </form>
-          </section>
-        </section>
-
-        <section
-          *ngIf="CreatedUserCredentials"
-          class="modal-backdrop created-user-success-backdrop"
-        >
-          <section
-            class="created-user-success-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="created-user-success-title"
-            aria-describedby="created-user-success-description"
-          >
-            <div class="created-user-success-icon" aria-hidden="true">✓</div>
-            <h2 id="created-user-success-title">新增使用者成功</h2>
-            <p id="created-user-success-description">
-              請複製下方資訊，並傳送給使用者進行登入。
-            </p>
-            <section
-              class="created-user-credentials"
-              aria-label="新使用者登入資訊"
-            >
-              <dl>
-                <div>
-                  <dt>帳號：</dt>
-                  <dd>{{ CreatedUserCredentials.Account }}</dd>
-                </div>
-                <div>
-                  <dt>密碼：</dt>
-                  <dd>{{ CreatedUserCredentials.InitialPassword }}</dd>
-                </div>
-              </dl>
-              <button
-                type="button"
-                class="created-user-copy-button"
-                aria-label="複製帳號與初始密碼"
-                title="複製帳號與初始密碼"
-                (click)="CopyCreatedUserCredentials()"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="8" y="4" width="10" height="14" rx="1"></rect>
-                  <path
-                    d="M6 8H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1"
-                  ></path>
-                </svg>
-              </button>
-            </section>
-            <p
-              *ngIf="CreatedUserCopyNotice"
-              class="created-user-copy-notice"
-              role="status"
-            >
-              {{ CreatedUserCopyNotice }}
-            </p>
-            <div class="created-user-success-actions">
-              <button type="button" (click)="CloseCreatedUserSuccessModal()">
-                確認
-              </button>
-            </div>
-          </section>
-        </section>
-
-        <section
-          *ngIf="EditingUser"
-          class="modal-backdrop"
-          (click)="CancelEditUser()"
-        >
-          <section
-            class="edit-user-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-user-title"
-            tabindex="-1"
-            (click)="$event.stopPropagation()"
-            (keydown.escape)="CancelEditUser()"
-          >
-            <div class="modal-heading">
-              <div>
-                <h2 id="edit-user-title">編輯使用者</h2>
-                <p class="muted">
-                  管理員只能調整角色與啟用狀態；名稱與密碼由使用者本人在帳號設定修改。
-                </p>
-              </div>
-              <button
-                type="button"
-                class="modal-close-button"
-                aria-label="關閉編輯使用者視窗"
-                (click)="CancelEditUser()"
-              >
-                ×
-              </button>
-            </div>
-            <div class="form-grid edit-user-form">
-              <label
-                >使用者帳號 <input [value]="EditingAccount" disabled
-              /></label>
-              <label
-                >使用者名稱
-                <input
-                  [value]="MockRbac.GetUser(EditingAccount || '')?.DisplayName"
-                  disabled
-              /></label>
-              <div class="edit-status-field">
-                <span class="form-field-label">啟用狀態</span>
-                <button
-                  type="button"
-                  class="account-status-switch"
-                  role="switch"
-                  [class.is-enabled]="EditingUser.Enabled"
-                  [disabled]="IsEditingSelf()"
-                  [attr.aria-checked]="EditingUser.Enabled"
-                  [attr.aria-label]="
-                    IsEditingSelf()
-                      ? '目前登入的使用者不可停用'
-                      : '切換使用者啟用狀態'
-                  "
-                  (click)="EditingUser.Enabled = !EditingUser.Enabled"
-                >
-                  <span class="account-status-switch-thumb"></span>
-                </button>
-                <span class="account-status-text">{{
-                  EditingUser.Enabled ? "啟用" : "停用"
-                }}</span>
-              </div>
-            </div>
-            <div class="edit-user-role-field">
-              <span class="form-field-label"
-                >所屬角色
-                <span class="required-indicator" aria-hidden="true"
-                  >*</span
-                ></span
-              >
-              <div
-                class="edit-user-role-options"
-                role="group"
-                aria-label="所屬角色"
-              >
-                <label
-                  *ngFor="let Role of MockRbac.Roles"
-                  class="edit-user-role-option"
-                >
-                  <input
-                    type="checkbox"
-                    [checked]="IsRoleSelected(EditingUser.Roles, Role.Key)"
-                    [disabled]="
-                      !CanEditEditingUserRoles() ||
-                      IsRoleOptionDisabled(EditingUser.Roles, Role.Key)
-                    "
-                    (click)="
-                      ToggleEditingUserRole(
-                        Role.Key,
-                        !IsRoleSelected(EditingUser.Roles, Role.Key)
-                      )
-                    "
-                  />
-                  {{ Role.DisplayName }}
-                </label>
-              </div>
-            </div>
-            <small
-              *ngIf="EditUserValidationErrors.Roles"
-              id="edit-user-roles-error"
-              class="field-error"
-              role="alert"
-              >{{ EditUserValidationErrors.Roles }}</small
-            >
-            <p
-              *ngIf="EditUserValidationErrors.Form"
-              class="field-error"
-              role="alert"
-            >
-              {{ EditUserValidationErrors.Form }}
-            </p>
-            <p *ngIf="IsEditingSelf()" class="muted">
-              系統管理員不可修改自己的角色或啟用狀態。
-            </p>
-            <p
-              *ngIf="EditingAccount && IsAdminUser(EditingAccount)"
-              class="muted"
-            >
-              系統管理員降職會建立角色變更申請，須由異動對象回應。
-            </p>
-            <div class="modal-actions">
-              <button type="button" (click)="SaveEditedUser()">儲存變更</button
-              ><button
-                type="button"
-                class="secondary-button"
-                (click)="CancelEditUser()"
-              >
-                取消
-              </button>
-            </div>
-          </section>
-        </section>
-
-        <section
-          *ngIf="DeletingUser"
-          class="modal-backdrop"
-          (click)="CloseDeleteUserDialog()"
-        >
-          <section
-            class="edit-user-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-user-title"
-            (click)="$event.stopPropagation()"
-          >
-            <div class="modal-heading">
-              <div>
-                <h2 id="delete-user-title">刪除使用者</h2>
-                <p>確定要刪除使用者「{{ DeletingUser.Account }}」嗎？</p>
-              </div>
-              <button
-                type="button"
-                class="modal-close-button"
-                aria-label="關閉刪除使用者確認視窗"
-                (click)="CloseDeleteUserDialog()"
-              >
-                ×
-              </button>
-            </div>
-            <p class="muted">
-              此操作無法復原，請確認是否繼續？
-              <!-- Frontend Mock Only：正式刪除權限、保留與稽核規則仍需後端確認。 -->
-            </p>
-            <p *ngIf="DeleteUserError" class="field-error" role="alert">
-              {{ DeleteUserError }}
-            </p>
-            <div class="modal-actions">
-              <button type="button" (click)="ConfirmDeleteUser()">
-                確認刪除
-              </button>
-              <button
-                type="button"
-                class="secondary-button"
-                (click)="CloseDeleteUserDialog()"
-              >
-                取消
-              </button>
-            </div>
-          </section>
-        </section>
-
-        <section
-          *ngIf="
-            (IsCreateRoleDialogOpen || IsEditRoleDialogOpen) && !DeletingRole
-          "
-          class="modal-backdrop"
-          (click)="
-            IsEditRoleDialogOpen
-              ? CloseEditRoleDialog()
-              : CloseCreateRoleDialog()
-          "
-        >
-          <section
-            class="edit-user-modal create-role-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="role-dialog-title"
-            tabindex="-1"
-            (click)="$event.stopPropagation()"
-          >
-            <div class="modal-heading">
-              <div>
-                <h2 id="role-dialog-title">
-                  {{ IsEditRoleDialogOpen ? "編輯角色" : "新增角色" }}
-                </h2>
-              </div>
-              <button
-                type="button"
-                class="modal-close-button"
-                [attr.aria-label]="
-                  IsEditRoleDialogOpen ? '關閉編輯角色視窗' : '關閉新增角色視窗'
-                "
-                (click)="
-                  IsEditRoleDialogOpen
-                    ? CloseEditRoleDialog()
-                    : CloseCreateRoleDialog()
-                "
-              >
-                ×
-              </button>
-            </div>
-            <div class="role-editor-fields">
-              <label class="role-name-field"
-                ><span class="form-field-label"
-                  >角色名稱<span class="required-indicator" aria-hidden="true"
-                    >*</span
-                  ></span
-                ><input
-                  [(ngModel)]="RoleDraft.DisplayName"
-                  [readonly]="
-                    IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)
-                  "
-                  [attr.aria-readonly]="
-                    IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)
-                  "
-                  [attr.aria-invalid]="RoleDraftError ? 'true' : null"
-                  [attr.aria-describedby]="
-                    RoleDraftError ? 'role-name-error' : null
-                  "
-                  [class.is-invalid]="RoleDraftError"
-                  (ngModelChange)="ClearRoleDraftError()"
-              /></label>
-              <button
-                *ngIf="IsEditRoleDialogOpen && !IsBuiltInRole(EditingRoleKey)"
-                type="button"
-                class="role-delete-button"
-                aria-label="刪除角色"
-                title="刪除角色"
-                (click)="OpenDeleteRoleDialog()"
-              >
-                <svg
-                  class="role-delete-icon"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M4 7h16m-10 4v6m4-6v6M9 7l1-3h4l1 3m-9 0 1 13h10l1-13"
-                  />
-                </svg>
-                刪除角色
-              </button>
-            </div>
-            <p
-              *ngIf="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
-              class="role-name-lock-hint"
-            >
-              系統內建角色名稱不可修改。
-            </p>
-            <div class="create-role-permissions">
-              <h3>報表分類權限</h3>
-              <p
-                *ngIf="IsEditRoleDialogOpen && IsBuiltInRole(EditingRoleKey)"
-                class="role-name-lock-hint"
-              >
-                系統管理員擁有所有報表分類權限，設定為唯讀。
-              </p>
-              <div class="table-scroll">
-                <table class="role-permission-table">
-                  <thead>
-                    <tr>
-                      <th>報表分類</th>
-                      <th>執行</th>
-                      <th>匯出</th>
-                      <th>列印</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      *ngFor="
-                        let Entry of RoleDraft.Permissions;
-                        trackBy: TrackByCategoryPermissionEntry
-                      "
-                    >
-                      <td>{{ Entry.CategoryName }}</td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          [ngModel]="Entry.Permission.CanExecute"
-                          (ngModelChange)="
-                            SetPermissionCanExecute(Entry, $event)
-                          "
-                          [disabled]="
-                            IsEditRoleDialogOpen &&
-                            IsBuiltInRole(EditingRoleKey)
-                          "
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          [(ngModel)]="Entry.Permission.CanExportPdf"
-                          [disabled]="
-                            !Entry.Permission.CanExecute ||
-                            (IsEditRoleDialogOpen &&
-                              IsBuiltInRole(EditingRoleKey))
-                          "
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          [(ngModel)]="Entry.Permission.CanPrint"
-                          [disabled]="
-                            !Entry.Permission.CanExecute ||
-                            (IsEditRoleDialogOpen &&
-                              IsBuiltInRole(EditingRoleKey))
-                          "
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <span
-              *ngIf="RoleDraftError"
-              id="role-name-error"
-              class="field-error"
-              role="alert"
-              >{{ RoleDraftError }}</span
-            >
-            <div class="modal-actions role-modal-actions">
-              <div class="role-modal-primary-actions">
-                <button
-                  type="button"
-                  (click)="IsEditRoleDialogOpen ? SaveEditedRole() : SaveRole()"
-                >
-                  {{ IsEditRoleDialogOpen ? "儲存角色" : "建立角色" }}
-                </button>
-                <button
-                  type="button"
-                  class="secondary-button"
-                  (click)="
-                    IsEditRoleDialogOpen
-                      ? CloseEditRoleDialog()
-                      : CloseCreateRoleDialog()
-                  "
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          </section>
-        </section>
-
-        <section
-          *ngIf="DeletingRole"
-          class="modal-backdrop"
-          (click)="CloseDeleteRoleDialog()"
-        >
-          <section
-            class="edit-user-modal role-delete-confirmation"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="delete-role-title"
-            aria-describedby="delete-role-message"
-            (click)="$event.stopPropagation()"
-          >
-            <h2 id="delete-role-title">刪除角色</h2>
-            <p id="delete-role-message">確定要刪除此角色嗎？</p>
-            <p class="role-delete-target">
-              角色：{{ DeletingRole.DisplayName }}
-            </p>
-            <p class="muted">此操作將移除此角色。</p>
-            <div class="modal-actions role-modal-actions">
-              <span></span>
-              <div class="role-modal-primary-actions">
-                <button
-                  type="button"
-                  class="role-delete-button"
-                  (click)="ConfirmDeleteRole()"
-                >
-                  刪除
-                </button>
-                <button
-                  type="button"
-                  class="secondary-button"
-                  (click)="CloseDeleteRoleDialog()"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          </section>
-        </section>
-      </section>
-      <section
-        *ngIf="Page === 'RptManagement'"
-        class="management-section report-management"
-      >
-        <div class="report-management-toolbar">
-          <label for="report-management-start-date"
-            >開始日期
-            <input
-              id="report-management-start-date"
-              type="date"
-              [(ngModel)]="ReportManagementStartDate"
-              (change)="OnReportManagementDateChange()"
-            />
-          </label>
-          <label for="report-management-end-date"
-            >結束日期
-            <input
-              id="report-management-end-date"
-              type="date"
-              [min]="ReportManagementStartDate || null"
-              [(ngModel)]="ReportManagementEndDate"
-              (change)="OnReportManagementDateChange()"
-            />
-          </label>
-          <label for="report-management-category"
-            >報表分類
-            <select
-              id="report-management-category"
-              [(ngModel)]="ReportManagementCategoryId"
-              (ngModelChange)="SetReportManagementCategory($event)"
-            >
-              <option [value]="AllCategoryFilterValue">全部</option>
-              <option
-                *ngFor="let Category of ReportManagementCategories"
-                [value]="Category.CategoryId"
-              >
-                {{ Category.CategoryName }}
-              </option>
-            </select>
-          </label>
-          <label class="report-management-search" for="report-management-search"
-            >搜尋報表
-            <input
-              id="report-management-search"
-              [(ngModel)]="ReportManagementSearchText"
-              (ngModelChange)="OnReportManagementSearchChange()"
-              placeholder="輸入報表名稱或報表說明"
-            />
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <circle cx="10.8" cy="10.8" r="5.8"></circle>
-              <path d="m15.2 15.2 4 4"></path>
-            </svg>
-          </label>
-        </div>
-        <p
-          *ngIf="ReportManagementDateNotice"
-          class="parameter-search-error"
-          role="alert"
-        >
-          {{ ReportManagementDateNotice }}
-        </p>
-        <p class="report-date-tbd">
-          日期篩選對應欄位尚待需求確認（TBD），目前不套用資料篩選。
-        </p>
-
-        <div class="table-scroll">
-          <table class="report-management-table">
-            <colgroup>
-              <col class="report-management-pin-column" />
-              <col class="report-management-name-column" />
-              <col class="report-management-category-column" />
-              <col class="report-management-description-column" />
-              <col class="report-management-enabled-column" />
-              <col class="report-management-created-column" />
-              <col class="report-management-updated-column" />
-              <col class="report-management-actions-column" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th scope="col" class="report-management-pin-cell">
-                  <span class="report-management-pin-header">釘選</span>
-                </th>
-                <th
-                  scope="col"
-                  [attr.aria-sort]="GetReportManagementAriaSort('ReportName')"
-                  [class.is-sorted]="ReportManagementSortField === 'ReportName'"
-                >
-                  <button
-                    type="button"
-                    class="sortable-table-header report-management-name-sort-button"
-                    (click)="ToggleReportManagementSort('ReportName')"
-                  >
-                    報表名稱
-                    <svg
-                      class="sort-indicator"
-                      [class.is-ascending]="
-                        GetReportManagementSortIndicator('ReportName') === '↑'
-                      "
-                      [class.is-descending]="
-                        GetReportManagementSortIndicator('ReportName') === '↓'
-                      "
-                      viewBox="0 0 16 24"
-                      aria-hidden="true"
-                    >
-                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path
-                        class="sort-indicator-down"
-                        d="m3 16 5 5 5-5"
-                      ></path>
-                    </svg>
-                  </button>
-                </th>
-                <th>報表分類</th>
-                <th>報表說明</th>
-                <th>啟用狀態</th>
-                <th
-                  scope="col"
-                  [attr.aria-sort]="GetReportManagementAriaSort('CreatedAt')"
-                  [class.is-sorted]="ReportManagementSortField === 'CreatedAt'"
-                >
-                  <button
-                    type="button"
-                    class="sortable-table-header report-management-created-sort-button"
-                    (click)="ToggleReportManagementSort('CreatedAt')"
-                  >
-                    建立時間
-                    <svg
-                      class="sort-indicator"
-                      [class.is-ascending]="
-                        GetReportManagementSortIndicator('CreatedAt') === '↑'
-                      "
-                      [class.is-descending]="
-                        GetReportManagementSortIndicator('CreatedAt') === '↓'
-                      "
-                      viewBox="0 0 16 24"
-                      aria-hidden="true"
-                    >
-                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path
-                        class="sort-indicator-down"
-                        d="m3 16 5 5 5-5"
-                      ></path>
-                    </svg>
-                  </button>
-                </th>
-                <th
-                  scope="col"
-                  [attr.aria-sort]="GetReportManagementAriaSort('UpdatedAt')"
-                  [class.is-sorted]="ReportManagementSortField === 'UpdatedAt'"
-                >
-                  <button
-                    type="button"
-                    class="sortable-table-header report-management-updated-sort-button"
-                    (click)="ToggleReportManagementSort('UpdatedAt')"
-                  >
-                    更新時間
-                    <svg
-                      class="sort-indicator"
-                      [class.is-ascending]="
-                        GetReportManagementSortIndicator('UpdatedAt') === '↑'
-                      "
-                      [class.is-descending]="
-                        GetReportManagementSortIndicator('UpdatedAt') === '↓'
-                      "
-                      viewBox="0 0 16 24"
-                      aria-hidden="true"
-                    >
-                      <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
-                      <path
-                        class="sort-indicator-down"
-                        d="m3 16 5 5 5-5"
-                      ></path>
-                    </svg>
-                  </button>
-                </th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let Report of PagedManagedReports">
-                <td class="report-management-pin-cell">
-                  <div class="report-management-pin-control">
-                    <button
-                      type="button"
-                      class="report-management-pin-button"
-                      [class.is-pinned]="IsReportManagementPinned(Report.ReportKey)"
-                      [attr.aria-pressed]="IsReportManagementPinned(Report.ReportKey)"
-                      [attr.aria-label]="
-                        (IsReportManagementPinned(Report.ReportKey)
-                          ? '取消釘選 '
-                          : '釘選 ') + Report.ReportName
-                      "
-                      [title]="
-                        IsReportManagementPinned(Report.ReportKey)
-                          ? '取消釘選報表'
-                          : '釘選報表'
-                      "
-                      (click)="ToggleReportManagementPin(Report.ReportKey)"
-                    >
-                      <span class="report-management-pin-icon" aria-hidden="true"></span>
-                    </button>
-                  </div>
-                </td>
-                <td class="report-management-name" [title]="Report.ReportName">
-                  <span>{{ Report.ReportName }}</span>
-                </td>
-                <td>{{ Report.CategoryName }}</td>
-                <td
-                  class="report-management-description"
-                  [title]="Report.Description"
-                >
-                  <span>{{ Report.Description }}</span>
-                </td>
-                <td class="report-enabled-control">
-                  <button
-                    type="button"
-                    class="account-status-switch"
-                    role="switch"
-                    [class.is-enabled]="Report.Enabled"
-                    [attr.aria-checked]="Report.Enabled"
-                    [attr.aria-label]="
-                      Report.ReportName +
-                      (Report.Enabled
-                        ? '已啟用，點擊可停用'
-                        : '已停用，點擊可啟用')
-                    "
-                    (click)="
-                      SetReportEnabled(Report.ReportKey, !Report.Enabled)
-                    "
-                  >
-                    <span class="account-status-switch-thumb"></span>
-                  </button>
-                  <span class="account-status-text">{{
-                    Report.Enabled ? "啟用" : "停用"
-                  }}</span>
-                </td>
-                <td class="report-management-timestamp">
-                  {{ Report.CreatedAt }}
-                </td>
-                <td class="report-management-timestamp">
-                  {{ Report.UpdatedAt }}
-                </td>
-                <td class="report-row-actions">
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    [attr.aria-label]="'編輯 ' + Report.ReportName"
-                    title="編輯報表"
-                    (click)="OpenEditReportDialog(Report.ReportKey)"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    [attr.aria-label]="'刪除 ' + Report.ReportName"
-                    title="刪除報表"
-                    (click)="OpenDeleteReportDialog(Report.ReportKey)"
-                  >
-                    🗑
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="!DisplayedManagedReports.length">
-                <td colspan="8" class="report-management-empty">
-                  找不到符合條件的報表。
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <nav
-          *ngIf="ReportManagementTotalPages > 1"
-          class="list-pagination"
-          aria-label="報表管理分頁"
-        >
-          <button
-            type="button"
-            class="list-pagination-previous"
-            [disabled]="ReportManagementCurrentPage === 1"
-            (click)="PreviousReportManagementPage()"
-          >
-            上一頁
-          </button>
-          <button
-            *ngFor="let Page of ReportManagementPageNumbers"
-            type="button"
-            [class.is-active]="Page === ReportManagementCurrentPage"
-            [attr.aria-current]="
-              Page === ReportManagementCurrentPage ? 'page' : null
-            "
-            (click)="GoToReportManagementPage(Page)"
-          >
-            {{ Page }}
-          </button>
-          <button
-            type="button"
-            class="list-pagination-next"
-            [disabled]="
-              ReportManagementCurrentPage === ReportManagementTotalPages
-            "
-            (click)="NextReportManagementPage()"
-          >
-            下一頁
-          </button>
-        </nav>
-      </section>
+      <app-user-management-page *ngIf="Page === 'UserManagement'" />
+      <app-report-management-page *ngIf="Page === 'RptManagement'" />
       <section *ngIf="Page === 'DatabaseConnection'" class="management-section">
         <div class="management-card-heading">
           <div>
-            <h2>Mock 資料庫連線</h2>
+            <h2>MSSQL 資料庫連線</h2>
             <p class="muted">
-              密碼只可在建立或變更時輸入；既有密碼、加密密文與其他 credential
-              不會回傳或保存於前端 Mock 資料。
+              密碼只在建立或變更時輸入，後端會以加密方式保存。
             </p>
           </div>
-          <button type="button" (click)="OpenCreateDatabaseConnection()">
+          <button
+            type="button"
+            class="primary-button"
+            (click)="OpenCreateDatabaseConnection()"
+          >
             建立連線
           </button>
         </div>
@@ -2253,22 +660,25 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let Connection of DatabaseConnections.Connections">
-                <td>{{ Connection.DataSourceName }}</td>
-                <td>{{ Connection.ServerHost }}:{{ Connection.Port }}</td>
-                <td>{{ Connection.DatabaseName }}</td>
-                <td>{{ Connection.Username }}</td>
+              <tr
+                *ngFor="let Connection of ApiDataSources"
+                class="database-connection-row"
+              >
+                <td>{{ Connection.dataSourceName }}</td>
+                <td>{{ Connection.serverHost }}:{{ Connection.port }}</td>
+                <td>{{ Connection.databaseName }}</td>
+                <td>{{ Connection.username }}</td>
                 <td>
                   {{
-                    Connection.ConnectionType === "ReadOnly" ? "唯讀" : "讀寫"
+                    "唯讀"
                   }}
                 </td>
-                <td>{{ Connection.Enabled ? "啟用" : "停用" }}</td>
+                <td>{{ Connection.isEnabled ? "啟用" : "停用" }}</td>
                 <td>
                   <button
                     type="button"
                     class="secondary-button"
-                    (click)="OpenEditDatabaseConnection(Connection.Key)"
+                    (click)="OpenEditDatabaseConnection(Connection.dataSourceId + '')"
                   >
                     編輯
                   </button>
@@ -2409,12 +819,16 @@
               若不修改密碼請保持空白。
             </p>
             <div class="modal-actions">
-              <button type="button" (click)="SaveDatabaseConnection()">
+              <button
+                type="button"
+                class="primary-button"
+                (click)="SaveDatabaseConnection()"
+              >
                 {{ EditingDatabaseConnectionKey ? "儲存變更" : "建立連線" }}
               </button>
               <button
                 type="button"
-                class="secondary-button"
+                class="tertiary-button"
                 (click)="CloseDatabaseConnectionEditor()"
               >
                 取消
@@ -2427,7 +841,8 @@
         *ngIf="
           Page !== 'UserManagement' &&
           Page !== 'RptManagement' &&
-          Page !== 'DatabaseConnection'
+          Page !== 'DatabaseConnection' &&
+          Page !== 'OperationLog'
         "
       >
         <thead>
@@ -2441,475 +856,67 @@
           <tr>
             <td>{{ PageTitle }}</td>
             <td>可檢視</td>
-            <td>僅供 ADMIN UIUX 流程驗證，未呼叫後端 API。</td>
+            <td>僅供後台操作紀錄版面展示，尚未串接紀錄查詢 API。</td>
           </tr>
         </tbody>
       </table>
-      <section *ngIf="Page === 'OperationLog'" class="permission-matrix">
-        <p>保存期間：180 天</p>
-      </section>
-    </section>
-    <section
-      *ngIf="IsUploadReportDialogOpen"
-      class="modal-backdrop"
-      (click)="CloseReportEditor()"
-    >
-      <section
-        class="edit-user-modal report-editor-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="report-editor-title"
-        (click)="$event.stopPropagation()"
-      >
-        <div class="modal-heading">
-          <h2 id="report-editor-title">
-            {{ EditingReportKey ? "編輯報表" : "上傳報表" }}
-          </h2>
-          <button
-            type="button"
-            class="modal-close-button"
-            aria-label="關閉報表編輯視窗"
-            (click)="CloseReportEditor()"
-          >
-            ×
-          </button>
-        </div>
-        <form class="report-editor-form" (ngSubmit)="SaveReport()" novalidate>
-          <label for="report-editor-name"
-            ><span class="form-field-label"
-              >報表名稱<span class="required-indicator" aria-hidden="true"
-                >*</span
-              ></span
-            >
-            <input
-              id="report-editor-name"
-              name="reportName"
-              [(ngModel)]="ReportEditorDraft.ReportName"
-              [attr.aria-invalid]="
-                ReportEditorError && !ReportEditorDraft.ReportName.trim()
-                  ? 'true'
-                  : null
-              "
-            />
-          </label>
-          <label
-            class="report-editor-description-field"
-            for="report-editor-description"
-          >
-            <span class="form-field-label"
-              >報表說明<span class="required-indicator" aria-hidden="true"
-                >*</span
-              ></span
-            >
-            <textarea
-              id="report-editor-description"
-              name="reportDescription"
-              [(ngModel)]="ReportEditorDraft.Description"
-              rows="3"
-              placeholder="請輸入報表說明"
-              [attr.aria-invalid]="
-                ReportEditorError && !ReportEditorDraft.Description.trim()
-                  ? 'true'
-                  : null
-              "
-            ></textarea>
-          </label>
-          <div class="report-editor-category-field">
-            <label for="report-editor-category"
-              ><span class="form-field-label"
-                >報表分類<span class="required-indicator" aria-hidden="true"
-                  >*</span
-                ></span
-              >
-              <select
-                id="report-editor-category"
-                name="reportCategory"
-                [(ngModel)]="ReportEditorDraft.CategoryId"
-                [attr.aria-invalid]="
-                  ReportEditorError && !ReportEditorDraft.CategoryId
-                    ? 'true'
-                    : null
-                "
-              >
-                <option value="" disabled>選擇報表分類</option>
-                <option
-                  *ngFor="let Category of ReportEditorCategories"
-                  [value]="Category.CategoryId"
-                >
-                  {{ Category.CategoryName }}
-                </option>
-              </select>
-            </label>
-            <button
-              *ngIf="Auth.IsAdmin"
-              type="button"
-              class="secondary-button report-category-quick-add-trigger"
-              (click)="OpenReportCategoryQuickAdd()"
-            >
-              <span aria-hidden="true">＋</span> 新增分類
-            </button>
-          </div>
-          <div
-            *ngIf="IsReportCategoryQuickAddOpen"
-            class="report-category-quick-add"
-            role="group"
-            aria-labelledby="report-category-quick-add-label"
-          >
-            <label for="report-category-quick-add-name">
-              <span
-                id="report-category-quick-add-label"
-                class="form-field-label"
-                >分類名稱<span class="required-indicator" aria-hidden="true"
-                  >*</span
-                ></span
-              >
-              <input
-                id="report-category-quick-add-name"
-                name="quickAddCategoryName"
-                [(ngModel)]="QuickAddCategoryName"
-                (ngModelChange)="QuickAddCategoryError = ''"
-                (keydown.enter)="
-                  $event.preventDefault(); CreateReportCategoryQuickAdd()
-                "
-                placeholder="請輸入新分類名稱"
-                [attr.aria-invalid]="QuickAddCategoryError ? 'true' : null"
-              />
-            </label>
-            <div class="report-category-quick-add-actions">
-              <button type="button" (click)="CreateReportCategoryQuickAdd()">
-                新增
-              </button>
-              <button
-                type="button"
-                class="secondary-button"
-                (click)="CloseReportCategoryQuickAdd()"
-              >
-                取消
-              </button>
-            </div>
-            <p *ngIf="QuickAddCategoryError" class="field-error" role="alert">
-              {{ QuickAddCategoryError }}
-            </p>
-          </div>
-          <div class="edit-status-field report-editor-enabled">
-            <span class="form-field-label">啟用狀態</span>
-            <button
-              type="button"
-              class="account-status-switch"
-              role="switch"
-              [class.is-enabled]="ReportEditorDraft.Enabled"
-              [attr.aria-checked]="ReportEditorDraft.Enabled"
-              (click)="ReportEditorDraft.Enabled = !ReportEditorDraft.Enabled"
-            >
-              <span class="account-status-switch-thumb"></span>
-            </button>
-            <span class="account-status-text">{{
-              ReportEditorDraft.Enabled ? "啟用" : "停用"
-            }}</span>
-          </div>
-          <div class="report-file-field">
-            <span class="form-field-label"
-              >RPT 檔案<span
-                *ngIf="!EditingReportKey"
-                class="required-indicator"
-                aria-hidden="true"
-                >*</span
-              ></span
-            >
-            <p *ngIf="EditingReportKey" class="current-report-file">
-              目前 RPT 檔案：{{ SelectedReportFileName }}
-            </p>
-            <label class="report-file-picker" for="report-editor-file">
-              <span>{{
-                EditingReportKey
-                  ? "選擇新 RPT 檔案（選填）"
-                  : "拖曳或選擇檔案上傳"
-              }}</span>
-              <input
-                id="report-editor-file"
-                type="file"
-                accept=".rpt"
-                (change)="OnReportFileSelected($event)"
-              />
-            </label>
-            <p
-              *ngIf="SelectedReportFileName && !EditingReportKey"
-              class="selected-report-file"
-            >
-              已選擇檔案：{{ SelectedReportFileName }}
-            </p>
-          </div>
-          <p *ngIf="ReportEditorError" class="field-error" role="alert">
-            {{ ReportEditorError }}
-          </p>
-          <div class="modal-actions report-editor-actions">
-            <button type="submit">儲存</button>
-            <button
-              type="button"
-              class="secondary-button"
-              (click)="CloseReportEditor()"
-            >
-              取消
-            </button>
-          </div>
-        </form>
-      </section>
-    </section>
-    <section
-      *ngIf="IsCategoryManagementDialogOpen"
-      class="modal-backdrop"
-      (click)="CloseCategoryManagementDialog()"
-    >
-      <section
-        class="edit-user-modal category-management-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="category-management-title"
-        (click)="$event.stopPropagation()"
-      >
-        <div class="modal-heading">
-          <h2 id="category-management-title">報表分類管理</h2>
-          <button
-            type="button"
-            class="modal-close-button"
-            aria-label="關閉報表分類管理視窗"
-            (click)="CloseCategoryManagementDialog()"
-          >
-            ×
-          </button>
-        </div>
-        <form
-          class="category-create-form"
-          (ngSubmit)="CreateManagedCategory()"
-          novalidate
-        >
-          <label for="new-category-name">
-            <span class="form-field-label"
-              >分類名稱<span class="required-indicator" aria-hidden="true"
-                >*</span
-              ></span
-            >
-            <input
-              id="new-category-name"
-              name="newCategoryName"
-              [(ngModel)]="NewCategoryName"
-              (ngModelChange)="CategoryCreateError = ''"
-              placeholder="請輸入新分類名稱"
-              [attr.aria-invalid]="CategoryCreateError ? 'true' : null"
-            />
-          </label>
-          <button type="submit">
-            <span aria-hidden="true">＋</span> 新增分類
-          </button>
-          <p *ngIf="CategoryCreateError" class="field-error" role="alert">
-            {{ CategoryCreateError }}
-          </p>
-        </form>
-        <section
-          class="category-management-list"
-          aria-labelledby="existing-categories-title"
-        >
-          <h3 id="existing-categories-title">既有分類</h3>
-          <div
-            *ngFor="let Category of CategoryManagementCategories"
-            class="category-management-row"
-            [class.is-editing]="EditingCategoryId === Category.CategoryId"
-          >
-            <div class="category-management-name">
-              <ng-container
-                *ngIf="
-                  EditingCategoryId === Category.CategoryId;
-                  else CategoryName
-                "
-              >
-                <label
-                  [attr.for]="'category-edit-' + Category.CategoryId"
-                  class="visually-hidden"
-                  >分類名稱</label
-                >
-                <input
-                  [id]="'category-edit-' + Category.CategoryId"
-                  name="editingCategoryName"
-                  [(ngModel)]="EditingCategoryName"
-                  (ngModelChange)="CategoryEditError = ''"
-                  [attr.aria-invalid]="CategoryEditError ? 'true' : null"
-                />
-                <p *ngIf="CategoryEditError" class="field-error" role="alert">
-                  {{ CategoryEditError }}
-                </p>
-              </ng-container>
-              <ng-template #CategoryName>{{
-                Category.CategoryName
-              }}</ng-template>
-            </div>
-            <span class="category-management-usage">{{
-              GetCategoryUsageLabel(Category)
-            }}</span>
-            <div class="category-management-action-slot">
-              <span
-                *ngIf="Category.IsSystemReserved"
-                class="category-system-reserved"
-                >系統保留</span
-              >
-              <div
-                *ngIf="!Category.IsSystemReserved"
-                class="category-management-actions"
-              >
-                <ng-container
-                  *ngIf="
-                    EditingCategoryId === Category.CategoryId;
-                    else CategoryActions
-                  "
-                >
-                  <button type="button" (click)="SaveCategoryEdit()">
-                    儲存
-                  </button>
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    (click)="CancelCategoryEdit()"
-                  >
-                    取消
-                  </button>
-                </ng-container>
-                <ng-template #CategoryActions>
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    [attr.aria-label]="'編輯 ' + Category.CategoryName"
-                    title="編輯分類"
-                    (click)="StartCategoryEdit(Category)"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    [attr.aria-label]="'刪除 ' + Category.CategoryName"
-                    title="刪除分類"
-                    (click)="OpenDeleteCategoryDialog(Category.CategoryId)"
-                  >
-                    🗑
-                  </button>
-                </ng-template>
-              </div>
-            </div>
-          </div>
-        </section>
-        <div class="modal-actions category-management-close-action">
-          <button
-            type="button"
-            class="secondary-button"
-            (click)="CloseCategoryManagementDialog()"
-          >
-            關閉
-          </button>
-        </div>
-      </section>
-    </section>
-    <section
-      *ngIf="DeletingCategory"
-      class="modal-backdrop"
-      (click)="CloseDeleteCategoryDialog()"
-    >
-      <section
-        class="edit-user-modal category-delete-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="delete-category-title"
-        (click)="$event.stopPropagation()"
-      >
-        <div class="modal-heading">
-          <h2 id="delete-category-title">
-            {{
-              GetCategoryUsageCount(DeletingCategory.CategoryId)
-                ? "刪除分類：" + DeletingCategory.CategoryName
-                : "刪除報表分類"
-            }}
-          </h2>
-          <button
-            type="button"
-            class="modal-close-button"
-            aria-label="關閉刪除報表分類確認視窗"
-            (click)="CloseDeleteCategoryDialog()"
-          >
-            ×
-          </button>
-        </div>
-        <ng-container
-          *ngIf="
-            GetCategoryUsageCount(DeletingCategory.CategoryId) as UsageCount
-          "
-        >
-          <p>
-            「{{ DeletingCategory.CategoryName }}」目前仍有
-            {{ UsageCount }} 份報表使用中。
-          </p>
-          <p>若刪除此分類，這些報表將自動移至「未分類」。</p>
-          <p class="muted">刪除完成後，請重新替這些報表設定正確分類。</p>
-        </ng-container>
-        <p *ngIf="!GetCategoryUsageCount(DeletingCategory.CategoryId)">
-          確定要刪除報表分類「{{ DeletingCategory.CategoryName }}」嗎？
-        </p>
-        <p *ngIf="CategoryDeleteError" class="field-error" role="alert">
-          {{ CategoryDeleteError }}
-        </p>
-        <div class="modal-actions category-delete-actions">
-          <button
-            type="button"
-            class="role-delete-button"
-            (click)="ConfirmDeleteCategory()"
-          >
-            {{
-              GetCategoryUsageCount(DeletingCategory.CategoryId)
-                ? "確認移動並刪除"
-                : "確認刪除"
-            }}
-          </button>
-          <button
-            type="button"
-            class="secondary-button"
-            (click)="CloseDeleteCategoryDialog()"
-          >
-            取消
-          </button>
-        </div>
-      </section>
-    </section>
-    <section
-      *ngIf="DeletingReport"
-      class="modal-backdrop"
-      (click)="CloseDeleteReportDialog()"
-    >
-      <section
-        class="edit-user-modal report-delete-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="delete-report-title"
-        (click)="$event.stopPropagation()"
-      >
-        <h2 id="delete-report-title">刪除報表</h2>
-        <p>確定要刪除此報表嗎？</p>
-        <p class="report-delete-target">
-          報表：{{ DeletingReport.ReportName }}
-        </p>
-        <div class="modal-actions report-editor-actions">
-          <button
-            type="button"
-            class="role-delete-button"
-            (click)="ConfirmDeleteReport()"
-          >
-            刪除
-          </button>
-          <button
-            type="button"
-            class="secondary-button"
-            (click)="CloseDeleteReportDialog()"
-          >
-            取消
-          </button>
-        </div>
-      </section>
+      <app-operation-log-page *ngIf="Page === 'OperationLog'" />
     </section>
   </main>
+  <section
+    *ngIf="Auth.RequiresBackOfficeIdentityBinding"
+    class="modal-backdrop back-office-binding-backdrop"
+    role="presentation"
+  >
+    <section
+      class="edit-user-modal back-office-binding-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="back-office-binding-title"
+    >
+      <h2 id="back-office-binding-title">驗證操作身分</h2>
+      <p class="muted">請輸入您的帳號密碼以驗證身分。</p>
+      <div class="form-grid back-office-binding-form">
+        <label>
+          前台帳號
+          <input
+            [(ngModel)]="BackOfficeBindingAccount"
+            name="backOfficeBindingAccount"
+            autocomplete="username"
+            (ngModelChange)="BackOfficeBindingError = ''"
+          />
+        </label>
+        <label>
+          前台密碼
+          <input
+            type="password"
+            [(ngModel)]="BackOfficeBindingPassword"
+            name="backOfficeBindingPassword"
+            autocomplete="current-password"
+            (keyup.enter)="SubmitBackOfficeIdentityBinding()"
+            (ngModelChange)="BackOfficeBindingError = ''"
+          />
+        </label>
+      </div>
+      <p *ngIf="BackOfficeBindingError" class="field-error" role="alert">
+        {{ BackOfficeBindingError }}
+      </p>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="primary-button"
+          (click)="SubmitBackOfficeIdentityBinding()"
+        >
+          驗證身分
+        </button>
+        <button
+          type="button"
+          class="tertiary-button"
+          (click)="ReturnToLoginFromBackOfficeBinding()"
+        >
+          返回登入
+        </button>
+      </div>
+    </section>
+  </section>
 </div>

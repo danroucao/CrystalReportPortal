@@ -177,9 +177,23 @@ public class CrystalProcessService : ICrystalProcessService
             Path.Combine(
                 tempDirectory,
                 $"{Guid.NewGuid():N}.pdf");
+        var requestPath = Path.Combine(
+            tempDirectory,
+            $"{Guid.NewGuid():N}.json");
 
         try
         {
+            var request = new
+            {
+                RptPath = rptPath,
+                OutputPath = outputPath,
+                UseSavedDataOnly = true
+            };
+            await File.WriteAllTextAsync(
+                requestPath,
+                JsonSerializer.Serialize(request),
+                Encoding.UTF8);
+
             // ============================
             // 4. 執行 Crystal Service
             // ============================
@@ -201,11 +215,7 @@ public class CrystalProcessService : ICrystalProcessService
             startInfo.ArgumentList.Add(
                 "preview");
 
-            startInfo.ArgumentList.Add(
-                rptPath);
-
-            startInfo.ArgumentList.Add(
-                outputPath);
+            startInfo.ArgumentList.Add(requestPath);
 
             using var process =
                 new Process
@@ -285,6 +295,17 @@ public class CrystalProcessService : ICrystalProcessService
                 catch
                 {
                     // 暫存檔刪除失敗不影響預覽結果
+                }
+            }
+
+            if (File.Exists(requestPath))
+            {
+                try
+                {
+                    File.Delete(requestPath);
+                }
+                catch
+                {
                 }
             }
         }
@@ -464,6 +485,109 @@ public class CrystalProcessService : ICrystalProcessService
                 catch
                 {
                     // 暫存檔刪除失敗不覆蓋原本測試結果。
+                }
+            }
+        }
+    }
+
+    public async Task<CrystalLovResponse> GetLovOptionsAsync(
+        CrystalLovRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var exePath = _configuration["CrystalService:ExePath"];
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            throw new InvalidOperationException(
+                "尚未設定 CrystalService:ExePath。");
+        }
+
+        if (!File.Exists(exePath))
+        {
+            throw new FileNotFoundException(
+                "找不到 Crystal Service 執行檔。", exePath);
+        }
+
+        var tempDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "CrystalReportPortal",
+            "LovQueries");
+        Directory.CreateDirectory(tempDirectory);
+
+        var requestPath = Path.Combine(
+            tempDirectory,
+            $"{Guid.NewGuid():N}.json");
+
+        try
+        {
+            await File.WriteAllTextAsync(
+                requestPath,
+                JsonSerializer.Serialize(request),
+                new UTF8Encoding(false));
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = exePath,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("lov-options");
+            startInfo.ArgumentList.Add(requestPath);
+
+            using var process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException(
+                    "無法啟動 Crystal Service。");
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                throw new InvalidOperationException(
+                    "Crystal Service 沒有回傳 SQL LOV 結果。"
+                    + Environment.NewLine + error);
+            }
+
+            var response = JsonSerializer.Deserialize<CrystalLovResponse>(
+                output.Trim(),
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+            if (response == null)
+            {
+                throw new InvalidOperationException(
+                    "無法解析 Crystal Service 的 SQL LOV 結果。");
+            }
+
+            if (!response.Success)
+            {
+                throw new InvalidOperationException(
+                    response.Message ?? "SQL LOV 查詢失敗。");
+            }
+
+            return response;
+        }
+        finally
+        {
+            if (File.Exists(requestPath))
+            {
+                try
+                {
+                    File.Delete(requestPath);
+                }
+                catch
+                {
+                    // 暫存檔刪除失敗不覆蓋原本查詢結果。
                 }
             }
         }

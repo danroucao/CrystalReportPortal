@@ -13,23 +13,20 @@ export interface MockReport {
 
 export interface MockReportReadModel extends MockReport {
   readonly CategoryName: string;
+  readonly ReportId?: number;
+  readonly ReportCode?: string;
+  readonly Permissions?: {
+    readonly CanExecute: boolean;
+    readonly CanExport: boolean;
+    readonly CanPrint: boolean;
+    readonly CanUpload: boolean;
+    readonly CanMaintain: boolean;
+    readonly CanSetParameters: boolean;
+    readonly CanEnableDisable: boolean;
+  };
 }
 
-export type MockReportKey =
-  | 'AccountBalance'
-  | 'MonthlyRevenue'
-  | 'Activity'
-  | 'InventoryTransferHana'
-  | 'DocumentsV2WithSerialAndBatchDetails'
-  | 'ProductionOrder'
-  | 'ServiceContract'
-  | 'ActivityAttendance'
-  | 'CampaignPerformance'
-  | 'InventoryAging'
-  | 'ProductionYield'
-  | 'ServiceTicketSummary'
-  | 'DocumentArchive'
-  | `UploadedReport${number}`;
+export type MockReportKey = string;
 
 // Metadata only: no RPT file is read, copied, or bundled into the Angular application.
 export const MockReports: readonly MockReport[] = [

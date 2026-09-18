@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { finalize } from 'rxjs';
 
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
@@ -10,7 +12,7 @@ type NoticeKind =
   | 'credential-error'
   | 'service-error'
   | 'session-expired'
-  | 'demo-unavailable'
+  | 'password-expired'
   | null;
 
 @Component({
@@ -36,6 +38,7 @@ export class LoginComponent implements OnInit {
   isSubmitting = false;
   passwordVisible = false;
   notice: NoticeKind = null;
+  serviceErrorMessage = '';
 
   ngOnInit(): void {
     const state = this.route.snapshot.queryParamMap.get('state');
@@ -50,11 +53,15 @@ export class LoginComponent implements OnInit {
   get account() {
     return this.loginForm.controls.account;
   }
+
   get password() {
     return this.loginForm.controls.password;
   }
 
   get noticeMessage(): string {
+    if (this.notice === 'service-error' && this.serviceErrorMessage) {
+      return this.serviceErrorMessage;
+    }
     switch (this.notice) {
       case 'credential-error':
         return '帳號或密碼錯誤，請確認後再試一次。';
@@ -62,8 +69,8 @@ export class LoginComponent implements OnInit {
         return '目前無法完成登入，請稍後再試。';
       case 'session-expired':
         return '登入已逾時，請重新登入。';
-      case 'demo-unavailable':
-        return '目前環境未啟用 Demo 登入。';
+      case 'password-expired':
+        return '密碼已過期，請先修改密碼。';
       default:
         return '';
     }
@@ -86,31 +93,62 @@ export class LoginComponent implements OnInit {
   submit(): void {
     this.submitted = true;
     this.notice = null;
+    this.serviceErrorMessage = '';
 
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
       return;
     }
 
-    if (!this.Auth.IsDemoAuthenticationEnabled) {
-      this.notice = 'demo-unavailable';
-      return;
-    }
-
     this.isSubmitting = true;
     this.loginForm.disable();
 
-    // Local Demo only: AuthService can later be replaced by the ASP.NET Core Login API implementation.
-    window.setTimeout(() => {
-      this.isSubmitting = false;
-      this.loginForm.enable();
-      if (!this.Auth.Login(this.account.value, this.password.value)) {
-        this.notice = 'credential-error';
-        return;
-      }
+    this.Auth.LoginUnified(this.account.value, this.password.value)
+      .pipe(
+        finalize(() => {
+          this.isSubmitting = false;
+          this.loginForm.enable();
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.Notifications.ShowSuccess('登入成功！');
+          void this.router.navigate([this.Auth.HomeRoute]).then((navigated) => {
+            if (!navigated) {
+              this.notice = 'service-error';
+            }
+          });
+        },
+        error: (LoginError: unknown) => {
+          if (LoginError instanceof HttpErrorResponse) {
+            const ApiMessage =
+              typeof LoginError.error?.message === 'string'
+                ? LoginError.error.message
+                : '';
+            if (LoginError.status === 401) {
+              this.notice = 'credential-error';
+              return;
+            }
 
-      this.Notifications.ShowSuccess('登入成功！');
-      void this.router.navigate(['/reports/parameters']);
-    }, 700);
+            if (LoginError.status === 403 && LoginError.error?.passwordExpired === true) {
+              this.notice = 'password-expired';
+              return;
+            }
+
+            if (ApiMessage) {
+              this.serviceErrorMessage = ApiMessage;
+              this.notice = 'service-error';
+              return;
+            }
+          }
+
+          if (LoginError instanceof Error && LoginError.message) {
+            this.serviceErrorMessage = LoginError.message;
+          }
+
+          this.notice = 'service-error';
+        },
+      });
   }
+
 }
