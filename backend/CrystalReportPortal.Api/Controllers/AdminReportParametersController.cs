@@ -2,6 +2,7 @@ using System.Security.Claims;
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
+using CrystalReportPortal.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -39,10 +40,14 @@ public class AdminReportParametersController : ControllerBase
     };
 
     private readonly AppDbContext _dbContext;
+    private readonly IReportService _reportService;
 
-    public AdminReportParametersController(AppDbContext dbContext)
+    public AdminReportParametersController(
+        AppDbContext dbContext,
+        IReportService reportService)
     {
         _dbContext = dbContext;
+        _reportService = reportService;
     }
 
     [HttpGet]
@@ -66,6 +71,39 @@ public class AdminReportParametersController : ControllerBase
         }
 
         return Ok(ToResponse(report));
+    }
+
+    [HttpGet("{parameterId:long}/options")]
+    public async Task<ActionResult<ParameterOptionResponse>> GetParameterOptions(
+        long reportId,
+        long parameterId)
+    {
+        if (!TryGetUserId(out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var accessResult = await CheckReportAccessAsync(reportId, userId);
+        if (accessResult != null)
+        {
+            return accessResult;
+        }
+
+        try
+        {
+            var result = await _reportService
+                .GetParameterOptionsForManagementAsync(reportId, parameterId);
+
+            return Ok(result);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            return NotFound(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
     }
 
     [HttpPut("{parameterId:long}")]

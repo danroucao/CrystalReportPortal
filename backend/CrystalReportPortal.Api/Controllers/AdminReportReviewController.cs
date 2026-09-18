@@ -20,21 +20,25 @@ public class AdminReportReviewController : ControllerBase
     private readonly AppDbContext _dbContext;
     private readonly ICredentialProtector _credentialProtector;
     private readonly ICrystalExportProcessService _crystalExport;
+    private readonly ICrystalProcessService _crystalProcess;
 
     public AdminReportReviewController(
         AppDbContext dbContext,
         ICredentialProtector credentialProtector,
-        ICrystalExportProcessService crystalExport)
+        ICrystalExportProcessService crystalExport,
+        ICrystalProcessService crystalProcess)
     {
         _dbContext = dbContext;
         _credentialProtector = credentialProtector;
         _crystalExport = crystalExport;
+        _crystalProcess = crystalProcess;
     }
 
     [HttpPost("test-preview")]
     public async Task<IActionResult> TestPreview(
         long reportId,
-        ReportExecutionRequest request)
+        ReportExecutionRequest request,
+        [FromQuery] bool useSavedDataOnly = false)
     {
         if (!TryGetUserId(out var userId))
         {
@@ -58,16 +62,30 @@ public class AdminReportReviewController : ControllerBase
             return NotFound(new { message = "找不到指定的報表。" });
         }
 
-        if (!string.Equals(
-                report.ConfigurationStatus,
-                "PendingReview",
-                StringComparison.OrdinalIgnoreCase))
+        var isPendingReview = string.Equals(
+            report.ConfigurationStatus,
+            "PendingReview",
+            StringComparison.OrdinalIgnoreCase);
+
+        var isPendingConfiguration = string.Equals(
+            report.ConfigurationStatus,
+            "PendingConfiguration",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!isPendingReview && !isPendingConfiguration)
         {
             return BadRequest(new
             {
-                message = "只有 PendingReview 狀態的報表可以執行管理端測試預覽。"
+                message =
+                    "只有待設定或待確認狀態的報表可以執行管理端測試預覽。"
             });
         }
+
+        // 參數尚未完成設定時，只允許使用 RPT 內的 Saved Data 預覽，
+        // 避免以不完整參數連線查詢正式資料庫。
+        useSavedDataOnly =
+            useSavedDataOnly ||
+            isPendingConfiguration;
 
         if (string.IsNullOrWhiteSpace(report.RptFilePath) ||
             !System.IO.File.Exists(report.RptFilePath))
@@ -75,14 +93,41 @@ public class AdminReportReviewController : ControllerBase
             return BadRequest(new { message = "找不到報表 RPT 檔案。" });
         }
 
-        if (!report.DataSource.IsEnabled)
+        if (useSavedDataOnly)
         {
-            return BadRequest(new { message = "報表資料來源目前未啟用。" });
+            try
+            {
+                var savedDataPdf = await _crystalProcess.PreviewAsync(report.RptFilePath);
+                return File(savedDataPdf, "application/pdf", $"report-{reportId}-saved-data-preview.pdf");
+            }
+            catch (Exception exception)
+            {
+                await WriteFailedPreviewAuditAsync(userId, reportId, report.ReportCode, exception);
+                return BadRequest(new
+                {
+                    message = "RPT Saved Data 預覽失敗。",
+                    detail = exception.Message
+                });
+            }
+        }
+
+        if (!useSavedDataOnly &&
+            (report.DataSource == null || !report.DataSource.IsEnabled))
+        {
+            return BadRequest(new
+            {
+                message = "請先設定並啟用報表資料來源。"
+            });
         }
 
         try
         {
-            var exportRequest = await BuildExportRequestAsync(report, userId, request);
+            var exportRequest =
+                await BuildExportRequestAsync(
+                    report,
+                    userId,
+                    request,
+                    useSavedDataOnly);
             var pdf = await _crystalExport.ExportPdfAsync(exportRequest);
             var now = DateTime.UtcNow;
 
@@ -221,8 +266,19 @@ public class AdminReportReviewController : ControllerBase
     private async Task<CrystalExportProcessRequest> BuildExportRequestAsync(
         Report report,
         long userId,
-        ReportExecutionRequest request)
+        ReportExecutionRequest request,
+        bool useSavedDataOnly)
     {
+        if (useSavedDataOnly)
+        {
+            return new CrystalExportProcessRequest
+            {
+                RptPath = report.RptFilePath,
+                UseSavedDataOnly = true,
+                Parameters = []
+            };
+        }
+
         var supplied = (request.Parameters ?? new List<ReportExecutionParameterRequest>())
             .GroupBy(parameter => parameter.ParameterId)
             .ToDictionary(
@@ -319,14 +375,24 @@ public class AdminReportReviewController : ControllerBase
         return new CrystalExportProcessRequest
         {
             RptPath = report.RptFilePath,
+            UseSavedDataOnly = false,
+
             Database = new CrystalExportDatabase
             {
-                Server = $"{report.DataSource.ServerHost},{report.DataSource.Port}",
-                Database = report.DataSource.DatabaseName,
-                IntegratedSecurity = integratedSecurity,
+                Server =
+                    $"{report.DataSource.ServerHost}," +
+                    $"{report.DataSource.Port}",
+
+                Database =
+                    report.DataSource.DatabaseName,
+
+                IntegratedSecurity =
+                    integratedSecurity,
+
                 Username = username,
                 Password = password
             },
+
             Parameters = exportParameters
         };
     }

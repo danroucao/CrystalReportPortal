@@ -183,13 +183,40 @@ public class ReportsController : ControllerBase
             return Unauthorized();
         }
 
-        var result =
-            await _reportService.UploadRptAsync(
-                reportId,
-                file,
-                userId);
+        try
+        {
+            var result =
+                await _reportService.UploadRptAsync(
+                    reportId,
+                    file,
+                    userId);
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
     }
 
     [HttpGet("{reportId:long}/preview")]

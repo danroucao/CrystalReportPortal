@@ -59,6 +59,15 @@ dd {
   background: #fafafa;
 }
 
+.report-preview-frame {
+  display: block;
+  width: 100%;
+  min-height: 70vh;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--color-border);
+  background: #fafafa;
+}
+
 .preview-output-bar {
   display: flex;
   flex-wrap: wrap;

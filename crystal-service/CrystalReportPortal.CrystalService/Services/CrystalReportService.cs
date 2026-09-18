@@ -296,27 +296,53 @@ namespace CrystalReportPortal.CrystalService.Services
                 {
                     report.Load(request.RptPath);
 
-                    if (DiagnosticsEnabled)
-                    {
-                        DumpRasTables(
-                            report,
-                            "BEFORE DATABASE CONNECTION");
-                    }
+                    Console.Error.WriteLine(
+                        $"UseSavedDataOnly: {request.UseSavedDataOnly}");
 
-                    ApplyRasCommandConnection(
-                        report,
-                        request.Database);
+                    Console.Error.WriteLine(
+                        $"HasSavedData: {report.HasSavedData}");
 
                     if (DiagnosticsEnabled)
                     {
                         DumpRasTables(
                             report,
-                            "AFTER DATABASE CONNECTION");
+                            "REPORT DATA SOURCES");
                     }
 
-                    SetParameters(
-                        report,
-                        request.Parameters);
+                    if (request.UseSavedDataOnly)
+                    {
+                        if (!report.HasSavedData)
+                        {
+                            throw new InvalidOperationException(
+                                "此 RPT 沒有保存資料，無法在不連接資料庫的情況下產生 PDF。");
+                        }
+
+                        Console.Error.WriteLine(
+                            "Exporting PDF from RPT Saved Data.");
+                    }
+                    else
+                    {
+                        if (request.Database == null)
+                        {
+                            throw new InvalidOperationException(
+                                "即時報表匯出缺少資料庫設定。");
+                        }
+
+                        ApplyRasCommandConnection(
+                            report,
+                            request.Database);
+
+                        if (DiagnosticsEnabled)
+                        {
+                            DumpRasTables(
+                                report,
+                                "AFTER DATABASE CONNECTION");
+                        }
+
+                        SetParameters(
+                            report,
+                            request.Parameters);
+                    }
 
                     report.ExportToDisk(
                         ExportFormatType.PortableDocFormat,
@@ -325,7 +351,9 @@ namespace CrystalReportPortal.CrystalService.Services
                     return new CrystalExportResponse
                     {
                         Success = true,
-                        Message = "Export success.",
+                        Message = request.UseSavedDataOnly
+                            ? "Saved Data PDF export success."
+                            : "Live PDF export success.",
                         OutputPath = request.OutputPath
                     };
                 }
@@ -546,9 +574,6 @@ namespace CrystalReportPortal.CrystalService.Services
                 // 5. 修改 OLE DB Provider / Server / Database
                 // =================================================
 
-                logonProperties["Provider"] =
-                    "SQLNCLI11";
-
                 logonProperties["Data Source"] =
                     database.Server;
 
@@ -564,6 +589,14 @@ namespace CrystalReportPortal.CrystalService.Services
 
                 if (database.IntegratedSecurity)
                 {
+                    // RAS 會同時檢查外層 SSO 旗標與
+                    // QE_LogonProperties。若只清空帳密並設定 SSPI，
+                    // 但沿用 RPT 原本的 SSO=false，匯出時會得到
+                    //「無法連接：登入參數錯誤」。
+                    SetRasSsoEnabled(
+                        qeDetails,
+                        true);
+
                     logonProperties["Integrated Security"] =
                         "SSPI";
 
@@ -581,6 +614,10 @@ namespace CrystalReportPortal.CrystalService.Services
                 }
                 else
                 {
+                    SetRasSsoEnabled(
+                        qeDetails,
+                        false);
+
                     logonProperties["Integrated Security"] =
                         false;
 
@@ -868,37 +905,21 @@ namespace CrystalReportPortal.CrystalService.Services
                 return;
             }
 
-            foreach (
-                var parameter
-                in parameters)
+            foreach (var parameter in parameters)
             {
+                if (string.IsNullOrWhiteSpace(
+                        parameter.Name))
+                {
+                    throw new ArgumentException(
+                        "Crystal 參數名稱不可為空白。");
+                }
+
                 if (parameter.Values == null ||
                     parameter.Values.Count == 0)
                 {
-                    continue;
+                    throw new ArgumentException(
+                        $"Crystal 參數 {parameter.Name} 沒有任何值。");
                 }
-
-                // =============================================
-                // 單值參數
-                // =============================================
-
-                if (parameter.Values.Count == 1)
-                {
-                    var value =
-                        ConvertParameterValue(
-                            parameter.Values[0],
-                            parameter.DataType);
-
-                    report.SetParameterValue(
-                        parameter.Name,
-                        value);
-
-                    continue;
-                }
-
-                // =============================================
-                // 多值參數
-                // =============================================
 
                 var parameterField =
                     report
@@ -906,29 +927,73 @@ namespace CrystalReportPortal.CrystalService.Services
                         .ParameterFields[
                             parameter.Name];
 
-                var values =
-                    new ParameterValues();
+                var allowMultipleValues =
+                    parameterField
+                        .EnableAllowMultipleValue;
 
-                foreach (
-                    var rawValue
-                    in parameter.Values)
+                if (DiagnosticsEnabled)
                 {
-                    var discreteValue =
-                        new ParameterDiscreteValue
-                        {
-                            Value =
-                                ConvertParameterValue(
-                                    rawValue,
-                                    parameter.DataType)
-                        };
-
-                    values.Add(
-                        discreteValue);
+                    Console.Error.WriteLine(
+                        $"Setting parameter: " +
+                        $"Name={parameter.Name}, " +
+                        $"AllowMultiple={allowMultipleValues}, " +
+                        $"ValueCount={parameter.Values.Count}, " +
+                        $"DataType={parameter.DataType}");
                 }
 
-                parameterField
-                    .ApplyCurrentValues(
-                        values);
+                // =============================================
+                // 多值參數
+                //
+                // 即使只有一個選取值，也必須使用
+                // ParameterValues + ApplyCurrentValues。
+                // =============================================
+
+                if (allowMultipleValues)
+                {
+                    var currentValues =
+                        new ParameterValues();
+
+                    foreach (var rawValue in parameter.Values)
+                    {
+                        var discreteValue =
+                            new ParameterDiscreteValue
+                            {
+                                Value =
+                                    ConvertParameterValue(
+                                        rawValue,
+                                        parameter.DataType)
+                            };
+
+                        currentValues.Add(
+                            discreteValue);
+                    }
+
+                    parameterField.ApplyCurrentValues(
+                        currentValues);
+
+                    continue;
+                }
+
+                // =============================================
+                // 單值參數
+                // =============================================
+
+                if (parameter.Values.Count != 1)
+                {
+                    throw new ArgumentException(
+                        $"Crystal 參數 {parameter.Name} " +
+                        "不允許多值，但收到 " +
+                        $"{parameter.Values.Count} 個值。");
+                }
+
+                var value =
+                    ConvertParameterValue(
+                        parameter.Values[0],
+                        parameter.DataType);
+
+                report.SetParameterValue(
+                    parameter.Name,
+                    value);
             }
         }
 
@@ -1502,6 +1567,16 @@ namespace CrystalReportPortal.CrystalService.Services
 
                     Console.Error.WriteLine(
                         $"CommandText Length: {commandTable.CommandText?.Length ?? 0}");
+
+                    if (!string.IsNullOrWhiteSpace(
+                        commandTable.CommandText))
+                    {
+                        Console.Error.WriteLine(
+                            "CommandText:");
+
+                        Console.Error.WriteLine(
+                            commandTable.CommandText);
+                    }
                 }
                 else
                 {
@@ -1624,6 +1699,8 @@ namespace CrystalReportPortal.CrystalService.Services
                 qeDetails["QE_ServerDescription"] =
                     database.Server;
 
+                // RPT 原本使用 SQLNCLI11，但目前執行環境安裝的是
+                // Microsoft OLE DB Driver 18。
                 logonProperties["Provider"] =
                     "MSOLEDBSQL";
 
@@ -1633,8 +1710,18 @@ namespace CrystalReportPortal.CrystalService.Services
                 logonProperties["Initial Catalog"] =
                     database.Database;
 
-                logonProperties["Trust Server Certificate"] =
-                    "1";
+                if (logonProperties.Contains(
+                    "DataTypeCompatibility"))
+                {
+                    logonProperties["DataTypeCompatibility"] =
+                        "80";
+                }
+                else
+                {
+                    logonProperties.Add(
+                        "DataTypeCompatibility",
+                        "80");
+                }
 
                 // =====================================================
                 // 4. Authentication
@@ -1642,8 +1729,23 @@ namespace CrystalReportPortal.CrystalService.Services
 
                 if (database.IntegratedSecurity)
                 {
-                    logonProperties["Integrated Security"] =
-                        "SSPI";
+                    SetRasSsoEnabled(
+                        qeDetails,
+                        true);
+
+                    // Windows Authentication 使用 SSPI。
+                    if (logonProperties.Contains(
+                            "Integrated Security"))
+                    {
+                        logonProperties["Integrated Security"] =
+                            "SSPI";
+                    }
+                    else
+                    {
+                        logonProperties.Add(
+                            "Integrated Security",
+                            "SSPI");
+                    }
 
                     if (logonProperties.Contains("User ID"))
                     {
@@ -1657,8 +1759,34 @@ namespace CrystalReportPortal.CrystalService.Services
                 }
                 else
                 {
-                    logonProperties["Integrated Security"] =
-                        false;
+                    SetRasSsoEnabled(
+                        qeDetails,
+                        false);
+
+                    // MSOLEDBSQL 使用 SQL Login 時不要設定
+                    // Integrated Security=False。
+                    if (logonProperties.Contains(
+                            "Integrated Security"))
+                    {
+                        logonProperties.Remove(
+                            "Integrated Security");
+                    }
+
+                    // 剛才已用最小連線字串驗證成功，
+                    // 因此先移除可能不相容的額外屬性。
+                    if (logonProperties.Contains(
+                            "Trust Server Certificate"))
+                    {
+                        logonProperties.Remove(
+                            "Trust Server Certificate");
+                    }
+
+                    if (logonProperties.Contains(
+                            "Use Encryption for Data"))
+                    {
+                        logonProperties.Remove(
+                            "Use Encryption for Data");
+                    }
 
                     if (logonProperties.Contains("User ID"))
                     {
@@ -1746,6 +1874,43 @@ namespace CrystalReportPortal.CrystalService.Services
                     "目前此匯出流程僅支援主報表的 Command Table，" +
                     "但指定的 RPT 找不到可替換的 Command Table。");
             }
+
+            if (!database.IntegratedSecurity)
+            {
+                databaseController.LogonEx(
+                    database.Server,
+                    database.Database,
+                    database.Username,
+                    database.Password);
+            }
+        }
+
+        private static void SetRasSsoEnabled(
+            CrystalDecisions.ReportAppServer.DataDefModel.PropertyBag qeDetails,
+            bool enabled)
+        {
+            // 不同 Crystal Runtime／RPT 版本可能使用其中一個名稱。
+            // 既有屬性優先更新；若兩者都不存在則加入標準 QE 名稱。
+            var updated = false;
+
+            if (qeDetails.Contains("QE_SSOEnabled"))
+            {
+                qeDetails["QE_SSOEnabled"] = enabled;
+                updated = true;
+            }
+
+            if (qeDetails.Contains("SSO Enabled"))
+            {
+                qeDetails["SSO Enabled"] = enabled;
+                updated = true;
+            }
+
+            if (!updated)
+            {
+                qeDetails.Add(
+                    "QE_SSOEnabled",
+                    enabled);
+            }
         }
 
         private void ValidateExportRequest(
@@ -1773,7 +1938,16 @@ namespace CrystalReportPortal.CrystalService.Services
                 throw new ArgumentException("OutputPath 不可為空白。");
             }
 
-            ValidateDatabaseConfig(request.Database);
+            if (!request.UseSavedDataOnly)
+            {
+                if (request.Database == null)
+                {
+                    throw new ArgumentException(
+                        "即時報表匯出必須提供 Database 設定。");
+                }
+
+                ValidateDatabaseConfig(request.Database);
+            }
         }
 
         private bool IsSensitiveAttributeName(
@@ -1933,6 +2107,25 @@ namespace CrystalReportPortal.CrystalService.Services
                         keyword);
                 }
             }
+        }
+
+        private static bool HasDatabaseTables(
+    ReportDocument report)
+        {
+            if (report.Database.Tables.Count > 0)
+            {
+                return true;
+            }
+
+            foreach (ReportDocument subreport in report.Subreports)
+            {
+                if (subreport.Database.Tables.Count > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

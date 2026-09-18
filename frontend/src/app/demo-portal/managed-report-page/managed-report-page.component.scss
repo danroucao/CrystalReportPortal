@@ -1,0 +1,29 @@
+:host { display: block; }
+.managed-reports { display: grid; gap: 1rem; }
+.managed-reports-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.managed-reports-heading h2, .managed-reports-heading p { margin: 0; }
+.managed-reports-heading p { margin-top: .35rem; color: #666; }
+.report-management-toolbar { display: grid; grid-template-columns: repeat(3, minmax(10rem, 1fr)) minmax(16rem, 2fr); gap: .75rem; }
+.report-management-toolbar label, .managed-report-form label { display: grid; gap: .35rem; font-weight: 700; }
+.report-management-toolbar input, .report-management-toolbar select,
+.managed-report-form input, .managed-report-form select, .managed-report-form textarea { box-sizing: border-box; width: 100%; padding: .65rem; border: 1px solid #c9c4be; border-radius: 4px; background: #fff; }
+.report-management-table { width: 100%; border-collapse: collapse; }
+.report-management-table th, .report-management-table td { padding: .75rem .6rem; border-bottom: 1px solid #ddd7d0; text-align: left; vertical-align: middle; }
+.report-management-table small { display: block; margin-top: .2rem; color: #666; }
+.configuration-status { display: inline-block; padding: .2rem .55rem; border-radius: 999px; background: #eee; white-space: nowrap; }
+.configuration-status[data-status='Ready'] { background: #e3f4e8; color: #176b34; }
+.configuration-status[data-status='PendingConfiguration'] { background: #fff1cc; color: #795400; }
+.managed-report-state { padding: 2rem; text-align: center; color: #666; }
+.managed-report-editor { width: min(48rem, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); overflow: auto; }
+.managed-report-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.managed-report-form .wide { grid-column: 1 / -1; }
+.account-status-switch:disabled { cursor: not-allowed; opacity: .5; }
+.managed-report-actions { min-width: 190px; }
+.managed-report-action-group { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.managed-report-action-group .primary-button,
+.managed-report-action-group .danger-button { white-space: nowrap; }
+@media (max-width: 780px) {
+  .managed-reports-heading { flex-direction: column; }
+  .report-management-toolbar, .managed-report-form { grid-template-columns: 1fr; }
+  .managed-report-form .wide { grid-column: auto; }
+}

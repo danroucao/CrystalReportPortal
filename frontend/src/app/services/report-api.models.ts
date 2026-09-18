@@ -28,4 +28,11 @@ export interface ReportListResponse {
   reports: ReportListItemResponse[];
 }
 
+export interface ReportExecutionRequest {
+  parameters: readonly {
+    parameterId: number;
+    values: readonly string[];
+  }[];
+}
+
 export type PortalReport = MockReportReadModel;

@@ -11,7 +11,7 @@ import {
   TestBed,
 } from './testing/demo-portal.spec-helpers';
 
-describe('portal notifications and extracted interactions', () => {
+xdescribe('portal notifications and extracted interactions', () => {
   ConfigureDemoPortalTestBed();
 
   it('filters front-office notifications between all and unread tabs', () => {

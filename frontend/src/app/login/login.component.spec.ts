@@ -144,21 +144,48 @@ describe('LoginComponent', () => {
 
   it('shows a credential error when the API returns 401', () => {
     const fixture = TestBed.createComponent(LoginComponent);
-    const router = TestBed.inject(Router);
-    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
     const component = fixture.componentInstance;
+    const Http = TestBed.inject(HttpTestingController);
 
     component.account.setValue('unknown@example.com');
     component.password.setValue('incorrect');
+
     component.submit();
 
-    const request = http.expectOne(`${API_BASE_URL}/auth/login`);
-    request.flush(
-      { success: false, message: '帳號或密碼錯誤' },
-      { status: 401, statusText: 'Unauthorized' },
+    const userLoginRequest = Http.expectOne(
+      'http://localhost:5181/api/auth/login',
     );
 
-    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(userLoginRequest.request.method).toBe('POST');
+
+    userLoginRequest.flush(
+      {
+        message: '帳號或密碼錯誤。',
+      },
+      {
+        status: 401,
+        statusText: 'Unauthorized',
+      },
+    );
+
+    const backOfficeLoginRequest = Http.expectOne(
+      'http://localhost:5181/api/backoffice-auth/login',
+    );
+
+    expect(backOfficeLoginRequest.request.method).toBe('POST');
+
+    backOfficeLoginRequest.flush(
+      {
+        message: '後台帳號或密碼錯誤。',
+      },
+      {
+        status: 401,
+        statusText: 'Unauthorized',
+      },
+    );
+
+    fixture.detectChanges();
+
     expect(component.notice).toBe('credential-error');
     expect(component.loginForm.enabled).toBeTrue();
     expect(component.isSubmitting).toBeFalse();

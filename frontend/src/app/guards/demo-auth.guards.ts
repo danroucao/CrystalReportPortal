@@ -24,7 +24,7 @@ export const FrontOfficeGuard: CanActivateFn = () =>
   CheckAccess((Auth) => Auth.IsFrontOffice);
 
 export const BackOfficeGuard: CanActivateFn = () =>
-  CheckAccess((Auth) => Auth.IsBackOffice && Auth.CanOperateBackOffice);
+  CheckAccess((Auth) => Auth.IsBackOffice);
 
 export const FrontOfficePermissionGuard: CanActivateFn = (Route) =>
   CheckAccess((Auth) =>

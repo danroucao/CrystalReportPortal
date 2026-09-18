@@ -9,244 +9,329 @@ using Microsoft.EntityFrameworkCore;
 namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
-[Route("api/admin/reports")]
-[Authorize(Policy = "BackOffice")]
+[Route("api/backoffice/reports")]
+[Authorize]
 public class AdminReportsController : ControllerBase
 {
-    private readonly AppDbContext db;
-    public AdminReportsController(AppDbContext db) => this.db = db;
+    private static readonly string[] ManagementPermissionCodes =
+    {
+        "Report.Upload",
+        "Report.Maintain",
+        "Report.SetParameters",
+        "Report.EnableDisable"
+    };
+
+    private readonly AppDbContext _dbContext;
+
+    public AdminReportsController(AppDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
 
     [HttpGet]
-    public async Task<ActionResult<List<AdminReportDto>>> GetReports() => Ok(await db.Reports.AsNoTracking().OrderBy(x => x.ReportName)
-        .Select(x => new AdminReportDto { ReportId = x.ReportId, ReportCode = x.ReportCode, ReportName = x.ReportName, Description = x.Description, IsEnabled = x.IsEnabled, ConfigurationStatus = x.ConfigurationStatus, RptFileName = x.RptFileName }).ToListAsync());
+    [Authorize]
+    public async Task<ActionResult<IReadOnlyList<AdminReportDto>>> GetReports()
+    {
+        var roleCodes = GetRoleCodes();
+        if (roleCodes.Count == 0)
+        {
+            return Forbid();
+        }
+
+        var canAccessManagement = await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .AnyAsync(permission =>
+                roleCodes.Contains(permission.Role.RoleCode) &&
+                permission.Role.IsEnabled &&
+                (permission.CanUpload ||
+                 permission.CanMaintain ||
+                 permission.CanSetParameters ||
+                 permission.CanEnableDisable));
+
+        if (!canAccessManagement)
+        {
+            return Forbid();
+        }
+
+        var reports = await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .Where(permission =>
+                roleCodes.Contains(permission.Role.RoleCode) &&
+                permission.Role.IsEnabled &&
+                (permission.CanUpload ||
+                 permission.CanMaintain ||
+                 permission.CanSetParameters ||
+                 permission.CanEnableDisable))
+            .Select(permission => permission.Report)
+            .Distinct()
+            .OrderBy(report => report.ReportName)
+            .Select(report => new AdminReportDto
+            {
+                ReportId = report.ReportId,
+                ReportCode = report.ReportCode,
+                ReportName = report.ReportName,
+                Description = report.Description,
+                CategoryId = report.CategoryId,
+                CategoryName = report.Category.CategoryName,
+                DataSourceId = report.DataSourceId,
+                DataSourceName = report.DataSource == null
+                    ? null
+                    : report.DataSource.DataSourceName,
+                CredentialType = report.CredentialType,
+                IsEnabled = report.IsEnabled,
+                ConfigurationStatus = report.ConfigurationStatus,
+                RptFileName = report.RptFileName,
+                CreatedAt = report.CreatedAt,
+                UpdatedAt = report.UpdatedAt
+            })
+            .ToListAsync();
+
+        return Ok(reports);
+    }
 
     [HttpGet("categories")]
-    public async Task<ActionResult<List<CategoryOptionDto>>> GetCategories() => Ok(await db.ReportCategories.AsNoTracking().Where(x => x.IsEnabled).OrderBy(x => x.DisplayOrder)
-        .Select(x => new CategoryOptionDto { CategoryId = x.CategoryId, CategoryName = x.CategoryName }).ToListAsync());
+    [Authorize(Policy = "Report.Upload")]
+    public async Task<ActionResult<IReadOnlyList<CategoryOptionDto>>> GetCategories()
+    {
+        return Ok(await _dbContext.ReportCategories
+            .AsNoTracking()
+            .Where(category => category.IsEnabled)
+            .OrderBy(category => category.DisplayOrder)
+            .ThenBy(category => category.CategoryName)
+            .Select(category => new CategoryOptionDto
+            {
+                CategoryId = category.CategoryId,
+                CategoryName = category.CategoryName
+            })
+            .ToListAsync());
+    }
 
     [HttpGet("data-sources")]
-    public async Task<ActionResult<List<DataSourceOptionDto>>> GetDataSources() => Ok(await db.ReportDataSources.AsNoTracking().Where(x => x.IsEnabled).OrderBy(x => x.DataSourceName)
-        .Select(x => new DataSourceOptionDto { DataSourceId = x.DataSourceId, DataSourceName = x.DataSourceName }).ToListAsync());
+    [Authorize(Policy = "Report.Upload")]
+    public async Task<ActionResult<IReadOnlyList<DataSourceOptionDto>>> GetDataSources()
+    {
+        return Ok(await _dbContext.ReportDataSources
+            .AsNoTracking()
+            .Where(dataSource => dataSource.IsEnabled)
+            .OrderBy(dataSource => dataSource.DataSourceName)
+            .Select(dataSource => new DataSourceOptionDto
+            {
+                DataSourceId = dataSource.DataSourceId,
+                DataSourceName = dataSource.DataSourceName
+            })
+            .ToListAsync());
+    }
 
     [HttpPost]
+    [Authorize(Policy = "Report.Upload")]
     public async Task<ActionResult<AdminReportDto>> CreateReport(
         CreateReportRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.ReportCode) ||
-            string.IsNullOrWhiteSpace(request.ReportName))
-        {
-            return BadRequest(new
-            {
-                message = "Report code and name are required."
-            });
-        }
-
-        if (await db.Reports.AnyAsync(
-                x => x.ReportCode == request.ReportCode))
-        {
-            return Conflict(new
-            {
-                message = "The report code already exists."
-            });
-        }
-
-        var category =
-            await db.ReportCategories
-                .FirstOrDefaultAsync(
-                    x =>
-                        x.CategoryId == request.CategoryId &&
-                        x.IsEnabled);
-
-        if (category == null)
-        {
-            return BadRequest(new
-            {
-                message = "Category is invalid."
-            });
-        }
-
-        var dataSourceExists =
-            await db.ReportDataSources
-                .AnyAsync(
-                    x =>
-                        x.DataSourceId == request.DataSourceId &&
-                        x.IsEnabled);
-
-        if (!dataSourceExists)
-        {
-            return BadRequest(new
-            {
-                message = "Data source is invalid."
-            });
-        }
-
-        if (!long.TryParse(
-        HttpContext.Session.GetString(
-            "BackOffice.OperatorUserId"),
-        out var userId))
+        if (!TryGetUserId(out var userId))
         {
             return Unauthorized();
         }
 
-        // ==========================================
-        // 建立 Report
-        // ==========================================
-
-        var report =
-            new Report
-            {
-                ReportCode =
-                    request.ReportCode.Trim(),
-
-                ReportName =
-                    request.ReportName.Trim(),
-
-                Description =
-                    request.Description?.Trim(),
-
-                CategoryId =
-                    request.CategoryId,
-
-                DataSourceId =
-                    request.DataSourceId,
-
-                CredentialType =
-                    request.CredentialType,
-
-                RptFileName =
-                    string.Empty,
-
-                RptFilePath =
-                    string.Empty,
-
-                IsEnabled =
-                    false,
-
-                ConfigurationStatus =
-                    "Draft",
-
-                CreatedBy =
-                    userId,
-
-                CreatedAt =
-                    DateTime.UtcNow
-            };
-
-        db.Reports.Add(report);
-
-        // ==========================================
-        // ADMIN 一律擁有報表權限
-        // ==========================================
-
-        var adminRole =
-            await db.Roles
-                .SingleOrDefaultAsync(
-                    x =>
-                        x.RoleCode == "ADMIN" &&
-                        x.IsEnabled);
-
-        if (adminRole != null)
+        var reportCode = request.ReportCode.Trim();
+        var reportName = request.ReportName.Trim();
+        if (string.IsNullOrWhiteSpace(reportCode) ||
+            string.IsNullOrWhiteSpace(reportName))
         {
-            db.RoleReportPermissions.Add(
-                new RoleReportPermission
-                {
-                    RoleId =
-                        adminRole.RoleId,
-
-                    Report =
-                        report,
-
-                    CanExecute =
-                        true,
-
-                    CanExport =
-                        true,
-
-                    CanPrint =
-                        true,
-
-                    CreatedAt =
-                        DateTime.UtcNow
-                });
+            return BadRequest(new { message = "報表代碼與報表名稱為必填。" });
         }
 
-        // ==========================================
-        // 財務分類 → 自動授權 FINANCE
-        // ==========================================
-
-        if (string.Equals(
-                category.CategoryName,
-                "財務",
+        if (!string.Equals(
+                request.CredentialType,
+                "ReadOnly",
                 StringComparison.OrdinalIgnoreCase))
         {
-            var financeRole =
-                await db.Roles
-                    .SingleOrDefaultAsync(
-                        x =>
-                            x.RoleCode == "FINANCE" &&
-                            x.IsEnabled);
-
-            if (financeRole != null)
-            {
-                db.RoleReportPermissions.Add(
-                    new RoleReportPermission
-                    {
-                        RoleId =
-                            financeRole.RoleId,
-
-                        Report =
-                            report,
-
-                        CanExecute =
-                            true,
-
-                        CanExport =
-                            true,
-
-                        CanPrint =
-                            true,
-
-                        CreatedAt =
-                            DateTime.UtcNow
-                    });
-            }
+            return BadRequest(new { message = "目前僅允許使用 ReadOnly 憑證。" });
         }
 
-        // ==========================================
-        // 一次寫入 Report + Permissions
-        // ==========================================
+        if (await _dbContext.Reports.AnyAsync(
+                report => report.ReportCode == reportCode))
+        {
+            return Conflict(new { message = "報表代碼已存在。" });
+        }
 
-        await db.SaveChangesAsync();
+        var category = await _dbContext.ReportCategories
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate =>
+                candidate.CategoryId == request.CategoryId &&
+                candidate.IsEnabled);
+        if (category == null)
+        {
+            return BadRequest(new { message = "報表分類無效或已停用。" });
+        }
 
-        return CreatedAtAction(
-            nameof(GetReports),
-            new
+        var dataSource = request.DataSourceId.HasValue
+            ? await _dbContext.ReportDataSources
+                .AsNoTracking()
+                .SingleOrDefaultAsync(candidate =>
+                    candidate.DataSourceId == request.DataSourceId.Value &&
+                    candidate.IsEnabled)
+            : null;
+        if (request.DataSourceId.HasValue && dataSource == null)
+        {
+            return BadRequest(new { message = "資料來源無效或已停用。" });
+        }
+
+        var roleCodes = GetRoleCodes();
+        var managementRoles = await _dbContext.Roles
+            .AsNoTracking()
+            .Where(role => roleCodes.Contains(role.RoleCode) && role.IsEnabled)
+            .Select(role => new
             {
-                reportId =
-                    report.ReportId
-            },
-            new AdminReportDto
+                role.RoleId,
+                PermissionCodes = role.RolePermissions
+                    .Where(rolePermission => rolePermission.Permission.IsEnabled)
+                    .Select(rolePermission => rolePermission.Permission.PermissionCode)
+                    .ToList()
+            })
+            .ToListAsync();
+
+        managementRoles = managementRoles
+            .Where(role => role.PermissionCodes.Any(
+                permissionCode => ManagementPermissionCodes.Contains(permissionCode)))
+            .ToList();
+
+        if (managementRoles.Count == 0)
+        {
+            return Forbid();
+        }
+
+        var now = DateTime.UtcNow;
+        var report = new Report
+        {
+            ReportCode = reportCode,
+            ReportName = reportName,
+            Description = NullIfWhiteSpace(request.Description),
+            CategoryId = request.CategoryId,
+            DataSourceId = request.DataSourceId,
+            CredentialType = "ReadOnly",
+            RptFileName = string.Empty,
+            RptFilePath = string.Empty,
+            IsEnabled = false,
+            ConfigurationStatus = "Draft",
+            CreatedBy = userId,
+            CreatedAt = now
+        };
+
+        _dbContext.Reports.Add(report);
+
+        foreach (var role in managementRoles)
+        {
+            var permissions = role.PermissionCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _dbContext.RoleReportPermissions.Add(new RoleReportPermission
             {
-                ReportId =
-                    report.ReportId,
-
-                ReportCode =
-                    report.ReportCode,
-
-                ReportName =
-                    report.ReportName,
-
-                Description =
-                    report.Description,
-
-                IsEnabled =
-                    report.IsEnabled,
-
-                ConfigurationStatus =
-                    report.ConfigurationStatus,
-
-                RptFileName =
-                    report.RptFileName
+                RoleId = role.RoleId,
+                Report = report,
+                CanExecute = false,
+                CanExport = false,
+                CanPrint = false,
+                CanUpload = permissions.Contains("Report.Upload"),
+                CanMaintain = permissions.Contains("Report.Maintain"),
+                CanSetParameters = permissions.Contains("Report.SetParameters"),
+                CanEnableDisable = permissions.Contains("Report.EnableDisable"),
+                CreatedAt = now
             });
+        }
+
+        _dbContext.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            Report = report,
+            Action = "CREATE_REPORT",
+            Result = "SUCCESS",
+            Details = $"建立報表草稿：{reportCode}",
+            CreatedAt = now
+        });
+
+        await _dbContext.SaveChangesAsync();
+
+        return StatusCode(StatusCodes.Status201Created, new AdminReportDto
+        {
+            ReportId = report.ReportId,
+            ReportCode = report.ReportCode,
+            ReportName = report.ReportName,
+            Description = report.Description,
+            CategoryId = report.CategoryId,
+            CategoryName = category.CategoryName,
+            DataSourceId = report.DataSourceId,
+            DataSourceName = dataSource?.DataSourceName,
+            CredentialType = report.CredentialType,
+            IsEnabled = report.IsEnabled,
+            ConfigurationStatus = report.ConfigurationStatus,
+            RptFileName = report.RptFileName,
+            CreatedAt = report.CreatedAt,
+            UpdatedAt = report.UpdatedAt
+        });
+    }
+
+    [HttpDelete("{reportId:long}")]
+    [Authorize(Policy = "Report.Maintain")]
+    public async Task<IActionResult> DeleteReport(long reportId)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        var report = await _dbContext.Reports
+            .SingleOrDefaultAsync(item => item.ReportId == reportId);
+        if (report == null)
+        {
+            return NotFound(new { message = "找不到指定的報表。" });
+        }
+
+        var hasExecutions = await _dbContext.ReportExecutions
+            .AnyAsync(item => item.ReportId == reportId);
+        if (hasExecutions)
+        {
+            return Conflict(new
+            {
+                message = "此報表已有執行紀錄，為保留稽核資料不可刪除；請先停用報表。"
+            });
+        }
+
+        var reportPath = report.RptFilePath;
+        var reportAuditLogs = await _dbContext.AuditLogs
+            .Where(item => item.ReportId == reportId)
+            .ToListAsync();
+        _dbContext.AuditLogs.RemoveRange(reportAuditLogs);
+        _dbContext.Reports.Remove(report);
+        _dbContext.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            Action = "DELETE_REPORT",
+            Result = "SUCCESS",
+            Details = $"刪除報表：{report.ReportCode}",
+            CreatedAt = DateTime.UtcNow
+        });
+        await _dbContext.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(reportPath) && System.IO.File.Exists(reportPath))
+        {
+            try { System.IO.File.Delete(reportPath); } catch { }
+        }
+
+        return NoContent();
+    }
+
+    private List<string> GetRoleCodes()
+    {
+        return User.FindAll(ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private bool TryGetUserId(out long userId)
+    {
+        return long.TryParse(
+            User.FindFirstValue(ClaimTypes.NameIdentifier),
+            out userId);
+    }
+
+    private static string? NullIfWhiteSpace(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

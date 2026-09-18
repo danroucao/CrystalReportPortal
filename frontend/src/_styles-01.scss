@@ -98,7 +98,7 @@ app-demo-portal .operation-log-table-frame {
 }
 app-demo-portal .operation-log-table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 1320px;
   border-collapse: collapse;
   text-align: left;
   table-layout: fixed;
@@ -143,17 +143,17 @@ app-demo-portal .operation-log-table th:nth-child(1) {
   width: 132px;
 }
 app-demo-portal .operation-log-table th:nth-child(2) {
-  width: 138px;
+  width: 150px;
 }
 app-demo-portal .operation-log-table th:nth-child(3),
 app-demo-portal .operation-log-table th:nth-child(4) {
   width: 80px;
 }
 app-demo-portal .operation-log-table th:nth-child(5) {
-  width: 94px;
+  width: 170px;
 }
 app-demo-portal .operation-log-table th:nth-child(6) {
-  width: 20ch;
+  width: 34ch;
 }
 app-demo-portal .operation-log-table th:nth-child(7) {
   width: 108px;
@@ -178,6 +178,14 @@ app-demo-portal .operation-log-actor {
 }
 app-demo-portal .operation-log-summary {
   line-height: 1.45;
+}
+app-demo-portal .operation-log-action {
+  overflow: hidden;
+  color: #4e4c47;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 app-demo-portal .operation-log-detail-action {
   white-space: nowrap;

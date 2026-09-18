@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Http;
 namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
-[Route("api/users")]
+[Route("api/backoffice/users")]
 [Authorize(Policy = "BackOffice")]
 public class UsersController : ControllerBase
 {
@@ -300,6 +300,46 @@ public class UsersController : ControllerBase
             success = true,
             message = "密碼已重設，請使用新密碼重新登入"
         });
+    }
+
+    [HttpDelete("{userId:long}")]
+    public async Task<IActionResult> DeleteUser(long userId)
+    {
+        var user = await db.Users
+            .Include(item => item.UserRoles)
+            .SingleOrDefaultAsync(item => item.UserId == userId);
+
+        if (user == null)
+        {
+            return NotFound(new { message = "找不到指定的使用者" });
+        }
+
+        var hasExecutions = await db.ReportExecutions
+            .AnyAsync(item => item.UserId == userId);
+        if (hasExecutions)
+        {
+            return Conflict(new
+            {
+                message = "此使用者已有報表執行紀錄，為保留稽核資料不可刪除；請先停用帳號。"
+            });
+        }
+
+        // AuditLogs.UserId is nullable: keep the audit trail after deleting the user.
+        var auditLogs = await db.AuditLogs
+            .Where(item => item.UserId == userId)
+            .ToListAsync();
+        foreach (var auditLog in auditLogs)
+        {
+            auditLog.UserId = null;
+        }
+
+        db.UserRoles.RemoveRange(user.UserRoles);
+        db.Users.Remove(user);
+        AddUserManagementAudit(
+            "DELETE_USER",
+            $"刪除帳號={user.Account}，UserId={user.UserId}");
+        await db.SaveChangesAsync();
+        return NoContent();
     }
 
     // 供本 Controller 的管理操作共用

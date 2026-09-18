@@ -38,6 +38,7 @@ export class LoginComponent implements OnInit {
   isSubmitting = false;
   passwordVisible = false;
   notice: NoticeKind = null;
+  serviceErrorMessage = '';
 
   ngOnInit(): void {
     const state = this.route.snapshot.queryParamMap.get('state');
@@ -58,6 +59,9 @@ export class LoginComponent implements OnInit {
   }
 
   get noticeMessage(): string {
+    if (this.notice === 'service-error' && this.serviceErrorMessage) {
+      return this.serviceErrorMessage;
+    }
     switch (this.notice) {
       case 'credential-error':
         return '帳號或密碼錯誤，請確認後再試一次。';
@@ -89,6 +93,7 @@ export class LoginComponent implements OnInit {
   submit(): void {
     this.submitted = true;
     this.notice = null;
+    this.serviceErrorMessage = '';
 
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
@@ -98,7 +103,7 @@ export class LoginComponent implements OnInit {
     this.isSubmitting = true;
     this.loginForm.disable();
 
-    this.Auth.Login(this.account.value, this.password.value)
+    this.Auth.LoginUnified(this.account.value, this.password.value)
       .pipe(
         finalize(() => {
           this.isSubmitting = false;
@@ -108,23 +113,42 @@ export class LoginComponent implements OnInit {
       .subscribe({
         next: () => {
           this.Notifications.ShowSuccess('登入成功！');
-          void this.router.navigate([this.Auth.HomeRoute]);
+          void this.router.navigate([this.Auth.HomeRoute]).then((navigated) => {
+            if (!navigated) {
+              this.notice = 'service-error';
+            }
+          });
         },
-        error: (Error: unknown) => {
-          if (Error instanceof HttpErrorResponse) {
-            if (Error.status === 401) {
+        error: (LoginError: unknown) => {
+          if (LoginError instanceof HttpErrorResponse) {
+            const ApiMessage =
+              typeof LoginError.error?.message === 'string'
+                ? LoginError.error.message
+                : '';
+            if (LoginError.status === 401) {
               this.notice = 'credential-error';
               return;
             }
 
-            if (Error.status === 403 && Error.error?.passwordExpired === true) {
+            if (LoginError.status === 403 && LoginError.error?.passwordExpired === true) {
               this.notice = 'password-expired';
               return;
             }
+
+            if (ApiMessage) {
+              this.serviceErrorMessage = ApiMessage;
+              this.notice = 'service-error';
+              return;
+            }
+          }
+
+          if (LoginError instanceof Error && LoginError.message) {
+            this.serviceErrorMessage = LoginError.message;
           }
 
           this.notice = 'service-error';
         },
       });
   }
+
 }

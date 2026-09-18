@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { OnInit } from '@angular/core';
 
 import {
   MockAuditLogCategory,
@@ -10,6 +12,8 @@ import {
 } from '../../services/mock-audit-log.service';
 import { AuthService } from '../../services/auth.service';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
+import { AuditLogService } from '../../services/audit-log.service';
+import { AuditLogApiItem } from '../../services/audit-log-api.models';
 
 type OperationLogCategoryFilter = MockAuditLogCategory | 'ALL';
 type OperationLogSourceFilter = MockAuditLogSource | 'ALL';
@@ -27,10 +31,11 @@ interface OperationLogCategoryOption {
   imports: [CommonModule, FormsModule, PortalPaginationComponent],
   templateUrl: './operation-log-page.component.html',
 })
-export class OperationLogPageComponent {
+export class OperationLogPageComponent implements OnInit {
   readonly PaginationPageSize = 10;
   readonly Auth = inject(AuthService);
   readonly AuditLog = inject(MockAuditLogService);
+  private readonly AuditLogApi = inject(AuditLogService);
   readonly OperationLogCategoryOptionsBySource: Readonly<
     Record<OperationLogSourceFilter, readonly OperationLogCategoryOption[]>
   > = {
@@ -60,6 +65,38 @@ export class OperationLogPageComponent {
   OperationLogSortField: OperationLogSortField = 'OccurredAt';
   OperationLogSortDirection: OperationLogSortDirection = 'desc';
   SelectedOperationLog: MockAuditLogEntry | null = null;
+  ApiLogs: MockAuditLogEntry[] = [];
+  ApiTotalCount = 0;
+  ApiLoadError = '';
+  IsApiLoading = false;
+
+  ngOnInit(): void {
+    this.LoadOperationLogs();
+  }
+
+  LoadOperationLogs(): void {
+    if (!this.CanAccessOperationLog) return;
+    this.IsApiLoading = true;
+    this.ApiLoadError = '';
+    this.AuditLogApi.getLogs({
+      page: this.OperationLogCurrentPage,
+      pageSize: this.PaginationPageSize,
+      fromUtc: this.OperationLogStartDate ? `${this.OperationLogStartDate}T00:00:00Z` : undefined,
+      toUtc: this.OperationLogEndDate ? `${this.OperationLogEndDate}T23:59:59.999Z` : undefined,
+    }).subscribe({
+      next: (response) => {
+        this.ApiLogs = response.items.map((item) => this.MapApiLog(item));
+        this.ApiTotalCount = response.totalCount;
+        this.IsApiLoading = false;
+      },
+      error: (error: unknown) => {
+        this.IsApiLoading = false;
+        this.ApiLoadError = error instanceof HttpErrorResponse && typeof error.error?.message === 'string'
+          ? error.error.message
+          : '目前無法取得操作紀錄。';
+      },
+    });
+  }
 
   get CanAccessOperationLog(): boolean {
     return this.Auth.HasManagementPermission('OperationLog');
@@ -75,7 +112,7 @@ export class OperationLogPageComponent {
 
   get FilteredOperationLogs(): readonly MockAuditLogEntry[] {
     const SearchText = this.OperationLogSearchText.trim().toLocaleLowerCase();
-    const FilteredLogs = this.AuditLog.OperationLogs.filter((Entry) => {
+    const FilteredLogs = this.ApiLogs.filter((Entry) => {
       const OccurredDate = Entry.OccurredAt.slice(0, 10);
       const MatchesDate =
         (!this.OperationLogStartDate || OccurredDate >= this.OperationLogStartDate) &&
@@ -117,7 +154,7 @@ export class OperationLogPageComponent {
   }
 
   get OperationLogTotalPages(): number {
-    return this.GetTotalPages(this.FilteredOperationLogs.length);
+    return this.GetTotalPages(this.ApiTotalCount);
   }
 
   get OperationLogPageNumbers(): readonly number[] {
@@ -125,15 +162,13 @@ export class OperationLogPageComponent {
   }
 
   get PagedOperationLogs(): readonly MockAuditLogEntry[] {
-    return this.GetPagedItems(
-      this.FilteredOperationLogs,
-      this.OperationLogCurrentPage,
-    );
+    return this.FilteredOperationLogs;
   }
 
   OnOperationLogFilterChange(): void {
     if (!this.CanAccessOperationLog) return;
     this.OperationLogCurrentPage = 1;
+    this.LoadOperationLogs();
   }
 
   OnOperationLogSourceChange(): void {
@@ -192,8 +227,9 @@ export class OperationLogPageComponent {
     if (!this.CanAccessOperationLog) return;
     this.OperationLogCurrentPage = this.ClampPage(
       Page,
-      this.FilteredOperationLogs.length,
+      this.ApiTotalCount,
     );
+    this.LoadOperationLogs();
   }
 
   OpenOperationLogDetail(Entry: MockAuditLogEntry): void {
@@ -228,6 +264,11 @@ export class OperationLogPageComponent {
         UPDATE_ROLE: '更新角色權限',
         CREATE_ROLE: '新增角色',
         BACKOFFICE_BINDING: '後台身分綁定',
+        BACKOFFICE_SHARED_LOGIN: '後台共用帳號登入',
+        BACKOFFICE_OPERATOR_VERIFY: '操作者身分驗證',
+        BACKOFFICE_LOGOUT: '後台登出',
+        LOGIN: '登入',
+        LOGOUT: '登出',
         UPDATE_USER: '更新帳號',
         DISABLE_USER: '停用帳號',
       }[Action] ?? Action
@@ -280,5 +321,34 @@ export class OperationLogPageComponent {
 
   private ClampPage(RequestedPage: number, ItemCount: number): number {
     return Math.min(Math.max(1, RequestedPage), this.GetTotalPages(ItemCount));
+  }
+
+  private MapApiLog(item: AuditLogApiItem): MockAuditLogEntry {
+    const source: MockAuditLogSource = item.action.startsWith('BACKOFFICE') || item.userId !== null && item.reportId === null
+      ? 'BackOffice'
+      : 'FrontOffice';
+    const isAccountAction = item.action.includes('USER') ||
+      item.action.includes('ACCOUNT') ||
+      item.action.includes('LOGIN') ||
+      item.action.includes('LOGOUT') ||
+      item.action.includes('OPERATOR') ||
+      item.action.includes('BACKOFFICE');
+    const category: MockAuditLogCategory = item.action.includes('ROLE') || item.action.includes('PERMISSION')
+      ? 'PermissionChange'
+      : isAccountAction
+        ? 'AccountManagement'
+        : 'ReportAction';
+    return {
+      Id: item.auditLogId,
+      OccurredAt: item.createdAt,
+      UserId: item.userName ?? item.userAccount ?? String(item.userId ?? ''),
+      Source: source,
+      Category: category,
+      Action: item.action,
+      Summary: item.details ?? item.errorMessage ?? item.result,
+      TargetId: item.reportCode ?? (item.reportId ? String(item.reportId) : ''),
+      IpAddress: item.ipAddress ?? '-',
+      Details: [{ Label: '結果', Value: item.result }, ...(item.errorMessage ? [{ Label: '錯誤', Value: item.errorMessage }] : [])],
+    };
   }
 }

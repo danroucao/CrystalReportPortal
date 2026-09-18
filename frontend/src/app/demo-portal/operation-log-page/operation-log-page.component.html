@@ -65,11 +65,17 @@
   </div>
 
   <div class="operation-log-results-bar">
-    <p>共 <strong>{{ FilteredOperationLogs.length }}</strong> 筆紀錄</p>
+    <p>共 <strong>{{ ApiTotalCount }}</strong> 筆紀錄</p>
     <p>每頁顯示 10 筆</p>
   </div>
 
-  <div class="operation-log-table-frame">
+  <p *ngIf="IsApiLoading" class="operation-log-state" role="status">載入操作紀錄中…</p>
+  <p *ngIf="ApiLoadError" class="operation-log-state operation-log-state--error" role="alert">
+    {{ ApiLoadError }}
+    <button type="button" class="tertiary-button" (click)="LoadOperationLogs()">重新載入</button>
+  </p>
+
+  <div *ngIf="!IsApiLoading && !ApiLoadError" class="operation-log-table-frame">
     <table class="operation-log-table">
       <thead>
         <tr>

@@ -20,3 +20,21 @@ export interface LoginResponse {
   expiresAt?: string;
   user?: AuthenticatedUser;
 }
+
+export interface BackOfficeLoginResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface BackOfficeOperator {
+  userId: number;
+  account: string;
+  userName: string;
+}
+
+export interface BackOfficeOperatorResponse {
+  success: boolean;
+  message: string;
+  passwordExpired: boolean;
+  operator?: BackOfficeOperator;
+}

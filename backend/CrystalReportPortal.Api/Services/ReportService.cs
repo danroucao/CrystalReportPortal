@@ -283,6 +283,21 @@ public class ReportService : IReportService
                 "使用者沒有此報表的執行權限");
         }
 
+        return await GetParameterOptionsCoreAsync(reportId, parameterId);
+    }
+
+    public Task<ParameterOptionResponse> GetParameterOptionsForManagementAsync(
+        long reportId,
+        long parameterId)
+    {
+        return GetParameterOptionsCoreAsync(reportId, parameterId);
+    }
+
+    private async Task<ParameterOptionResponse> GetParameterOptionsCoreAsync(
+        long reportId,
+        long parameterId)
+    {
+
         var parameter =
             await _dbContext.ReportParameters
                 .AsNoTracking()
@@ -332,20 +347,6 @@ public class ReportService : IReportService
                         "ReadOnly",
                         StringComparison.OrdinalIgnoreCase));
 
-        var connectionStringBuilder =
-            new SqlConnectionStringBuilder
-            {
-                DataSource =
-                    $"{dataSource.ServerHost},{dataSource.Port}",
-
-                InitialCatalog =
-                    dataSource.DatabaseName,
-
-                Encrypt = true,
-
-                TrustServerCertificate = true
-            };
-
         if (credential == null)
         {
             throw new InvalidOperationException(
@@ -357,14 +358,11 @@ public class ReportService : IReportService
                 credential.AuthenticationType,
                 "Windows",
                 StringComparison.OrdinalIgnoreCase);
+        var password = string.Empty;
 
         if (integratedSecurity)
         {
-            connectionStringBuilder.IntegratedSecurity = true;
-
-            // 避免連線字串中殘留 SQL Server 帳密。
-            connectionStringBuilder.Remove("User ID");
-            connectionStringBuilder.Remove("Password");
+            // Crystal Service 會以相同設定建立 Windows 驗證連線。
         }
         else if (string.Equals(
                      credential.AuthenticationType,
@@ -384,13 +382,8 @@ public class ReportService : IReportService
                     "SQL Server Authentication 缺少資料庫密碼。");
             }
 
-            var password =
-                _credentialProtector.Unprotect(
-                    credential.EncryptedPassword);
-
-            connectionStringBuilder.IntegratedSecurity = false;
-            connectionStringBuilder.UserID = credential.Username;
-            connectionStringBuilder.Password = password;
+            password = _credentialProtector.Unprotect(
+                credential.EncryptedPassword);
         }
         else
         {
@@ -398,70 +391,32 @@ public class ReportService : IReportService
                 $"不支援的資料庫驗證方式：{credential.AuthenticationType}");
         }
 
-        var result =
-            new List<ParameterOptionDto>();
-
-        await using var connection =
-            new SqlConnection(
-                connectionStringBuilder.ConnectionString);
-
-        await connection.OpenAsync();
-
-        await using var command =
-            new SqlCommand(
-                lovConfig.SqlQuery,
-                connection);
-
-        command.CommandType =
-            CommandType.Text;
-
-        command.CommandTimeout = 30;
-
-        await using var reader =
-            await command.ExecuteReaderAsync();
-
-        var valueOrdinal =
-            reader.GetOrdinal(
-                lovConfig.ValueField);
-
-        var displayOrdinal =
-            reader.GetOrdinal(
-                lovConfig.DisplayField);
-
-        while (await reader.ReadAsync())
-        {
-            var value =
-                reader.IsDBNull(valueOrdinal)
-                    ? string.Empty
-                    : Convert.ToString(
-                        reader.GetValue(valueOrdinal))
-                      ?? string.Empty;
-
-            var display =
-                reader.IsDBNull(displayOrdinal)
-                    ? string.Empty
-                    : Convert.ToString(
-                        reader.GetValue(displayOrdinal))
-                      ?? string.Empty;
-
-            result.Add(
-                new ParameterOptionDto
+        var response = await _crystalProcessService.GetLovOptionsAsync(
+            new CrystalLovRequest
+            {
+                Database = new CrystalDatabaseTestRequest
                 {
-                    Value = value,
-
-                    Label =
-                        string.Equals(
-                            value,
-                            display,
-                            StringComparison.Ordinal)
-                        ? value
-                        : $"{value} - {display}"
-                });
-        }
+                    Server = $"{dataSource.ServerHost},{dataSource.Port}",
+                    Database = dataSource.DatabaseName,
+                    IntegratedSecurity = integratedSecurity,
+                    Username = integratedSecurity ? string.Empty : credential.Username ?? string.Empty,
+                    Password = integratedSecurity ? string.Empty : password
+                },
+                SqlQuery = lovConfig.SqlQuery,
+                ValueField = lovConfig.ValueField,
+                DisplayField = lovConfig.DisplayField,
+                MaxRows = 1000
+            });
 
         return new ParameterOptionResponse
         {
-            Data = result
+            Data = response.Options.Select(option => new ParameterOptionDto
+            {
+                Value = option.Value,
+                Label = string.Equals(option.Value, option.Label, StringComparison.Ordinal)
+                    ? option.Value
+                    : $"{option.Value} - {option.Label}"
+            }).ToList()
         };
     }
 
@@ -731,7 +686,7 @@ public class ReportService : IReportService
 
             report.ConfigurationStatus = allParametersConfigured
                 ? "PendingReview"
-                : "Draft";
+                : "PendingConfiguration";
 
             // 上傳新版 RPT 後必須由具備啟停權限的人員再次確認並啟用。
             report.IsEnabled = false;
@@ -974,7 +929,7 @@ public class ReportService : IReportService
         IReadOnlyCollection<CommonParameterTemplate> templates,
         CrystalParameterDto crystalParameter,
         CrystalParameterMapping mapping,
-        long reportDataSourceId)
+        long? reportDataSourceId)
     {
         var normalizedName =
             NormalizeParameterName(

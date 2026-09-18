@@ -366,6 +366,29 @@ public class RolesController : ControllerBase
         });
     }
 
+    [HttpDelete("{roleId:int}")]
+    public async Task<IActionResult> DeleteRole(int roleId)
+    {
+        var role = await _dbContext.Roles
+            .Include(item => item.UserRoles)
+            .SingleOrDefaultAsync(item => item.RoleId == roleId);
+
+        if (role == null)
+        {
+            return NotFound(new { message = "找不到指定的角色" });
+        }
+
+        if (role.UserRoles.Count > 0)
+        {
+            return Conflict(new { message = "此角色仍有使用者使用，請先移除使用者角色。" });
+        }
+
+        _dbContext.Roles.Remove(role);
+        AddAudit("DELETE_ROLE", $"刪除角色：{role.RoleCode}");
+        await _dbContext.SaveChangesAsync();
+        return NoContent();
+    }
+
     private async Task InvalidateRoleUsersAsync(int roleId)
     {
         var users = await _dbContext.Users

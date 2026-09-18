@@ -8,9 +8,9 @@
       <button *ngIf="CanScrollRoleCardsLeft" type="button" class="role-carousel-nav is-previous" aria-label="顯示前一組角色" (click)="ScrollRoleCards(-1)"><span aria-hidden="true">←</span></button>
       <div #roleCardViewport class="role-card-viewport" (scroll)="UpdateRoleCardNavigation()">
         <div class="role-card-grid" [class.has-overflow]="RoleCardHasOverflow">
-          <article *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" class="role-card">
+          <article *ngFor="let Role of DisplayRoles; trackBy: TrackRoleByKey" class="role-card">
             <div class="role-card-summary">
-              <p class="role-card-count">{{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者</p>
+              <p class="role-card-count">{{ GetApiRoleUserCount(Role.Key) }} 位使用者</p>
               <div class="role-avatar-group" aria-hidden="true">
                 <ngx-boring-avatar *ngFor="let User of GetRoleAvatarUsers(Role.Key); trackBy: TrackUserByAccount" variant="beam" [name]="User.Account" [size]="26" />
                 <span *ngIf="!GetRoleAvatarUsers(Role.Key).length" class="role-avatar-placeholder"></span>
@@ -39,7 +39,7 @@
     </div>
     <nav class="role-filter-tabs" aria-label="依角色篩選使用者">
       <button type="button" [class.is-active]="UserRoleFilter === null" [attr.aria-pressed]="UserRoleFilter === null" (click)="SetUserRoleFilter(null)">全部 ({{ MockRbac.Users.length }})</button>
-      <button *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" type="button" [class.is-active]="UserRoleFilter === Role.Key" [attr.aria-pressed]="UserRoleFilter === Role.Key" (click)="SetUserRoleFilter(Role.Key)">{{ Role.DisplayName }} ({{ MockRbac.GetRoleUserCount(Role.Key) }})</button>
+      <button *ngFor="let Role of DisplayRoles; trackBy: TrackRoleByKey" type="button" [class.is-active]="UserRoleFilter === Role.Key" [attr.aria-pressed]="UserRoleFilter === Role.Key" (click)="SetUserRoleFilter(Role.Key)">{{ Role.DisplayName }} ({{ GetApiRoleUserCount(Role.Key) }})</button>
     </nav>
     <div class="table-scroll user-table-scroll"><div class="user-table-content-area">
       <table class="user-management-table">
@@ -66,10 +66,12 @@
         <div class="create-user-identity-fields">
           <label><span>使用者帳號 <span class="required-indicator" aria-hidden="true">*</span></span><input name="create-user-account" [(ngModel)]="UserDraft.Account" (ngModelChange)="ClearCreateUserValidationError('Account')" autocomplete="username" [attr.aria-invalid]="CreateUserValidationErrors.Account ? 'true' : null" [attr.aria-describedby]="CreateUserValidationErrors.Account ? 'create-user-account-error' : null" /></label>
           <label><span>使用者名稱 <span class="required-indicator" aria-hidden="true">*</span></span><input name="create-user-display-name" [(ngModel)]="UserDraft.DisplayName" (ngModelChange)="ClearCreateUserValidationError('DisplayName')" [attr.aria-invalid]="CreateUserValidationErrors.DisplayName ? 'true' : null" [attr.aria-describedby]="CreateUserValidationErrors.DisplayName ? 'create-user-name-error' : null" /></label>
+          <label><span>員工編號 <span class="required-indicator" aria-hidden="true">*</span></span><input name="create-user-employee-no" [(ngModel)]="CreateEmployeeNo" autocomplete="off" /></label>
+          <label><span>初始密碼 <span class="required-indicator" aria-hidden="true">*</span></span><input name="create-user-initial-password" [(ngModel)]="CreateInitialPassword" type="password" autocomplete="new-password" /></label>
         </div>
         <small *ngIf="CreateUserValidationErrors.Account" id="create-user-account-error" class="field-error" role="alert">{{ CreateUserValidationErrors.Account }}</small>
         <small *ngIf="CreateUserValidationErrors.DisplayName" id="create-user-name-error" class="field-error" role="alert">{{ CreateUserValidationErrors.DisplayName }}</small>
-        <div class="create-user-role-field"><span class="form-field-label">所屬角色 <span class="required-indicator" aria-hidden="true">*</span></span><div class="create-user-role-options" role="group" aria-label="所屬角色"><label *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" class="create-user-role-option" [class.is-selected]="UserDraft.Roles.includes(Role.Key)"><input type="checkbox" [ngModel]="UserDraft.Roles.includes(Role.Key)" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleCreateUserRole(Role.Key, $event)" />{{ Role.DisplayName }}</label></div></div>
+        <div class="create-user-role-field"><div class="create-user-role-heading"><span class="form-field-label">所屬角色 <span class="required-indicator" aria-hidden="true">*</span></span><button type="button" class="tertiary-button" (click)="OpenCreateRoleDialogFromUser()">＋新增角色</button></div><div class="create-user-role-options" role="group" aria-label="所屬角色"><label *ngFor="let Role of DisplayRoles; trackBy: TrackRoleByKey" class="create-user-role-option" [class.is-selected]="UserDraft.Roles.includes(Role.Key)"><input type="checkbox" [ngModel]="UserDraft.Roles.includes(Role.Key)" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleCreateUserRole(Role.Key, $event)" />{{ Role.DisplayName }}</label></div></div>
         <small *ngIf="CreateUserValidationErrors.Roles" class="field-error" role="alert">{{ CreateUserValidationErrors.Roles }}</small>
         <div class="edit-status-field"><span class="form-field-label">啟用狀態</span><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="UserDraft.Enabled" [attr.aria-checked]="UserDraft.Enabled" aria-label="切換使用者啟用狀態" (click)="UserDraft.Enabled = !UserDraft.Enabled"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ UserDraft.Enabled ? '啟用' : '停用' }}</span></div>
         <div class="modal-actions"><button type="submit" class="primary-button">建立使用者</button><button type="button" class="tertiary-button" (click)="CloseCreateUserDialog()">取消</button></div>

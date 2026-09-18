@@ -23,6 +23,7 @@ import { MockRbacService } from '../../services/mock-rbac.service';
 import { MockReportParameterService } from '../../services/mock-report-parameter.service';
 import { NotificationService } from '../../services/notification.service';
 import { ReportService } from '../../services/report.service';
+import { ReportExecutionRequest } from '../../services/report-api.models';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
 
 type MockParameterFormValue =
@@ -511,12 +512,29 @@ export class ReportParameterPageComponent implements OnInit {
       this.ReportParameterForm.markAllAsTouched();
       return;
     }
+    const Report = this.Auth.SelectedReport;
+    if (!Report) return;
+
+    const ExecutionRequest: ReportExecutionRequest = {
+      parameters: this.VisibleReportParameters
+        .filter((Definition): Definition is MockReportParameterDefinition & { ParameterId: number } =>
+          typeof Definition.ParameterId === 'number',
+        )
+        .map((Definition) => ({
+          parameterId: Definition.ParameterId,
+          values: this.ToExecutionValues(
+            this.ReportParameterForm.get(Definition.ParameterName)?.value,
+          ),
+        })),
+    };
     this.LastMockExecutionParameters = this.SerializeReportParameters();
     const Account = this.Auth.CurrentUser?.Account;
-    if (Account && this.SelectedReportKey) {
-      this.MockRbac.RecordReportExecution(Account, this.SelectedReportKey);
-    }
-    void this.router.navigate(['/reports/preview']);
+    if (Account) this.MockRbac.RecordReportExecution(Account, Report.ReportKey);
+    void this.router.navigate(['/reports/preview'], {
+      state: {
+        ReportExecutionRequest: ExecutionRequest,
+      },
+    });
   }
 
   LoadReports(): void {
@@ -787,6 +805,18 @@ export class ReportParameterPageComponent implements OnInit {
       return Array.isArray(Value) ? Value.map(String) : [];
     }
     return this.SerializeScalarValue(Definition, Value);
+  }
+
+  private ToExecutionValues(Value: unknown): string[] {
+    if (Value === null || Value === undefined || Value === '') return [];
+    if (Array.isArray(Value)) return Value.map(String);
+    if (typeof Value === 'object' && Value !== null && 'Start' in Value && 'End' in Value) {
+      const RangeValue = Value as { Start: unknown; End: unknown };
+      return [RangeValue.Start, RangeValue.End]
+        .filter((Item) => Item !== null && Item !== undefined && Item !== '')
+        .map(String);
+    }
+    return [String(Value)];
   }
 
   private SerializeScalarValue(

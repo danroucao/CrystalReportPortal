@@ -4,6 +4,7 @@ import {
   Component,
   ElementRef,
   HostListener,
+  OnInit,
   OnDestroy,
   ViewChild,
   inject,
@@ -30,6 +31,10 @@ import {
 import { NotificationService } from '../../services/notification.service';
 import { BoringAvatarComponent } from '../../shared/boring-avatar.component';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
+import { HttpErrorResponse } from '@angular/common/http';
+import { forkJoin, finalize, switchMap } from 'rxjs';
+import { UserManagementService } from '../../services/user-management.service';
+import { ManagedRoleApiModel, ManagedUserApiModel } from '../../services/user-management-api.models';
 
 type CreateUserField = 'Account' | 'DisplayName' | 'Roles';
 type CreateUserValidationErrors = Partial<Record<CreateUserField, string>>;
@@ -51,13 +56,21 @@ type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
   templateUrl: './user-management-page.component.html',
   styleUrl: './user-management-page.component.scss',
 })
-export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
+export class UserManagementPageComponent implements AfterViewInit, OnDestroy, OnInit {
   readonly PaginationPageSize = 10;
   readonly Auth = inject(AuthService);
   readonly MockRbac = inject(MockRbacService);
   readonly Notifications = inject(NotificationService);
   readonly NotificationCenter = inject(MockNotificationCenterService);
   readonly AuditLog = inject(MockAuditLogService);
+  private readonly UserManagementApi = inject(UserManagementService);
+
+  ApiUsers: ManagedUserApiModel[] = [];
+  ApiRoles: ManagedRoleApiModel[] = [];
+  IsApiLoading = false;
+  ApiLoadError = '';
+  CreateEmployeeNo = '';
+  CreateInitialPassword = '';
 
   ManagementNotice = '';
   UserSearchText = '';
@@ -80,6 +93,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
   IsRoleCardAtStart = true;
   IsRoleCardAtEnd = true;
   IsCreateRoleDialogOpen = false;
+  ReturnToCreateUserAfterRole = false;
   IsEditRoleDialogOpen = false;
   EditingRoleKey: MockRoleKey | null = null;
   DeletingRole: MockRole | null = null;
@@ -95,6 +109,49 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
   private modalOpener: HTMLElement | null = null;
   private pendingFocus: HTMLElement | null = null;
   private focusTimer: ReturnType<typeof setTimeout> | null = null;
+
+  ngOnInit(): void {
+    if (this.Auth.CanOperateBackOffice) {
+      this.LoadApiManagementData();
+    }
+  }
+
+  LoadApiManagementData(): void {
+    this.IsApiLoading = true;
+    this.ApiLoadError = '';
+    forkJoin({
+      users: this.UserManagementApi.getUsers(),
+      roles: this.UserManagementApi.getRoles(),
+    }).pipe(finalize(() => (this.IsApiLoading = false))).subscribe({
+      next: ({ users, roles }) => {
+        this.ApiUsers = users;
+        this.ApiRoles = roles;
+      },
+      error: (error: unknown) => {
+        this.ApiLoadError = this.ApiErrorMessage(error);
+      },
+    });
+  }
+
+  get DisplayUsers(): readonly MockUser[] {
+    return this.ApiUsers.map((user) => ({
+      Account: user.account,
+      DisplayName: user.userName,
+      Roles: [...user.roleCodes],
+      Enabled: user.isEnabled,
+      CreatedAt: '',
+      UpdatedAt: '',
+    }));
+  }
+
+  get DisplayRoles(): readonly MockRole[] {
+    return this.ApiRoles.map((role) => ({
+      Key: role.roleCode,
+      DisplayName: role.roleName,
+      Description: role.description ?? '',
+      ManagementPermissions: this.ToMockManagementPermissions(role.permissionCodes),
+    }));
+  }
 
   ngAfterViewInit(): void {
     if (typeof ResizeObserver !== 'undefined' && this.roleCardViewport) {
@@ -113,7 +170,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
 
   get FilteredUsers(): readonly MockUser[] {
     const search = this.UserSearchText.trim().toLowerCase();
-    return this.MockRbac.Users.filter(
+    return this.DisplayUsers.filter(
       (user) =>
         (!this.UserRoleFilter || user.Roles.includes(this.UserRoleFilter)) &&
         (!search || `${user.Account} ${user.DisplayName}`.toLowerCase().includes(search)),
@@ -134,7 +191,11 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
   }
 
   GetRoleAvatarUsers(roleKey: MockRoleKey): readonly MockUser[] {
-    return this.MockRbac.Users.filter((user) => user.Roles.includes(roleKey)).slice(0, 4);
+    return this.DisplayUsers.filter((user) => user.Roles.includes(roleKey)).slice(0, 4);
+  }
+
+  GetApiRoleUserCount(roleKey: MockRoleKey): number {
+    return this.DisplayUsers.filter((user) => user.Roles.includes(roleKey)).length;
   }
 
   OnUserSearchChange(): void {
@@ -152,13 +213,17 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
 
   GetRoleNames(roles: readonly MockRoleKey[]): string {
     return roles
-      .map((roleKey) => this.MockRbac.GetRole(roleKey)?.DisplayName ?? roleKey)
+      .map((roleKey) =>
+        this.ApiRoles.find((role) => role.roleCode === roleKey)?.roleName ??
+        this.MockRbac.GetRole(roleKey)?.DisplayName ??
+        roleKey,
+      )
       .join('、');
   }
 
   EditUser(account: string): void {
     if (!this.Auth.CanOperateBackOffice) return;
-    const user = this.MockRbac.GetUser(account);
+    const user = this.DisplayUsers.find((entry) => entry.Account === account);
     if (!user) return;
     this.RememberModalOpener();
     this.EditingAccount = user.Account;
@@ -171,6 +236,8 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
     if (!this.Auth.CanOperateBackOffice) return;
     this.RememberModalOpener();
     this.UserDraft = this.CreateUserDraft();
+    this.CreateEmployeeNo = '';
+    this.CreateInitialPassword = this.GenerateInitialPassword();
     this.CreateUserValidationErrors = {};
     this.IsCreateUserDialogOpen = true;
     this.IsCreateRoleDialogOpen = false;
@@ -181,6 +248,8 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
     this.IsCreateUserDialogOpen = false;
     this.UserDraft = this.CreateUserDraft();
     this.CreateUserValidationErrors = {};
+    this.CreateEmployeeNo = '';
+    this.CreateInitialPassword = '';
     this.RestoreModalFocus();
   }
 
@@ -188,17 +257,29 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
     if (!this.Auth.CanOperateBackOffice) return;
     this.CreateUserValidationErrors = this.GetCreateUserValidationErrors();
     if (Object.keys(this.CreateUserValidationErrors).length) return;
-    const credentials = this.MockRbac.CreateUser(this.UserDraft);
-    if (!credentials) {
-      this.CreateUserValidationErrors = { Account: '使用者帳號已存在。' };
-      return;
-    }
-    this.EnsureUserPagination();
-    this.IsCreateUserDialogOpen = false;
-    this.CreatedUserCredentials = credentials;
-    this.CreatedUserCopyNotice = '';
-    this.AuditLog.RecordBackOfficeAction('新增使用者', `建立前台使用者 ${credentials.Account}。`);
-    this.FocusModalSoon();
+    this.UserManagementApi.createUser({
+      employeeNo: this.CreateEmployeeNo.trim(),
+      account: this.UserDraft.Account.trim(),
+      userName: this.UserDraft.DisplayName.trim(),
+      initialPassword: this.CreateInitialPassword,
+      roleCodes: [...this.UserDraft.Roles],
+      isEnabled: this.UserDraft.Enabled,
+    }).subscribe({
+      next: (user) => {
+        this.IsCreateUserDialogOpen = false;
+        this.CreatedUserCredentials = {
+          Account: user.account,
+          InitialPassword: this.CreateInitialPassword,
+        };
+        this.CreatedUserCopyNotice = '';
+        this.AuditLog.RecordBackOfficeAction('新增使用者', `建立前台使用者 ${user.account}。`);
+        this.LoadApiManagementData();
+        this.FocusModalSoon();
+      },
+      error: (error: unknown) => {
+        this.CreateUserValidationErrors = { Account: this.ApiErrorMessage(error) };
+      },
+    });
   }
 
   CloseCreatedUserSuccessModal(): void {
@@ -236,21 +317,32 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
 
   SaveEditedUser(): void {
     if (!this.Auth.CanOperateBackOffice || !this.EditingAccount || !this.EditingUser) return;
-    const before = this.NotificationCenter.CaptureAccess(this.EditingAccount);
-    const result = this.MockRbac.SaveUserEdit(this.EditingAccount, this.EditingUser);
-    if (result === 'invalid') {
+    if (!this.EditingUser.Roles.length) {
       this.EditUserValidationErrors = { Roles: '請至少選擇一個角色。' };
       return;
     }
-    if (result === 'not-found') {
+    const apiUser = this.ApiUsers.find((user) => user.account === this.EditingAccount);
+    if (!apiUser) {
       this.EditUserValidationErrors = { Form: '找不到要編輯的使用者。' };
       return;
     }
-    this.EnsureUserPagination();
-    this.NotificationCenter.NotifyRoleAssignmentChange(this.EditingAccount, before);
-    this.AuditLog.RecordBackOfficeAction('更新使用者權限', `更新前台使用者 ${this.EditingAccount} 的角色或啟用狀態。`);
-    this.CancelEditUser();
-    this.Notifications.ShowSuccess('使用者資料已更新。');
+    forkJoin({
+      roles: this.UserManagementApi.updateUserRoles(apiUser.userId, { roleCodes: [...this.EditingUser.Roles] }),
+      user: this.UserManagementApi.updateUser(apiUser.userId, {
+        employeeNo: apiUser.employeeNo,
+        account: apiUser.account,
+        userName: apiUser.userName,
+        isEnabled: this.EditingUser.Enabled,
+      }),
+    }).subscribe({
+      next: () => {
+        this.AuditLog.RecordBackOfficeAction('更新使用者權限', `更新前台使用者 ${this.EditingAccount} 的角色或啟用狀態。`);
+        this.CancelEditUser();
+        this.LoadApiManagementData();
+        this.Notifications.ShowSuccess('使用者資料已更新。');
+      },
+      error: (error: unknown) => (this.EditUserValidationErrors = { Form: this.ApiErrorMessage(error) }),
+    });
   }
 
   CancelEditUser(): void {
@@ -262,7 +354,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
 
   OpenDeleteUserDialog(account: string): void {
     if (!this.Auth.CanOperateBackOffice) return;
-    const user = this.MockRbac.GetUser(account);
+    const user = this.DisplayUsers.find((entry) => entry.Account === account);
     if (!user) return;
     this.RememberModalOpener();
     this.DeletingUser = user;
@@ -279,24 +371,49 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
   ConfirmDeleteUser(): void {
     if (!this.Auth.CanOperateBackOffice || !this.DeletingUser) return;
     const account = this.DeletingUser.Account;
-    if (this.MockRbac.DeleteUser(account) !== 'deleted') {
+    const apiUser = this.ApiUsers.find((user) => user.account === account);
+    if (!apiUser) {
       this.DeleteUserError = '找不到要刪除的使用者。';
       return;
     }
-    this.EnsureUserPagination();
-    this.AuditLog.RecordBackOfficeAction('刪除使用者', `刪除前台使用者 ${account}。`);
-    this.CloseDeleteUserDialog();
-    this.Notifications.ShowSuccess('使用者已刪除。');
+    this.UserManagementApi.deleteUser(apiUser.userId).subscribe({
+      next: () => {
+        this.AuditLog.RecordBackOfficeAction('刪除使用者', `刪除前台使用者 ${account}。`);
+        this.CloseDeleteUserDialog();
+        this.LoadApiManagementData();
+        this.Notifications.ShowSuccess('使用者已刪除。');
+      },
+      error: (error: unknown) => (this.DeleteUserError = this.ApiErrorMessage(error)),
+    });
   }
 
   SetUserEnabled(account: string, enabled: boolean): void {
     if (!this.Auth.CanOperateBackOffice) return;
-    this.MockRbac.SetUserEnabled(account, enabled);
+    const user = this.ApiUsers.find((entry) => entry.account === account);
+    if (!user) return;
+    this.UserManagementApi.updateUser(user.userId, {
+      employeeNo: user.employeeNo,
+      account: user.account,
+      userName: user.userName,
+      isEnabled: enabled,
+    }).subscribe({
+      next: () => this.LoadApiManagementData(),
+      error: (error: unknown) => (this.ManagementNotice = this.ApiErrorMessage(error)),
+    });
   }
 
   OpenCreateRoleDialog(): void {
+    this.OpenCreateRoleDialogFrom(false);
+  }
+
+  OpenCreateRoleDialogFromUser(): void {
+    this.OpenCreateRoleDialogFrom(true);
+  }
+
+  private OpenCreateRoleDialogFrom(returnToUser: boolean): void {
     if (!this.Auth.CanOperateBackOffice) return;
     this.RememberModalOpener();
+    this.ReturnToCreateUserAfterRole = returnToUser;
     this.RoleDraft = this.CreateRoleDraft();
     this.RoleDraftError = '';
     this.IsCreateRoleDialogOpen = true;
@@ -308,12 +425,13 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
     this.IsCreateRoleDialogOpen = false;
     this.RoleDraft = this.CreateRoleDraft();
     this.RoleDraftError = '';
+    this.ReturnToCreateUserAfterRole = false;
     this.RestoreModalFocus();
   }
 
   OpenEditRoleDialog(roleKey: MockRoleKey): void {
     if (!this.Auth.CanOperateBackOffice) return;
-    const role = this.MockRbac.GetRole(roleKey);
+    const role = this.DisplayRoles.find((entry) => entry.Key === roleKey);
     if (!role) return;
     this.RememberModalOpener();
     this.EditingRoleKey = role.Key;
@@ -340,44 +458,69 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
     if (!this.Auth.CanOperateBackOffice) return;
     const name = this.RoleDraft.DisplayName.trim();
     if (!name) return this.SetRoleDraftError('請輸入角色名稱。');
-    if (this.MockRbac.Roles.some((role) => role.DisplayName === name)) {
+    if (this.DisplayRoles.some((role) => role.DisplayName === name)) {
       return this.SetRoleDraftError('角色名稱已存在，請輸入未重複的角色名稱。');
     }
     if (!this.HasAnyRolePermission()) return this.SetRoleDraftError('請至少勾選一個權限。');
-    const role = this.MockRbac.CreateRole(this.RoleDraft);
-    if (!role) return this.SetRoleDraftError('角色名稱已存在，請輸入未重複的角色名稱。');
-    this.IsCreateRoleDialogOpen = false;
-    this.AuditLog.RecordBackOfficeAction('新增角色', `建立角色 ${role.DisplayName}。`);
-    this.ScheduleRoleCardNavigationUpdate();
-    this.RestoreModalFocus();
-    this.Notifications.ShowSuccess(`新增角色「${role.DisplayName}」成功。`);
+    const roleCode = `CUSTOM_${Date.now()}`;
+    this.UserManagementApi.createRole({
+      roleCode,
+      roleName: name,
+      description: this.RoleDraft.DisplayName,
+      isEnabled: true,
+    }).subscribe({
+      next: (role) => {
+        this.IsCreateRoleDialogOpen = false;
+        this.AuditLog.RecordBackOfficeAction('新增角色', `建立角色 ${name}。`);
+        this.LoadApiManagementData();
+        if (this.ReturnToCreateUserAfterRole) {
+          this.IsCreateUserDialogOpen = true;
+        }
+        this.ReturnToCreateUserAfterRole = false;
+        this.ScheduleRoleCardNavigationUpdate();
+        this.RestoreModalFocus();
+        this.Notifications.ShowSuccess(`新增角色「${name}」成功。`);
+      },
+      error: (error: unknown) => this.SetRoleDraftError(this.ApiErrorMessage(error)),
+    });
   }
 
   SaveEditedRole(): void {
     if (!this.Auth.CanOperateBackOffice || !this.EditingRoleKey) return;
-    const before = this.NotificationCenter.CaptureRoleUsers(this.EditingRoleKey);
-    const result = this.MockRbac.UpdateRole(this.EditingRoleKey, this.RoleDraft);
-    if (result !== 'updated') {
-      const messages: Record<Exclude<typeof result, 'updated'>, string> = {
-        invalid: '請輸入角色名稱。',
-        'duplicate-name': '角色名稱已存在，請使用其他名稱。',
-        'not-found': '找不到要編輯的角色。',
-      };
-      this.SetRoleDraftError(messages[result]);
+    const apiRole = this.ApiRoles.find((role) => role.roleCode === this.EditingRoleKey);
+    if (!apiRole) {
+      this.SetRoleDraftError('找不到要編輯的角色。');
       return;
     }
-    const displayName = this.MockRbac.GetRole(this.EditingRoleKey)?.DisplayName ?? this.RoleDraft.DisplayName;
-    this.NotificationCenter.NotifyRoleDefinitionChange(this.EditingRoleKey, before);
-    this.AuditLog.RecordBackOfficeAction('更新角色權限', `更新角色 ${displayName} 的功能或報表分類權限。`);
-    this.CloseEditRoleDialog();
-    this.Notifications.ShowSuccess(`角色「${displayName}」已更新。`);
+    const displayName = this.RoleDraft.DisplayName.trim();
+    if (!displayName) {
+      this.SetRoleDraftError('請輸入角色名稱。');
+      return;
+    }
+    this.UserManagementApi.updateRole(apiRole.roleId, {
+      roleName: displayName,
+      description: apiRole.description,
+      isEnabled: apiRole.isEnabled,
+    }).pipe(
+      switchMap(() => this.UserManagementApi.updateRolePermissions(
+        apiRole.roleId,
+        { permissionCodes: this.GetApiPermissionCodes() },
+      )),
+    ).subscribe({
+      next: () => {
+        this.CloseEditRoleDialog();
+        this.LoadApiManagementData();
+        this.Notifications.ShowSuccess(`角色「${displayName}」已更新。`);
+      },
+      error: (error: unknown) => this.SetRoleDraftError(this.ApiErrorMessage(error)),
+    });
   }
 
   OpenDeleteRoleDialog(): void {
     if (!this.Auth.CanOperateBackOffice || !this.EditingRoleKey) return;
-    const role = this.MockRbac.GetRole(this.EditingRoleKey);
+    const role = this.DisplayRoles.find((entry) => entry.Key === this.EditingRoleKey);
     if (!role) return;
-    if (this.MockRbac.GetRoleUserCount(role.Key) > 0) {
+    if (this.GetApiRoleUserCount(role.Key) > 0) {
       this.SetRoleDraftError('此角色仍有使用者使用，請先移除使用者的角色後再刪除。');
       return;
     }
@@ -393,17 +536,22 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
   ConfirmDeleteRole(): void {
     if (!this.Auth.CanOperateBackOffice || !this.DeletingRole) return;
     const role = this.DeletingRole;
-    const result = this.MockRbac.DeleteRole(role.Key);
-    if (result !== 'deleted') {
-      this.SetRoleDraftError(result === 'role-in-use' ? '此角色仍有使用者使用，請先移除使用者的角色後再刪除。' : '找不到要刪除的角色。');
-      this.CloseDeleteRoleDialog();
+    const apiRole = this.ApiRoles.find((entry) => entry.roleCode === role.Key);
+    if (!apiRole) {
+      this.SetRoleDraftError('找不到要刪除的角色。');
       return;
     }
-    if (this.UserRoleFilter === role.Key) this.UserRoleFilter = null;
-    this.AuditLog.RecordBackOfficeAction('刪除角色', `刪除角色 ${role.DisplayName}。`);
-    this.CloseEditRoleDialog();
-    this.ScheduleRoleCardNavigationUpdate();
-    this.Notifications.ShowSuccess(`角色「${role.DisplayName}」已刪除。`);
+    this.UserManagementApi.deleteRole(apiRole.roleId).subscribe({
+      next: () => {
+        if (this.UserRoleFilter === role.Key) this.UserRoleFilter = null;
+        this.AuditLog.RecordBackOfficeAction('刪除角色', `刪除角色 ${role.DisplayName}。`);
+        this.CloseEditRoleDialog();
+        this.LoadApiManagementData();
+        this.ScheduleRoleCardNavigationUpdate();
+        this.Notifications.ShowSuccess(`角色「${role.DisplayName}」已刪除。`);
+      },
+      error: (error: unknown) => this.SetRoleDraftError(this.ApiErrorMessage(error)),
+    });
   }
 
   ClearRoleDraftError(): void { this.RoleDraftError = ''; }
@@ -413,6 +561,25 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
     this.RoleDraft.ManagementPermissions = enabled
       ? [...new Set([...this.RoleDraft.ManagementPermissions, permission])]
       : this.RoleDraft.ManagementPermissions.filter((value) => value !== permission);
+  }
+
+  private GetApiPermissionCodes(): string[] {
+    const codes: string[] = [];
+    if (this.RoleDraft.ManagementPermissions.includes('RptManagement')) {
+      codes.push(
+        'Report.Upload',
+        'Report.Maintain',
+        'Report.SetParameters',
+        'Report.EnableDisable',
+      );
+    }
+    if (this.RoleDraft.ManagementPermissions.includes('DatabaseConnection')) {
+      codes.push('DataSource.Manage');
+    }
+    if (this.RoleDraft.ManagementPermissions.includes('OperationLog')) {
+      codes.push('AuditLog.View');
+    }
+    return codes;
   }
 
   SetPermissionCanExecute(entry: MockCategoryPermissionEntry, enabled: boolean): void {
@@ -482,15 +649,32 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy {
   private CreateRoleDraft(): MockRoleDraft { return { DisplayName: '', ManagementPermissions: [], Permissions: this.MockRbac.GetEmptyCategoryPermissionEntries() }; }
   private ToggleUserRole(draft: MockUserDraft | MockUserEditDraft, roleKey: MockRoleKey, selected: boolean): void {
     if (!this.Auth.CanOperateBackOffice) return;
-    draft.Roles = selected ? this.MockRbac.NormalizeRoles([...draft.Roles, roleKey]) : draft.Roles.filter((key) => key !== roleKey);
+    const availableRoleKeys = new Set(this.DisplayRoles.map((role) => role.Key));
+    draft.Roles = selected
+      ? [...new Set([...draft.Roles, roleKey])].filter((key) => availableRoleKeys.has(key))
+      : draft.Roles.filter((key) => key !== roleKey);
   }
   private GetCreateUserValidationErrors(): CreateUserValidationErrors {
     const errors: CreateUserValidationErrors = {};
     if (!this.UserDraft.Account.trim()) errors.Account = '請輸入使用者帳號。';
-    else if (this.MockRbac.GetUser(this.UserDraft.Account.trim())) errors.Account = '此使用者帳號已存在。';
+    else if (this.ApiUsers.some((user) => user.account === this.UserDraft.Account.trim())) errors.Account = '此使用者帳號已存在。';
+    if (!this.CreateEmployeeNo.trim()) errors.Account = '請輸入員工編號。';
+    if (!this.CreateInitialPassword || this.CreateInitialPassword.length < 8) errors.Account = '初始密碼至少需要 8 個字元。';
     if (!this.UserDraft.DisplayName.trim()) errors.DisplayName = '請輸入使用者名稱。';
     if (!this.UserDraft.Roles.length) errors.Roles = '請至少選擇一個角色。';
     return errors;
+  }
+  private GenerateInitialPassword(): string { return `Temp${Math.random().toString(36).slice(2, 8)}1`; }
+  private ApiErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse && typeof error.error?.message === 'string') return error.error.message;
+    return '後台服務暫時無法使用，請稍後再試。';
+  }
+  private ToMockManagementPermissions(codes: readonly string[]): MockManagementPermission[] {
+    const permissions: MockManagementPermission[] = [];
+    if (codes.some((code) => code.startsWith('Report.'))) permissions.push('RptManagement');
+    if (codes.includes('DataSource.Manage')) permissions.push('DatabaseConnection');
+    if (codes.includes('AuditLog.View')) permissions.push('OperationLog');
+    return permissions;
   }
   private GetTotalPages(count: number): number { return Math.max(1, Math.ceil(count / this.PaginationPageSize)); }
   private ClampUserPage(page: number): number { return Math.min(Math.max(1, page), this.UserTotalPages); }

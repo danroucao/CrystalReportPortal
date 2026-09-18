@@ -59,10 +59,8 @@ export const routes: Routes = [
   },
   {
     path: 'report-management/upload',
-    component: DemoPortalComponent,
-    canActivate: [FrontOfficePermissionGuard],
-    data: { Page: 'ReportUpload', Permission: 'RptManagement' },
-    title: '上傳報表｜Crystal Reports 外部報表系統',
+    pathMatch: 'full',
+    redirectTo: 'report-management',
   },
   {
     path: 'report-management',

@@ -21,6 +21,10 @@ public interface IReportService
         long parameterId,
         List<string> roleCodes);
 
+    Task<ParameterOptionResponse> GetParameterOptionsForManagementAsync(
+        long reportId,
+        long parameterId);
+
     Task<RptUploadResponse> UploadRptAsync(
         long reportId,
         IFormFile file,

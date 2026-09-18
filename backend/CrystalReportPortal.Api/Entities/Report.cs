@@ -12,7 +12,7 @@ public class Report
 
     public int CategoryId { get; set; }
 
-    public long DataSourceId { get; set; }
+    public long? DataSourceId { get; set; }
 
     public string CredentialType { get; set; } = null!;
 
@@ -36,7 +36,7 @@ public class Report
     // Navigation Properties
     public ReportCategory Category { get; set; } = null!;
 
-    public ReportDataSource DataSource { get; set; } = null!;
+    public ReportDataSource? DataSource { get; set; }
 
     public User Creator { get; set; } = null!;
 

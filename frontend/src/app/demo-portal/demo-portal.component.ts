@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   AfterViewChecked,
   Component,
@@ -70,6 +71,9 @@ import { ReportParameterPageComponent } from './report-parameter-page/report-par
 import { ReportPreviewPageComponent } from './report-preview-page/report-preview-page.component';
 import { UserManagementPageComponent } from './user-management-page/user-management-page.component';
 import { ReportEditorDraft } from './report-editor-form/report-editor-form.model';
+import { DataSourceService } from '../services/data-source.service';
+import { DataSourceManagementModel } from '../services/data-source-api.models';
+import { switchMap } from 'rxjs';
 
 type DemoPortalPage =
   | 'ReportList'
@@ -147,6 +151,9 @@ export class DemoPortalComponent
   readonly MockRbac = inject(MockRbacService);
   readonly ReportParameters = inject(MockReportParameterService);
   readonly DatabaseConnections = inject(MockDatabaseConnectionService);
+  readonly DataSourcesApi = inject(DataSourceService);
+  ApiDataSources: DataSourceManagementModel[] = [];
+  IsDataSourcesLoading = false;
   readonly Notifications = inject(NotificationService);
   readonly NotificationCenter = inject(MockNotificationCenterService);
   readonly AuditLog = inject(MockAuditLogService);
@@ -209,6 +216,8 @@ export class DemoPortalComponent
   private reportDiscardContinueButton?: ElementRef<HTMLButtonElement>;
   @ViewChild(ReportManagementPageComponent)
   private reportManagementPage?: ReportManagementPageComponent;
+  @ViewChild(UserManagementPageComponent)
+  private userManagementPage?: UserManagementPageComponent;
   private ShouldFocusMobileNavigationTrigger = false;
 
   get AccessNotice(): string {
@@ -223,7 +232,8 @@ export class DemoPortalComponent
   ngOnInit(): void {
     this.UpdateCompactNavigationState();
     this.LoadAccountSettings();
-    if (this.Page === 'ReportUpload') this.InitializeReportUploadFlow();
+      if (this.Page === 'ReportUpload') this.InitializeReportUploadFlow();
+      if (this.Page === 'DatabaseConnection') this.LoadDataSources();
     const NavigationState =
       this.router.getCurrentNavigation()?.extras.state ?? history.state;
     if (NavigationState?.['NotificationCenterTab'] === 'Unread')
@@ -430,20 +440,23 @@ export class DemoPortalComponent
       this.BackOfficeBindingError = '請輸入前台帳號與密碼。';
       return;
     }
-    if (!this.Auth.BindBackOfficeIdentity(
+    this.Auth.VerifyBackOfficeOperator(
       this.BackOfficeBindingAccount,
       this.BackOfficeBindingPassword,
-    )) {
-      this.BackOfficeBindingError =
-        this.Auth.LastBackOfficeIdentityBindingFailure === 'disabled'
-          ? '此帳號已停用。'
+    ).subscribe({
+      next: () => {
+        this.AuditLog.RecordBackOfficeAction('後台身分綁定', '完成後台操作 session 的前台身分驗證。');
+        this.Notifications.ShowSuccess('身分驗證成功，已進入後台。');
+        this.userManagementPage?.LoadApiManagementData();
+        this.BackOfficeBindingAccount = '';
+        this.BackOfficeBindingPassword = '';
+      },
+      error: (VerificationError: unknown) => {
+        this.BackOfficeBindingError = VerificationError instanceof Error
+          ? VerificationError.message
           : '帳號或密碼不正確，請重新輸入。';
-      return;
-    }
-    this.AuditLog.RecordBackOfficeAction('後台身分綁定', '完成後台操作 session 的前台身分驗證。');
-    this.Notifications.ShowSuccess('身分驗證成功，已進入後台。');
-    this.BackOfficeBindingAccount = '';
-    this.BackOfficeBindingPassword = '';
+      },
+    });
   }
 
   ReturnToLoginFromBackOfficeBinding(): void {
@@ -487,7 +500,7 @@ export class DemoPortalComponent
 
   StartReportUpload(): void {
     if (!this.Auth.HasManagementPermission('RptManagement')) return;
-    void this.router.navigate(['/report-management/upload']);
+    this.reportManagementPage?.OpenCreate();
   }
 
   ContinueReportUpload(): void {
@@ -631,19 +644,34 @@ export class DemoPortalComponent
     this.IsDatabaseConnectionEditorOpen = true;
   }
 
+  LoadDataSources(): void {
+    this.IsDataSourcesLoading = true;
+    this.DataSourcesApi.getDataSources().subscribe({
+      next: (sources) => {
+        this.ApiDataSources = [...sources];
+        this.IsDataSourcesLoading = false;
+      },
+      error: (error: unknown) => {
+        this.IsDataSourcesLoading = false;
+        this.DatabaseConnectionFormError = error instanceof HttpErrorResponse && typeof error.error?.message === 'string'
+          ? error.error.message : '無法取得資料庫連線清單。';
+      },
+    });
+  }
+
   OpenEditDatabaseConnection(Key: string): void {
     if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
-    const Connection = this.DatabaseConnections.GetConnection(Key);
+    const Connection = this.ApiDataSources.find((entry) => String(entry.dataSourceId) === Key);
     if (!Connection) return;
     this.EditingDatabaseConnectionKey = Key;
     this.DatabaseConnectionDraft = {
-      DataSourceName: Connection.DataSourceName,
-      ServerHost: Connection.ServerHost,
-      Port: Connection.Port,
-      DatabaseName: Connection.DatabaseName,
-      Username: Connection.Username,
-      ConnectionType: Connection.ConnectionType,
-      Enabled: Connection.Enabled,
+      DataSourceName: Connection.dataSourceName,
+      ServerHost: Connection.serverHost,
+      Port: String(Connection.port),
+      DatabaseName: Connection.databaseName,
+      Username: Connection.username,
+      ConnectionType: 'ReadOnly',
+      Enabled: Connection.isEnabled,
       Password: '',
     };
     this.DatabaseConnectionFormError = '';
@@ -660,25 +688,23 @@ export class DemoPortalComponent
   SaveDatabaseConnection(): void {
     if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
     this.DatabaseConnectionFormError = '';
-    const IsEditing = this.EditingDatabaseConnectionKey !== null;
-    const IsSaved = IsEditing
-      ? this.DatabaseConnections.Update(
-          this.EditingDatabaseConnectionKey!,
-          this.DatabaseConnectionDraft,
-        )
-      : this.DatabaseConnections.Create(this.DatabaseConnectionDraft);
-    if (!IsSaved) {
-      this.DatabaseConnectionFormError = IsEditing
-        ? '請確認資料來源、主機、連接埠、資料庫與帳號。'
-        : '建立連線時請填寫資料來源、主機、連接埠、資料庫、帳號與密碼。';
+    const Draft = this.DatabaseConnectionDraft;
+    if (!Draft.DataSourceName.trim() || !Draft.ServerHost.trim() || !Draft.DatabaseName.trim() || !Draft.Port || !Draft.Username.trim() || (!this.EditingDatabaseConnectionKey && !Draft.Password)) {
+      this.DatabaseConnectionFormError = '請確認資料來源、主機、連接埠、資料庫、帳號與密碼。';
       return;
     }
-    this.CloseDatabaseConnectionEditor();
-    this.ShowSuccessToast(
-      IsEditing
-        ? 'Mock 資料庫連線已更新；既有密碼未回填或保存於前端。'
-        : 'Mock 資料庫連線已建立；密碼不會保存於前端 Mock 資料。',
-    );
+    const request = { dataSourceName: Draft.DataSourceName.trim(), serverHost: Draft.ServerHost.trim(), port: Number(Draft.Port), databaseName: Draft.DatabaseName.trim(), isEnabled: Draft.Enabled };
+    const operation = this.EditingDatabaseConnectionKey
+      ? this.DataSourcesApi.updateDataSource(Number(this.EditingDatabaseConnectionKey), request)
+      : this.DataSourcesApi.createDataSource(request);
+    operation.pipe(switchMap((source) => this.DataSourcesApi.updateReadOnlyCredential(source.dataSourceId, Draft.Username.trim(), Draft.Password))).subscribe({
+      next: () => {
+        this.CloseDatabaseConnectionEditor();
+        this.LoadDataSources();
+        this.ShowSuccessToast('MSSQL 資料庫連線已儲存。');
+      },
+      error: (error: unknown) => this.DatabaseConnectionFormError = error instanceof HttpErrorResponse && typeof error.error?.message === 'string' ? error.error.message : '儲存資料庫連線失敗。',
+    });
   }
 
   SaveAccountProfile(): void {

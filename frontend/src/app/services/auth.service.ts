@@ -1,6 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, catchError, tap, throwError } from 'rxjs';
 
 import {
   EmptyMockCategoryPermission,
@@ -13,6 +13,8 @@ import { MockUser } from '../mock/mock-users';
 import { API_BASE_URL } from './api.config';
 import {
   AuthenticatedUser,
+  BackOfficeLoginResponse,
+  BackOfficeOperatorResponse,
   LoginRequest,
   LoginResponse,
 } from './auth-api.models';
@@ -47,6 +49,7 @@ export class AuthService {
   private SelectedApiReportKey: MockReportKey | null = null;
   private SelectedApiReportSearchCriteria: MockReportSearchCriteria | null = null;
   private BoundBackOfficeUserAccount: string | null = null;
+  private BoundBackOfficeOperator: BackOfficeOperatorResponse['operator'] | null = null;
   private BackOfficeIdentityBindingFailure:
     | 'invalid-credentials'
     | 'disabled'
@@ -102,9 +105,16 @@ export class AuthService {
   }
 
   get BoundBackOfficeUser(): MockUser | null {
-    if (!this.IsBackOffice || !this.BoundBackOfficeUserAccount) return null;
-    const User = this.MockRbac.GetUser(this.BoundBackOfficeUserAccount);
-    return User?.Enabled ? User : null;
+    if (!this.IsBackOffice || !this.BoundBackOfficeOperator) return null;
+    const Operator = this.BoundBackOfficeOperator;
+    return {
+      Account: Operator.account,
+      DisplayName: Operator.userName,
+      Roles: [],
+      Enabled: true,
+      CreatedAt: '',
+      UpdatedAt: '',
+    };
   }
 
   get BoundBackOfficeUserId(): string | null {
@@ -202,14 +212,77 @@ export class AuthService {
     );
   }
 
+  LoginUnified(
+    Account: string,
+    Password: string,
+  ): Observable<LoginResponse | BackOfficeLoginResponse> {
+    return this.Login(Account, Password).pipe(
+      catchError((Error: unknown) => {
+        if (!(Error instanceof HttpErrorResponse) || Error.status !== 401) {
+          return throwError(() => Error);
+        }
+        return this.LoginBackOffice(Account, Password);
+      }),
+    );
+  }
+
   BindBackOfficeIdentity(Account: string, Password: string): boolean {
     void Account;
     void Password;
-    this.BackOfficeIdentityBindingFailure = 'invalid-credentials';
     return false;
   }
 
+  LoginBackOffice(
+    Account: string,
+    Password: string,
+  ): Observable<BackOfficeLoginResponse> {
+    this.ClearSession();
+    return this.Http.post<BackOfficeLoginResponse>(
+      `${API_BASE_URL}/backoffice-auth/login`,
+      { account: Account.trim(), password: Password },
+    ).pipe(
+      tap((Response) => {
+        if (!Response.success) {
+          throw new Error(Response.message || '後台共用帳密驗證失敗');
+        }
+        this.Identity = {
+          Kind: 'BackOffice',
+          Account: Account.trim(),
+          DisplayName: '後台共用帳號',
+        };
+      }),
+    );
+  }
+
+  VerifyBackOfficeOperator(
+    Account: string,
+    Password: string,
+  ): Observable<BackOfficeOperatorResponse> {
+    return this.Http.post<BackOfficeOperatorResponse>(
+      `${API_BASE_URL}/backoffice-auth/verify-operator`,
+      { account: Account.trim(), password: Password },
+    ).pipe(
+      tap((Response) => {
+        if (!Response.success || !Response.operator) {
+          throw new Error(Response.message || '操作者驗證失敗');
+        }
+        this.BoundBackOfficeUserAccount = Response.operator.account;
+        this.BoundBackOfficeOperator = Response.operator;
+        this.BackOfficeIdentityBindingFailure = null;
+      }),
+    );
+  }
+
   Logout(): void {
+    if (this.IsBackOffice) {
+      this.Http.post(`${API_BASE_URL}/backoffice-auth/logout`, {}).subscribe({
+        error: () => {
+          // Local state is cleared even when the server is unavailable.
+        },
+      });
+      this.ClearSession();
+      return;
+    }
     const HasToken = sessionStorage.getItem(TOKEN_STORAGE_KEY) !== null;
 
     if (HasToken) {
@@ -230,6 +303,7 @@ export class AuthService {
     this.SelectedApiReportKey = null;
     this.SelectedApiReportSearchCriteria = null;
     this.BoundBackOfficeUserAccount = null;
+    this.BoundBackOfficeOperator = null;
     this.BackOfficeIdentityBindingFailure = null;
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
     sessionStorage.removeItem(USER_STORAGE_KEY);

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
@@ -13,6 +13,7 @@ import { PortalPaginationComponent } from '../../shared/portal-pagination.compon
 import { ReportEditorFormComponent } from '../report-editor-form/report-editor-form.component';
 import { ReportEditorDraft } from '../report-editor-form/report-editor-form.model';
 import { CommonParameterTemplatePageComponent } from '../common-parameter-template-page/common-parameter-template-page.component';
+import { ManagedReportPageComponent } from '../managed-report-page/managed-report-page.component';
 
 type ReportManagementSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
 type ReportManagementSortDirection = 'asc' | 'desc';
@@ -31,6 +32,7 @@ type ReportManagementSortDirection = 'asc' | 'desc';
     PortalPaginationComponent,
     ReportEditorFormComponent,
     CommonParameterTemplatePageComponent,
+    ManagedReportPageComponent,
   ],
   templateUrl: './report-management-page.component.html',
   styleUrl: './report-management-page.component.scss',
@@ -66,6 +68,12 @@ export class ReportManagementPageComponent {
   readonly Notifications = inject(NotificationService);
   readonly NotificationCenter = inject(MockNotificationCenterService);
   private readonly router = inject(Router);
+  @ViewChild(ManagedReportPageComponent)
+  private managedReportPage?: ManagedReportPageComponent;
+
+  OpenCreate(): void {
+    this.managedReportPage?.openCreate();
+  }
 
   ReportManagementStartDate = '';
   ReportManagementEndDate = '';
