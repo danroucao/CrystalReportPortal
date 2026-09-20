@@ -212,6 +212,11 @@ public class RolesController : ControllerBase
             {
                 Code = PermissionCodes.AuditLogView,
                 Name = "查詢操作紀錄"
+            },
+            new
+            {
+                Code = PermissionCodes.AuditLogViewArchive,
+                Name = "查詢180天以前操作紀錄"
             }
         };
 

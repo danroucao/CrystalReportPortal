@@ -20,13 +20,18 @@ public static class PermissionCodes
     public const string AuditLogView =
         "AuditLog.View";
 
+    public const string AuditLogViewArchive =
+    "AuditLog.ViewArchive";
+
     public static readonly IReadOnlyList<string> All =
     [
-        ReportUpload,
-        ReportMaintain,
-        ReportSetParameters,
-        ReportEnableDisable,
-        DataSourceManage,
-        AuditLogView
+       ReportUpload,
+       ReportMaintain,
+       ReportSetParameters,
+       ReportEnableDisable,
+       DataSourceManage,
+       AuditLogView,
+       AuditLogViewArchive
     ];
+
 }

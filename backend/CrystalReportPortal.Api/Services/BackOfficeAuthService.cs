@@ -2,6 +2,10 @@
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace CrystalReportPortal.Api.Services;
 
@@ -36,63 +40,113 @@ public class BackOfficeAuthService
         _configuration = configuration;
     }
 
-    public async Task<BackOfficeLoginResponse>
-        LoginAsync(BackOfficeLoginRequest request)
+    public Task<BackOfficeLoginResponse> LoginAsync(
+    BackOfficeLoginRequest request)
     {
         var configuredAccount =
             _configuration["BackOffice:Account"]
             ?? throw new InvalidOperationException(
                 "找不到 BackOffice:Account");
 
-        var configuredPasswordHash =
-            _configuration["BackOffice:PasswordHash"]
+        var configuredPassword =
+            _configuration["BackOffice:Password"]
             ?? throw new InvalidOperationException(
-                "找不到 BackOffice:PasswordHash");
-
-        var requestedAccount =
-            request.Account?.Trim()
-            ?? string.Empty;
+                "找不到 BackOffice:Password");
 
         var accountCorrect =
             string.Equals(
-                requestedAccount,
+                request.Account,
                 configuredAccount,
                 StringComparison.Ordinal);
 
         var passwordCorrect =
-            VerifyPassword(
+            string.Equals(
                 request.Password,
-                configuredPasswordHash);
+                configuredPassword,
+                StringComparison.Ordinal);
 
         if (!accountCorrect || !passwordCorrect)
         {
-            await WriteAuditLogAsync(
-                null,
-                SharedLoginAction,
-                "FAILED",
-                $"嘗試登入的共用後台帳號：{requestedAccount}",
-                "共用後台帳號或密碼錯誤");
-
-            return new BackOfficeLoginResponse
-            {
-                Success = false,
-                Message = "後台帳號或密碼錯誤"
-            };
+            return Task.FromResult(
+                new BackOfficeLoginResponse
+                {
+                    Success = false,
+                    Message = "後台帳號或密碼錯誤"
+                });
         }
 
-        await WriteAuditLogAsync(
-            null,
-            SharedLoginAction,
-            "SUCCESS",
-            "共用後台帳密驗證成功",
-            null);
+        var jwtKey =
+            _configuration["Jwt:Key"]
+            ?? throw new InvalidOperationException(
+                "找不到 Jwt:Key");
 
-        return new BackOfficeLoginResponse
-        {
-            Success = true,
-            Message =
-                "後台帳密驗證成功，請於五分鐘內確認操作者身分"
-        };
+        var jwtIssuer =
+            _configuration["Jwt:Issuer"]
+            ?? throw new InvalidOperationException(
+                "找不到 Jwt:Issuer");
+
+        var jwtAudience =
+            _configuration["Jwt:Audience"]
+            ?? throw new InvalidOperationException(
+                "找不到 Jwt:Audience");
+
+        var expireMinutes =
+            _configuration.GetValue<int?>(
+                "BackOffice:JwtExpireMinutes")
+            ?? 15;
+
+        var expiresAt =
+            DateTime.UtcNow.AddMinutes(
+                expireMinutes);
+
+        var claims =
+            new List<Claim>
+            {
+            new Claim(
+                "TokenType",
+                "BackOffice"),
+
+            new Claim(
+                "BackOfficeStage",
+                "SharedAccountVerified"),
+
+            new Claim(
+                "BackOfficeAccount",
+                configuredAccount)
+            };
+
+        var securityKey =
+            new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(
+                    jwtKey));
+
+        var credentials =
+            new SigningCredentials(
+                securityKey,
+                SecurityAlgorithms.HmacSha256);
+
+        var token =
+            new JwtSecurityToken(
+                issuer: jwtIssuer,
+                audience: jwtAudience,
+                claims: claims,
+                expires: expiresAt,
+                signingCredentials: credentials);
+
+        var tokenText =
+            new JwtSecurityTokenHandler()
+                .WriteToken(token);
+
+        return Task.FromResult(
+            new BackOfficeLoginResponse
+            {
+                Success = true,
+                Message =
+                    "後台帳密驗證成功，請進行第二階段操作者驗證",
+
+                Token = tokenText,
+                ExpiresAt = expiresAt
+            });
     }
 
     public async Task<BackOfficeOperatorResponse>

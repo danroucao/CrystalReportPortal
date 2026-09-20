@@ -65,82 +65,143 @@ var jwtAudience = builder.Configuration["Jwt:Audience"]
     ?? throw new InvalidOperationException("找不到 Jwt:Audience");
 
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddAuthentication(options =>
     {
-        options.TokenValidationParameters =
-            new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = jwtIssuer,
+        options.DefaultAuthenticateScheme =
+            JwtBearerDefaults.AuthenticationScheme;
 
-                ValidateAudience = true,
-                ValidAudience = jwtAudience,
+        options.DefaultChallengeScheme =
+            JwtBearerDefaults.AuthenticationScheme;
+    })
 
-                ValidateLifetime = true,
-
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey =
-                    new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtKey)),
-
-                ClockSkew = TimeSpan.Zero
-            };
-
-        options.Events = new JwtBearerEvents
+    // =====================================================
+    // 前台 JWT
+    // =====================================================
+    .AddJwtBearer(
+        JwtBearerDefaults.AuthenticationScheme,
+        options =>
         {
-            OnTokenValidated = async context =>
+            options.TokenValidationParameters =
+                new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtIssuer,
+
+                    ValidateAudience = true,
+                    ValidAudience = jwtAudience,
+
+                    ValidateLifetime = true,
+
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey =
+                        new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(jwtKey)),
+
+                    ClockSkew = TimeSpan.Zero
+                };
+
+            options.Events = new JwtBearerEvents
             {
-                var userIdText = context.Principal?
-                    .FindFirst(ClaimTypes.NameIdentifier)?
-                    .Value;
-
-                var tokenVersionText = context.Principal?
-                    .FindFirst("TokenVersion")?
-                    .Value;
-
-                if (!long.TryParse(
-                        userIdText,
-                        out var userId) ||
-                    !int.TryParse(
-                        tokenVersionText,
-                        out var tokenVersion))
+                OnTokenValidated = async context =>
                 {
-                    context.Fail("Token 格式錯誤");
-                    return;
+                    var userIdText = context.Principal?
+                        .FindFirst(ClaimTypes.NameIdentifier)?
+                        .Value;
+
+                    var tokenVersionText = context.Principal?
+                        .FindFirst("TokenVersion")?
+                        .Value;
+
+                    if (!long.TryParse(
+                            userIdText,
+                            out var userId) ||
+                        !int.TryParse(
+                            tokenVersionText,
+                            out var tokenVersion))
+                    {
+                        context.Fail("Token 格式錯誤");
+                        return;
+                    }
+
+                    var dbContext =
+                        context.HttpContext
+                            .RequestServices
+                            .GetRequiredService<AppDbContext>();
+
+                    var user =
+                        await dbContext.Users
+                            .AsNoTracking()
+                            .SingleOrDefaultAsync(
+                                candidate =>
+                                    candidate.UserId == userId);
+
+                    if (user == null ||
+                        !user.IsEnabled ||
+                        user.TokenVersion != tokenVersion)
+                    {
+                        context.Fail(
+                            "Token 已失效或帳號已停用");
+                    }
                 }
+            };
+        })
 
-                var dbContext =
-                    context.HttpContext
-                        .RequestServices
-                        .GetRequiredService<AppDbContext>();
-
-                var user =
-                    await dbContext.Users
-                        .AsNoTracking()
-                        .SingleOrDefaultAsync(
-                            candidate =>
-                                candidate.UserId == userId);
-
-                if (user == null ||
-                    !user.IsEnabled ||
-                    user.TokenVersion != tokenVersion)
+    // =====================================================
+    // 後台第一階段 JWT
+    // =====================================================
+    .AddJwtBearer(
+        "BackOfficeJwt",
+        options =>
+        {
+            options.TokenValidationParameters =
+                new TokenValidationParameters
                 {
-                    context.Fail(
-                        "Token 已失效或帳號已停用");
-                }
-            }
-        };
-    });
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtIssuer,
+
+                    ValidateAudience = true,
+                    ValidAudience = jwtAudience,
+
+                    ValidateLifetime = true,
+
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey =
+                        new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(jwtKey)),
+
+                    ClockSkew = TimeSpan.Zero
+                };
+        });
 
 builder.Services.AddAuthorization(options =>
 {
+    // 第二階段完成後，用 Session 驗證
     options.AddPolicy(
         "BackOffice",
         policy =>
         {
-            policy.AddRequirements(new BackOfficeRequirement());
+            policy.AddRequirements(
+                new BackOfficeRequirement());
         });
+
+    // 第一階段 JWT
+    options.AddPolicy(
+    "BackOfficeFirstStage",
+    policy =>
+    {
+        policy.AuthenticationSchemes.Add(
+            "BackOfficeJwt");
+
+        policy.RequireAuthenticatedUser();
+
+        policy.RequireClaim(
+            "TokenType",
+            "BackOffice");
+
+        policy.RequireClaim(
+            "BackOfficeStage",
+            "SharedAccountVerified");
+    });
 
     // 前台：註冊功能權限規則
     // 注意：這段在 BackOffice 規則外面

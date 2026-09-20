@@ -69,3 +69,80 @@ Content-Type: application/json
 {
   "isEnabled": true
 }
+
+### 第一階段
+
+# @name backofficeLogin
+POST {{baseUrl}}/api/backoffice-auth/login
+Content-Type: application/json
+
+{
+  "account": "backoffice",
+  "password": "BackOffice123!"
+}
+
+### 第二階段
+
+POST {{baseUrl}}/api/backoffice-auth/verify-operator
+Authorization: Bearer {{backofficeLogin.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "account": "{{account}}",
+  "password": "{{password}}"
+}
+
+### 初始化權限
+
+POST {{baseUrl}}/api/backoffice/roles/permissions/initialize
+
+
+### AuditLog 測試登入
+
+# @name auditLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "account": "{{account}}",
+  "password": "{{password}}"
+}
+### AuditLog 測試登入
+
+# @name auditLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "account": "{{account}}",
+  "password": "{{password}}"
+}
+
+
+### AuditLog 測試 1：一般查詢
+
+GET {{baseUrl}}/api/audit-logs?page=1&pageSize=20
+Authorization: Bearer {{auditLogin.response.body.$.token}}
+Accept: application/json
+
+
+### AuditLog 測試 2：查詢 180 天以前
+
+GET {{baseUrl}}/api/audit-logs?page=1&pageSize=20&fromUtc=2025-01-01T00:00:00Z
+Authorization: Bearer {{auditLogin.response.body.$.token}}
+Accept: application/json
+
+###
+# @name auditLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "account": "{{account}}",
+  "password": "{{password}}"
+}
+
+###
+GET {{baseUrl}}/api/audit-logs?page=1&pageSize=20
+Authorization: Bearer {{auditLogin.response.body.$.token}}
+Accept: application/json

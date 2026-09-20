@@ -30,11 +30,8 @@ public class BackOfficeAuthController : ControllerBase
     [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login(
-        BackOfficeLoginRequest request)
+    BackOfficeLoginRequest request)
     {
-        BackOfficeSessionKeys.ClearAll(
-            HttpContext.Session);
-
         var result =
             await _backOfficeAuthService
                 .LoginAsync(request);
@@ -44,45 +41,14 @@ public class BackOfficeAuthController : ControllerBase
             return Unauthorized(result);
         }
 
-        var verifiedAt =
-            DateTimeOffset.UtcNow
-                .ToUnixTimeSeconds()
-                .ToString(
-                    CultureInfo.InvariantCulture);
-
-        HttpContext.Session.SetString(
-            BackOfficeSessionKeys
-                .SharedVerifiedAtUtc,
-            verifiedAt);
-
-        HttpContext.Session.SetInt32(
-            BackOfficeSessionKeys
-                .OperatorVerifyFailedCount,
-            0);
-
         return Ok(result);
     }
 
-    [AllowAnonymous]
+    [Authorize(Policy = "BackOfficeFirstStage")]
     [HttpPost("verify-operator")]
     public async Task<IActionResult> VerifyOperator(
         BackOfficeOperatorLoginRequest request)
     {
-        if (!IsSharedVerificationValid())
-        {
-            BackOfficeSessionKeys
-                .ClearSharedVerification(
-                    HttpContext.Session);
-
-            return Unauthorized(
-                new BackOfficeOperatorResponse
-                {
-                    Success = false,
-                    Message =
-                        "後台帳密驗證已失效，請重新登入"
-                });
-        }
-
         var result =
             await _backOfficeAuthService
                 .VerifyOperatorAsync(request);
