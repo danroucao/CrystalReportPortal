@@ -51,6 +51,8 @@ export class UserManagementPageComponent {
   DeletingRole: MockRole | null = null;
   RoleDraft: MockRoleDraft = this.CreateRoleDraft();
   RoleDraftError = '';
+  IsReportManagementExpanded = true;
+  IsOperationLogExpanded = true;
 
   @ViewChild('activeModal')
   private activeModal?: ElementRef<HTMLElement>;
@@ -155,6 +157,8 @@ export class UserManagementPageComponent {
     this.RememberModalOpener();
     this.RoleDraft = this.CreateRoleDraft();
     this.RoleDraftError = '';
+    this.IsReportManagementExpanded = true;
+    this.IsOperationLogExpanded = true;
     this.IsCreateRoleDialogOpen = true;
     this.FocusModalSoon();
   }
@@ -171,6 +175,8 @@ export class UserManagementPageComponent {
       Permissions: this.MockRbac.GetCategoryPermissionEntries(Role.Key),
     };
     this.RoleDraftError = '';
+    this.IsReportManagementExpanded = true;
+    this.IsOperationLogExpanded = true;
     this.IsEditRoleDialogOpen = true;
     this.FocusModalSoon();
   }
@@ -269,16 +275,28 @@ export class UserManagementPageComponent {
     }
   }
 
+  ToggleReportManagementExpanded(): void {
+    this.IsReportManagementExpanded = !this.IsReportManagementExpanded;
+  }
+
+  ToggleOperationLogExpanded(): void {
+    this.IsOperationLogExpanded = !this.IsOperationLogExpanded;
+  }
+
   CanAssignManagementPermission(Permission: MockManagementPermission): boolean {
     return (Permission !== 'ArchivedFormData' || this.RoleDraft.ManagementPermissions.includes('RptManagement')) &&
       (Permission !== 'ArchivedOperationLog' || this.RoleDraft.ManagementPermissions.includes('OperationLog'));
   }
 
   SetPermissionCanExecute(Entry: MockCategoryPermissionEntry, Enabled: boolean): void {
+    const HadChildPermissions = !Enabled && (Entry.Permission.CanExport || Entry.Permission.CanPrint);
     Entry.Permission.CanExecute = Enabled;
     if (!Enabled) {
       Entry.Permission.CanExport = false;
       Entry.Permission.CanPrint = false;
+    }
+    if (HadChildPermissions) {
+      this.Notifications.ShowSuccess('已同步移除相依權限：「匯出、列印」。');
     }
   }
 

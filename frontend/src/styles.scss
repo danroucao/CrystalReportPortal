@@ -111,3 +111,317 @@ button.danger-button:focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
+
+.permission-dependency-group {
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fdfcf9;
+}
+
+.create-role-modal {
+  width: min(1020px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.role-permission-columns {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(420px, 1.15fr);
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.role-permission-columns > section + section {
+  padding-left: 1.25rem;
+  border-left: 1px solid var(--color-border);
+}
+
+.role-management-permission-panel h3,
+.role-category-permission-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.role-permission-section-heading {
+  margin-bottom: 0.7rem;
+}
+
+.role-permission-section-heading p {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.standalone-management-permission {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  min-height: 30px;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+  font-weight: 700;
+}
+
+.permission-parent { font-weight: 800; }
+
+.permission-child {
+  margin: 0.55rem 0 0 1.45rem;
+  padding-left: 0.8rem;
+  border-left: 2px solid #d8d2c7;
+}
+
+.permission-child label { font-weight: 700; }
+
+.permission-child p {
+  margin: 0.3rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.permission-child p span {
+  display: block;
+  margin-top: 0.15rem;
+  color: #815a1a;
+  font-weight: 700;
+}
+
+.permission-child.is-unavailable { opacity: 0.7; }
+
+.compact-role-permission-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.compact-role-permission-table {
+  min-width: 460px;
+  table-layout: fixed;
+}
+
+.compact-role-permission-table th,
+.compact-role-permission-table td {
+  padding: 0.55rem 0.65rem;
+  text-align: center;
+}
+
+.compact-role-permission-table th:first-child,
+.compact-role-permission-table td:first-child {
+  width: 52%;
+  text-align: left;
+}
+
+.compact-role-permission-table td strong,
+.compact-role-permission-table td small {
+  display: block;
+}
+
+.compact-role-permission-table td strong { font-size: 0.8125rem; }
+
+.compact-role-permission-table td small {
+  margin-top: 0.15rem;
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+}
+
+.compact-role-permission-table input {
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (max-width: 760px) {
+  .role-permission-columns { grid-template-columns: 1fr; }
+  .role-permission-columns > section + section {
+    padding-top: 1.25rem;
+    padding-left: 0;
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}
+
+/* Wide role editor: match the approved two-column permission layout. */
+app-demo-portal .create-role-modal {
+  width: min(70rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 3rem);
+  padding: 2rem;
+}
+
+app-demo-portal .role-permission-columns {
+  grid-template-columns: minmax(250px, 0.8fr) minmax(400px, 1.2fr);
+  gap: 1.25rem;
+}
+
+app-demo-portal .role-management-permission-panel,
+app-demo-portal .role-category-permission-panel {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+app-demo-portal .role-permission-columns > section + section {
+  padding-left: 1.25rem;
+}
+
+app-demo-portal .permission-dependency-group {
+  margin: 0;
+  padding: 1rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+app-demo-portal .standalone-management-permission {
+  margin: 0;
+  min-height: 4.5rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+app-demo-portal .permission-child {
+  margin-top: 0.45rem;
+}
+
+app-demo-portal .permission-child.is-unavailable {
+  opacity: 1;
+}
+
+app-demo-portal .permission-child.is-unavailable label,
+app-demo-portal .permission-child.is-unavailable p,
+app-demo-portal .permission-child.is-unavailable p span {
+  color: #8a8a8a;
+}
+
+app-demo-portal .permission-child.is-unavailable label {
+  cursor: not-allowed;
+}
+
+app-demo-portal .permission-child.is-unavailable input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  border-color: #c9c9c9;
+  background: #eeeeee;
+}
+
+app-demo-portal .permission-child.is-unavailable input[type="checkbox"]:disabled:checked {
+  border-color: #b8b8b8;
+  background: #b8b8b8;
+}
+
+app-demo-portal .permission-parent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+app-demo-portal .permission-parent,
+app-demo-portal .standalone-management-permission,
+app-demo-portal .permission-child label {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+app-demo-portal .permission-expand-button {
+  display: none;
+  width: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  border: 0;
+  color: var(--color-muted);
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+app-demo-portal .permission-expand-button:hover {
+  color: var(--color-primary);
+  background: transparent;
+}
+
+app-demo-portal .compact-role-permission-scroll {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+}
+
+app-demo-portal .compact-role-permission-table {
+  min-width: 0;
+  border-collapse: collapse;
+}
+
+app-demo-portal .compact-role-permission-table th:first-child,
+app-demo-portal .compact-role-permission-table td:first-child {
+  width: 44%;
+}
+
+app-demo-portal .compact-role-permission-table th,
+app-demo-portal .compact-role-permission-table td {
+  height: auto;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+app-demo-portal .compact-role-permission-table th {
+  color: var(--color-muted);
+  background: #f7f5f1;
+  font-size: 0.8125rem;
+}
+
+app-demo-portal .compact-role-permission-table tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  app-demo-portal .create-role-modal {
+    width: calc(100vw - 1rem);
+    padding: 1.25rem;
+  }
+
+  app-demo-portal .role-editor-fields {
+    align-items: end;
+    flex-direction: row;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+
+  app-demo-portal .role-name-field {
+    max-width: 18rem;
+  }
+
+  app-demo-portal .role-editor-fields .role-delete-button {
+    align-self: end;
+  }
+
+  app-demo-portal .role-permission-columns {
+    grid-template-columns: minmax(200px, 0.85fr) minmax(300px, 1.15fr);
+    gap: 1rem;
+  }
+
+  app-demo-portal .role-permission-columns > section + section {
+    padding-left: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  app-demo-portal .create-role-modal {
+    width: calc(100vw - 1rem);
+    padding: 1.25rem;
+  }
+
+  app-demo-portal .role-permission-columns {
+    grid-template-columns: 1fr;
+  }
+
+  app-demo-portal .role-permission-columns > section + section {
+    padding-top: 1.25rem;
+    padding-left: 0;
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}

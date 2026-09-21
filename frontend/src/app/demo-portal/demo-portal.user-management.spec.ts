@@ -67,4 +67,17 @@ describe('UserManagementPageComponent', () => {
     Component.ToggleManagementPermission('ArchivedOperationLog', true);
     expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedOperationLog');
   });
+
+  it('removes export and print when report-category viewing is removed', () => {
+    const Component = createPage();
+    Component.OpenEditRoleDialog('FINANCE');
+    const Entry = Component.RoleDraft.Permissions[0];
+    Entry.Permission = { CanExecute: true, CanExport: true, CanPrint: true };
+
+    Component.SetPermissionCanExecute(Entry, false);
+
+    expect(Entry.Permission).toEqual({ CanExecute: false, CanExport: false, CanPrint: false });
+    expect(TestBed.inject(NotificationService).SuccessMessage).toContain('匯出、列印');
+  });
+
 });
