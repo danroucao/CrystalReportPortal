@@ -11,7 +11,7 @@ import { MockRbacService, MockReportSearchCriteria } from './mock-rbac.service';
 export class AuthService {
   private Identity: AuthIdentity | null = null;
   private BoundBackOfficeUserAccount: string | null = null;
-  private BackOfficeIdentityBindingFailure: 'invalid-credentials' | 'disabled' | null = null;
+  private BackOfficeIdentityBindingFailure: 'invalid-credentials' | null = null;
 
   constructor(private readonly MockRbac: MockRbacService) {}
 
@@ -23,7 +23,7 @@ export class AuthService {
   get CurrentUser(): MockUser | null {
     if (this.Identity?.Kind !== 'FrontUser') return null;
     const User = this.MockRbac.GetUser(this.Identity.Account);
-    return User?.Enabled ? User : null;
+    return User;
   }
   get IsAuthenticated(): boolean { return this.CurrentIdentity !== null; }
   get IsFrontOffice(): boolean { return this.CurrentUser !== null; }
@@ -37,12 +37,12 @@ export class AuthService {
   get BoundBackOfficeUser(): MockUser | null {
     if (!this.IsBackOffice || !this.BoundBackOfficeUserAccount) return null;
     const User = this.MockRbac.GetUser(this.BoundBackOfficeUserAccount);
-    return User?.Enabled ? User : null;
+    return User;
   }
   get BoundBackOfficeUserId(): string | null {
     return this.BoundBackOfficeUser?.Account ?? null;
   }
-  get LastBackOfficeIdentityBindingFailure(): 'invalid-credentials' | 'disabled' | null {
+  get LastBackOfficeIdentityBindingFailure(): 'invalid-credentials' | null {
     return this.BackOfficeIdentityBindingFailure;
   }
   get CanOperateBackOffice(): boolean { return this.IsBackOfficeIdentityBound; }
@@ -88,10 +88,6 @@ export class AuthService {
     const RequestedUser = this.MockRbac.GetUser(Account);
     if (!RequestedUser) {
       this.BackOfficeIdentityBindingFailure = 'invalid-credentials';
-      return false;
-    }
-    if (!RequestedUser.Enabled) {
-      this.BackOfficeIdentityBindingFailure = 'disabled';
       return false;
     }
     const User = this.MockRbac.Authenticate(Account, Password);

@@ -53,7 +53,7 @@ describe('portal notifications and extracted interactions', () => {
     expect(component.DisplayedNotifications.length).toBeGreaterThanOrEqual(unread);
   });
 
-  it('opens user rows while the row switch does not bubble to the editor handler', () => {
+  it('opens a user row and keeps the pencil action from bubbling to that row', () => {
     expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
     const fixture = TestBed.createComponent(UserManagementPageComponent);
     const component = fixture.componentInstance;
@@ -65,38 +65,31 @@ describe('portal notifications and extracted interactions', () => {
     host.querySelector<HTMLTableRowElement>('.user-management-table tbody tr')!.click();
     expect(editUser).toHaveBeenCalledWith(firstUser.Account);
     editUser.calls.reset();
-    host.querySelector<HTMLButtonElement>('.user-management-table [role="switch"]')!.click();
-    expect(editUser).not.toHaveBeenCalled();
+    host.querySelector<HTMLButtonElement>('.user-management-table button')!.click();
+    expect(editUser).toHaveBeenCalledTimes(1);
+    expect(editUser).toHaveBeenCalledWith(firstUser.Account);
   });
 
-  it('paginates, filters, sorts, and opens details through the operation-log page', () => {
+  it('shows archived operation logs only after the permitted user includes them', () => {
     expect(LoginFrontManager(TestBed.inject(AuthService))).toBeTrue();
     const fixture = TestBed.createComponent(OperationLogPageComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
-    expect(component.OperationLogStartDate).toBe('');
-    expect(component.OperationLogEndDate).toBe('');
-    expect(component.FilteredOperationLogs).toHaveSize(15);
-    expect(component.PagedOperationLogs).toHaveSize(10);
-    expect(component.PagedOperationLogs[0]).toEqual(
-      jasmine.objectContaining({
-        OccurredAt: jasmine.stringMatching(/^2026-09-12T/),
-        Action: 'REPORT_DOWNLOAD',
-        Summary: '下載「月結損益表.rpt」（PDF）',
-      }),
-    );
-    component.GoToOperationLogPage(2);
-    expect(component.PagedOperationLogs).toHaveSize(5);
-    component.OperationLogCategoryFilter = 'ReportAction';
-    component.OnOperationLogFilterChange();
-    expect(component.OperationLogCurrentPage).toBe(1);
-    expect(component.PagedOperationLogs.every((entry) => entry.Category === 'ReportAction')).toBeTrue();
+    expect(component.CanAccessArchivedOperationLogs).toBeTrue();
+    expect(component.FilteredOperationLogs.every((entry) => entry.ArchivedAt === null)).toBeTrue();
+
+    component.IncludeArchivedOperationLogs = true;
+    component.OperationLogStartDate = '';
+    component.OnIncludeArchivedOperationLogsChange();
+
+    expect(component.FilteredOperationLogs.some((entry) => entry.ArchivedAt !== null)).toBeTrue();
+    const archivedEntry = component.FilteredOperationLogs.find((entry) => entry.ArchivedAt !== null)!;
+    component.OpenOperationLogDetail(archivedEntry);
+    expect(component.SelectedOperationLog?.ArchivedAt).toBe(archivedEntry.ArchivedAt);
 
     component.ToggleOperationLogSort('UserId');
     expect(component.OperationLogSortDirection).toBe('asc');
-    component.OpenOperationLogDetail(component.PagedOperationLogs[0]);
-    expect(component.SelectedOperationLog).not.toBeNull();
     component.CloseOperationLogDetail();
     expect(component.SelectedOperationLog).toBeNull();
   });

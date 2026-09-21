@@ -4,6 +4,7 @@ import {
   ConfigureDemoPortalTestBed,
   LoginBoundBackOfficeOperator,
   MockRbacService,
+  NotificationService,
   TestBed,
 } from './testing/demo-portal.spec-helpers';
 
@@ -12,82 +13,58 @@ describe('UserManagementPageComponent', () => {
 
   function createPage(): UserManagementPageComponent {
     expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
-    const fixture = TestBed.createComponent(UserManagementPageComponent);
-    fixture.detectChanges();
-    return fixture.componentInstance;
+    const Fixture = TestBed.createComponent(UserManagementPageComponent);
+    Fixture.detectChanges();
+    return Fixture.componentInstance;
   }
 
-  it('creates, validates, and closes a user draft through the extracted page', () => {
-    const component = createPage();
+  it('keeps account identity read-only while saving only role changes', () => {
+    const Component = createPage();
+    const Rbac = TestBed.inject(MockRbacService);
+    const Original = Rbac.GetUser('user@example.com')!;
 
-    component.OpenCreateUserDialog();
-    expect(component.IsCreateUserDialogOpen).toBeTrue();
-    component.SaveUser();
-    expect(component.CreateUserValidationErrors.Account).toBeTruthy();
+    Component.EditUser('user@example.com');
+    Component.ToggleEditingUserRole('PURCHASE', true);
+    expect(Rbac.GetUser('user@example.com')?.Roles).toEqual(['FINANCE']);
 
-    component.UserDraft.Account = 'new-user@example.com';
-    component.UserDraft.DisplayName = 'New user';
-    component.ToggleCreateUserRole('FINANCE', true);
-    component.SaveUser();
-
-    expect(component.IsCreateUserDialogOpen).toBeFalse();
-    expect(component.CreatedUserCredentials?.Account).toBe('new-user@example.com');
-    expect(TestBed.inject(MockRbacService).GetUser('new-user@example.com')).not.toBeNull();
-    component.CloseCreatedUserSuccessModal();
-    expect(component.CreatedUserCredentials).toBeNull();
+    Component.SaveEditedUser();
+    const Updated = Rbac.GetUser('user@example.com')!;
+    expect(Updated.Account).toBe(Original.Account);
+    expect(Updated.DisplayName).toBe(Original.DisplayName);
+    expect(Updated.Roles).toEqual(['FINANCE', 'PURCHASE']);
   });
 
-  it('keeps user edits isolated until confirmation and records role checkbox changes', () => {
-    const component = createPage();
-    const rbac = TestBed.inject(MockRbacService);
-
-    component.EditUser('user@example.com');
-    expect(component.EditingUser?.Roles).toEqual(['FINANCE']);
-    component.ToggleEditingUserRole('PURCHASE', true);
-    expect(component.EditingUser?.Roles).toEqual(['FINANCE', 'PURCHASE']);
-    expect(rbac.GetUser('user@example.com')?.Roles).toEqual(['FINANCE']);
-
-    component.SaveEditedUser();
-    expect(rbac.GetUser('user@example.com')?.Roles).toEqual(['FINANCE', 'PURCHASE']);
-    expect(component.EditingUser).toBeNull();
+  it('keeps fixed Mock users searchable and pageable', () => {
+    const Component = createPage();
+    expect(Component.UserTotalPages).toBe(2);
+    Component.GoToUserPage(2);
+    expect(Component.PagedUsers).toHaveSize(3);
+    Component.SetUserRoleFilter('FINANCE');
+    expect(Component.UserCurrentPage).toBe(1);
   });
 
-  it('filters and paginates users without changing the role-card data source', () => {
-    const component = createPage();
-    const rbac = TestBed.inject(MockRbacService);
-
-    expect(rbac.Users).toHaveSize(13);
-    expect(component.UserTotalPages).toBe(2);
-    expect(component.PagedUsers).toHaveSize(10);
-    component.GoToUserPage(2);
-    expect(component.PagedUsers).toHaveSize(3);
-    component.SetUserRoleFilter('FINANCE');
-    expect(component.UserCurrentPage).toBe(1);
-    expect(component.GetRoleAvatarUsers('FINANCE').length).toBeLessThanOrEqual(4);
+  it('exposes both archived-data permissions through the role editor', () => {
+    const Component = createPage();
+    Component.OpenEditRoleDialog('FINANCE');
+    expect(Component.RoleDraft.ManagementPermissions).toContain('ArchivedFormData');
+    expect(Component.RoleDraft.ManagementPermissions).toContain('ArchivedOperationLog');
   });
 
-  it('creates and edits role permissions in the extracted page', () => {
-    const component = createPage();
+  it('requires parent permissions before archived-data permissions can be granted', () => {
+    const Component = createPage();
+    Component.OpenEditRoleDialog('FINANCE');
 
-    component.OpenEditRoleDialog('FINANCE');
-    expect(component.IsEditRoleDialogOpen).toBeTrue();
-    component.ToggleManagementPermission('RptManagement', true);
-    component.SetPermissionCanExecute(component.RoleDraft.Permissions[0], false);
-    expect(component.RoleDraft.Permissions[0].Permission.CanExport).toBeFalse();
-    component.SaveEditedRole();
+    Component.ToggleManagementPermission('RptManagement', false);
+    expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedFormData');
+    expect(Component.CanAssignManagementPermission('ArchivedFormData')).toBeFalse();
+    expect(TestBed.inject(NotificationService).SuccessMessage).toContain('檢視已封存表單資料');
+    Component.ToggleManagementPermission('ArchivedFormData', true);
+    expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedFormData');
 
-    expect(component.IsEditRoleDialogOpen).toBeFalse();
-    expect(TestBed.inject(MockRbacService).GetRole('FINANCE')?.ManagementPermissions)
-      .toContain('RptManagement');
-  });
-
-  it('deletes a user only after confirmation', () => {
-    const component = createPage();
-    const rbac = TestBed.inject(MockRbacService);
-
-    component.OpenDeleteUserDialog('warehouse@example.com');
-    expect(component.DeletingUser?.Account).toBe('warehouse@example.com');
-    component.ConfirmDeleteUser();
-    expect(rbac.GetUser('warehouse@example.com')).toBeNull();
+    Component.ToggleManagementPermission('OperationLog', false);
+    expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedOperationLog');
+    expect(Component.CanAssignManagementPermission('ArchivedOperationLog')).toBeFalse();
+    Component.ToggleManagementPermission('ArchivedOperationLog', true);
+    expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedOperationLog');
   });
 });

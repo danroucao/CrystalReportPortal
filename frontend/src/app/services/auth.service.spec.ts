@@ -20,14 +20,11 @@ describe('Front/back-office authentication and permissions', () => {
     expect(Auth.AccessibleReports).toEqual([]);
     expect(Auth.HasManagementPermission('RptManagement')).toBeFalse();
     expect(Rbac.ToggleFavoriteReport('admin@example.com', 'AccountBalance')).toBeFalse();
-    expect(Rbac.SaveUserEdit('admin@example.com', { Roles: ['FINANCE'], Enabled: false })).toBe('not-found');
-    expect(Rbac.DeleteUser('admin@example.com')).toBe('not-found');
-    expect(Rbac.CreateUser({ Account: 'admin@example.com', DisplayName: 'collision', Roles: ['FINANCE'], Enabled: true })).toBeNull();
+    expect(Rbac.SaveUserEdit('admin@example.com', { Roles: ['FINANCE'] })).toBe('not-found');
     expect(Auth.BindBackOfficeIdentity('user@example.com', 'wrong')).toBeFalse();
     expect(Auth.LastBackOfficeIdentityBindingFailure).toBe('invalid-credentials');
     expect(Auth.BoundBackOfficeUserId).toBeNull();
-    expect(Auth.BindBackOfficeIdentity('inventory-clerk@example.com', 'inventoryclerk123')).toBeFalse();
-    expect(Auth.LastBackOfficeIdentityBindingFailure).toBe('disabled');
+    expect(Auth.BindBackOfficeIdentity('inventory-clerk@example.com', 'inventoryclerk123')).toBeTrue();
     expect(Auth.BindBackOfficeIdentity('user@example.com', 'user123')).toBeTrue();
     expect(Auth.LastBackOfficeIdentityBindingFailure).toBeNull();
     expect(Auth.CanOperateBackOffice).toBeTrue();
@@ -65,7 +62,7 @@ describe('Front/back-office authentication and permissions', () => {
   it('unions global permissions across roles without granting back-office or report access', () => {
     Rbac.UpdateRole('PURCHASE', { DisplayName: '採購人員', ManagementPermissions: ['RptManagement'], Permissions: Rbac.GetEmptyCategoryPermissionEntries() });
     Rbac.UpdateRole('WAREHOUSE', { DisplayName: '倉管人員', ManagementPermissions: ['DatabaseConnection', 'OperationLog'], Permissions: Rbac.GetEmptyCategoryPermissionEntries() });
-    Rbac.SaveUserEdit('user@example.com', { Roles: ['PURCHASE', 'WAREHOUSE'], Enabled: true });
+    Rbac.SaveUserEdit('user@example.com', { Roles: ['PURCHASE', 'WAREHOUSE'] });
     Auth.Login('user@example.com', 'user123');
     expect(Auth.HasManagementPermission('RptManagement')).toBeTrue();
     expect(Auth.HasManagementPermission('DatabaseConnection')).toBeTrue();
@@ -74,14 +71,10 @@ describe('Front/back-office authentication and permissions', () => {
     expect(Auth.AccessibleReports).toEqual([]);
     Auth.SelectReport('AccountBalance');
     expect(Auth.SelectedReport).toBeNull();
-    Rbac.SaveUserEdit('user@example.com', { Roles: ['WAREHOUSE'], Enabled: true });
+    Rbac.SaveUserEdit('user@example.com', { Roles: ['WAREHOUSE'] });
     expect(Auth.HasManagementPermission('RptManagement')).toBeFalse();
     expect(Auth.HasManagementPermission('DatabaseConnection')).toBeTrue();
     expect(Auth.HasManagementPermission('OperationLog')).toBeTrue();
-    Rbac.SetUserEnabled('user@example.com', false);
-    expect(Auth.IsAuthenticated).toBeFalse();
-    expect(Auth.HasManagementPermission('DatabaseConnection')).toBeFalse();
-    expect(Auth.HasManagementPermission('OperationLog')).toBeFalse();
   });
 
   it('unions report flags within each category and immediately reflects revocation', () => {
@@ -91,7 +84,7 @@ describe('Front/back-office authentication and permissions', () => {
     Export.find((Entry) => Entry.CategoryId === 'FINANCE')!.Permission = { CanExecute: true, CanExport: true, CanPrint: false };
     Rbac.SaveCategoryPermissions('PURCHASE', Execute);
     Rbac.SaveCategoryPermissions('WAREHOUSE', Export);
-    Rbac.SaveUserEdit('user@example.com', { Roles: ['PURCHASE', 'WAREHOUSE'], Enabled: true });
+    Rbac.SaveUserEdit('user@example.com', { Roles: ['PURCHASE', 'WAREHOUSE'] });
     Auth.Login('user@example.com', 'user123');
     Auth.SelectReport('AccountBalance');
     expect(Auth.SelectedReportCategoryPermission).toEqual({ CanExecute: true, CanExport: true, CanPrint: true });

@@ -4,7 +4,7 @@ import { FormControl, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
-import { MockRbacService, MockUserDraft } from '../../services/mock-rbac.service';
+import { MockRbacService } from '../../services/mock-rbac.service';
 import { MockReportParameterService } from '../../services/mock-report-parameter.service';
 import { MockNotificationCenterService } from '../../services/mock-notification-center.service';
 import { NotificationService } from '../../services/notification.service';
@@ -63,7 +63,13 @@ export function LoginFrontManager(Auth: AuthService, IncludeManagement = true): 
   const Rbac = TestBed.inject(MockRbacService);
   const Permissions = Rbac.GetCategoryPermissionEntries('FINANCE');
   Permissions.forEach((Entry) => Entry.Permission = { CanExecute: true, CanExport: true, CanPrint: true });
-  Rbac.UpdateRole('FINANCE', { DisplayName: '財務人員', ManagementPermissions: IncludeManagement ? ['RptManagement', 'DatabaseConnection', 'OperationLog'] : [], Permissions });
+  Rbac.UpdateRole('FINANCE', {
+    DisplayName: '財務人員',
+    ManagementPermissions: IncludeManagement
+      ? ['RptManagement', 'DatabaseConnection', 'OperationLog', 'ArchivedFormData', 'ArchivedOperationLog']
+      : [],
+    Permissions,
+  });
   return Auth.Login('user@example.com', 'user123');
 }
 

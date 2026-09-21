@@ -27,21 +27,8 @@ import {
 } from '../mock/mock-permissions';
 import { MockUser, MockUserCredential } from '../mock/mock-users';
 
-export interface MockUserDraft {
-  Account: string;
-  DisplayName: string;
-  Roles: MockRoleKey[];
-  Enabled: boolean;
-}
-
-export interface MockCreatedUserCredentials {
-  readonly Account: string;
-  readonly InitialPassword: string;
-}
-
 export interface MockUserEditDraft {
   Roles: MockRoleKey[];
-  Enabled: boolean;
 }
 
 export interface MockRoleDraft {
@@ -55,7 +42,6 @@ export type MockDeleteRoleResult =
   | 'deleted'
   | 'not-found'
   | 'role-in-use';
-export type MockDeleteUserResult = 'deleted' | 'not-found';
 
 export interface MockFavoriteReport {
   readonly Report: MockReportReadModel;
@@ -252,32 +238,16 @@ export class MockRbacService {
   }
 
   Authenticate(Account: string, Password: string): MockUser | null {
-    const User = this.UsersStore.find((Entry) => Entry.Account === Account && Entry.Password === Password && Entry.Enabled);
-    return User ? this.ToReadModel(User) : null;
+    const User = this.UsersStore.find(
+      (Entry) => Entry.Account === Account && Entry.Password === Password,
+    );
+    if (!User) return null;
+    User.LastLoginAt = this.GetTimestamp();
+    return this.ToReadModel(User);
   }
 
   NormalizeRoles(Roles: readonly MockRoleKey[]): MockRoleKey[] {
     return [...new Set(Roles)].filter((Key) => this.RoleStore.some((Role) => Role.Key === Key));
-  }
-
-  CreateUser(Draft: MockUserDraft): MockCreatedUserCredentials | null {
-    const Roles = this.NormalizeRoles(Draft.Roles);
-    if (Draft.Account.trim() === MockAuthenticationProvider.BackOfficeAccount?.Account) return null;
-    if (!Draft.Account.trim() || !Draft.DisplayName.trim() || !Roles.length) return null;
-    if (this.UsersStore.some((User) => User.Account === Draft.Account.trim())) return null;
-    const InitialPassword = this.GenerateMockInitialPassword();
-    const Timestamp = this.GetTimestamp();
-    this.UsersStore.push({
-      Account: Draft.Account.trim(),
-      DisplayName: Draft.DisplayName.trim(),
-      Password: InitialPassword,
-      Roles,
-      Enabled: Draft.Enabled,
-      CreatedAt: Timestamp,
-      UpdatedAt: Timestamp,
-    });
-    this.FavoriteReportStore[Draft.Account.trim()] = this.CreateEmptyFavoriteState();
-    return { Account: Draft.Account.trim(), InitialPassword };
   }
 
   SaveUserEdit(Account: string, Draft: MockUserEditDraft): MockUserEditResult {
@@ -286,24 +256,7 @@ export class MockRbacService {
     const Roles = this.NormalizeRoles(Draft.Roles);
     if (!Roles.length) return 'invalid';
     User.Roles = Roles;
-    User.Enabled = Draft.Enabled;
-    this.Touch(User);
     return 'updated';
-  }
-
-  DeleteUser(Account: string): MockDeleteUserResult {
-    const Index = this.UsersStore.findIndex((User) => User.Account === Account);
-    if (Index < 0) return 'not-found';
-    this.UsersStore.splice(Index, 1);
-    delete this.FavoriteReportStore[Account];
-    return 'deleted';
-  }
-
-  SetUserEnabled(Account: string, Enabled: boolean): void {
-    const ExistingUser = this.UsersStore.find((User) => User.Account === Account);
-    if (!ExistingUser) return;
-    ExistingUser.Enabled = Enabled;
-    this.Touch(ExistingUser);
   }
 
   CreateRole(Draft: MockRoleDraft): MockRole | null {
@@ -453,7 +406,7 @@ export class MockRbacService {
   GetFavoriteReports(Account: string): readonly MockFavoriteReport[] {
     const Favorites = this.FavoriteReportStore[Account] ?? {};
     const User = this.GetUser(Account);
-    return (User?.Enabled ? this.GetAccessibleReports(User.Roles) : [])
+    return (User ? this.GetAccessibleReports(User.Roles) : [])
       .filter((Report) => Favorites[Report.ReportKey]?.IsFavorite)
       .map((Report) => ({
         Report,
@@ -475,7 +428,7 @@ export class MockRbacService {
 
   ToggleFavoriteReport(Account: string, ReportKey: MockReportKey): boolean {
     const User = this.GetUser(Account);
-    if (!User?.Enabled || !this.GetAccessibleReports(User.Roles).some((Report) => Report.ReportKey === ReportKey)) return false;
+    if (!User || !this.GetAccessibleReports(User.Roles).some((Report) => Report.ReportKey === ReportKey)) return false;
     const Favorites =
       this.FavoriteReportStore[Account] ?? (this.FavoriteReportStore[Account] = {});
     const Favorite =
@@ -564,17 +517,15 @@ export class MockRbacService {
   }
 
   private NormalizeManagementPermissions(Permissions: readonly MockManagementPermission[] = []): MockManagementPermission[] {
-    return [...new Set(Permissions)].filter((Permission) =>
+    const NormalizedPermissions = [...new Set(Permissions)].filter((Permission) =>
       Permission === 'RptManagement' ||
       Permission === 'DatabaseConnection' ||
-      Permission === 'OperationLog');
-  }
-
-  private GenerateMockInitialPassword(): string {
-    const Alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
-    const Values = new Uint32Array(16);
-    globalThis.crypto.getRandomValues(Values);
-    return Array.from(Values, (Value) => Alphabet[Value % Alphabet.length]).join('');
+      Permission === 'OperationLog' ||
+      Permission === 'ArchivedFormData' ||
+      Permission === 'ArchivedOperationLog');
+    return NormalizedPermissions.filter((Permission) =>
+      (Permission !== 'ArchivedFormData' || NormalizedPermissions.includes('RptManagement')) &&
+      (Permission !== 'ArchivedOperationLog' || NormalizedPermissions.includes('OperationLog')));
   }
 
   private NormalizePermission(Permission: MockCategoryPermission): MockCategoryPermission {
@@ -725,10 +676,6 @@ export class MockRbacService {
 
   private CloneCredential(User: MockUserCredential): MockUserCredential {
     return { ...User, Roles: [...User.Roles] };
-  }
-
-  private Touch(User: MockUserCredential): void {
-    User.UpdatedAt = this.GetTimestamp();
   }
 
   private GetTimestamp(): string {

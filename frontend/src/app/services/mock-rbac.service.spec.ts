@@ -1,7 +1,6 @@
 import {
   MockRbacService,
   MockRoleDraft,
-  MockUserDraft,
 } from './mock-rbac.service';
 import {
   IsMockReportCategoryId,
@@ -55,42 +54,6 @@ describe('MockRbacService', () => {
         ({ Report }) => Report.ReportKey,
       ),
     ).toEqual(['AccountBalance']);
-  });
-
-  it('generates a one-time initial password when creating a user', () => {
-    const Credentials = Service.CreateUser({
-      Account: 'generated-password@example.com',
-      DisplayName: '隨機密碼測試',
-      Roles: ['FINANCE'],
-      Enabled: true,
-    });
-
-    expect(Credentials?.Account).toBe('generated-password@example.com');
-    expect(Credentials?.InitialPassword).toMatch(/^[A-Za-z0-9!@#$%]{16}$/);
-    expect(
-      Service.Authenticate(
-        'generated-password@example.com',
-        Credentials!.InitialPassword,
-      ),
-    ).not.toBeNull();
-  });
-
-  it('generates a one-time initial password when creating a user', () => {
-    const Credentials = Service.CreateUser({
-      Account: 'generated-password@example.com',
-      DisplayName: '隨機密碼測試',
-      Roles: ['FINANCE'],
-      Enabled: true,
-    });
-
-    expect(Credentials?.Account).toBe('generated-password@example.com');
-    expect(Credentials?.InitialPassword).toMatch(/^[A-Za-z0-9!@#$%]{16}$/);
-    expect(
-      Service.Authenticate(
-        'generated-password@example.com',
-        Credentials!.InitialPassword,
-      ),
-    ).not.toBeNull();
   });
 
   it('calculates a union of category permissions across ordinary roles', () => {
@@ -154,6 +117,30 @@ describe('MockRbacService', () => {
     expect(Service.DeleteRole('FINANCE')).toBe('role-in-use');
     expect(Service.DeleteRole(CreatedRole.Key)).toBe('deleted');
     expect(Service.Roles.some((Role) => Role.Key === CreatedRole.Key)).toBeFalse();
+  });
+
+  it('drops archived-data permissions when their required management permission is absent', () => {
+    const CreatedRole = Service.CreateRole({
+      DisplayName: 'archive-validation',
+      ManagementPermissions: ['ArchivedFormData', 'ArchivedOperationLog'],
+      Permissions: Service.GetEmptyCategoryPermissionEntries(),
+    })!;
+
+    expect(CreatedRole.ManagementPermissions).not.toContain('ArchivedFormData');
+    expect(CreatedRole.ManagementPermissions).not.toContain('ArchivedOperationLog');
+
+    const Permissions = Service.GetEmptyCategoryPermissionEntries();
+    expect(Service.UpdateRole(CreatedRole.Key, {
+      DisplayName: CreatedRole.DisplayName,
+      ManagementPermissions: ['RptManagement', 'ArchivedFormData', 'OperationLog', 'ArchivedOperationLog'],
+      Permissions,
+    })).toBe('updated');
+    expect(Service.GetRole(CreatedRole.Key).ManagementPermissions).toEqual([
+      'RptManagement',
+      'ArchivedFormData',
+      'OperationLog',
+      'ArchivedOperationLog',
+    ]);
   });
 
   it('keeps all reports in management while excluding disabled reports from the normal report list', () => {
@@ -346,23 +333,23 @@ describe('MockRbacService', () => {
     )).toBeFalse();
   });
 
-  it('updates timestamps for administrative role or enabled changes without letting the admin edit a user name', () => {
+  it('updates only role assignments without changing external account identity', () => {
     const Before = Service.GetUser('warehouse@example.com')!;
 
     expect(Service.SaveUserEdit('warehouse@example.com', {
       Roles: ['PURCHASE', 'WAREHOUSE'],
-      Enabled: false,
     })).toBe('updated');
 
     const Updated = Service.GetUser('warehouse@example.com')!;
+    expect(Updated.Account).toBe(Before.Account);
     expect(Updated.DisplayName).toBe(Before.DisplayName);
     expect(Updated.Roles).toEqual(['PURCHASE', 'WAREHOUSE']);
-    expect(Updated.Enabled).toBeFalse();
-    expect(Updated.UpdatedAt).not.toBe(Before.UpdatedAt);
   });
 
-  it('deletes an ordinary user only after the UI confirmation delegates to the Mock service', () => {
-    expect(Service.DeleteUser('warehouse@example.com')).toBe('deleted');
-    expect(Service.GetUser('warehouse@example.com')).toBeNull();
+  it('updates the recent login time after a successful external-account demo login', () => {
+    const Before = Service.GetUser('warehouse@example.com')!.LastLoginAt;
+
+    expect(Service.Authenticate('warehouse@example.com', 'warehouse123')).not.toBeNull();
+    expect(Service.GetUser('warehouse@example.com')!.LastLoginAt).not.toBe(Before);
   });
 });

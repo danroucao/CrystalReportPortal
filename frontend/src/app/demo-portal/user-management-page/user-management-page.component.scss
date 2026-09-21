@@ -1,2 +1,38 @@
 // Kept with the extracted feature so style encapsulation follows the new host.
 @import '../demo-portal.component.scss';
+
+.permission-dependency-group {
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fdfcf9;
+}
+
+.permission-parent { font-weight: 800; }
+
+.permission-child {
+  margin: 0.55rem 0 0 1.45rem;
+  padding-left: 0.8rem;
+  border-left: 2px solid #d8d2c7;
+}
+
+.permission-child label { font-weight: 700; }
+
+.permission-child p {
+  margin: 0.3rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.permission-child p span {
+  display: block;
+  margin-top: 0.15rem;
+  color: #815a1a;
+  font-weight: 700;
+}
+
+.permission-child.is-unavailable {
+  opacity: 0.7;
+}

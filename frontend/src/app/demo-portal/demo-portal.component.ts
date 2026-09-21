@@ -34,11 +34,8 @@ import { MockReportCategory } from '../mock/mock-report-categories';
 import { MockReportKey, MockReportReadModel } from '../mock/mock-reports';
 import { AuthService } from '../services/auth.service';
 import {
-  MockCreatedUserCredentials,
   MockRbacService,
   MockRoleDraft,
-  MockUserDraft,
-  MockUserEditDraft,
 } from '../services/mock-rbac.service';
 import { MockUser } from '../mock/mock-users';
 import {
@@ -108,9 +105,6 @@ interface ParameterReportSearchState {
 
 type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
 
-type CreateUserField = 'Account' | 'DisplayName' | 'Roles';
-type CreateUserValidationErrors = Partial<Record<CreateUserField, string>>;
-type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
 
 
 
@@ -475,10 +469,7 @@ export class DemoPortalComponent
       this.BackOfficeBindingAccount,
       this.BackOfficeBindingPassword,
     )) {
-      this.BackOfficeBindingError =
-        this.Auth.LastBackOfficeIdentityBindingFailure === 'disabled'
-          ? '此帳號已停用。'
-          : '帳號或密碼不正確，請重新輸入。';
+      this.BackOfficeBindingError = '帳號或密碼不正確，請重新輸入。';
       return;
     }
     this.AuditLog.RecordBackOfficeAction('後台身分綁定', '完成後台操作 session 的前台身分驗證。');

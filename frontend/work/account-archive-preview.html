@@ -1,0 +1,206 @@
+<div id="account-archive-preview" aria-label="使用者帳號與已封存資料示意圖">
+  <style>
+    #account-archive-preview {
+      color-scheme: light dark;
+      --ink: light-dark(#1f2a44, #eef3ff);
+      --muted: light-dark(#64748b, #aab8d1);
+      --surface: light-dark(#ffffff, #17213a);
+      --canvas: light-dark(#f3f6fb, #0e1628);
+      --line: light-dark(#dce4f0, #2a3856);
+      --brand: light-dark(#2463b5, #78adff);
+      --brand-soft: light-dark(#e8f1ff, #203a62);
+      --archive: light-dark(#a25e05, #ffbe70);
+      --archive-soft: light-dark(#fff4df, #4d3518);
+      --shadow: light-dark(0 18px 44px rgba(31, 42, 68, .16), 0 18px 44px rgba(0, 0, 0, .32));
+      box-sizing: border-box;
+      font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      color: var(--ink);
+    }
+    #account-archive-preview *, #account-archive-preview *::before, #account-archive-preview *::after { box-sizing: inherit; }
+    #account-archive-preview button, #account-archive-preview input { font: inherit; }
+    #account-archive-preview .shell { min-height: 620px; background: var(--canvas); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; position: relative; }
+    #account-archive-preview .topbar { height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    #account-archive-preview .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; letter-spacing: .02em; }
+    #account-archive-preview .brand-mark { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--brand); color: #fff; }
+    #account-archive-preview .account-chip { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--muted); }
+    #account-archive-preview .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #3d7dd0, #9cc7ff); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+    #account-archive-preview .layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: 556px; }
+    #account-archive-preview .sidenav { padding: 18px 12px; background: var(--surface); border-right: 1px solid var(--line); }
+    #account-archive-preview .sidenav p { margin: 10px 12px; color: var(--muted); font-size: 12px; }
+    #account-archive-preview .nav-item { width: 100%; border: 0; border-radius: 8px; color: var(--muted); background: transparent; display: flex; align-items: center; gap: 10px; text-align: left; padding: 11px 12px; margin: 3px 0; cursor: pointer; }
+    #account-archive-preview .nav-item:hover { background: var(--brand-soft); color: var(--brand); }
+    #account-archive-preview .nav-item.is-active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+    #account-archive-preview .nav-item svg, #account-archive-preview .brand-mark svg { width: 17px; height: 17px; }
+    #account-archive-preview .page { padding: 30px; min-width: 0; }
+    #account-archive-preview .page[hidden] { display: none; }
+    #account-archive-preview .heading { display: flex; gap: 20px; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+    #account-archive-preview h1 { margin: 0; font-size: 23px; font-weight: 700; }
+    #account-archive-preview .heading p { margin: 7px 0 0; color: var(--muted); font-size: 14px; }
+    #account-archive-preview .notice { display: flex; gap: 9px; align-items: center; color: var(--brand); background: var(--brand-soft); border-radius: 8px; padding: 10px 12px; margin-bottom: 18px; font-size: 13px; }
+    #account-archive-preview .toolbar { display: flex; flex-wrap: wrap; gap: 11px; align-items: center; margin-bottom: 14px; }
+    #account-archive-preview .search { position: relative; flex: 1 1 240px; max-width: 360px; }
+    #account-archive-preview .search svg { position: absolute; width: 16px; top: 11px; left: 12px; color: var(--muted); }
+    #account-archive-preview input[type="search"], #account-archive-preview input[type="date"] { color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 7px; min-height: 40px; padding: 8px 10px; }
+    #account-archive-preview input[type="search"] { width: 100%; padding-left: 37px; }
+    #account-archive-preview .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    #account-archive-preview .filter { background: var(--surface); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 8px 13px; cursor: pointer; font-size: 13px; }
+    #account-archive-preview .filter.is-active { background: var(--brand); border-color: var(--brand); color: #fff; }
+    #account-archive-preview .table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: auto; }
+    #account-archive-preview table { border-collapse: collapse; width: 100%; min-width: 670px; font-size: 14px; }
+    #account-archive-preview th { color: var(--muted); text-align: left; background: light-dark(#f8fafc, #1d2943); font-weight: 600; font-size: 12px; letter-spacing: .02em; }
+    #account-archive-preview th, #account-archive-preview td { padding: 14px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    #account-archive-preview tbody tr:last-child td { border-bottom: 0; }
+    #account-archive-preview .identity { display: flex; gap: 9px; align-items: center; }
+    #account-archive-preview .identity .avatar { width: 32px; height: 32px; }
+    #account-archive-preview .roles { color: var(--ink); }
+    #account-archive-preview .roles span { display: inline-block; padding: 4px 8px; color: var(--brand); background: var(--brand-soft); border-radius: 99px; font-size: 12px; margin-right: 4px; }
+    #account-archive-preview .muted { color: var(--muted); }
+    #account-archive-preview .icon-button { width: 34px; height: 34px; display: inline-grid; place-items: center; background: transparent; border: 1px solid transparent; color: var(--brand); border-radius: 7px; cursor: pointer; }
+    #account-archive-preview .icon-button:hover { background: var(--brand-soft); border-color: var(--line); }
+    #account-archive-preview .icon-button svg { width: 17px; }
+    #account-archive-preview .filter-grid { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    #account-archive-preview .field { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    #account-archive-preview .field input { width: 100%; }
+    #account-archive-preview .archive-switch { display: flex; align-items: center; gap: 10px; padding: 11px 13px; background: var(--archive-soft); border-radius: 8px; color: var(--archive); font-size: 13px; margin-bottom: 16px; }
+    #account-archive-preview .archive-switch input { width: 18px; height: 18px; accent-color: var(--archive); }
+    #account-archive-preview .retention { margin-left: auto; color: var(--muted); font-size: 12px; }
+    #account-archive-preview .archive-tag { display: inline-flex; gap: 4px; align-items: center; color: var(--archive); background: var(--archive-soft); padding: 4px 7px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+    #account-archive-preview .archive-tag svg { width: 13px; }
+    #account-archive-preview .modal-backdrop { position: absolute; inset: 0; display: none; place-items: center; padding: 28px; background: rgba(15, 23, 42, .48); }
+    #account-archive-preview .modal-backdrop.is-open { display: grid; }
+    #account-archive-preview .modal { width: min(560px, 100%); background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 24px; }
+    #account-archive-preview .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+    #account-archive-preview h2 { margin: 0; font-size: 19px; }
+    #account-archive-preview .modal-head p { margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    #account-archive-preview .close { border: 0; color: var(--muted); background: transparent; font-size: 24px; cursor: pointer; line-height: 1; }
+    #account-archive-preview .readonly-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0 18px; }
+    #account-archive-preview .readonly-grid label, #account-archive-preview .role-group > span { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    #account-archive-preview .readonly-value { color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 10px; background: light-dark(#f8fafc, #15213a); }
+    #account-archive-preview .role-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 9px; }
+    #account-archive-preview .role-option { display: flex; gap: 7px; align-items: center; border: 1px solid var(--line); border-radius: 7px; padding: 10px; color: var(--ink); font-size: 13px; }
+    #account-archive-preview .role-option input { accent-color: var(--brand); }
+    #account-archive-preview .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+    #account-archive-preview .button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 7px; padding: 9px 14px; cursor: pointer; }
+    #account-archive-preview .button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+    #account-archive-preview .empty-note { padding: 18px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 760px) {
+      #account-archive-preview .layout { grid-template-columns: 1fr; }
+      #account-archive-preview .sidenav { display: flex; overflow: auto; padding: 8px; border-right: 0; border-bottom: 1px solid var(--line); }
+      #account-archive-preview .sidenav p { display: none; }
+      #account-archive-preview .nav-item { width: auto; white-space: nowrap; }
+      #account-archive-preview .page { padding: 20px; }
+      #account-archive-preview .filter-grid { grid-template-columns: 1fr 1fr; }
+      #account-archive-preview .readonly-grid, #account-archive-preview .role-options { grid-template-columns: 1fr; }
+      #account-archive-preview .topbar { padding: 0 18px; }
+    }
+  </style>
+
+  <section class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark"><i data-lucide="bar-chart-3" aria-hidden="true"></i></span>Crystal Report Portal</div>
+      <div class="account-chip"><span class="avatar">陳</span>財務人員／陳怡君</div>
+    </header>
+    <div class="layout">
+      <nav class="sidenav" aria-label="後台功能">
+        <p>後台管理</p>
+        <button type="button" class="nav-item is-active" data-tab="accounts" aria-selected="true"><i data-lucide="users" aria-hidden="true"></i>使用者帳號</button>
+        <button type="button" class="nav-item" data-tab="logs" aria-selected="false"><i data-lucide="scroll-text" aria-hidden="true"></i>操作紀錄</button>
+        <button type="button" class="nav-item" disabled><i data-lucide="shield-check" aria-hidden="true"></i>角色與權限</button>
+      </nav>
+
+      <main class="page" id="accounts-panel">
+        <div class="heading"><div><h1>使用者帳號</h1><p>廠商提供的帳號清單；本系統僅管理角色。</p></div></div>
+        <div class="notice"><i data-lucide="info" aria-hidden="true"></i>帳號、名稱與密碼由廠商系統管理；點選鉛筆可調整本系統角色。</div>
+        <div class="toolbar">
+          <label class="search"><span class="sr-only">搜尋使用者</span><i data-lucide="search" aria-hidden="true"></i><input type="search" placeholder="搜尋帳號或名稱" /></label>
+          <div class="filters" aria-label="依角色篩選"><button type="button" class="filter is-active">全部（6）</button><button type="button" class="filter">財務人員（2）</button><button type="button" class="filter">採購人員（2）</button></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>帳號</th><th>名稱</th><th>系統角色</th><th>最近登入時間</th><th aria-label="操作"></th></tr></thead>
+            <tbody>
+              <tr><td><div class="identity"><span class="avatar">王</span>wang.ming@vendor.com</div></td><td>王小明</td><td class="roles"><span>財務人員</span></td><td class="muted">2026/09/22 09:18</td><td><button type="button" class="icon-button" data-open-modal aria-label="編輯使用者" data-tooltip="編輯使用者"><i data-lucide="pencil" aria-hidden="true"></i></button></td></tr>
+              <tr><td><div class="identity"><span class="avatar">林</span>lin.yu@vendor.com</div></td><td>林雨晴</td><td class="roles"><span>採購人員</span></td><td class="muted">2026/09/21 16:42</td><td><button type="button" class="icon-button" data-open-modal aria-label="編輯使用者" data-tooltip="編輯使用者"><i data-lucide="pencil" aria-hidden="true"></i></button></td></tr>
+              <tr><td><div class="identity"><span class="avatar">陳</span>chen.hao@vendor.com</div></td><td>陳浩然</td><td class="roles"><span>倉管人員</span></td><td class="muted">2026/09/20 08:55</td><td><button type="button" class="icon-button" data-open-modal aria-label="編輯使用者" data-tooltip="編輯使用者"><i data-lucide="pencil" aria-hidden="true"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+
+      <main class="page" id="logs-panel" hidden>
+        <div class="heading"><div><h1>操作紀錄</h1><p>一般查詢預設僅顯示最近 180 天的紀錄。</p></div></div>
+        <div class="archive-switch"><input id="include-archived" type="checkbox" /><label for="include-archived">包含已封存資料</label><span class="retention" id="retention-message">目前僅可查最近 180 天</span></div>
+        <div class="filter-grid" aria-label="操作紀錄篩選條件">
+          <label class="field">開始日期<input id="start-date" type="date" min="2026-03-26" value="2026-09-15" /></label>
+          <label class="field">結束日期<input type="date" value="2026-09-22" /></label>
+          <label class="field">操作來源<input value="全部" readonly /></label>
+          <label class="field">關鍵字<input placeholder="操作者、目標名稱或 IP" /></label>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>操作時間</th><th>操作者</th><th>分類</th><th>操作摘要</th><th>狀態</th></tr></thead>
+            <tbody id="log-rows">
+              <tr><td>2026/09/21 16:42</td><td>陳怡君</td><td>權限變動</td><td>調整王小明的系統角色</td><td class="muted">一般</td></tr>
+              <tr class="archived-row" hidden><td>2025/08/12 10:05</td><td>陳怡君</td><td>權限變動</td><td>調整林雨晴的系統角色</td><td><span class="archive-tag"><i data-lucide="archive" aria-hidden="true"></i>已封存</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="empty-note" id="archive-note" hidden>已顯示已封存資料；明細將標示封存日期，且內容僅供檢視。</p>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="role-modal" aria-hidden="true">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-user-title">
+        <div class="modal-head"><div><h2 id="edit-user-title">編輯使用者</h2><p>管理員只能調整角色；帳號、名稱與密碼不在本系統調整。</p></div><button class="close" type="button" data-close-modal aria-label="關閉">×</button></div>
+        <div class="readonly-grid"><label>使用者帳號<span class="readonly-value">wang.ming@vendor.com</span></label><label>使用者名稱<span class="readonly-value">王小明</span></label></div>
+        <div class="role-group"><span>所屬角色</span><div class="role-options"><label class="role-option"><input type="checkbox" checked />財務人員</label><label class="role-option"><input type="checkbox" />採購人員</label><label class="role-option"><input type="checkbox" />倉管人員</label></div></div>
+        <div class="modal-actions"><button type="button" class="button" data-close-modal>取消</button><button type="button" class="button primary" data-close-modal>儲存變更</button></div>
+      </section>
+    </div>
+    <p class="sr-only" aria-live="polite" id="preview-status"></p>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById('account-archive-preview');
+      const state = { tab: 'accounts', includeArchived: false, modalOpen: false, ...(globalThis.window?.openai?.widgetState?.modelContent || {}) };
+      const accountsPanel = root.querySelector('#accounts-panel');
+      const logsPanel = root.querySelector('#logs-panel');
+      const modal = root.querySelector('#role-modal');
+      const archiveCheckbox = root.querySelector('#include-archived');
+      const archivedRow = root.querySelector('.archived-row');
+      const archiveNote = root.querySelector('#archive-note');
+      const startDate = root.querySelector('#start-date');
+      const retentionMessage = root.querySelector('#retention-message');
+      const status = root.querySelector('#preview-status');
+      function persist() {
+        globalThis.window?.openai?.setWidgetState?.({ modelContent: { tab: state.tab, includeArchived: state.includeArchived, modalOpen: state.modalOpen } }).catch(() => {});
+      }
+      function render() {
+        accountsPanel.hidden = state.tab !== 'accounts';
+        logsPanel.hidden = state.tab !== 'logs';
+        root.querySelectorAll('[data-tab]').forEach((button) => {
+          const active = button.dataset.tab === state.tab;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-selected', String(active));
+        });
+        modal.classList.toggle('is-open', state.modalOpen);
+        modal.setAttribute('aria-hidden', String(!state.modalOpen));
+        archiveCheckbox.checked = state.includeArchived;
+        archivedRow.hidden = !state.includeArchived;
+        archiveNote.hidden = !state.includeArchived;
+        startDate.min = state.includeArchived ? '' : '2026-03-26';
+        retentionMessage.textContent = state.includeArchived ? '請指定任意歷史日期區間' : '目前僅可查最近 180 天';
+      }
+      root.querySelectorAll('[data-tab]').forEach((button) => button.addEventListener('click', () => { state.tab = button.dataset.tab; state.modalOpen = false; render(); persist(); }));
+      root.querySelectorAll('[data-open-modal]').forEach((button) => button.addEventListener('click', () => { state.modalOpen = true; status.textContent = '已開啟編輯使用者視窗。'; render(); persist(); }));
+      root.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => { state.modalOpen = false; status.textContent = '已關閉編輯使用者視窗。'; render(); persist(); }));
+      archiveCheckbox.addEventListener('change', () => { state.includeArchived = archiveCheckbox.checked; status.textContent = state.includeArchived ? '已包含已封存資料。' : '已隱藏已封存資料。'; render(); persist(); });
+      globalThis.addEventListener?.('openai:set_globals', (event) => {
+        const saved = event.detail?.globals?.widgetState?.modelContent;
+        if (saved && typeof saved === 'object') { Object.assign(state, saved); render(); }
+      });
+      render();
+    })();
+  </script>
+</div>

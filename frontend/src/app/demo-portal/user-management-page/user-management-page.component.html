@@ -4,33 +4,23 @@
       <div><h2 id="role-management-title">角色與權限</h2></div>
       <button type="button" class="section-header-action primary-button" (click)="OpenCreateRoleDialog()"><span aria-hidden="true">＋</span>新增角色</button>
     </div>
-    <div class="role-card-carousel">
-      <button *ngIf="CanScrollRoleCardsLeft" type="button" class="role-carousel-nav is-previous" aria-label="顯示前一組角色" (click)="ScrollRoleCards(-1)"><span aria-hidden="true">←</span></button>
-      <div #roleCardViewport class="role-card-viewport" (scroll)="UpdateRoleCardNavigation()">
-        <div class="role-card-grid" [class.has-overflow]="RoleCardHasOverflow">
-          <article *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" class="role-card">
-            <div class="role-card-summary">
-              <p class="role-card-count">{{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者</p>
-              <div class="role-avatar-group" aria-hidden="true">
-                <ngx-boring-avatar *ngFor="let User of GetRoleAvatarUsers(Role.Key); trackBy: TrackUserByAccount" variant="beam" [name]="User.Account" [size]="26" />
-                <span *ngIf="!GetRoleAvatarUsers(Role.Key).length" class="role-avatar-placeholder"></span>
-              </div>
-            </div>
-            <h3>{{ Role.DisplayName }}</h3>
-            <button type="button" class="role-card-action secondary-button" (click)="OpenEditRoleDialog(Role.Key)">編輯角色</button>
-          </article>
+    <div class="role-card-grid">
+      <article *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" class="role-card">
+        <div class="role-card-summary">
+          <p class="role-card-count">{{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者</p>
+          <div class="role-avatar-group" aria-hidden="true">
+            <ngx-boring-avatar *ngFor="let User of GetRoleAvatarUsers(Role.Key); trackBy: TrackUserByAccount" variant="beam" [name]="User.Account" [size]="26" />
+          </div>
         </div>
-      </div>
-      <button *ngIf="CanScrollRoleCardsRight" type="button" class="role-carousel-nav is-next" aria-label="顯示下一組角色" (click)="ScrollRoleCards(1)"><span aria-hidden="true">→</span></button>
+        <h3>{{ Role.DisplayName }}</h3>
+        <button type="button" class="role-card-action secondary-button" (click)="OpenEditRoleDialog(Role.Key)">編輯角色</button>
+      </article>
     </div>
   </section>
 
   <section class="management-card user-management-section" aria-labelledby="user-management-title">
-    <div class="management-card-heading">
-      <div><h2 id="user-management-title">使用者帳號</h2></div>
-      <button type="button" class="section-header-action primary-button" (click)="OpenCreateUserDialog()"><span aria-hidden="true">＋</span>建立使用者</button>
-    </div>
-    <p *ngIf="ManagementNotice" class="mock-notice" role="status">{{ ManagementNotice }}</p>
+    <div class="management-card-heading"><div><h2 id="user-management-title">使用者帳號</h2></div></div>
+    <p class="mock-notice" role="note">帳號、名稱與密碼由廠商系統管理；本系統僅調整使用者角色。</p>
     <div class="user-management-toolbar" role="search">
       <label class="user-search-field"><span class="sr-only">搜尋使用者</span>
         <input [(ngModel)]="UserSearchText" (ngModelChange)="OnUserSearchChange()" placeholder="搜尋使用者帳號或名稱" />
@@ -43,84 +33,57 @@
     </nav>
     <div class="table-scroll user-table-scroll"><div class="user-table-content-area">
       <table class="user-management-table">
-        <thead><tr><th>帳號</th><th>名稱</th><th>角色</th><th class="account-status-column">啟用狀態</th><th>建立時間</th><th>更新時間</th><th>操作</th></tr></thead>
+        <thead><tr><th>帳號</th><th>名稱</th><th>角色</th><th>最近登入時間</th><th>操作</th></tr></thead>
         <tbody>
           <tr *ngFor="let User of PagedUsers; trackBy: TrackUserByAccount" class="user-entry-row" (click)="EditUser(User.Account)">
             <td class="user-account-cell" [title]="User.Account"><div class="user-account-identity"><ngx-boring-avatar variant="beam" [name]="User.Account" [size]="40"/><span>{{ User.Account }}</span></div></td>
-            <td>{{ User.DisplayName }}</td><td>{{ GetRoleNames(User.Roles) }}</td>
-            <td class="account-status-column"><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="User.Enabled" [attr.aria-checked]="User.Enabled" [attr.aria-label]="User.Enabled ? '停用 ' + User.Account : '啟用 ' + User.Account" (click)="SetUserEnabled(User.Account, !User.Enabled); $event.stopPropagation()"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ User.Enabled ? '啟用' : '停用' }}</span></td>
-            <td>{{ User.CreatedAt }}</td><td>{{ User.UpdatedAt }}</td>
-            <td><button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + User.Account" title="編輯使用者" (click)="EditUser(User.Account); $event.stopPropagation()">✎</button><button type="button" class="tertiary-button" [attr.aria-label]="'刪除 ' + User.Account" title="刪除使用者" (click)="OpenDeleteUserDialog(User.Account); $event.stopPropagation()">🗑</button></td>
+            <td>{{ User.DisplayName }}</td><td>{{ GetRoleNames(User.Roles) }}</td><td>{{ User.LastLoginAt }}</td>
+            <td><button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + User.Account" title="編輯使用者" (click)="EditUser(User.Account); $event.stopPropagation()">✎</button></td>
           </tr>
-          <tr *ngIf="!FilteredUsers.length"><td colspan="7"><div class="user-empty-state" role="status">找不到符合條件的使用者。</div></td></tr>
+          <tr *ngIf="!FilteredUsers.length"><td colspan="5"><div class="user-empty-state" role="status">找不到符合條件的使用者。</div></td></tr>
         </tbody>
       </table>
     </div></div>
     <app-portal-pagination [CurrentPage]="UserCurrentPage" [TotalPages]="UserTotalPages" [PageNumbers]="UserPageNumbers" AriaLabel="使用者清單分頁" (PageChange)="GoToUserPage($event)" />
   </section>
 
-  <section *ngIf="IsCreateUserDialogOpen" class="modal-backdrop" (click)="CloseCreateUserDialog()">
-    <section #activeModal class="edit-user-modal create-user-modal" role="dialog" aria-modal="true" aria-labelledby="create-user-title" tabindex="-1" (click)="$event.stopPropagation()">
-      <div class="modal-heading"><div><h2 id="create-user-title">建立使用者</h2><p class="muted">請設定帳號、角色與啟用狀態；初始密碼將由後端隨機產生。</p></div><button type="button" class="modal-close-button edit-user-close-button" aria-label="關閉建立使用者視窗" (click)="CloseCreateUserDialog()">×</button></div>
-      <form class="create-user-form" (ngSubmit)="SaveUser()" novalidate>
-        <div class="create-user-identity-fields">
-          <label><span>使用者帳號 <span class="required-indicator" aria-hidden="true">*</span></span><input name="create-user-account" [(ngModel)]="UserDraft.Account" (ngModelChange)="ClearCreateUserValidationError('Account')" autocomplete="username" [attr.aria-invalid]="CreateUserValidationErrors.Account ? 'true' : null" [attr.aria-describedby]="CreateUserValidationErrors.Account ? 'create-user-account-error' : null" /></label>
-          <label><span>使用者名稱 <span class="required-indicator" aria-hidden="true">*</span></span><input name="create-user-display-name" [(ngModel)]="UserDraft.DisplayName" (ngModelChange)="ClearCreateUserValidationError('DisplayName')" [attr.aria-invalid]="CreateUserValidationErrors.DisplayName ? 'true' : null" [attr.aria-describedby]="CreateUserValidationErrors.DisplayName ? 'create-user-name-error' : null" /></label>
-        </div>
-        <small *ngIf="CreateUserValidationErrors.Account" id="create-user-account-error" class="field-error" role="alert">{{ CreateUserValidationErrors.Account }}</small>
-        <small *ngIf="CreateUserValidationErrors.DisplayName" id="create-user-name-error" class="field-error" role="alert">{{ CreateUserValidationErrors.DisplayName }}</small>
-        <div class="create-user-role-field"><span class="form-field-label">所屬角色 <span class="required-indicator" aria-hidden="true">*</span></span><div class="create-user-role-options" role="group" aria-label="所屬角色"><label *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" class="create-user-role-option" [class.is-selected]="UserDraft.Roles.includes(Role.Key)"><input type="checkbox" [ngModel]="UserDraft.Roles.includes(Role.Key)" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleCreateUserRole(Role.Key, $event)" />{{ Role.DisplayName }}</label></div></div>
-        <small *ngIf="CreateUserValidationErrors.Roles" class="field-error" role="alert">{{ CreateUserValidationErrors.Roles }}</small>
-        <div class="edit-status-field"><span class="form-field-label">啟用狀態</span><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="UserDraft.Enabled" [attr.aria-checked]="UserDraft.Enabled" aria-label="切換使用者啟用狀態" (click)="UserDraft.Enabled = !UserDraft.Enabled"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ UserDraft.Enabled ? '啟用' : '停用' }}</span></div>
-        <div class="modal-actions"><button type="submit" class="primary-button">建立使用者</button><button type="button" class="tertiary-button" (click)="CloseCreateUserDialog()">取消</button></div>
-      </form>
-    </section>
-  </section>
-
-  <section *ngIf="CreatedUserCredentials" class="modal-backdrop created-user-success-backdrop">
-    <section #activeModal class="created-user-success-modal" role="dialog" aria-modal="true" aria-labelledby="created-user-success-title" aria-describedby="created-user-success-description">
-      <div class="created-user-success-icon" aria-hidden="true">✓</div>
-      <h2 id="created-user-success-title">新增使用者成功</h2>
-      <p id="created-user-success-description" class="created-user-success-description"><span>已成功建立使用者。</span><span>請複製下方資訊傳給使用者，<strong>並告知其於首次登入時立即修改密碼</strong>。</span></p>
-      <section class="created-user-credentials" aria-label="新使用者登入資訊">
-        <dl>
-          <div><dt>帳號：</dt><dd>{{ CreatedUserCredentials.Account }}</dd></div>
-          <div class="created-user-password-row"><dt>初始密碼：</dt><dd>{{ CreatedUserCredentials.InitialPassword }}</dd></div>
-        </dl>
-        <button type="button" class="created-user-copy-button" aria-label="複製帳號與初始密碼" title="複製帳號與初始密碼" (click)="CopyCreatedUserCredentials()"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="4" width="10" height="14" rx="1"></rect><path d="M6 8H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1"></path></svg></button>
-      </section>
-      <p *ngIf="CreatedUserCopyNotice" class="created-user-copy-notice" role="status">{{ CreatedUserCopyNotice }}</p>
-      <div class="created-user-success-actions"><button type="button" class="primary-button" (click)="CloseCreatedUserSuccessModal()">確認</button></div>
-    </section>
-  </section>
-
   <section *ngIf="EditingUser" class="modal-backdrop" (click)="CancelEditUser()">
     <section #activeModal class="edit-user-modal" role="dialog" aria-modal="true" aria-labelledby="edit-user-title" tabindex="-1" (click)="$event.stopPropagation()">
-      <div class="modal-heading"><div><h2 id="edit-user-title">編輯使用者</h2><p class="muted">管理員只能調整角色與啟用狀態；名稱與密碼不在本系統調整。</p></div><button type="button" class="modal-close-button" aria-label="關閉編輯使用者視窗" (click)="CancelEditUser()">×</button></div>
-      <div class="form-grid edit-user-form"><label>使用者帳號<input [value]="EditingAccount" disabled /></label><label>使用者名稱<input [value]="MockRbac.GetUser(EditingAccount || '')?.DisplayName" disabled /></label><div class="edit-status-field"><span class="form-field-label">啟用狀態</span><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="EditingUser.Enabled" [attr.aria-checked]="EditingUser.Enabled" aria-label="切換使用者啟用狀態" (click)="EditingUser.Enabled = !EditingUser.Enabled"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ EditingUser.Enabled ? '啟用' : '停用' }}</span></div></div>
+      <div class="modal-heading"><div><h2 id="edit-user-title">編輯使用者</h2><p class="muted">管理員只能調整角色；帳號、名稱與密碼不在本系統調整。</p></div><button type="button" class="modal-close-button" aria-label="關閉編輯使用者視窗" (click)="CancelEditUser()">×</button></div>
+      <div class="form-grid edit-user-form"><label>使用者帳號<input [value]="EditingAccount" disabled /></label><label>使用者名稱<input [value]="MockRbac.GetUser(EditingAccount || '')?.DisplayName" disabled /></label></div>
       <div class="edit-user-role-field"><span class="form-field-label">所屬角色 <span class="required-indicator" aria-hidden="true">*</span></span><div class="edit-user-role-options" role="group" aria-label="所屬角色"><label *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" class="edit-user-role-option" [class.is-selected]="EditingUser.Roles.includes(Role.Key)"><input type="checkbox" [ngModel]="EditingUser.Roles.includes(Role.Key)" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleEditingUserRole(Role.Key, $event)" />{{ Role.DisplayName }}</label></div></div>
-      <small *ngIf="EditUserValidationErrors.Roles" id="edit-user-roles-error" class="field-error" role="alert">{{ EditUserValidationErrors.Roles }}</small><p *ngIf="EditUserValidationErrors.Form" class="field-error" role="alert">{{ EditUserValidationErrors.Form }}</p>
+      <small *ngIf="EditUserValidationErrors.Roles" class="field-error" role="alert">{{ EditUserValidationErrors.Roles }}</small><p *ngIf="EditUserValidationErrors.Form" class="field-error" role="alert">{{ EditUserValidationErrors.Form }}</p>
       <div class="modal-actions"><button type="button" class="primary-button" (click)="SaveEditedUser()">儲存變更</button><button type="button" class="tertiary-button" (click)="CancelEditUser()">取消</button></div>
     </section>
   </section>
 
-  <section *ngIf="DeletingUser" class="modal-backdrop" (click)="CloseDeleteUserDialog()">
-    <section #activeModal class="edit-user-modal" role="dialog" aria-modal="true" aria-labelledby="delete-user-title" tabindex="-1" (click)="$event.stopPropagation()">
-      <div class="modal-heading"><div><h2 id="delete-user-title">刪除使用者</h2><p>確定要刪除使用者「{{ DeletingUser.Account }}」嗎？</p></div><button type="button" class="modal-close-button" aria-label="關閉刪除使用者確認視窗" (click)="CloseDeleteUserDialog()">×</button></div><p class="muted">此操作無法復原，請確認是否繼續？</p><p *ngIf="DeleteUserError" class="field-error" role="alert">{{ DeleteUserError }}</p><div class="modal-actions"><button type="button" class="danger-button" (click)="ConfirmDeleteUser()">確認刪除</button><button type="button" class="tertiary-button" (click)="CloseDeleteUserDialog()">取消</button></div>
-    </section>
-  </section>
-
-  <section *ngIf="(IsCreateRoleDialogOpen || IsEditRoleDialogOpen) && !DeletingRole" class="modal-backdrop" (click)="IsEditRoleDialogOpen ? CloseEditRoleDialog() : CloseCreateRoleDialog()">
+  <section *ngIf="(IsCreateRoleDialogOpen || IsEditRoleDialogOpen) && !DeletingRole" class="modal-backdrop" (click)="CloseRoleDialog()">
     <section #activeModal class="edit-user-modal create-role-modal" role="dialog" aria-modal="true" aria-labelledby="role-dialog-title" tabindex="-1" (click)="$event.stopPropagation()">
-      <div class="modal-heading"><div><h2 id="role-dialog-title">{{ IsEditRoleDialogOpen ? '編輯角色' : '新增角色' }}</h2></div><button type="button" class="modal-close-button" [attr.aria-label]="IsEditRoleDialogOpen ? '關閉編輯角色視窗' : '關閉新增角色視窗'" (click)="IsEditRoleDialogOpen ? CloseEditRoleDialog() : CloseCreateRoleDialog()">×</button></div>
-      <div class="role-editor-fields"><label class="role-name-field"><span class="form-field-label">角色名稱<span class="required-indicator" aria-hidden="true">*</span></span><input [(ngModel)]="RoleDraft.DisplayName" [attr.aria-invalid]="RoleDraftError ? 'true' : null" [attr.aria-describedby]="RoleDraftError ? 'role-draft-error' : null" [class.is-invalid]="RoleDraftError" (ngModelChange)="ClearRoleDraftError()" /></label><button *ngIf="IsEditRoleDialogOpen" type="button" class="role-delete-button danger-button" aria-label="刪除角色" title="刪除角色" (click)="OpenDeleteRoleDialog()">刪除角色</button></div>
-      <div class="role-global-permissions" role="group" aria-label="功能權限"><h3>功能權限</h3><label><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('DatabaseConnection')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('DatabaseConnection', $event)" />資料庫連線管理</label><label><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('RptManagement')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('RptManagement', $event)" />報表管理</label><label><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('OperationLog')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('OperationLog', $event)" />操作紀錄查詢</label></div>
-      <div class="create-role-permissions"><h3>報表分類權限</h3><div class="table-scroll"><table class="role-permission-table"><thead><tr><th>報表分類</th><th>閱覽</th><th>匯出</th><th>列印</th></tr></thead><tbody><tr *ngFor="let Entry of RoleDraft.Permissions; trackBy: TrackByCategoryPermissionEntry"><td>{{ Entry.CategoryName }}</td><td><input type="checkbox" [ngModel]="Entry.Permission.CanExecute" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Entry.CategoryName + '：閱覽'" (ngModelChange)="SetPermissionCanExecute(Entry, $event)" /></td><td><input type="checkbox" [(ngModel)]="Entry.Permission.CanExport" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Entry.CategoryName + '：匯出'" [disabled]="!Entry.Permission.CanExecute" /></td><td><input type="checkbox" [(ngModel)]="Entry.Permission.CanPrint" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Entry.CategoryName + '：列印'" [disabled]="!Entry.Permission.CanExecute" /></td></tr></tbody></table></div></div>
-      <span *ngIf="RoleDraftError" id="role-draft-error" class="field-error" role="alert">{{ RoleDraftError }}</span><div class="modal-actions role-modal-actions"><div class="role-modal-primary-actions"><button type="button" class="primary-button" (click)="IsEditRoleDialogOpen ? SaveEditedRole() : SaveRole()">{{ IsEditRoleDialogOpen ? '儲存角色' : '建立角色' }}</button><button type="button" class="tertiary-button" (click)="IsEditRoleDialogOpen ? CloseEditRoleDialog() : CloseCreateRoleDialog()">取消</button></div></div>
+      <div class="modal-heading"><div><h2 id="role-dialog-title">{{ IsEditRoleDialogOpen ? '編輯角色' : '新增角色' }}</h2></div><button type="button" class="modal-close-button" aria-label="關閉角色視窗" (click)="CloseRoleDialog()">×</button></div>
+      <div class="role-editor-fields"><label class="role-name-field"><span class="form-field-label">角色名稱 <span class="required-indicator" aria-hidden="true">*</span></span><input [(ngModel)]="RoleDraft.DisplayName" (ngModelChange)="RoleDraftError = ''" /></label><button *ngIf="IsEditRoleDialogOpen" type="button" class="role-delete-button danger-button" (click)="OpenDeleteRoleDialog()">刪除角色</button></div>
+      <div class="role-global-permissions" role="group" aria-label="功能權限"><h3>功能權限</h3>
+        <label><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('DatabaseConnection')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('DatabaseConnection', $event)" />資料庫連線管理</label>
+        <div class="permission-dependency-group">
+          <label class="permission-parent"><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('RptManagement')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('RptManagement', $event)" />報表管理</label>
+          <div class="permission-child" [class.is-unavailable]="!CanAssignManagementPermission('ArchivedFormData')">
+            <label><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('ArchivedFormData')" [ngModelOptions]="{ standalone: true }" [disabled]="!CanAssignManagementPermission('ArchivedFormData')" aria-describedby="archived-form-help" (ngModelChange)="ToggleManagementPermission('ArchivedFormData', $event)" />檢視已封存表單資料</label>
+            <p id="archived-form-help">僅可檢視，無法修改、刪除或還原。<span *ngIf="!CanAssignManagementPermission('ArchivedFormData')">需先啟用「報表管理」。</span></p>
+          </div>
+        </div>
+        <div class="permission-dependency-group">
+          <label class="permission-parent"><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('OperationLog')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('OperationLog', $event)" />操作紀錄查詢</label>
+          <div class="permission-child" [class.is-unavailable]="!CanAssignManagementPermission('ArchivedOperationLog')">
+            <label><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('ArchivedOperationLog')" [ngModelOptions]="{ standalone: true }" [disabled]="!CanAssignManagementPermission('ArchivedOperationLog')" aria-describedby="archived-log-help" (ngModelChange)="ToggleManagementPermission('ArchivedOperationLog', $event)" />檢視已封存操作紀錄</label>
+            <p id="archived-log-help">僅可檢視封存紀錄。<span *ngIf="!CanAssignManagementPermission('ArchivedOperationLog')">需先啟用「操作紀錄查詢」。</span></p>
+          </div>
+        </div>
+      </div>
+      <div class="create-role-permissions"><h3>報表分類權限</h3><div class="table-scroll"><table class="role-permission-table"><thead><tr><th>報表分類</th><th>閱覽</th><th>匯出</th><th>列印</th></tr></thead><tbody><tr *ngFor="let Entry of RoleDraft.Permissions; trackBy: TrackByCategoryPermissionEntry"><td>{{ Entry.CategoryName }}</td><td><input type="checkbox" [ngModel]="Entry.Permission.CanExecute" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Entry.CategoryName + '：閱覽'" (ngModelChange)="SetPermissionCanExecute(Entry, $event)" /></td><td><input type="checkbox" [(ngModel)]="Entry.Permission.CanExport" [ngModelOptions]="{ standalone: true }" [disabled]="!Entry.Permission.CanExecute" /></td><td><input type="checkbox" [(ngModel)]="Entry.Permission.CanPrint" [ngModelOptions]="{ standalone: true }" [disabled]="!Entry.Permission.CanExecute" /></td></tr></tbody></table></div></div>
+      <span *ngIf="RoleDraftError" class="field-error" role="alert">{{ RoleDraftError }}</span><div class="modal-actions"><button type="button" class="primary-button" (click)="IsEditRoleDialogOpen ? SaveEditedRole() : SaveRole()">{{ IsEditRoleDialogOpen ? '儲存角色' : '建立角色' }}</button><button type="button" class="tertiary-button" (click)="CloseRoleDialog()">取消</button></div>
     </section>
   </section>
 
   <section *ngIf="DeletingRole" class="modal-backdrop" (click)="CloseDeleteRoleDialog()">
-    <section #activeModal class="edit-user-modal role-delete-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="delete-role-title" aria-describedby="delete-role-message" tabindex="-1" (click)="$event.stopPropagation()"><h2 id="delete-role-title">刪除角色</h2><p id="delete-role-message">確定要刪除此角色嗎？</p><p class="role-delete-target">角色：{{ DeletingRole.DisplayName }}</p><p class="muted">此操作將移除此角色。</p><div class="modal-actions role-modal-actions"><span></span><div class="role-modal-primary-actions"><button type="button" class="role-delete-button danger-button" (click)="ConfirmDeleteRole()">刪除</button><button type="button" class="tertiary-button" (click)="CloseDeleteRoleDialog()">取消</button></div></div></section>
+    <section #activeModal class="edit-user-modal role-delete-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="delete-role-title" tabindex="-1" (click)="$event.stopPropagation()"><h2 id="delete-role-title">刪除角色</h2><p>確定要刪除角色「{{ DeletingRole.DisplayName }}」嗎？</p><p *ngIf="RoleDraftError" class="field-error" role="alert">{{ RoleDraftError }}</p><div class="modal-actions"><button type="button" class="role-delete-button danger-button" (click)="ConfirmDeleteRole()">刪除</button><button type="button" class="tertiary-button" (click)="CloseDeleteRoleDialog()">取消</button></div></section>
   </section>
 </section>

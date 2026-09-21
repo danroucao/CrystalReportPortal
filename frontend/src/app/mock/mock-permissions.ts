@@ -5,7 +5,9 @@ export type MockRoleKey = string;
 export type MockManagementPermission =
   | 'RptManagement'
   | 'DatabaseConnection'
-  | 'OperationLog';
+  | 'OperationLog'
+  | 'ArchivedFormData'
+  | 'ArchivedOperationLog';
 
 export interface MockRole {
   readonly Key: MockRoleKey;
@@ -30,7 +32,7 @@ const FullPermission = (): MockCategoryPermission => ({ CanExecute: true, CanExp
 const NoPermission = (): MockCategoryPermission => ({ CanExecute: false, CanExport: false, CanPrint: false });
 
 export const MockRoles: readonly MockRole[] = [
-  { Key: 'FINANCE', DisplayName: '財務人員', Description: '可使用財務與活動分類已授權報表及所有管理功能。', ManagementPermissions: ['RptManagement', 'DatabaseConnection', 'OperationLog'] },
+  { Key: 'FINANCE', DisplayName: '財務人員', Description: '可使用財務與活動分類已授權報表及所有管理功能。', ManagementPermissions: ['RptManagement', 'DatabaseConnection', 'OperationLog', 'ArchivedFormData', 'ArchivedOperationLog'] },
   { Key: 'PURCHASE', DisplayName: '採購人員', Description: '可使用採購與生產分類已授權報表。', ManagementPermissions: [] },
   { Key: 'WAREHOUSE', DisplayName: '倉管人員', Description: '可使用倉儲分類已授權報表。', ManagementPermissions: [] },
 ];

@@ -30,16 +30,13 @@ describe('portal access and user-management boundaries', () => {
     expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 
-  it('renders a bound operator user-management page and keeps its dialogs in the child component', () => {
+  it('renders a bound operator user-management page and keeps its role dialog in the child component', () => {
     expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
     const fixture = TestBed.createComponent(UserManagementPageComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
-    component.OpenCreateUserDialog();
-    expect(component.IsCreateUserDialogOpen).toBeTrue();
     component.OpenCreateRoleDialog();
-    expect(component.IsCreateUserDialogOpen).toBeFalse();
     expect(component.IsCreateRoleDialogOpen).toBeTrue();
   });
 

@@ -19,7 +19,7 @@ export const MockAuthenticationProvider: MockAuthenticationProviderModel = {
   },
   Authenticate(Account: string, Password: string): MockUser | null {
     const User = MockUsers.find(
-      (Entry) => Entry.Account === Account && Entry.Password === Password && Entry.Enabled,
+      (Entry) => Entry.Account === Account && Entry.Password === Password,
     );
     return User ? ToReadModel(User) : null;
   },
