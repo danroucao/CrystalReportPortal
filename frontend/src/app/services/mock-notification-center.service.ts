@@ -230,12 +230,20 @@ export class MockNotificationCenterService {
       const CreatedAt = new Date(
         Date.UTC(2026, 8, 9, 8, 0, 0) - Index * 86_400_000,
       ).toISOString();
+      const IsFrontReportExpiryNotice =
+        Account === 'user@example.com' && Index === 0;
       return {
         Id: `NOTICE_${NotificationId}`,
         RecipientAccount: Account,
-        Title: `${TitlePrefix} ${Index + 1}`,
-        Summary: `這是第 ${Index + 1} 筆測試通知，供通知中心分頁與詳細資訊展示使用。`,
-        Detail: `測試通知編號：${NotificationId}。此筆資料為固定假資料，可用於驗證通知列表、已讀狀態與詳細資訊視窗。`,
+        Title: IsFrontReportExpiryNotice
+          ? '收藏報表即將到期'
+          : `${TitlePrefix} ${Index + 1}`,
+        Summary: IsFrontReportExpiryNotice
+          ? '您收藏的表單即將到期，請您留意記得匯出或列印。'
+          : `這是第 ${Index + 1} 筆測試通知，供通知中心分頁與詳細資訊展示使用。`,
+        Detail: IsFrontReportExpiryNotice
+          ? '您收藏的「年度採購分析報表」即將到期，請於到期前完成匯出或列印，保留所需資料。'
+          : `測試通知編號：${NotificationId}。此筆資料為固定假資料，可用於驗證通知列表、已讀狀態與詳細資訊視窗。`,
         CreatedAt,
         ReadAt: Index % 4 === 3 ? CreatedAt : null,
       };

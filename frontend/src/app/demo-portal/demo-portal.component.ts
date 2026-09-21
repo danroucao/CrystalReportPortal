@@ -59,6 +59,7 @@ import {
 import { MockReportParameterService } from '../services/mock-report-parameter.service';
 import { MockAuditLogService } from '../services/mock-audit-log.service';
 import { BoringAvatarComponent } from '../shared/boring-avatar.component';
+import { PortalPaginationComponent } from '../shared/portal-pagination.component';
 import { FavoriteReportPageComponent } from './favorite-report-page/favorite-report-page.component';
 import { OperationLogPageComponent } from './operation-log-page/operation-log-page.component';
 import { PortalNavigationComponent } from './portal-navigation/portal-navigation.component';
@@ -122,6 +123,7 @@ type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
     ReactiveFormsModule,
     RouterLink,
     BoringAvatarComponent,
+    PortalPaginationComponent,
     PortalNavigationComponent,
     FavoriteReportPageComponent,
     OperationLogPageComponent,
@@ -159,6 +161,7 @@ export class DemoPortalComponent
   BackOfficeBindingPassword = '';
   BackOfficeBindingError = '';
   NotificationCenterTab: 'All' | 'Unread' = 'All';
+  NotificationCenterCurrentPage = 1;
   NotificationPopoverTab: 'All' | 'Unread' = 'All';
   DatabaseConnectionDraft: MockDatabaseConnectionDraft =
     this.CreateDatabaseConnectionDraft();
@@ -216,7 +219,7 @@ export class DemoPortalComponent
     const NavigationState =
       this.router.getCurrentNavigation()?.extras.state ?? history.state;
     if (NavigationState?.['NotificationCenterTab'] === 'Unread')
-      this.NotificationCenterTab = 'Unread';
+      this.SetNotificationCenterTab('Unread');
   }
 
   ngAfterViewChecked(): void {
@@ -305,6 +308,29 @@ export class DemoPortalComponent
       : this.CurrentNotifications;
   }
 
+  get NotificationCenterTotalPages(): number {
+    return Math.max(
+      1,
+      Math.ceil(this.DisplayedNotifications.length / this.PaginationPageSize),
+    );
+  }
+
+  get NotificationCenterPageNumbers(): readonly number[] {
+    return Array.from(
+      { length: this.NotificationCenterTotalPages },
+      (_, Index) => Index + 1,
+    );
+  }
+
+  get PagedDisplayedNotifications(): readonly MockCenterNotification[] {
+    const StartIndex =
+      (this.NotificationCenterCurrentPage - 1) * this.PaginationPageSize;
+    return this.DisplayedNotifications.slice(
+      StartIndex,
+      StartIndex + this.PaginationPageSize,
+    );
+  }
+
 
 
   get AdminDescription(): string {
@@ -379,6 +405,18 @@ export class DemoPortalComponent
     this.NotificationPopoverTab = Tab;
   }
 
+  SetNotificationCenterTab(Tab: 'All' | 'Unread'): void {
+    this.NotificationCenterTab = Tab;
+    this.NotificationCenterCurrentPage = 1;
+  }
+
+  GoToNotificationCenterPage(Page: number): void {
+    this.NotificationCenterCurrentPage = Math.min(
+      Math.max(1, Page),
+      this.NotificationCenterTotalPages,
+    );
+  }
+
   OpenNotificationCenter(
     Tab: 'All' | 'Unread' = 'All',
   ): void {
@@ -397,7 +435,10 @@ export class DemoPortalComponent
   MarkCenterNotificationRead(Id: string): void {
     if (this.Auth.RequiresBackOfficeIdentityBinding) return;
     const Account = this.CurrentNotificationAccount;
-    if (Account) this.NotificationCenter.MarkNotificationRead(Id, Account);
+    if (Account) {
+      this.NotificationCenter.MarkNotificationRead(Id, Account);
+      this.GoToNotificationCenterPage(this.NotificationCenterCurrentPage);
+    }
   }
 
   OpenNotificationDetail(Notification: MockCenterNotification): void {
@@ -407,6 +448,13 @@ export class DemoPortalComponent
     this.SelectedCenterNotification = Notification;
     this.MarkCenterNotificationRead(Notification.Id);
     this.ShouldFocusNotificationDetailClose = true;
+  }
+
+  TrackNotificationById(
+    _: number,
+    Notification: MockCenterNotification,
+  ): string {
+    return Notification.Id;
   }
 
   CloseNotificationDetail(): void {

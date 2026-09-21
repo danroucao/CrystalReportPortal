@@ -226,14 +226,14 @@
         <button
           type="button"
           [class.is-active]="NotificationCenterTab === 'All'"
-          (click)="NotificationCenterTab = 'All'"
+          (click)="SetNotificationCenterTab('All')"
         >
           全部（{{ CurrentNotifications.length }}）
         </button>
         <button
           type="button"
           [class.is-active]="NotificationCenterTab === 'Unread'"
-          (click)="NotificationCenterTab = 'Unread'"
+          (click)="SetNotificationCenterTab('Unread')"
         >
           未讀（{{
             NotificationCenter.GetUnreadNotificationCount(
@@ -248,24 +248,36 @@
           NotificationCenterTab === 'All' || NotificationCenterTab === 'Unread'
         "
       >
-        <article
-          *ngFor="let Item of DisplayedNotifications"
-          class="center-item"
-          [class.is-unread]="!Item.ReadAt"
-          tabindex="0"
-          role="button"
-          [attr.aria-label]="'查看通知詳細資訊：' + Item.Title"
-          (click)="OpenNotificationDetail(Item)"
-          (keydown.enter)="OpenNotificationDetail(Item)"
-          (keydown.space)="OpenNotificationDetail(Item); $event.preventDefault()"
+        <div
+          *ngIf="DisplayedNotifications.length"
+          class="notification-center-list"
         >
-          <div>
-            <h2>{{ Item.Title }}</h2>
-            <p>{{ Item.Summary }}</p>
-            <p class="muted">{{ Item.Detail }}</p>
-          </div>
-          <time>{{ Item.CreatedAt | date: "short" }}</time>
-        </article>
+          <article
+            *ngFor="let Item of PagedDisplayedNotifications; trackBy: TrackNotificationById"
+            class="center-item"
+            [class.is-unread]="!Item.ReadAt"
+            tabindex="0"
+            role="button"
+            [attr.aria-label]="'查看通知詳細資訊：' + Item.Title"
+            (click)="OpenNotificationDetail(Item)"
+            (keydown.enter)="OpenNotificationDetail(Item)"
+            (keydown.space)="OpenNotificationDetail(Item); $event.preventDefault()"
+          >
+            <div>
+              <h2>{{ Item.Title }}</h2>
+              <p class="notification-center-summary">{{ Item.Summary }}</p>
+            </div>
+            <time>{{ Item.CreatedAt | date: "short" }}</time>
+          </article>
+        </div>
+        <app-portal-pagination
+          *ngIf="DisplayedNotifications.length"
+          [CurrentPage]="NotificationCenterCurrentPage"
+          [TotalPages]="NotificationCenterTotalPages"
+          [PageNumbers]="NotificationCenterPageNumbers"
+          AriaLabel="通知中心分頁"
+          (PageChange)="GoToNotificationCenterPage($event)"
+        />
         <section
           *ngIf="!DisplayedNotifications.length"
           class="notification-empty-state"

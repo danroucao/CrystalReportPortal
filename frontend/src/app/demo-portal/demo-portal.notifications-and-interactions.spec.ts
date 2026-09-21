@@ -22,6 +22,15 @@ describe('portal notifications and extracted interactions', () => {
     expect(auth.Login('user@example.com', 'user123')).toBeTrue();
     expect(notificationCenter.GetNotifications('user@example.com')).toHaveSize(13);
     expect(notificationCenter.GetNotifications('admin@example.com')).toHaveSize(13);
+    expect(
+      notificationCenter.GetNotifications('user@example.com').find(
+        (Item) => Item.Title === '收藏報表即將到期',
+      ),
+    ).toEqual(
+      jasmine.objectContaining({
+        Summary: '您收藏的表單即將到期，請您留意記得匯出或列印。',
+      }),
+    );
     notificationCenter.NotifyRoleAssignmentChange(
       'user@example.com',
       notificationCenter.CaptureAccess('user@example.com'),
@@ -30,12 +39,17 @@ describe('portal notifications and extracted interactions', () => {
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
+    expect(component.NotificationCenterTotalPages).toBe(2);
+    expect(component.PagedDisplayedNotifications).toHaveSize(10);
+    component.GoToNotificationCenterPage(2);
+    expect(component.PagedDisplayedNotifications).toHaveSize(4);
     const unread = component.NotificationBadgeCount;
-    component.NotificationCenterTab = 'Unread';
+    component.SetNotificationCenterTab('Unread');
+    expect(component.NotificationCenterCurrentPage).toBe(1);
     component.MarkCenterNotificationRead(component.CurrentNotifications[0].Id);
 
     expect(component.DisplayedNotifications).toHaveSize(unread - 1);
-    component.NotificationCenterTab = 'All';
+    component.SetNotificationCenterTab('All');
     expect(component.DisplayedNotifications.length).toBeGreaterThanOrEqual(unread);
   });
 
