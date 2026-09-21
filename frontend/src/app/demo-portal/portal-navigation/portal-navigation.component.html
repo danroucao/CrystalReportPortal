@@ -50,10 +50,6 @@
       <span>通知中心</span>
       <span *ngIf="NotificationBadgeCount" class="mobile-navigation-badge">{{ NotificationBadgeCount }}</span>
     </a>
-    <a routerLink="/account/settings" routerLinkActive="active">
-      <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0" /></svg>
-      <span>帳號設定</span>
-    </a>
     <p
       *ngIf="Auth.HasManagementPermission('DatabaseConnection') || Auth.HasManagementPermission('RptManagement') || Auth.HasManagementPermission('OperationLog')"
       class="nav-group-title"

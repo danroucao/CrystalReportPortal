@@ -485,11 +485,17 @@ app-demo-portal .notification-detail-actions {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   background: #fff;
+  cursor: pointer;
 }
 .center-item.is-unread {
   border-left: 4px solid var(--color-primary);
   background: #fdfcf9;
-  cursor: pointer;
+}
+.center-item:hover,
+.center-item:focus-visible {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(186 53 68 / 18%);
 }
 .center-item.is-completed {
   opacity: 0.72;

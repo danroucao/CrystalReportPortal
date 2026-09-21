@@ -44,12 +44,6 @@ export interface MockUserEditDraft {
   Enabled: boolean;
 }
 
-export interface MockAccountSettingsDraft {
-  DisplayName: string;
-  OldPassword: string;
-  NewPassword: string;
-}
-
 export interface MockRoleDraft {
   DisplayName: string;
   ManagementPermissions: MockManagementPermission[];
@@ -61,13 +55,6 @@ export type MockDeleteRoleResult =
   | 'deleted'
   | 'not-found'
   | 'role-in-use';
-export type MockAccountSettingsResult =
-  | 'updated'
-  | 'password-updated'
-  | 'incorrect-password'
-  | 'not-found'
-  | 'invalid';
-
 export type MockDeleteUserResult = 'deleted' | 'not-found';
 
 export interface MockFavoriteReport {
@@ -302,19 +289,6 @@ export class MockRbacService {
     User.Enabled = Draft.Enabled;
     this.Touch(User);
     return 'updated';
-  }
-
-  UpdateOwnAccount(Account: string, Draft: MockAccountSettingsDraft): MockAccountSettingsResult {
-    const User = this.UsersStore.find((Entry) => Entry.Account === Account);
-    if (!User) return 'not-found';
-    if (!Draft.DisplayName.trim()) return 'invalid';
-    if (Draft.NewPassword && User.Password !== Draft.OldPassword) {
-      return 'incorrect-password';
-    }
-    User.DisplayName = Draft.DisplayName.trim();
-    if (Draft.NewPassword) User.Password = Draft.NewPassword;
-    this.Touch(User);
-    return Draft.NewPassword ? 'password-updated' : 'updated';
   }
 
   DeleteUser(Account: string): MockDeleteUserResult {

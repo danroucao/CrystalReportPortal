@@ -31,10 +31,18 @@ describe('Front/back-office route boundaries', () => {
 
   it('allows only the back-office pages to a back-office identity', async () => {
     Auth.Login('admin@example.com', 'admin123');
-    for (const Path of ['/reports', '/reports/parameters', '/reports/preview', '/account/settings', '/report-management', '/database-connections', '/operation-logs']) {
+    for (const Path of ['/reports', '/reports/parameters', '/reports/preview', '/report-management', '/database-connections', '/operation-logs']) {
       await Harness.navigateByUrl(Path);
       expect(Url()).withContext(Path).toBe('/admin/users');
     }
+  });
+
+  it('does not expose the retired account settings URL', async () => {
+    Auth.Login('user@example.com', 'user123');
+
+    await Harness.navigateByUrl('/account/settings');
+
+    expect(Url()).toBe('/login');
   });
 
   it('protects each front-office management route, including old URL redirects', async () => {

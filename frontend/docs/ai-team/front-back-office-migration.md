@@ -34,7 +34,6 @@
 | `/reports/parameters` | FrontUser；所有預覽且啟用的報表 |
 | `/reports` | FrontUser；目前帳號仍預覽的收藏 |
 | `/reports/preview` | FrontUser；已選取且仍預覽的報表 |
-| `/account/settings` | FrontUser；自己的名稱與密碼 |
 | `/report-management` | FrontUser + RptManagement |
 | `/database-connections` | FrontUser + DatabaseConnection |
 | `/admin/users` | BackOffice；含角色與五種權限 Modal |
@@ -47,7 +46,7 @@
 
 ## 保留與限制
 
-保留多角色、RoleKey、CategoryId、保留分類搬移、新分類預設拒絕、報表 CRUD／RPT Upload／釘選／啟停、資料庫密碼安全 Read Model、日期校正、收藏及帳號設定。頭像仍採 `ngx-boring-avatar` 的 beam，以帳號為 seed，無點擊或上傳功能。
+保留多角色、RoleKey、CategoryId、保留分類搬移、新分類預設拒絕、報表 CRUD／RPT Upload／釘選／啟停、資料庫密碼安全 Read Model、日期校正、收藏及通知中心。帳號設定功能已停用；頭像仍採 `ngx-boring-avatar` 的 beam，以帳號為 seed，無點擊或上傳功能。
 
 建立使用者時，建立視窗不再輸入初始密碼；正式後端須產生安全隨機初始密碼並在建立結果中只回傳一次，前端顯示後由管理者安全傳送給使用者。Development Mock 僅以瀏覽器安全亂數模擬這份一次性結果，不能視為正式 credential storage 或傳遞機制。
 

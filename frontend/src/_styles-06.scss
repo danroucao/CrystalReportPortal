@@ -147,147 +147,7 @@ app-demo-portal .role-modal-primary-actions {
 app-demo-portal .role-modal-primary-actions button {
   min-height: 2.35rem;
 }
-app-demo-portal .account-settings-card {
-  max-width: 74rem;
-  padding: clamp(1.25rem, 2.5vw, 2.25rem);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-app-demo-portal .account-settings-heading {
-  margin-bottom: 1.5rem;
-}
-app-demo-portal .account-settings-heading > p {
-  margin: 0 0 0.4rem;
-  color: var(--color-primary);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-app-demo-portal .account-settings-heading h1 {
-  margin: 0;
-  font-size: clamp(1.5rem, 2.2vw, 1.875rem);
-}
-app-demo-portal .account-settings-heading > span {
-  display: block;
-  margin-top: 0.5rem;
-  color: var(--color-muted);
-}
-app-demo-portal .account-profile-summary {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.1rem 1.25rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-}
-app-demo-portal .account-profile-summary > div {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 0;
-}
-app-demo-portal .account-profile-summary strong {
-  font-size: 1.05rem;
-}
-app-demo-portal .account-profile-summary span:not(.account-status-chip) {
-  overflow: hidden;
-  color: var(--color-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-app-demo-portal .account-status-chip {
-  margin-left: auto;
-  padding: 0.3rem 0.55rem;
-  border-radius: 4px;
-  color: #5d6570;
-  background: #eceeef;
-  font-size: 0.75rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-app-demo-portal .account-settings-layout {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-app-demo-portal .account-settings-panel {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  padding: clamp(1.1rem, 2vw, 1.5rem);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-}
-app-demo-portal .account-settings-panel-heading {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
-  margin-bottom: 1.35rem;
-}
-app-demo-portal .account-settings-panel-heading > svg {
-  width: 1.45rem;
-  height: 1.45rem;
-  flex: 0 0 auto;
-  margin-top: 0.1rem;
-  fill: none;
-  stroke: var(--color-primary);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.7;
-}
-app-demo-portal .account-settings-panel-heading h3,
-app-demo-portal .account-settings-panel-heading p {
-  margin: 0;
-}
-app-demo-portal .account-settings-panel-heading h3 {
-  font-size: 1.125rem;
-}
-app-demo-portal .account-settings-panel-heading p {
-  margin-top: 0.3rem;
-  color: var(--color-muted);
-  font-size: 0.875rem;
-  line-height: 1.55;
-}
-app-demo-portal .account-settings-form {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.1rem;
-}
-app-demo-portal .account-settings-form label {
-  display: grid;
-  min-width: 0;
-  gap: 0.4rem;
-  color: var(--color-muted);
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-app-demo-portal .account-settings-form small {
-  color: var(--color-muted);
-  font-size: 0.75rem;
-  font-weight: 400;
-  line-height: 1.45;
-}
-app-demo-portal .account-settings-form input {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 2.4rem;
-  padding: 0 0.65rem;
-  border: 1px solid #aaa69e;
-  border-radius: 0.35rem;
-  color: var(--color-text);
-  background: var(--color-surface);
-  font: inherit;
-}
-app-demo-portal .account-settings-form input:focus {
-  border-color: var(--color-primary);
-  outline: 2px solid rgb(174 22 43 / 12%);
-  outline-offset: 0;
-}
-/* Read-only values use the same visual treatment as the account field. */
+/* Disabled inputs use a consistent read-only visual treatment. */
 app-demo-portal input:disabled:not([type="checkbox"]):not([type="radio"]),
 app-demo-portal input[readonly] {
   min-height: 2.5rem;
@@ -299,27 +159,6 @@ app-demo-portal input[readonly] {
   font-weight: 700;
   opacity: 1;
 }
-app-demo-portal .account-settings-notice {
-  margin: 1rem 0 0;
-  padding: 0.65rem 0.75rem;
-  border-radius: 5px;
-  color: var(--color-primary);
-  background: #fdf0f2;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  line-height: 1.5;
-}
-app-demo-portal .account-settings-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: auto;
-  padding-top: 1.5rem;
-}
-app-demo-portal button.account-password-action {
-  min-height: 40px;
-  border-radius: 6px;
-}
-
 /* Existing table sort controls share a text-only header treatment. */
 app-demo-portal button.favorite-sort-button,
 app-demo-portal button.sortable-table-header {
@@ -365,11 +204,6 @@ app-demo-portal
   .sort-indicator-down {
   stroke: var(--color-primary);
 }
-@media (max-width: 1100px) {
-  app-demo-portal .account-settings-card {
-    max-width: none;
-  }
-}
 @media (max-width: 768px) {
   app-demo-portal .create-role-modal {
     width: min(100%, calc(100% - 1rem));
@@ -395,23 +229,6 @@ app-demo-portal
   }
   app-demo-portal .create-role-modal .table-scroll > .role-permission-table {
     min-width: 28rem;
-  }
-  app-demo-portal .account-settings-card {
-    padding: 1.25rem 0;
-  }
-  app-demo-portal .account-profile-summary {
-    align-items: flex-start;
-    padding: 1rem;
-  }
-  app-demo-portal .account-profile-summary ngx-boring-avatar {
-    flex: 0 0 auto;
-  }
-  app-demo-portal .account-settings-layout {
-    grid-template-columns: 1fr;
-  }
-  app-demo-portal .account-settings-actions,
-  app-demo-portal .account-settings-actions button {
-    width: 100%;
   }
 }
 

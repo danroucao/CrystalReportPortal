@@ -346,31 +346,6 @@ describe('MockRbacService', () => {
     )).toBeFalse();
   });
 
-  it('keeps passwords out of user read models and lets only the user change their own name and Mock password', () => {
-    const Before = Service.GetUser('user@example.com')!;
-
-    expect('Password' in Before).toBeFalse();
-    expect(Service.UpdateOwnAccount('user@example.com', {
-      DisplayName: '不應更新',
-      OldPassword: 'wrong-password',
-      NewPassword: 'changed-user-password',
-    })).toBe('incorrect-password');
-    expect(Service.UpdateOwnAccount('user@example.com', {
-      DisplayName: '財務人員已更新',
-      OldPassword: 'user123',
-      NewPassword: 'changed-user-password',
-    })).toBe('password-updated');
-
-    const Updated = Service.GetUser('user@example.com')!;
-    expect(Updated.DisplayName).toBe('財務人員已更新');
-    expect(Updated.Roles).toEqual(['FINANCE']);
-    expect(Updated.Enabled).toBeTrue();
-    expect(Updated.CreatedAt).toBe(Before.CreatedAt);
-    expect(Updated.UpdatedAt).not.toBe(Before.UpdatedAt);
-    expect(Service.Authenticate('user@example.com', 'user123')).toBeNull();
-    expect(Service.Authenticate('user@example.com', 'changed-user-password')?.DisplayName).toBe('財務人員已更新');
-  });
-
   it('updates timestamps for administrative role or enabled changes without letting the admin edit a user name', () => {
     const Before = Service.GetUser('warehouse@example.com')!;
 

@@ -34,7 +34,6 @@ import { MockReportCategory } from '../mock/mock-report-categories';
 import { MockReportKey, MockReportReadModel } from '../mock/mock-reports';
 import { AuthService } from '../services/auth.service';
 import {
-  MockAccountSettingsDraft,
   MockCreatedUserCredentials,
   MockRbacService,
   MockRoleDraft,
@@ -75,7 +74,6 @@ type DemoPortalPage =
   | 'ReportList'
   | 'ReportParameter'
   | 'ReportPreview'
-  | 'AccountSettings'
   | 'UserManagement'
   | 'RptManagement'
   | 'ReportUpload'
@@ -164,12 +162,6 @@ export class DemoPortalComponent
   BackOfficeBindingError = '';
   NotificationCenterTab: 'All' | 'Unread' = 'All';
   NotificationPopoverTab: 'All' | 'Unread' = 'All';
-  AccountSettingsDraft: MockAccountSettingsDraft =
-    this.CreateAccountSettingsDraft();
-  AccountSettingsConfirmation = '';
-  AccountProfileNotice = '';
-  AccountPasswordNotice = '';
-  IsPasswordChangeSuccessModalOpen = false;
   DatabaseConnectionDraft: MockDatabaseConnectionDraft =
     this.CreateDatabaseConnectionDraft();
   EditingDatabaseConnectionKey: string | null = null;
@@ -222,7 +214,6 @@ export class DemoPortalComponent
 
   ngOnInit(): void {
     this.UpdateCompactNavigationState();
-    this.LoadAccountSettings();
     if (this.Page === 'ReportUpload') this.InitializeReportUploadFlow();
     const NavigationState =
       this.router.getCurrentNavigation()?.extras.state ?? history.state;
@@ -271,7 +262,6 @@ export class DemoPortalComponent
       ReportList: '收藏的報表',
       ReportParameter: '所有報表',
       ReportPreview: '報表預覽',
-      AccountSettings: '帳號設定',
       UserManagement: '使用者管理',
       RptManagement: '報表管理',
       ReportUpload: '上傳報表',
@@ -354,6 +344,10 @@ export class DemoPortalComponent
 
   @HostListener('document:keydown.escape')
   OnEscapeKey(): void {
+    if (this.SelectedCenterNotification) {
+      this.CloseNotificationDetail();
+      return;
+    }
     if (this.IsMobileNavigationOpen) {
       this.CloseMobileNavigation();
       return;
@@ -411,6 +405,7 @@ export class DemoPortalComponent
   OpenNotificationDetail(Notification: MockCenterNotification): void {
     if (this.Auth.RequiresBackOfficeIdentityBinding) return;
     this.NotificationDetailOpener = this.GetActiveHTMLElement();
+    this.IsNotificationPanelOpen = false;
     this.SelectedCenterNotification = Notification;
     this.MarkCenterNotificationRead(Notification.Id);
     this.ShouldFocusNotificationDetailClose = true;
@@ -681,76 +676,6 @@ export class DemoPortalComponent
     );
   }
 
-  SaveAccountProfile(): void {
-    const CurrentUser = this.Auth.CurrentUser;
-    if (!CurrentUser) return;
-    this.AccountProfileNotice = '';
-    const Result = this.MockRbac.UpdateOwnAccount(
-      CurrentUser.Account,
-      {
-        DisplayName: this.AccountSettingsDraft.DisplayName,
-        OldPassword: '',
-        NewPassword: '',
-      },
-    );
-    const Messages: Record<string, string> = {
-      updated: '個人資料已儲存。',
-      invalid: '請輸入使用者名稱。',
-      'not-found': '找不到目前登入的使用者。',
-    };
-    if (Result === 'updated') {
-      this.LoadAccountSettings();
-      this.AccountProfileNotice = Messages['updated'];
-      return;
-    }
-    this.AccountProfileNotice = Messages[Result] ?? '無法儲存個人資料。';
-  }
-
-  ChangePassword(): void {
-    const CurrentUser = this.Auth.CurrentUser;
-    if (!CurrentUser) return;
-    this.AccountPasswordNotice = '';
-    if (!this.AccountSettingsDraft.OldPassword) {
-      this.AccountPasswordNotice = '請輸入目前密碼。';
-      return;
-    }
-    if (!this.AccountSettingsDraft.NewPassword) {
-      this.AccountPasswordNotice = '請輸入新密碼。';
-      return;
-    }
-    if (this.AccountSettingsDraft.NewPassword.length < 8) {
-      this.AccountPasswordNotice = '新密碼需至少 8 碼。';
-      return;
-    }
-    if (this.AccountSettingsDraft.NewPassword !== this.AccountSettingsConfirmation) {
-      this.AccountPasswordNotice = '新密碼與確認新密碼不一致。';
-      return;
-    }
-    const Result = this.MockRbac.UpdateOwnAccount(CurrentUser.Account, {
-      DisplayName: CurrentUser.DisplayName,
-      OldPassword: this.AccountSettingsDraft.OldPassword,
-      NewPassword: this.AccountSettingsDraft.NewPassword,
-    });
-    if (Result === 'password-updated') {
-      this.LoadAccountSettings();
-      this.IsPasswordChangeSuccessModalOpen = true;
-      return;
-    }
-    const Messages: Partial<Record<typeof Result, string>> = {
-      'incorrect-password': '目前密碼不正確。',
-      'not-found': '找不到目前登入的使用者。',
-      invalid: '無法更新密碼，請稍後再試。',
-    };
-    this.AccountPasswordNotice =
-      Messages[Result] ?? '無法更新密碼，請稍後再試。';
-  }
-
-  ConfirmPasswordChangeAndLogout(): void {
-    if (!this.IsPasswordChangeSuccessModalOpen) return;
-    this.IsPasswordChangeSuccessModalOpen = false;
-    this.Logout();
-  }
-
   get IsManagementPage(): boolean {
     return [
       'UserManagement',
@@ -870,22 +795,6 @@ export class DemoPortalComponent
     return '';
   }
 
-
-  private CreateAccountSettingsDraft(): MockAccountSettingsDraft {
-    return {
-      DisplayName: '',
-      OldPassword: '',
-      NewPassword: '',
-    };
-  }
-  private LoadAccountSettings(): void {
-    this.AccountSettingsDraft = {
-      DisplayName: this.Auth.CurrentUser?.DisplayName ?? '',
-      OldPassword: '',
-      NewPassword: '',
-    };
-    this.AccountSettingsConfirmation = '';
-  }
   private CreateDatabaseConnectionDraft(): MockDatabaseConnectionDraft {
     return {
       DataSourceName: '',

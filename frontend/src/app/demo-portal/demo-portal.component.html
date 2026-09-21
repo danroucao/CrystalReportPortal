@@ -80,7 +80,7 @@
             *ngFor="let Item of RecentCenterItems"
             type="button"
             class="notification-preview"
-            (click)="OpenNotificationCenter(NotificationPopoverTab)"
+            (click)="OpenNotificationDetail(Item)"
           >
             <strong>{{ Item.Title }}</strong
             ><span>{{ Item.Summary }}</span>
@@ -139,13 +139,6 @@
             </div>
           </div>
           <div class="profile-popover-links">
-            <p class="profile-popover-actions-title">帳號與通知</p>
-            <a
-              *ngIf="Auth.IsFrontOffice"
-              routerLink="/account/settings"
-              (click)="IsProfileMenuOpen = false"
-              >帳號設定</a
-            >
             <button type="button" (click)="OpenNotificationCenter('All')">
               通知中心<span
                 *ngIf="NotificationBadgeCount"
@@ -259,7 +252,12 @@
           *ngFor="let Item of DisplayedNotifications"
           class="center-item"
           [class.is-unread]="!Item.ReadAt"
-          (click)="MarkCenterNotificationRead(Item.Id)"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="'查看通知詳細資訊：' + Item.Title"
+          (click)="OpenNotificationDetail(Item)"
+          (keydown.enter)="OpenNotificationDetail(Item)"
+          (keydown.space)="OpenNotificationDetail(Item); $event.preventDefault()"
         >
           <div>
             <h2>{{ Item.Title }}</h2>
@@ -302,149 +300,6 @@
     <app-favorite-report-page *ngIf="Page === 'ReportList'"></app-favorite-report-page>
     <app-report-parameter-page *ngIf="Page === 'ReportParameter'" />
     <app-report-preview-page *ngIf="Page === 'ReportPreview'" />
-    <section
-      *ngIf="Page === 'AccountSettings'"
-      class="account-settings-card"
-    >
-      <section class="account-profile-summary" aria-label="目前帳號摘要">
-        <ngx-boring-avatar
-          *ngIf="Auth.CurrentIdentity as User"
-          variant="beam"
-          [name]="User.Account"
-          [size]="52"
-        />
-        <div>
-          <strong>{{ Auth.DisplayName }}</strong
-          ><span>{{ ProfileAccount }}</span>
-        </div>
-        <span class="account-status-chip">已啟用</span>
-      </section>
-      <div class="account-settings-layout">
-        <section
-          class="account-settings-panel"
-          aria-labelledby="profile-settings-title"
-        >
-          <header class="account-settings-panel-heading">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="8" r="3.5" />
-              <path d="M5 21a7 7 0 0 1 14 0" />
-            </svg>
-            <div>
-              <h3 id="profile-settings-title">個人資料</h3>
-              <p>變更系統中顯示的名稱。</p>
-            </div>
-          </header>
-          <div class="account-settings-form">
-            <label
-              >帳號<input [value]="Auth.CurrentUser?.Account" disabled /><small
-                >帳號由系統建立，無法在此修改。</small
-              ></label
-            >
-            <label
-              >顯示名稱<input [(ngModel)]="AccountSettingsDraft.DisplayName"
-            /></label>
-          </div>
-          <p
-            *ngIf="AccountProfileNotice"
-            class="account-settings-notice"
-            role="status"
-          >
-            {{ AccountProfileNotice }}
-          </p>
-          <div class="account-settings-actions">
-            <button
-              type="button"
-              class="primary-button"
-              (click)="SaveAccountProfile()"
-            >
-              儲存個人資料
-            </button>
-          </div>
-        </section>
-        <section
-          class="account-settings-panel"
-          aria-labelledby="security-settings-title"
-        >
-          <header class="account-settings-panel-heading">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="5" y="10" width="14" height="10" rx="2" />
-              <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2" />
-            </svg>
-            <div>
-              <h3 id="security-settings-title">登入安全性</h3>
-              <p>設定新密碼後需重新登入。</p>
-            </div>
-          </header>
-          <div class="account-settings-form">
-            <label
-              >目前密碼<input
-                type="password"
-                name="account-settings-old-password"
-                autocomplete="current-password"
-                [(ngModel)]="AccountSettingsDraft.OldPassword"
-            /></label>
-            <label
-              >新密碼<input
-                type="password"
-                name="account-settings-new-password"
-                autocomplete="new-password"
-                [(ngModel)]="AccountSettingsDraft.NewPassword"
-              /><small>至少 8 碼。</small></label
-            >
-            <label
-              >確認新密碼<input
-                type="password"
-                name="account-settings-confirm-password"
-                autocomplete="new-password"
-                [(ngModel)]="AccountSettingsConfirmation"
-            /></label>
-          </div>
-          <p
-            *ngIf="AccountPasswordNotice"
-            class="account-settings-notice"
-            role="status"
-          >
-            {{ AccountPasswordNotice }}
-          </p>
-          <div class="account-settings-actions">
-            <button
-              type="button"
-              class="account-password-action secondary-button"
-              (click)="ChangePassword()"
-            >
-              變更密碼
-            </button>
-          </div>
-        </section>
-      </div>
-    </section>
-    <section
-      *ngIf="IsPasswordChangeSuccessModalOpen"
-      class="modal-backdrop created-user-success-backdrop"
-    >
-      <section
-        class="created-user-success-modal password-change-success-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="password-change-success-title"
-        aria-describedby="password-change-success-description"
-      >
-        <div class="created-user-success-icon" aria-hidden="true">✓</div>
-        <h2 id="password-change-success-title">密碼修改成功</h2>
-        <p id="password-change-success-description">
-          已成功修改密碼，請重新登入！
-        </p>
-        <div class="created-user-success-actions">
-          <button
-            type="button"
-            class="primary-button"
-            (click)="ConfirmPasswordChangeAndLogout()"
-          >
-            確認並登出
-          </button>
-        </div>
-      </section>
-    </section>
     <section
       *ngIf="Page === 'ReportUpload'"
       class="report-upload-page"
@@ -916,6 +771,47 @@
           (click)="ReturnToLoginFromBackOfficeBinding()"
         >
           返回登入
+        </button>
+      </div>
+    </section>
+  </section>
+  <section
+    *ngIf="SelectedCenterNotification as Notification"
+    class="modal-backdrop notification-detail-backdrop"
+    (click)="CloseNotificationDetail()"
+  >
+    <section
+      #notificationDetailDialog
+      class="edit-user-modal notification-detail-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="notification-detail-title"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-heading">
+        <div>
+          <p class="notification-detail-eyebrow">通知詳細資訊</p>
+          <h2 id="notification-detail-title">{{ Notification.Title }}</h2>
+        </div>
+        <button
+          #notificationDetailCloseButton
+          type="button"
+          class="modal-close-button"
+          aria-label="關閉通知詳細資訊"
+          (click)="CloseNotificationDetail()"
+        >
+          ×
+        </button>
+      </div>
+      <p class="notification-detail-summary">{{ Notification.Summary }}</p>
+      <time class="notification-detail-time" [attr.datetime]="Notification.CreatedAt">
+        {{ Notification.CreatedAt | date: "medium" }}
+      </time>
+      <div class="notification-detail-content">{{ Notification.Detail }}</div>
+      <div class="modal-actions notification-detail-actions">
+        <button type="button" class="primary-button" (click)="CloseNotificationDetail()">
+          關閉
         </button>
       </div>
     </section>

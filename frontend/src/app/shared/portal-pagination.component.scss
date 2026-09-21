@@ -1,0 +1,138 @@
+:host {
+  display: block;
+}
+
+.list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1.25rem 0 0;
+}
+
+.list-pagination__controls,
+.list-pagination__jump,
+.list-pagination__jump label {
+  display: inline-flex;
+  align-items: center;
+}
+
+.list-pagination__controls {
+  gap: 0.4rem;
+}
+
+.list-pagination button,
+.list-pagination input {
+  min-height: 2.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.list-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  color: #373532;
+  background: var(--color-surface);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.list-pagination__direction {
+  min-width: 5.35rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.list-pagination__direction svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+}
+
+.list-pagination__page {
+  width: 2.4rem;
+  min-width: 2.4rem;
+  padding: 0.35rem;
+}
+
+.list-pagination button:hover:not(:disabled):not(.is-active) {
+  border-color: #b9b5ae;
+  background: #f6f5f3;
+}
+
+.list-pagination button.is-active {
+  border-color: #1d1d1b;
+  color: #fff;
+  background: #1d1d1b;
+}
+
+.list-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.list-pagination button:focus-visible,
+.list-pagination input:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.list-pagination__jump {
+  gap: 0.5rem;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.list-pagination__jump label {
+  gap: 0.5rem;
+}
+
+.list-pagination__jump input {
+  width: 3.3rem;
+  padding: 0.3rem 0.5rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.list-pagination__jump button {
+  min-width: 2.5rem;
+  padding: 0.45rem 0.25rem;
+  border-color: transparent;
+  background: transparent;
+}
+
+.list-pagination__jump button:hover:not(:disabled) {
+  color: var(--color-primary);
+  background: #fdf0f2;
+}
+
+@media (max-width: 480px) {
+  .list-pagination {
+    gap: 0.75rem;
+  }
+
+  .list-pagination__controls {
+    width: 100%;
+    justify-content: center;
+    gap: 0.3rem;
+  }
+
+  .list-pagination__direction {
+    min-width: 2.4rem;
+    padding-inline: 0.55rem;
+  }
+
+  .list-pagination__direction svg {
+    display: none;
+  }
+}
