@@ -7,7 +7,7 @@ import {
   TestBed,
 } from './testing/demo-portal.spec-helpers';
 
-xdescribe('UserManagementPageComponent', () => {
+describe('UserManagementPageComponent', () => {
   ConfigureDemoPortalTestBed();
 
   function createPage(): UserManagementPageComponent {

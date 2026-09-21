@@ -1,15 +1,80 @@
-<nav class="management-tabs" aria-label="報表管理功能">
-  <button type="button" [class.is-active]="ActiveManagementTab === 'reports'"
-    [attr.aria-current]="ActiveManagementTab === 'reports' ? 'page' : null"
-    (click)="ActiveManagementTab = 'reports'">報表管理</button>
-  <button type="button" [class.is-active]="ActiveManagementTab === 'common-parameters'"
-    [attr.aria-current]="ActiveManagementTab === 'common-parameters' ? 'page' : null"
-    (click)="ActiveManagementTab = 'common-parameters'">常用參數</button>
-</nav>
+<section class="management-section report-management">
+  <div class="report-management-toolbar">
+    <label for="report-management-start-date">開始日期
+      <input id="report-management-start-date" type="date" [(ngModel)]="ReportManagementStartDate" (change)="OnReportManagementDateChange()" />
+    </label>
+    <label for="report-management-end-date">結束日期
+      <input id="report-management-end-date" type="date" [min]="ReportManagementStartDate || null" [(ngModel)]="ReportManagementEndDate" (change)="OnReportManagementDateChange()" />
+    </label>
+    <label for="report-management-category">報表分類
+      <select id="report-management-category" [(ngModel)]="ReportManagementCategoryId" (ngModelChange)="SetReportManagementCategory($event)">
+        <option [value]="AllCategoryFilterValue">全部</option>
+        <option *ngFor="let Category of ReportManagementCategories" [value]="Category.CategoryId">{{ Category.CategoryName }}</option>
+      </select>
+    </label>
+    <label class="report-management-search" for="report-management-search">搜尋報表
+      <input id="report-management-search" [(ngModel)]="ReportManagementSearchText" (ngModelChange)="OnReportManagementSearchChange()" placeholder="請輸入報表名稱或報表說明" />
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.2 15.2 4 4"></path></svg>
+    </label>
+  </div>
+  <p *ngIf="ReportManagementDateNotice" class="parameter-search-error" role="alert">{{ ReportManagementDateNotice }}</p>
+  <p class="report-date-tbd">日期篩選對應欄位尚待需求確認（TBD），目前不套用資料篩選。</p>
 
-<app-common-parameter-template-page *ngIf="ActiveManagementTab === 'common-parameters'" />
-
-<app-managed-report-page *ngIf="ActiveManagementTab === 'reports'"/>
+  <div class="table-scroll">
+    <table class="report-management-table">
+      <colgroup>
+        <col class="report-management-pin-column" /><col class="report-management-name-column" />
+        <col class="report-management-category-column" /><col class="report-management-description-column" />
+        <col class="report-management-enabled-column" /><col class="report-management-created-column" />
+        <col class="report-management-updated-column" /><col class="report-management-actions-column" />
+      </colgroup>
+      <thead><tr>
+        <th scope="col" class="report-management-pin-cell"><span class="report-management-pin-header">釘選</span></th>
+        <th scope="col" [attr.aria-sort]="GetReportManagementAriaSort('ReportName')" [class.is-sorted]="ReportManagementSortField === 'ReportName'">
+          <button type="button" class="sortable-table-header report-management-name-sort-button" (click)="ToggleReportManagementSort('ReportName')">
+            報表名稱
+            <svg class="sort-indicator" [class.is-ascending]="GetReportManagementSortIndicator('ReportName') === '↑'" [class.is-descending]="GetReportManagementSortIndicator('ReportName') === '↓'" viewBox="0 0 16 24" aria-hidden="true"><path class="sort-indicator-up" d="m3 8 5-5 5 5"></path><path class="sort-indicator-down" d="m3 16 5 5 5-5"></path></svg>
+          </button>
+        </th>
+        <th>報表分類</th><th>報表說明</th><th>啟用狀態</th>
+        <th scope="col" [attr.aria-sort]="GetReportManagementAriaSort('CreatedAt')" [class.is-sorted]="ReportManagementSortField === 'CreatedAt'">
+          <button type="button" class="sortable-table-header report-management-created-sort-button" (click)="ToggleReportManagementSort('CreatedAt')">
+            建立時間
+            <svg class="sort-indicator" [class.is-ascending]="GetReportManagementSortIndicator('CreatedAt') === '↑'" [class.is-descending]="GetReportManagementSortIndicator('CreatedAt') === '↓'" viewBox="0 0 16 24" aria-hidden="true"><path class="sort-indicator-up" d="m3 8 5-5 5 5"></path><path class="sort-indicator-down" d="m3 16 5 5 5-5"></path></svg>
+          </button>
+        </th>
+        <th scope="col" [attr.aria-sort]="GetReportManagementAriaSort('UpdatedAt')" [class.is-sorted]="ReportManagementSortField === 'UpdatedAt'">
+          <button type="button" class="sortable-table-header report-management-updated-sort-button" (click)="ToggleReportManagementSort('UpdatedAt')">
+            更新時間
+            <svg class="sort-indicator" [class.is-ascending]="GetReportManagementSortIndicator('UpdatedAt') === '↑'" [class.is-descending]="GetReportManagementSortIndicator('UpdatedAt') === '↓'" viewBox="0 0 16 24" aria-hidden="true"><path class="sort-indicator-up" d="m3 8 5-5 5 5"></path><path class="sort-indicator-down" d="m3 16 5 5 5-5"></path></svg>
+          </button>
+        </th>
+        <th>操作</th>
+      </tr></thead>
+      <tbody>
+        <tr *ngFor="let Report of PagedManagedReports; trackBy: TrackReportByKey" class="report-entry-row" (click)="OpenEditReportDialog(Report.ReportKey)">
+          <td class="report-management-pin-cell"><div class="report-management-pin-control">
+            <button type="button" class="report-management-pin-button" [class.is-pinned]="IsReportManagementPinned(Report.ReportKey)" [attr.aria-pressed]="IsReportManagementPinned(Report.ReportKey)" [attr.aria-label]="(IsReportManagementPinned(Report.ReportKey) ? '取消釘選 ' : '釘選 ') + Report.ReportName" [title]="IsReportManagementPinned(Report.ReportKey) ? '取消釘選報表' : '釘選報表'" (click)="ToggleReportManagementPin(Report.ReportKey); $event.stopPropagation()"><span class="report-management-pin-icon" aria-hidden="true"></span></button>
+          </div></td>
+          <td class="report-management-name" [title]="Report.ReportName"><span>{{ Report.ReportName }}</span></td>
+          <td>{{ Report.CategoryName }}</td>
+          <td class="report-management-description" [title]="Report.Description"><span>{{ Report.Description }}</span></td>
+          <td class="report-enabled-control">
+            <button type="button" class="account-status-switch" role="switch" [class.is-enabled]="Report.Enabled" [attr.aria-checked]="Report.Enabled" [attr.aria-label]="Report.ReportName + (Report.Enabled ? '已啟用，點擊可停用' : '已停用，點擊可啟用')" (click)="SetReportEnabled(Report.ReportKey, !Report.Enabled); $event.stopPropagation()"><span class="account-status-switch-thumb"></span></button>
+            <span class="account-status-text">{{ Report.Enabled ? '啟用' : '停用' }}</span>
+          </td>
+          <td class="report-management-timestamp">{{ Report.CreatedAt }}</td><td class="report-management-timestamp">{{ Report.UpdatedAt }}</td>
+          <td class="report-management-actions-cell"><div class="report-row-actions">
+            <button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + Report.ReportName" title="編輯報表" (click)="OpenEditReportDialog(Report.ReportKey); $event.stopPropagation()">✎</button>
+            <button type="button" class="tertiary-button" [attr.aria-label]="'刪除 ' + Report.ReportName" title="刪除報表" (click)="OpenDeleteReportDialog(Report.ReportKey); $event.stopPropagation()">🗑</button>
+          </div></td>
+        </tr>
+        <tr *ngIf="!DisplayedManagedReports.length"><td colspan="8" class="report-management-empty">找不到符合條件的報表。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <app-portal-pagination [CurrentPage]="ReportManagementCurrentPage" [TotalPages]="ReportManagementTotalPages" [PageNumbers]="ReportManagementPageNumbers" AriaLabel="報表管理分頁" (PageChange)="GoToReportManagementPage($event)" />
+</section>
 
 <section *ngIf="IsUploadReportDialogOpen" class="modal-backdrop" (click)="RequestCloseReportEditor()">
   <section class="edit-user-modal report-editor-modal" role="dialog" aria-modal="true" aria-labelledby="report-editor-title" [attr.aria-hidden]="IsReportDiscardConfirmationOpen ? 'true' : null" [attr.inert]="IsReportDiscardConfirmationOpen ? '' : null" (click)="$event.stopPropagation()">

@@ -2,24 +2,9 @@ import { TestBed } from '@angular/core/testing';
 
 import { MockReportParameterService } from './mock-report-parameter.service';
 
-import {
-  provideHttpClient,
-  withInterceptorsFromDi,
-} from '@angular/common/http';
-
-import {
-  provideHttpClientTesting,
-} from '@angular/common/http/testing';
-
-// TODO: Replace with ReportService HTTP tests for parameters and SQL LOV.
-xdescribe('MockReportParameterService', () => {
+describe('MockReportParameterService', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(withInterceptorsFromDi()),
-        provideHttpClientTesting()
-      ]
-    });
+    TestBed.configureTestingModule({});
   });
 
   it('provides per-report definitions without exposing SQL or connection details', () => {

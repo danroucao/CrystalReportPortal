@@ -41,7 +41,6 @@ export type MockParameterDefaultValue =
   | null;
 
 export interface MockReportParameterDefinition {
-  readonly ParameterId?: number;
   readonly ParameterName: string;
   readonly DisplayName: string;
   readonly DataType: MockParameterDataType;

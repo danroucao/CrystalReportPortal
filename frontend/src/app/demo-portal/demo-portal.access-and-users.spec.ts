@@ -6,7 +6,6 @@ import {
   AuthService,
   ConfigureDemoPortalTestBed,
   LoginBoundBackOfficeOperator,
-  LoginBackOffice,
   LoginFrontManager,
   MockRbacService,
   NotificationService,
@@ -14,13 +13,13 @@ import {
   TestBed,
 } from './testing/demo-portal.spec-helpers';
 
-xdescribe('portal access and user-management boundaries', () => {
+describe('portal access and user-management boundaries', () => {
   ConfigureDemoPortalTestBed();
 
   it('requires identity binding before the portal exposes back-office content', () => {
     const auth = TestBed.inject(AuthService);
     const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
-    expect(LoginBackOffice(auth)).toBeTrue();
+    expect(auth.Login('admin@example.com', 'admin123')).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
@@ -74,7 +73,7 @@ xdescribe('portal access and user-management boundaries', () => {
     const auth = TestBed.inject(AuthService);
     const notifications = TestBed.inject(NotificationService);
     const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
-    expect(LoginFrontManager(auth)).toBeTrue();
+    expect(auth.Login('user@example.com', 'user123')).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
 
     fixture.componentInstance.Logout();
@@ -87,7 +86,7 @@ xdescribe('portal access and user-management boundaries', () => {
     const auth = TestBed.inject(AuthService);
     const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { data: { Page: string } } };
     route.snapshot.data.Page = 'ReportParameter';
-    expect(LoginFrontManager(auth)).toBeTrue();
+    expect(auth.Login('user@example.com', 'user123')).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
     fixture.detectChanges();
 

@@ -22,18 +22,7 @@
     </dl>
   </div>
 
-  <div class="preview-placeholder" *ngIf="IsPreviewLoading" role="status">
-    正在產生報表預覽…
-  </div>
-  <p *ngIf="PreviewError" class="mock-notice" role="alert">
-    {{ PreviewError }}
-  </p>
-  <iframe
-    *ngIf="PreviewUrl && !IsPreviewLoading"
-    class="report-preview-frame"
-    [src]="PreviewUrl"
-    title="報表 PDF 預覽"
-  ></iframe>
+  <div class="preview-placeholder">Frontend Mock Preview</div>
 
   <div class="preview-output-bar">
     <div class="output-actions">

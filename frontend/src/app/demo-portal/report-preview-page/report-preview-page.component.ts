@@ -1,12 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { finalize } from 'rxjs';
 
 import { AuthService } from '../../services/auth.service';
-import { ReportExecutionRequest } from '../../services/report-api.models';
-import { ReportService } from '../../services/report.service';
 
 export type ReportPreviewOrigin = 'all' | 'favorites';
 
@@ -40,19 +36,13 @@ type OutputAction = 'BrowserPrint' | 'FixedPrinterPrint';
   templateUrl: './report-preview-page.component.html',
   styleUrl: './report-preview-page.component.scss',
 })
-export class ReportPreviewPageComponent implements OnInit, OnDestroy {
+export class ReportPreviewPageComponent implements OnInit {
   readonly Auth = inject(AuthService);
-  private readonly reports = inject(ReportService);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly router = inject(Router);
 
   IsExportMenuOpen = false;
   IsPrintMenuOpen = false;
   MockNotice = '';
-  PreviewUrl: SafeResourceUrl | null = null;
-  IsPreviewLoading = false;
-  PreviewError = '';
-  private PreviewObjectUrl: string | null = null;
   ReportPreviewOrigin: ReportPreviewOrigin = 'all';
   private ReturnToParameterSearchState: ParameterReportSearchState | null =
     null;
@@ -88,58 +78,6 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     this.ReturnToParameterSearchState = this.ToParameterSearchState(
       NavigationState?.['ParameterSearchState'],
     );
-    const ExecutionRequest = this.ToExecutionRequest(
-      NavigationState?.['ReportExecutionRequest'],
-    );
-    this.LoadPreview(ExecutionRequest);
-  }
-
-  ngOnDestroy(): void {
-    this.RevokePreviewUrl();
-  }
-
-  private LoadPreview(ExecutionRequest: ReportExecutionRequest | null): void {
-    const Report = this.Auth.SelectedReport;
-    if (!Report?.ReportId) return;
-
-    this.IsPreviewLoading = true;
-    this.PreviewError = '';
-    const PreviewRequest = ExecutionRequest
-      ? this.reports.ExecuteReport(Report.ReportId, ExecutionRequest)
-      : this.reports.GetReportPreview(Report.ReportId);
-    PreviewRequest
-      .pipe(finalize(() => (this.IsPreviewLoading = false)))
-      .subscribe({
-        next: (Pdf) => {
-          this.RevokePreviewUrl();
-          this.PreviewObjectUrl = URL.createObjectURL(Pdf);
-          this.PreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-            this.PreviewObjectUrl,
-          );
-        },
-        error: () => {
-          this.PreviewError = '目前無法產生報表預覽，請稍後再試。';
-        },
-      });
-  }
-
-  private ToExecutionRequest(State: unknown): ReportExecutionRequest | null {
-    if (!State || typeof State !== 'object') return null;
-    const Value = State as Partial<ReportExecutionRequest>;
-    if (!Array.isArray(Value.parameters)) return null;
-    const Parameters = Value.parameters.filter(
-      (Parameter): Parameter is { parameterId: number; values: readonly string[] } =>
-        typeof Parameter?.parameterId === 'number' &&
-        Array.isArray(Parameter.values),
-    );
-    return Parameters.length === Value.parameters.length
-      ? { parameters: Parameters }
-      : null;
-  }
-
-  private RevokePreviewUrl(): void {
-    if (this.PreviewObjectUrl) URL.revokeObjectURL(this.PreviewObjectUrl);
-    this.PreviewObjectUrl = null;
   }
 
   ToggleExportMenu(): void {

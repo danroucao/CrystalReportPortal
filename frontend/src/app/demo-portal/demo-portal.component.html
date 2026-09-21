@@ -209,7 +209,7 @@
           class="section-header-action primary-button"
           (click)="StartReportUpload()"
         >
-          <span aria-hidden="true">＋</span>新增報表
+          <span aria-hidden="true">＋</span>上傳報表
         </button>
       </div>
     </div>
@@ -633,9 +633,10 @@
       <section *ngIf="Page === 'DatabaseConnection'" class="management-section">
         <div class="management-card-heading">
           <div>
-            <h2>MSSQL 資料庫連線</h2>
+            <h2>Mock 資料庫連線</h2>
             <p class="muted">
-              密碼只在建立或變更時輸入，後端會以加密方式保存。
+              密碼只可在建立或變更時輸入；既有密碼、加密密文與其他 credential
+              不會回傳或保存於前端 Mock 資料。
             </p>
           </div>
           <button
@@ -661,24 +662,24 @@
             </thead>
             <tbody>
               <tr
-                *ngFor="let Connection of ApiDataSources"
+                *ngFor="let Connection of DatabaseConnections.Connections"
                 class="database-connection-row"
               >
-                <td>{{ Connection.dataSourceName }}</td>
-                <td>{{ Connection.serverHost }}:{{ Connection.port }}</td>
-                <td>{{ Connection.databaseName }}</td>
-                <td>{{ Connection.username }}</td>
+                <td>{{ Connection.DataSourceName }}</td>
+                <td>{{ Connection.ServerHost }}:{{ Connection.Port }}</td>
+                <td>{{ Connection.DatabaseName }}</td>
+                <td>{{ Connection.Username }}</td>
                 <td>
                   {{
-                    "唯讀"
+                    Connection.ConnectionType === "ReadOnly" ? "唯讀" : "讀寫"
                   }}
                 </td>
-                <td>{{ Connection.isEnabled ? "啟用" : "停用" }}</td>
+                <td>{{ Connection.Enabled ? "啟用" : "停用" }}</td>
                 <td>
                   <button
                     type="button"
                     class="secondary-button"
-                    (click)="OpenEditDatabaseConnection(Connection.dataSourceId + '')"
+                    (click)="OpenEditDatabaseConnection(Connection.Key)"
                   >
                     編輯
                   </button>

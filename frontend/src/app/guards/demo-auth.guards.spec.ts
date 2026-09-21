@@ -1,170 +1,80 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-  ActivatedRouteSnapshot,
-  Router,
-  RouterStateSnapshot,
-  UrlTree,
-  provideRouter,
-} from '@angular/router';
-
-import {
-  BackOfficeGuard,
-  FrontOfficeGuard,
-  FrontOfficePermissionGuard,
-  ReportPreviewGuard,
-} from './demo-auth.guards';
+import { Router, provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { routes } from '../app.routes';
 import { AuthService } from '../services/auth.service';
+import { MockRbacService } from '../services/mock-rbac.service';
 
-xdescribe('Front/back-office route guards', () => {
-  const authStub = {
-    IsAuthenticated: false,
-    IsFrontOffice: false,
-    IsBackOffice: false,
-    CanOperateBackOffice: false,
-    HomeRoute: '/reports/parameters',
-    SelectedReport: null as object | null,
-    HasManagementPermission: jasmine
-      .createSpy('HasManagementPermission')
-      .and.returnValue(false),
-  };
+@Component({ standalone: true, template: '<p>Route destination</p>' })
+class RoutePage {}
 
-  let router: Router;
+describe('Front/back-office route boundaries', () => {
+  let Auth: AuthService;
+  let Rbac: MockRbacService;
+  let Harness: RouterTestingHarness;
+  beforeEach(async () => {
+    TestBed.configureTestingModule({ providers: [provideRouter(routes.map((Route) =>
+      Route.component ? { ...Route, component: RoutePage } : Route))] });
+    Auth = TestBed.inject(AuthService);
+    Rbac = TestBed.inject(MockRbacService);
+    Harness = await RouterTestingHarness.create();
+  });
+  const Url = () => TestBed.inject(Router).url.split('?')[0];
 
-  const state = {} as RouterStateSnapshot;
-
-  function route(data: Record<string, unknown> = {}): ActivatedRouteSnapshot {
-    return { data } as unknown as ActivatedRouteSnapshot;
-  }
-
-  function runGuard(
-    guard: typeof FrontOfficeGuard,
-    currentRoute = route(),
-  ): boolean | UrlTree {
-    return TestBed.runInInjectionContext(
-      () => guard(currentRoute, state) as boolean | UrlTree,
-    );
-  }
-
-  function url(result: boolean | UrlTree): string {
-    expect(result instanceof UrlTree).toBeTrue();
-    return router.serializeUrl(result as UrlTree);
-  }
-
-  beforeEach(() => {
-    authStub.IsAuthenticated = false;
-    authStub.IsFrontOffice = false;
-    authStub.IsBackOffice = false;
-    authStub.CanOperateBackOffice = false;
-    authStub.HomeRoute = '/reports/parameters';
-    authStub.SelectedReport = null;
-    authStub.HasManagementPermission.calls.reset();
-    authStub.HasManagementPermission.and.returnValue(false);
-
-    TestBed.configureTestingModule({
-      providers: [
-        provideRouter([]),
-        {
-          provide: AuthService,
-          useValue: authStub,
-        },
-      ],
-    });
-
-    router = TestBed.inject(Router);
+  it('requires authentication for both portals and keeps login public', async () => {
+    for (const Path of ['/admin/users', '/operation-logs', '/reports', '/report-management', '/database-connections']) {
+      await Harness.navigateByUrl(Path);
+      expect(Url()).withContext(Path).toBe('/login');
+    }
   });
 
-  it('redirects an unauthenticated visitor to login', () => {
-    const result = runGuard(FrontOfficeGuard);
-
-    expect(url(result)).toBe('/login?state=session-expired');
+  it('allows only the back-office pages to a back-office identity', async () => {
+    Auth.Login('admin@example.com', 'admin123');
+    for (const Path of ['/reports', '/reports/parameters', '/reports/preview', '/account/settings', '/report-management', '/database-connections', '/operation-logs']) {
+      await Harness.navigateByUrl(Path);
+      expect(Url()).withContext(Path).toBe('/admin/users');
+    }
   });
 
-  it('allows an authenticated front-office user', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsFrontOffice = true;
+  it('protects each front-office management route, including old URL redirects', async () => {
+    Auth.Login('user@example.com', 'user123');
+    for (const Path of ['/report-management', '/database-connections', '/operation-logs']) {
+      await Harness.navigateByUrl(Path);
+      expect(Url()).withContext(Path).toBe(Path);
+    }
+    await Harness.navigateByUrl('/admin/users');
+    expect(Url()).toBe('/reports/parameters');
 
-    expect(runGuard(FrontOfficeGuard)).toBeTrue();
+    Rbac.UpdateRole('FINANCE', { DisplayName: '財務人員', ManagementPermissions: [], Permissions: Rbac.GetEmptyCategoryPermissionEntries() });
+    for (const Path of ['/admin/reports', '/admin/database-connections', '/admin/operation-logs', '/operation-logs']) {
+      await Harness.navigateByUrl(Path);
+      expect(Url()).withContext(Path).toBe('/reports/parameters');
+    }
+    Rbac.UpdateRole('FINANCE', { DisplayName: '財務人員', ManagementPermissions: ['RptManagement'], Permissions: Rbac.GetEmptyCategoryPermissionEntries() });
+    await Harness.navigateByUrl('/admin/reports');
+    expect(Url()).toBe('/report-management');
+    await Harness.navigateByUrl('/database-connections');
+    expect(Url()).toBe('/reports/parameters');
+    await Harness.navigateByUrl('/operation-logs');
+    expect(Url()).toBe('/reports/parameters');
+    Rbac.UpdateRole('FINANCE', { DisplayName: '財務人員', ManagementPermissions: ['OperationLog'], Permissions: Rbac.GetEmptyCategoryPermissionEntries() });
+    await Harness.navigateByUrl('/operation-logs');
+    expect(Url()).toBe('/operation-logs');
+    await Harness.navigateByUrl('/admin/users');
+    expect(Url()).toBe('/reports/parameters');
   });
 
-  it('redirects the wrong identity to its home route', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsFrontOffice = false;
-    authStub.HomeRoute = '/reports/parameters';
-
-    const result = runGuard(FrontOfficeGuard);
-
-    expect(url(result)).toBe(
-      '/reports/parameters?state=permission-denied',
-    );
-  });
-
-  it('allows back-office access only after operator binding', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsBackOffice = true;
-    authStub.CanOperateBackOffice = true;
-
-    expect(runGuard(BackOfficeGuard)).toBeTrue();
-  });
-
-  it('denies an unbound back-office identity', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsBackOffice = true;
-    authStub.CanOperateBackOffice = false;
-    authStub.HomeRoute = '/admin/users';
-
-    const result = runGuard(BackOfficeGuard);
-
-    expect(url(result)).toBe('/admin/users?state=permission-denied');
-  });
-
-  it('checks the management permission declared by the route', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsFrontOffice = true;
-    authStub.HasManagementPermission.and.returnValue(true);
-
-    const result = runGuard(
-      FrontOfficePermissionGuard,
-      route({ Permission: 'RptManagement' }),
-    );
-
-    expect(result).toBeTrue();
-    expect(authStub.HasManagementPermission).toHaveBeenCalledWith(
-      'RptManagement',
-    );
-  });
-
-  it('redirects when a management permission is missing', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsFrontOffice = true;
-    authStub.HasManagementPermission.and.returnValue(false);
-
-    const result = runGuard(
-      FrontOfficePermissionGuard,
-      route({ Permission: 'OperationLog' }),
-    );
-
-    expect(url(result)).toBe(
-      '/reports/parameters?state=permission-denied',
-    );
-  });
-
-  it('redirects preview when no report is selected', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsFrontOffice = true;
-    authStub.SelectedReport = null;
-
-    const result = runGuard(ReportPreviewGuard);
-
-    expect(url(result)).toBe(
-      '/reports/parameters?state=report-unavailable',
-    );
-  });
-
-  it('allows preview for a selected front-office report', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsFrontOffice = true;
-    authStub.SelectedReport = {};
-
-    expect(runGuard(ReportPreviewGuard)).toBeTrue();
+  it('guards direct preview and rechecks the selected report permission', async () => {
+    Auth.Login('user@example.com', 'user123');
+    await Harness.navigateByUrl('/reports/preview');
+    expect(Url()).toBe('/reports/parameters');
+    Auth.SelectReport('AccountBalance');
+    await Harness.navigateByUrl('/reports/preview');
+    expect(Url()).toBe('/reports/preview');
+    await Harness.navigateByUrl('/reports');
+    Rbac.SaveCategoryPermissions('FINANCE', Rbac.GetEmptyCategoryPermissionEntries());
+    await Harness.navigateByUrl('/reports/preview');
+    expect(Url()).toBe('/reports/parameters');
   });
 });

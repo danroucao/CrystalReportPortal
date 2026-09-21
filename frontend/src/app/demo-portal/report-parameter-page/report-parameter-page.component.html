@@ -255,10 +255,10 @@
                   {{ Report.Description }}
                 </td>
                 <td class="parameter-report-timestamp">
-                  {{ Report.CreatedAt || "—" }}
+                  {{ Report.CreatedAt }}
                 </td>
                 <td class="parameter-report-timestamp">
-                  {{ Report.UpdatedAt || "—" }}
+                  {{ Report.UpdatedAt }}
                 </td>
                 <td>
                   <button
@@ -291,34 +291,18 @@
             </svg>
             <h3>
               {{
-                IsLoadingReports
-                  ? "正在載入報表…"
-                  : ReportLoadError
-                    ? "報表載入失敗"
-                    : HasParameterReportFilters
+                HasParameterReportFilters
                   ? "找不到符合條件的報表"
                   : "目前沒有可使用的報表"
               }}
             </h3>
             <p>
               {{
-                IsLoadingReports
-                  ? "正在向系統取得您有權限使用的報表。"
-                  : ReportLoadError
-                    ? ReportLoadError
-                    : HasParameterReportFilters
+                HasParameterReportFilters
                   ? "請調整搜尋文字、報表分類或資料期間後再試一次。"
                   : "目前沒有可供預覽的報表，請聯絡系統管理員確認報表權限或啟用狀態。"
               }}
             </p>
-            <button
-              *ngIf="ReportLoadError"
-              type="button"
-              class="secondary-button"
-              (click)="LoadReports()"
-            >
-              重新載入
-            </button>
             <p
               *ngIf="HasParameterReportFilters"
               class="parameter-report-empty-filters"

@@ -14,7 +14,7 @@ import {
 } from './testing/demo-portal.spec-helpers';
 import { ReportParameterPageComponent } from './report-parameter-page/report-parameter-page.component';
 
-xdescribe('portal workflows after page extraction', () => {
+describe('portal workflows after page extraction', () => {
   ConfigureDemoPortalTestBed();
 
   it('paginates the UserManagement table in the user-management child page', () => {
@@ -63,7 +63,7 @@ xdescribe('portal workflows after page extraction', () => {
     expect(password?.value).toBe('');
   });
 
-xit('validates a report parameter range before generating a report', () => {
+  it('validates a report parameter range before generating a report', () => {
     const auth = TestBed.inject(AuthService);
     const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
     expect(LoginFrontManager(auth)).toBeTrue();
