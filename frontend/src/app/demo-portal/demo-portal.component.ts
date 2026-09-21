@@ -59,7 +59,6 @@ import {
 import { MockReportParameterService } from '../services/mock-report-parameter.service';
 import { MockAuditLogService } from '../services/mock-audit-log.service';
 import { BoringAvatarComponent } from '../shared/boring-avatar.component';
-import { PortalPaginationComponent } from '../shared/portal-pagination.component';
 import { FavoriteReportPageComponent } from './favorite-report-page/favorite-report-page.component';
 import { OperationLogPageComponent } from './operation-log-page/operation-log-page.component';
 import { PortalNavigationComponent } from './portal-navigation/portal-navigation.component';
@@ -123,7 +122,6 @@ type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
     ReactiveFormsModule,
     RouterLink,
     BoringAvatarComponent,
-    PortalPaginationComponent,
     PortalNavigationComponent,
     FavoriteReportPageComponent,
     OperationLogPageComponent,

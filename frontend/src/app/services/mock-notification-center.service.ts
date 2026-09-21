@@ -77,8 +77,20 @@ export class MockNotificationCenterService {
       CreatedAt: '2026-09-10T10:00:00.000Z',
       ReadAt: '2026-09-10T10:05:00.000Z',
     },
+    ...this.CreateSeedNotifications(
+      'admin@example.com',
+      7,
+      11,
+      '後台系統通知',
+    ),
+    ...this.CreateSeedNotifications(
+      'user@example.com',
+      18,
+      9,
+      '報表作業通知',
+    ),
   ];
-  private NextNotification = 7;
+  private NextNotification = 27;
 
   constructor(private readonly rbac: MockRbacService) {}
 
@@ -205,6 +217,29 @@ export class MockNotificationCenterService {
 
   private AccessDiffDetail(Before: string, After: string): string {
     return Before === After ? '有效權限未變。' : `目前可使用功能：${After}`;
+  }
+
+  private CreateSeedNotifications(
+    Account: string,
+    StartId: number,
+    Count: number,
+    TitlePrefix: string,
+  ): MockCenterNotification[] {
+    return Array.from({ length: Count }, (_, Index) => {
+      const NotificationId = StartId + Index;
+      const CreatedAt = new Date(
+        Date.UTC(2026, 8, 9, 8, 0, 0) - Index * 86_400_000,
+      ).toISOString();
+      return {
+        Id: `NOTICE_${NotificationId}`,
+        RecipientAccount: Account,
+        Title: `${TitlePrefix} ${Index + 1}`,
+        Summary: `這是第 ${Index + 1} 筆測試通知，供通知中心分頁與詳細資訊展示使用。`,
+        Detail: `測試通知編號：${NotificationId}。此筆資料為固定假資料，可用於驗證通知列表、已讀狀態與詳細資訊視窗。`,
+        CreatedAt,
+        ReadAt: Index % 4 === 3 ? CreatedAt : null,
+      };
+    });
   }
 
   private CreateNotification(

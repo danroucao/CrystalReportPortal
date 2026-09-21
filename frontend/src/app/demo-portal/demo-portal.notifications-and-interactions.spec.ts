@@ -20,6 +20,8 @@ describe('portal notifications and extracted interactions', () => {
     const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { data: { Page: string } } };
     route.snapshot.data.Page = 'NotificationCenter';
     expect(auth.Login('user@example.com', 'user123')).toBeTrue();
+    expect(notificationCenter.GetNotifications('user@example.com')).toHaveSize(13);
+    expect(notificationCenter.GetNotifications('admin@example.com')).toHaveSize(13);
     notificationCenter.NotifyRoleAssignmentChange(
       'user@example.com',
       notificationCenter.CaptureAccess('user@example.com'),

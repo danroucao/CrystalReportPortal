@@ -65,14 +65,14 @@
 }
 
 .list-pagination button:hover:not(:disabled):not(.is-active) {
-  border-color: #b9b5ae;
+  border-color: var(--color-primary);
   background: #f6f5f3;
 }
 
 .list-pagination button.is-active {
-  border-color: #1d1d1b;
+  border-color: var(--color-primary);
   color: #fff;
-  background: #1d1d1b;
+  background: var(--color-primary);
 }
 
 .list-pagination button:disabled {

@@ -55,19 +55,12 @@ describe('UserManagementPageComponent', () => {
   it('filters and paginates users without changing the role-card data source', () => {
     const component = createPage();
     const rbac = TestBed.inject(MockRbacService);
-    for (let index = 0; index < 3; index += 1) {
-      rbac.CreateUser({
-        Account: `pagination-${index}@example.com`,
-        DisplayName: 'Pagination',
-        Roles: ['FINANCE'],
-        Enabled: true,
-      });
-    }
 
+    expect(rbac.Users).toHaveSize(13);
     expect(component.UserTotalPages).toBe(2);
     expect(component.PagedUsers).toHaveSize(10);
     component.GoToUserPage(2);
-    expect(component.PagedUsers).toHaveSize(2);
+    expect(component.PagedUsers).toHaveSize(3);
     component.SetUserRoleFilter('FINANCE');
     expect(component.UserCurrentPage).toBe(1);
     expect(component.GetRoleAvatarUsers('FINANCE').length).toBeLessThanOrEqual(4);
