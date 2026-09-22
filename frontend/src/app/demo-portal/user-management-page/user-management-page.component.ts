@@ -252,40 +252,9 @@ export class UserManagementPageComponent {
   }
 
   ToggleManagementPermission(Permission: MockManagementPermission, Enabled: boolean): void {
-    if (Enabled && !this.CanAssignManagementPermission(Permission)) return;
-    const RemovedDependentPermission = !Enabled && Permission === 'RptManagement'
-      ? 'ArchivedFormData'
-      : !Enabled && Permission === 'OperationLog'
-        ? 'ArchivedOperationLog'
-        : null;
-    const HadDependentPermission = RemovedDependentPermission
-      ? this.RoleDraft.ManagementPermissions.includes(RemovedDependentPermission)
-      : false;
-    const Permissions = Enabled
+    this.RoleDraft.ManagementPermissions = Enabled
       ? [...new Set([...this.RoleDraft.ManagementPermissions, Permission])]
       : this.RoleDraft.ManagementPermissions.filter((Value) => Value !== Permission);
-    this.RoleDraft.ManagementPermissions = Permissions.filter((Value) =>
-      (Permission !== 'RptManagement' || Value !== 'ArchivedFormData') &&
-      (Permission !== 'OperationLog' || Value !== 'ArchivedOperationLog'));
-    if (HadDependentPermission) {
-      const PermissionLabel = RemovedDependentPermission === 'ArchivedFormData'
-        ? '檢視已封存表單資料'
-        : '檢視已封存操作紀錄';
-      this.Notifications.ShowSuccess('已同步移除相依權限：「' + PermissionLabel + '」。');
-    }
-  }
-
-  ToggleReportManagementExpanded(): void {
-    this.IsReportManagementExpanded = !this.IsReportManagementExpanded;
-  }
-
-  ToggleOperationLogExpanded(): void {
-    this.IsOperationLogExpanded = !this.IsOperationLogExpanded;
-  }
-
-  CanAssignManagementPermission(Permission: MockManagementPermission): boolean {
-    return (Permission !== 'ArchivedFormData' || this.RoleDraft.ManagementPermissions.includes('RptManagement')) &&
-      (Permission !== 'ArchivedOperationLog' || this.RoleDraft.ManagementPermissions.includes('OperationLog'));
   }
 
   SetPermissionCanExecute(Entry: MockCategoryPermissionEntry, Enabled: boolean): void {

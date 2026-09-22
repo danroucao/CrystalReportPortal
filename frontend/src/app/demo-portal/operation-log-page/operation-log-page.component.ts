@@ -37,7 +37,6 @@ export class OperationLogPageComponent {
   OperationLogStartDate = this.ToDateInputValue(this.GetDateDaysAgo(179));
   OperationLogEndDate = this.ToDateInputValue(new Date());
   OperationLogSearchText = '';
-  OperationLogView: OperationLogView = 'Recent';
   OperationLogCurrentPage = 1;
   OperationLogSortField: OperationLogSortField = 'OccurredAt';
   OperationLogSortDirection: OperationLogSortDirection = 'desc';
@@ -50,14 +49,6 @@ export class OperationLogPageComponent {
 
   get CanAccessOperationLog(): boolean {
     return this.Auth.HasManagementPermission('OperationLog');
-  }
-
-  get CanAccessArchivedOperationLogs(): boolean {
-    return this.CanAccessOperationLog && this.Auth.HasManagementPermission('ArchivedOperationLog');
-  }
-
-  get OperationLogMinimumDate(): string {
-    return this.OperationLogView === 'Archived' ? '' : this.ToDateInputValue(this.GetDateDaysAgo(179));
   }
 
   get OperationLogMaximumDate(): string {
@@ -77,7 +68,6 @@ export class OperationLogPageComponent {
           `${Entry.UserId} ${Entry.TargetId} ${Entry.IpAddress} ${Entry.Summary}`.toLocaleLowerCase().includes(SearchText);
         return MatchesDate &&
           MatchesSearch &&
-          (this.OperationLogView === 'Archived' ? Boolean(Entry.ArchivedAt) : !Entry.ArchivedAt) &&
           (this.OperationLogCategoryFilter === 'ALL' || Entry.Category === this.OperationLogCategoryFilter) &&
           (this.OperationLogSourceFilter === 'ALL' || Entry.Source === this.OperationLogSourceFilter);
       })
@@ -108,38 +98,7 @@ export class OperationLogPageComponent {
     this.OnOperationLogFilterChange();
   }
 
-  OnOperationLogCategoryChange(): void {
-    if (!this.IsOperationLogFilterCombinationAllowed(this.OperationLogSourceFilter, this.OperationLogCategoryFilter)) {
-      this.OperationLogSourceFilter = 'ALL';
-    }
-    this.OnOperationLogFilterChange();
-  }
-
-  IsOperationLogCategoryAvailable(Category: OperationLogCategoryFilter): boolean {
-    return this.IsOperationLogFilterCombinationAllowed(this.OperationLogSourceFilter, Category);
-  }
-
-  IsOperationLogSourceAvailable(Source: OperationLogSourceFilter): boolean {
-    return this.IsOperationLogFilterCombinationAllowed(Source, this.OperationLogCategoryFilter);
-  }
-
-  OnOperationLogViewChange(View: string): void {
-    if (View !== 'Recent' && View !== 'Archived') return;
-    if (View === 'Archived' && !this.CanAccessArchivedOperationLogs) {
-      this.OperationLogView = 'Recent';
-      return;
-    }
-    this.OperationLogView = View;
-    if (View === 'Archived') {
-      this.OperationLogStartDate = this.ToDateInputValue(this.GetDateDaysAgo(365));
-    }
-    this.OnOperationLogDateChange();
-  }
-
   OnOperationLogDateChange(): void {
-    if (this.OperationLogView === 'Recent' && this.OperationLogStartDate < this.OperationLogMinimumDate) {
-      this.OperationLogStartDate = this.OperationLogMinimumDate;
-    }
     if (this.OperationLogEndDate > this.OperationLogMaximumDate) {
       this.OperationLogEndDate = this.OperationLogMaximumDate;
     }
@@ -164,7 +123,7 @@ export class OperationLogPageComponent {
   }
 
   OpenOperationLogDetail(Entry: MockAuditLogEntry): void {
-    if (!this.CanAccessOperationLog || (Entry.ArchivedAt && !this.CanAccessArchivedOperationLogs)) return;
+    if (!this.CanAccessOperationLog) return;
     this.SelectedOperationLog = Entry;
   }
 

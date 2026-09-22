@@ -70,25 +70,20 @@ describe('portal notifications and extracted interactions', () => {
     expect(editUser).toHaveBeenCalledWith(firstUser.Account);
   });
 
-  it('shows archived operation logs only after the permitted user switches views', () => {
+  it('shows historical operation logs without an archive permission or inclusion control', () => {
     expect(LoginFrontManager(TestBed.inject(AuthService))).toBeTrue();
     const fixture = TestBed.createComponent(OperationLogPageComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
 
-    expect(component.CanAccessArchivedOperationLogs).toBeTrue();
-    expect(component.FilteredOperationLogs.every((entry) => entry.ArchivedAt === null)).toBeTrue();
-    expect(host.querySelectorAll('.operation-log-table thead th')).toHaveSize(8);
-    expect(Array.from(host.querySelectorAll('.operation-log-table thead th')).some((Header) => Header.textContent?.trim() === '狀態')).toBeFalse();
+    component.OperationLogStartDate = '';
+    component.OnOperationLogDateChange();
 
-    component.OnOperationLogViewChange('Archived');
-
-    expect(component.FilteredOperationLogs.every((entry) => entry.ArchivedAt !== null)).toBeTrue();
-    expect(component.FilteredOperationLogs).toHaveSize(32);
-    const archivedEntry = component.FilteredOperationLogs[0];
-    component.OpenOperationLogDetail(archivedEntry);
-    expect(component.SelectedOperationLog?.ArchivedAt).toBe(archivedEntry.ArchivedAt);
+    expect(component.FilteredOperationLogs.some((entry) => entry.OccurredAt < new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString())).toBeTrue();
+    const HistoricalEntry = component.FilteredOperationLogs.find((entry) => entry.OccurredAt < new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString())!;
+    component.OpenOperationLogDetail(HistoricalEntry);
+    expect(component.SelectedOperationLog).toBe(HistoricalEntry);
 
     component.ToggleOperationLogSort('UserId');
     expect(component.OperationLogSortDirection).toBe('asc');

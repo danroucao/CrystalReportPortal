@@ -1,2 +1,46 @@
 // Kept with the extracted feature so style encapsulation follows the new host.
 @import '../demo-portal.component.scss';
+
+.create-role-modal {
+  width: min(33.75rem, calc(100vw - 2rem));
+  padding: 1.5rem;
+}
+
+.create-role-modal .modal-heading h2 { font-size: 1.125rem; }
+
+.role-editor-fields {
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+.role-name-field {
+  flex-basis: 15rem;
+  max-width: 15rem;
+}
+
+.role-global-permissions {
+  gap: 0.5rem 1rem;
+  margin: 1rem 0;
+  padding: 0.75rem;
+}
+
+.role-global-permissions label {
+  min-height: auto;
+  padding: 0;
+}
+
+.role-permission-hint {
+  margin: -0.3rem 0 0.65rem;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.role-permission-table input[type='checkbox']:disabled {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid #d6d3ce;
+  border-radius: 3px;
+  background: #f3f2f0;
+  cursor: not-allowed;
+}

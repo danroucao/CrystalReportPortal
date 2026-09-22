@@ -15,7 +15,6 @@ export interface MockAuditLogDetailItem {
 export interface MockAuditLogEntry {
   readonly Id: number;
   readonly OccurredAt: string;
-  readonly ArchivedAt: string | null;
   readonly UserId: string;
   readonly Source: MockAuditLogSource;
   readonly Category: MockAuditLogCategory;
@@ -41,7 +40,6 @@ export class MockAuditLogService {
     this.Entries.unshift({
       Id: this.NextId++,
       OccurredAt: new Date().toISOString(),
-      ArchivedAt: null,
       UserId,
       Source: 'BackOffice',
       Category: 'PermissionChange',
@@ -119,44 +117,18 @@ export class MockAuditLogService {
       this.Entry(26, 5, 'finance@example.com', 'FrontOffice', 'ReportAction', 'REPORT_DOWNLOAD', '下載報表「月結損益表」。', '月結損益表.rpt', [
         { Label: '下載格式', Value: 'PDF' },
       ]),
-      this.Entry(25, 5, 'finance@example.com', 'FrontOffice', 'ReportAction', 'REPORT_EXPORT', '匯出報表「採購訂單明細」。', '採購訂單明細.rpt', [
+      this.Entry(4, 5, 'user@example.com', 'BackOffice', 'PermissionChange', 'UPDATE_ROLE_PERMISSION', '更新角色「財務人員」的功能權限。', '財務人員', [
+        { Label: '權限', Value: '報表管理', Tone: 'added' },
+      ]),
+      this.Entry(3, 225, 'user@example.com', 'BackOffice', 'PermissionChange', 'REVOKE_ROLE', '移除 purchase@example.com 的「採購人員」角色。', 'purchase@example.com', [
+        { Label: '角色變更', Value: '採購人員', Tone: 'removed' },
+      ]),
+      this.Entry(2, 231, 'finance@example.com', 'FrontOffice', 'ReportAction', 'REPORT_EXPORT', '匯出「採購訂單明細.rpt」（Excel）。', '採購訂單明細.rpt', [
         { Label: '匯出格式', Value: 'Excel' },
       ]),
-      this.Entry(24, 6, 'finance@example.com', 'FrontOffice', 'ReportAction', 'REPORT_PRINT', '列印報表「庫存週轉分析」。', '庫存週轉分析.rpt', [
-        { Label: '列印份數', Value: '1 份' },
+      this.Entry(1, 240, 'user@example.com', 'BackOffice', 'PermissionChange', 'CREATE_ROLE', '建立角色「歷史資料稽核人員」。', '歷史資料稽核人員', [
+        { Label: '功能權限', Value: '操作紀錄查詢', Tone: 'added' },
       ]),
-      this.Entry(23, 7, 'admin@example.com', 'BackOffice', 'PermissionChange', 'ROLE_VIEW', '檢視角色「財務人員」的權限設定。', '財務人員', [
-        { Label: '操作類型', Value: '檢視' },
-      ]),
-      this.Entry(22, 7, 'admin@example.com', 'BackOffice', 'PermissionChange', 'GRANT_ROLE', '授予 finance@example.com「財務人員」角色。', 'finance@example.com', [
-        { Label: '角色異動', Value: '財務人員', Tone: 'added' },
-      ]),
-      this.Entry(21, 8, 'admin@example.com', 'BackOffice', 'PermissionChange', 'REVOKE_ROLE', '移除 purchase@example.com「採購人員」角色。', 'purchase@example.com', [
-        { Label: '角色異動', Value: '採購人員', Tone: 'removed' },
-      ]),
-      this.Entry(20, 8, 'admin@example.com', 'BackOffice', 'SystemManagement', 'DATABASE_VIEW', '檢視資料庫連線「財務資料庫」設定。', '財務資料庫', [
-        { Label: '操作類型', Value: '檢視' },
-      ]),
-      this.Entry(19, 9, 'admin@example.com', 'BackOffice', 'SystemManagement', 'DATABASE_TEST_CONNECTION', '測試資料庫連線「營運報表唯讀」。', '營運報表唯讀', [
-        { Label: '測試結果', Value: '連線成功', Tone: 'added' },
-      ]),
-      this.Entry(18, 9, 'admin@example.com', 'BackOffice', 'ReportAction', 'REPORT_CATEGORY_CREATE', '新增報表分類「營運分析」。', '營運分析', [
-        { Label: '分類狀態', Value: '已建立', Tone: 'added' },
-      ]),
-      this.Entry(17, 10, 'admin@example.com', 'BackOffice', 'ReportAction', 'REPORT_CATEGORY_VIEW', '檢視報表分類「財務」。', '財務', [
-        { Label: '操作類型', Value: '檢視' },
-      ]),
-      this.Entry(16, 10, 'admin@example.com', 'BackOffice', 'ReportAction', 'REPORT_CATEGORY_UPDATE', '更新報表分類「服務」名稱。', '服務', [
-        { Label: '更新後名稱', Value: '客戶服務', Tone: 'added' },
-      ]),
-      this.Entry(15, 11, 'admin@example.com', 'BackOffice', 'ReportAction', 'REPORT_CATEGORY_DELETE', '刪除未使用的報表分類「測試」。', '測試', [
-        { Label: '刪除原因', Value: '測試資料清理', Tone: 'removed' },
-      ]),
-      this.Entry(14, 12, 'unknown@example.com', 'FrontOffice', 'Authentication', 'LOGIN_FAILURE', '帳號登入失敗：帳號不存在。', 'unknown@example.com', [
-        { Label: '失敗原因', Value: '帳號或密碼錯誤' },
-        { Label: '嘗試次數', Value: '第 1 次' },
-      ]),
-      ...this.CreateArchivedDemoEntries(),
     ];
   }
 
@@ -250,15 +222,12 @@ export class MockAuditLogService {
     Summary: string,
     TargetId: string,
     Details: readonly MockAuditLogDetailItem[],
-    IsArchived = false,
   ): MockAuditLogEntry {
     const OccurredAt = new Date();
     OccurredAt.setDate(OccurredAt.getDate() - DaysAgo);
-    const ArchivedAt = IsArchived ? this.ToArchiveTimestamp(OccurredAt) : null;
     return {
       Id,
       OccurredAt: OccurredAt.toISOString(),
-      ArchivedAt,
       UserId,
       Source,
       Category,
@@ -268,12 +237,5 @@ export class MockAuditLogService {
       IpAddress: Source === 'BackOffice' ? '10.20.8.34' : '203.0.113.18',
       Details,
     };
-  }
-
-  private ToArchiveTimestamp(OccurredAt: Date): string {
-    const ArchiveDate = new Date(OccurredAt);
-    ArchiveDate.setDate(ArchiveDate.getDate() + 180);
-    ArchiveDate.setHours(0, 0, 0, 0);
-    return ArchiveDate.toISOString();
   }
 }

@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Superseded
+
+The frontend Demo no longer provides archive permissions, archived-record filters, or archived-record presentation. Current behavior is defined in `CONTEXT.md`.
 
 ## Context
 

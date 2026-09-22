@@ -520,12 +520,8 @@ export class MockRbacService {
     const NormalizedPermissions = [...new Set(Permissions)].filter((Permission) =>
       Permission === 'RptManagement' ||
       Permission === 'DatabaseConnection' ||
-      Permission === 'OperationLog' ||
-      Permission === 'ArchivedFormData' ||
-      Permission === 'ArchivedOperationLog');
-    return NormalizedPermissions.filter((Permission) =>
-      (Permission !== 'ArchivedFormData' || NormalizedPermissions.includes('RptManagement')) &&
-      (Permission !== 'ArchivedOperationLog' || NormalizedPermissions.includes('OperationLog')));
+      Permission === 'OperationLog');
+    return NormalizedPermissions;
   }
 
   private NormalizePermission(Permission: MockCategoryPermission): MockCategoryPermission {

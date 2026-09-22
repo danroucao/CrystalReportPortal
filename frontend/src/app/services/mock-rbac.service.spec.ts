@@ -119,27 +119,27 @@ describe('MockRbacService', () => {
     expect(Service.Roles.some((Role) => Role.Key === CreatedRole.Key)).toBeFalse();
   });
 
-  it('drops archived-data permissions when their required management permission is absent', () => {
+  it('retains the three supported management permissions when a role is saved', () => {
     const CreatedRole = Service.CreateRole({
-      DisplayName: 'archive-validation',
-      ManagementPermissions: ['ArchivedFormData', 'ArchivedOperationLog'],
+      DisplayName: 'management-validation',
+      ManagementPermissions: ['RptManagement', 'DatabaseConnection', 'OperationLog'],
       Permissions: Service.GetEmptyCategoryPermissionEntries(),
     })!;
 
-    expect(CreatedRole.ManagementPermissions).not.toContain('ArchivedFormData');
-    expect(CreatedRole.ManagementPermissions).not.toContain('ArchivedOperationLog');
+    expect(CreatedRole.ManagementPermissions).toEqual([
+      'RptManagement',
+      'DatabaseConnection',
+      'OperationLog',
+    ]);
 
     const Permissions = Service.GetEmptyCategoryPermissionEntries();
     expect(Service.UpdateRole(CreatedRole.Key, {
       DisplayName: CreatedRole.DisplayName,
-      ManagementPermissions: ['RptManagement', 'ArchivedFormData', 'OperationLog', 'ArchivedOperationLog'],
+      ManagementPermissions: ['OperationLog'],
       Permissions,
     })).toBe('updated');
     expect(Service.GetRole(CreatedRole.Key).ManagementPermissions).toEqual([
-      'RptManagement',
-      'ArchivedFormData',
       'OperationLog',
-      'ArchivedOperationLog',
     ]);
   });
 

@@ -66,7 +66,7 @@ export function LoginFrontManager(Auth: AuthService, IncludeManagement = true): 
   Rbac.UpdateRole('FINANCE', {
     DisplayName: '財務人員',
     ManagementPermissions: IncludeManagement
-      ? ['RptManagement', 'DatabaseConnection', 'OperationLog', 'ArchivedFormData', 'ArchivedOperationLog']
+      ? ['RptManagement', 'DatabaseConnection', 'OperationLog']
       : [],
     Permissions,
   });

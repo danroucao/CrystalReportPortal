@@ -4,7 +4,6 @@ import {
   ConfigureDemoPortalTestBed,
   LoginBoundBackOfficeOperator,
   MockRbacService,
-  NotificationService,
   TestBed,
 } from './testing/demo-portal.spec-helpers';
 
@@ -43,29 +42,37 @@ describe('UserManagementPageComponent', () => {
     expect(Component.UserCurrentPage).toBe(1);
   });
 
-  it('exposes both archived-data permissions through the role editor', () => {
-    const Component = createPage();
+  it('renders three management permissions, keeps deletion exclusive to edit mode, and enforces report permission dependencies', () => {
+    expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
+    const Fixture = TestBed.createComponent(UserManagementPageComponent);
+    const Component = Fixture.componentInstance;
+
+    Component.OpenCreateRoleDialog();
+    Fixture.detectChanges();
+    const CreateHost = Fixture.nativeElement as HTMLElement;
+    expect(CreateHost.querySelectorAll('.role-global-permissions input[type="checkbox"]')).toHaveSize(3);
+    expect(CreateHost.querySelector('.role-delete-button')).toBeNull();
+    expect(CreateHost.querySelector('.role-permission-hint')?.textContent).toContain('請先勾選「閱覽」');
+    expect(CreateHost.querySelectorAll('.role-permission-table input:disabled')).toHaveSize(
+      Component.RoleDraft.Permissions.length * 2,
+    );
+
+    const FirstPermission = Component.RoleDraft.Permissions[0];
+    Component.SetPermissionCanExecute(FirstPermission, true);
+    FirstPermission.Permission.CanExport = true;
+    FirstPermission.Permission.CanPrint = true;
+    Component.SetPermissionCanExecute(FirstPermission, false);
+    Fixture.detectChanges();
+    expect(FirstPermission.Permission).toEqual({
+      CanExecute: false,
+      CanExport: false,
+      CanPrint: false,
+    });
+
+    Component.CloseRoleDialog();
     Component.OpenEditRoleDialog('FINANCE');
-    expect(Component.RoleDraft.ManagementPermissions).toContain('ArchivedFormData');
-    expect(Component.RoleDraft.ManagementPermissions).toContain('ArchivedOperationLog');
-  });
-
-  it('requires parent permissions before archived-data permissions can be granted', () => {
-    const Component = createPage();
-    Component.OpenEditRoleDialog('FINANCE');
-
-    Component.ToggleManagementPermission('RptManagement', false);
-    expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedFormData');
-    expect(Component.CanAssignManagementPermission('ArchivedFormData')).toBeFalse();
-    expect(TestBed.inject(NotificationService).SuccessMessage).toContain('檢視已封存表單資料');
-    Component.ToggleManagementPermission('ArchivedFormData', true);
-    expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedFormData');
-
-    Component.ToggleManagementPermission('OperationLog', false);
-    expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedOperationLog');
-    expect(Component.CanAssignManagementPermission('ArchivedOperationLog')).toBeFalse();
-    Component.ToggleManagementPermission('ArchivedOperationLog', true);
-    expect(Component.RoleDraft.ManagementPermissions).not.toContain('ArchivedOperationLog');
+    Fixture.detectChanges();
+    expect((Fixture.nativeElement as HTMLElement).querySelector('.role-delete-button')).not.toBeNull();
   });
 
   it('removes export and print when report-category viewing is removed', () => {

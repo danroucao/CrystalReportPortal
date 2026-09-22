@@ -54,21 +54,10 @@ app-demo-portal .operation-log-heading h2 {
   margin: 0;
   font-size: 1.2rem;
 }
-app-demo-portal .operation-log-heading p,
 app-demo-portal .operation-log-results-bar p {
   margin: 0.35rem 0 0;
   color: var(--color-muted);
   font-size: 0.8125rem;
-}
-app-demo-portal .operation-log-retention {
-  flex: none;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid #e5d5aa;
-  border-radius: 999px;
-  color: #674a1f;
-  background: #fdf7ea;
-  font-size: 0.75rem;
-  font-weight: 800;
 }
 app-demo-portal .operation-log-filters {
   display: grid;

@@ -403,14 +403,12 @@ th.is-sorted {
   color: var(--color-muted);
   font-size: 0.875rem;
 }
-.operation-log-heading,
 .operation-log-results-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
-.operation-log-heading p,
 .operation-log-results-bar p { margin: 0.35rem 0 0; color: var(--color-muted); font-size: 0.8125rem; }
 .operation-log-filters {
   display: grid;
