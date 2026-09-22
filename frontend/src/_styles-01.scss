@@ -42,6 +42,14 @@ app-demo-portal .operation-log-results-bar {
   justify-content: space-between;
   gap: 1rem;
 }
+app-demo-portal .operation-log-view-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 0.75rem 0;
+}
 app-demo-portal .operation-log-heading h2 {
   margin: 0;
   font-size: 1.2rem;
@@ -98,7 +106,7 @@ app-demo-portal .operation-log-table-frame {
 }
 app-demo-portal .operation-log-table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 960px;
   border-collapse: collapse;
   text-align: left;
   table-layout: fixed;
@@ -139,28 +147,14 @@ app-demo-portal .operation-log-row:focus-visible {
   outline-offset: -3px;
 }
 
-app-demo-portal .operation-log-table th:nth-child(1) {
-  width: 132px;
-}
-app-demo-portal .operation-log-table th:nth-child(2) {
-  width: 138px;
-}
-app-demo-portal .operation-log-table th:nth-child(3),
-app-demo-portal .operation-log-table th:nth-child(4) {
-  width: 80px;
-}
-app-demo-portal .operation-log-table th:nth-child(5) {
-  width: 94px;
-}
-app-demo-portal .operation-log-table th:nth-child(6) {
-  width: 20ch;
-}
-app-demo-portal .operation-log-table th:nth-child(7) {
-  width: 108px;
-}
-app-demo-portal .operation-log-table th:nth-child(8) {
-  width: 94px;
-}
+app-demo-portal .operation-log-time-column { width: 13%; }
+app-demo-portal .operation-log-actor-column { width: 12%; }
+app-demo-portal .operation-log-source-column { width: 8%; }
+app-demo-portal .operation-log-category-column { width: 9%; }
+app-demo-portal .operation-log-action-column { width: 12%; }
+app-demo-portal .operation-log-summary-column { width: 30%; }
+app-demo-portal .operation-log-ip-column { width: 10%; }
+app-demo-portal .operation-log-detail-column { width: 6%; }
 app-demo-portal .operation-log-time,
 app-demo-portal .operation-log-ip {
   color: #5f5e5a;
@@ -211,6 +205,14 @@ app-demo-portal .operation-log-category.is-permission {
 app-demo-portal .operation-log-category.is-report {
   color: #2d5d87;
   background: #eaf4fb;
+}
+app-demo-portal .operation-log-category.is-system {
+  color: #76551a;
+  background: #fdf3df;
+}
+app-demo-portal .operation-log-category.is-authentication {
+  color: #8a2941;
+  background: #fdf0f2;
 }
 app-demo-portal .operation-log-category.is-account {
   color: #815a1a;

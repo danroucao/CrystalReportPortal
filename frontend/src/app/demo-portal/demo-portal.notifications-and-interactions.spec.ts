@@ -70,21 +70,23 @@ describe('portal notifications and extracted interactions', () => {
     expect(editUser).toHaveBeenCalledWith(firstUser.Account);
   });
 
-  it('shows archived operation logs only after the permitted user includes them', () => {
+  it('shows archived operation logs only after the permitted user switches views', () => {
     expect(LoginFrontManager(TestBed.inject(AuthService))).toBeTrue();
     const fixture = TestBed.createComponent(OperationLogPageComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
 
     expect(component.CanAccessArchivedOperationLogs).toBeTrue();
     expect(component.FilteredOperationLogs.every((entry) => entry.ArchivedAt === null)).toBeTrue();
+    expect(host.querySelectorAll('.operation-log-table thead th')).toHaveSize(8);
+    expect(Array.from(host.querySelectorAll('.operation-log-table thead th')).some((Header) => Header.textContent?.trim() === '狀態')).toBeFalse();
 
-    component.IncludeArchivedOperationLogs = true;
-    component.OperationLogStartDate = '';
-    component.OnIncludeArchivedOperationLogsChange();
+    component.OnOperationLogViewChange('Archived');
 
-    expect(component.FilteredOperationLogs.some((entry) => entry.ArchivedAt !== null)).toBeTrue();
-    const archivedEntry = component.FilteredOperationLogs.find((entry) => entry.ArchivedAt !== null)!;
+    expect(component.FilteredOperationLogs.every((entry) => entry.ArchivedAt !== null)).toBeTrue();
+    expect(component.FilteredOperationLogs).toHaveSize(32);
+    const archivedEntry = component.FilteredOperationLogs[0];
     component.OpenOperationLogDetail(archivedEntry);
     expect(component.SelectedOperationLog?.ArchivedAt).toBe(archivedEntry.ArchivedAt);
 
@@ -92,5 +94,46 @@ describe('portal notifications and extracted interactions', () => {
     expect(component.OperationLogSortDirection).toBe('asc');
     component.CloseOperationLogDetail();
     expect(component.SelectedOperationLog).toBeNull();
+  });
+
+  it('does not render or reserve space for the view switcher without archive-log access', () => {
+    const Auth = TestBed.inject(AuthService);
+    const Rbac = TestBed.inject(MockRbacService);
+    expect(LoginFrontManager(Auth)).toBeTrue();
+    const Permissions = Rbac.GetCategoryPermissionEntries('FINANCE');
+    Rbac.UpdateRole('FINANCE', {
+      DisplayName: '財務人員',
+      ManagementPermissions: ['OperationLog'],
+      Permissions,
+    });
+    const fixture = TestBed.createComponent(OperationLogPageComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(fixture.componentInstance.CanAccessOperationLog).toBeTrue();
+    expect(fixture.componentInstance.CanAccessArchivedOperationLogs).toBeFalse();
+    expect(host.querySelector('.operation-log-view-switcher')).toBeNull();
+    expect(host.querySelector('app-portal-two-tab-segmented-control')).toBeNull();
+  });
+
+  it('keeps operation-log source and category filters compatible in both directions', () => {
+    expect(LoginFrontManager(TestBed.inject(AuthService))).toBeTrue();
+    const fixture = TestBed.createComponent(OperationLogPageComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.OperationLogSourceFilter = 'FrontOffice';
+    component.OperationLogCategoryFilter = 'SystemManagement';
+    component.OnOperationLogSourceChange();
+
+    expect(component.OperationLogCategoryFilter).toBe('ALL');
+    expect(component.IsOperationLogCategoryAvailable('PermissionChange')).toBeFalse();
+    expect(component.IsOperationLogCategoryAvailable('SystemManagement')).toBeFalse();
+
+    component.OperationLogCategoryFilter = 'Authentication';
+    component.OnOperationLogCategoryChange();
+
+    expect(component.IsOperationLogSourceAvailable('BackOffice')).toBeFalse();
+    expect(component.IsOperationLogSourceAvailable('FrontOffice')).toBeTrue();
   });
 });

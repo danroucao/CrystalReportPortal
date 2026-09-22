@@ -1,0 +1,15 @@
+<div class="portal-two-tab-segmented-control" role="radiogroup" [attr.aria-label]="AriaLabel">
+  <button
+    *ngFor="let Tab of Tabs; let Index = index"
+    type="button"
+    role="radio"
+    [class.is-selected]="Tab.Value === SelectedValue"
+    [attr.aria-checked]="Tab.Value === SelectedValue"
+    [attr.tabindex]="Tab.Value === SelectedValue ? 0 : -1"
+    [disabled]="Tab.Disabled"
+    (click)="Select(Tab)"
+    (keydown)="OnTabKeydown($event, Index)"
+  >
+    {{ Tab.Label }}
+  </button>
+</div>

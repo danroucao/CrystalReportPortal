@@ -412,30 +412,6 @@ th.is-sorted {
 }
 .operation-log-heading p,
 .operation-log-results-bar p { margin: 0.35rem 0 0; color: var(--color-muted); font-size: 0.8125rem; }
-.operation-log-retention {
-  flex: none;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid #e5d5aa;
-  border-radius: 999px;
-  color: var(--color-muted);
-  background: var(--color-surface);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-.operation-log-archive-toggle {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.65rem 0.8rem;
-  color: #815a1a;
-  border-radius: 6px;
-  background: #fdf3df;
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-.operation-log-archive-toggle input { width: 1rem; height: 1rem; accent-color: var(--color-primary); }
-.operation-log-archive-toggle span { color: #6a6258; font-weight: 400; }
 .operation-log-filters {
   display: grid;
   grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(210px, 1.55fr);
@@ -485,8 +461,7 @@ th.is-sorted {
 .operation-log-table th:nth-child(5) { width: 94px; }
 .operation-log-table th:nth-child(6) { width: 20ch; }
 .operation-log-table th:nth-child(7) { width: 108px; }
-.operation-log-table th:nth-child(8) { width: 94px; }
-.operation-log-table th:nth-child(9) { width: 76px; }
+.operation-log-table th:nth-child(8) { width: 76px; }
 .operation-log-time,
 .operation-log-ip { color: #5f5e5a; font-size: 0.8rem; white-space: nowrap; }
 .operation-log-actor { overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
@@ -507,7 +482,6 @@ th.is-sorted {
 .operation-log-source.is-backoffice { color: #5c536f; background: #f1eef7; }
 .operation-log-category.is-permission { color: #195c36; background: #e8f5eb; }
 .operation-log-category.is-report { color: #2d5d87; background: #eaf4fb; }
-.operation-log-archived { display: inline-block; padding: 0.22rem 0.48rem; color: #815a1a; border-radius: 999px; background: #fdf3df; font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
 .operation-log-empty-state { padding: 2.5rem !important; color: var(--color-muted); text-align: center; }
 .operation-log-detail-modal { width: min(680px, calc(100vw - 2rem)); }
 .operation-log-modal-eyebrow { margin: 0 0 0.25rem; color: var(--color-primary); font-size: 0.75rem; font-weight: 800; }

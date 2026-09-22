@@ -498,10 +498,6 @@ app-demo-portal .parameter-category-tabs button.is-active {
 app-demo-portal .favorite-report-table {
   min-width: 60rem;
 }
-app-demo-portal .report-entry-row {
-  cursor: pointer;
-}
-app-demo-portal .report-entry-row:hover > td,
 app-demo-portal .user-entry-row:hover > td,
 app-demo-portal .database-connection-row:hover > td {
   background: #fdf7f8;

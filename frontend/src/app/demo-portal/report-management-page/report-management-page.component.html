@@ -52,7 +52,7 @@
         <th>操作</th>
       </tr></thead>
       <tbody>
-        <tr *ngFor="let Report of PagedManagedReports; trackBy: TrackReportByKey" class="report-entry-row" (click)="OpenEditReportDialog(Report.ReportKey)">
+        <tr *ngFor="let Report of PagedManagedReports; trackBy: TrackReportByKey" class="report-entry-row">
           <td class="report-management-pin-cell"><div class="report-management-pin-control">
             <button type="button" class="report-management-pin-button" [class.is-pinned]="IsReportManagementPinned(Report.ReportKey)" [attr.aria-pressed]="IsReportManagementPinned(Report.ReportKey)" [attr.aria-label]="(IsReportManagementPinned(Report.ReportKey) ? '取消釘選 ' : '釘選 ') + Report.ReportName" [title]="IsReportManagementPinned(Report.ReportKey) ? '取消釘選報表' : '釘選報表'" (click)="ToggleReportManagementPin(Report.ReportKey); $event.stopPropagation()"><span class="report-management-pin-icon" aria-hidden="true"></span></button>
           </div></td>

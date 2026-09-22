@@ -10,16 +10,21 @@ import {
 } from '../../services/mock-audit-log.service';
 import { AuthService } from '../../services/auth.service';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
+import {
+  PortalTwoTabOption,
+  PortalTwoTabSegmentedControlComponent,
+} from '../../shared/portal-two-tab-segmented-control.component';
 
 type OperationLogCategoryFilter = MockAuditLogCategory | 'ALL';
 type OperationLogSourceFilter = MockAuditLogSource | 'ALL';
 type OperationLogSortField = 'OccurredAt' | 'UserId';
 type OperationLogSortDirection = 'asc' | 'desc';
+type OperationLogView = 'Recent' | 'Archived';
 
 @Component({
   selector: 'app-operation-log-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, PortalPaginationComponent],
+  imports: [CommonModule, FormsModule, PortalPaginationComponent, PortalTwoTabSegmentedControlComponent],
   templateUrl: './operation-log-page.component.html',
 })
 export class OperationLogPageComponent {
@@ -29,14 +34,19 @@ export class OperationLogPageComponent {
 
   OperationLogCategoryFilter: OperationLogCategoryFilter = 'ALL';
   OperationLogSourceFilter: OperationLogSourceFilter = 'ALL';
-  OperationLogStartDate = this.ToDateInputValue(this.GetDateDaysAgo(6));
+  OperationLogStartDate = this.ToDateInputValue(this.GetDateDaysAgo(179));
   OperationLogEndDate = this.ToDateInputValue(new Date());
   OperationLogSearchText = '';
-  IncludeArchivedOperationLogs = false;
+  OperationLogView: OperationLogView = 'Recent';
   OperationLogCurrentPage = 1;
   OperationLogSortField: OperationLogSortField = 'OccurredAt';
   OperationLogSortDirection: OperationLogSortDirection = 'desc';
   SelectedOperationLog: MockAuditLogEntry | null = null;
+
+  readonly OperationLogViewTabs: readonly [PortalTwoTabOption, PortalTwoTabOption] = [
+    { Value: 'Recent', Label: '最近 180 天' },
+    { Value: 'Archived', Label: '封存紀錄' },
+  ];
 
   get CanAccessOperationLog(): boolean {
     return this.Auth.HasManagementPermission('OperationLog');
@@ -47,7 +57,7 @@ export class OperationLogPageComponent {
   }
 
   get OperationLogMinimumDate(): string {
-    return this.IncludeArchivedOperationLogs ? '' : this.ToDateInputValue(this.GetDateDaysAgo(179));
+    return this.OperationLogView === 'Archived' ? '' : this.ToDateInputValue(this.GetDateDaysAgo(179));
   }
 
   get OperationLogMaximumDate(): string {
@@ -67,7 +77,7 @@ export class OperationLogPageComponent {
           `${Entry.UserId} ${Entry.TargetId} ${Entry.IpAddress} ${Entry.Summary}`.toLocaleLowerCase().includes(SearchText);
         return MatchesDate &&
           MatchesSearch &&
-          (!Entry.ArchivedAt || this.IncludeArchivedOperationLogs) &&
+          (this.OperationLogView === 'Archived' ? Boolean(Entry.ArchivedAt) : !Entry.ArchivedAt) &&
           (this.OperationLogCategoryFilter === 'ALL' || Entry.Category === this.OperationLogCategoryFilter) &&
           (this.OperationLogSourceFilter === 'ALL' || Entry.Source === this.OperationLogSourceFilter);
       })
@@ -92,25 +102,42 @@ export class OperationLogPageComponent {
   OnOperationLogFilterChange(): void { this.OperationLogCurrentPage = 1; }
 
   OnOperationLogSourceChange(): void {
-    if (this.OperationLogSourceFilter === 'FrontOffice' && this.OperationLogCategoryFilter === 'PermissionChange') {
-      this.OperationLogCategoryFilter = 'ALL';
-    }
-    if (this.OperationLogSourceFilter === 'BackOffice' && this.OperationLogCategoryFilter === 'ReportAction') {
+    if (!this.IsOperationLogFilterCombinationAllowed(this.OperationLogSourceFilter, this.OperationLogCategoryFilter)) {
       this.OperationLogCategoryFilter = 'ALL';
     }
     this.OnOperationLogFilterChange();
   }
 
-  OnIncludeArchivedOperationLogsChange(): void {
-    if (!this.CanAccessArchivedOperationLogs) {
-      this.IncludeArchivedOperationLogs = false;
+  OnOperationLogCategoryChange(): void {
+    if (!this.IsOperationLogFilterCombinationAllowed(this.OperationLogSourceFilter, this.OperationLogCategoryFilter)) {
+      this.OperationLogSourceFilter = 'ALL';
+    }
+    this.OnOperationLogFilterChange();
+  }
+
+  IsOperationLogCategoryAvailable(Category: OperationLogCategoryFilter): boolean {
+    return this.IsOperationLogFilterCombinationAllowed(this.OperationLogSourceFilter, Category);
+  }
+
+  IsOperationLogSourceAvailable(Source: OperationLogSourceFilter): boolean {
+    return this.IsOperationLogFilterCombinationAllowed(Source, this.OperationLogCategoryFilter);
+  }
+
+  OnOperationLogViewChange(View: string): void {
+    if (View !== 'Recent' && View !== 'Archived') return;
+    if (View === 'Archived' && !this.CanAccessArchivedOperationLogs) {
+      this.OperationLogView = 'Recent';
       return;
+    }
+    this.OperationLogView = View;
+    if (View === 'Archived') {
+      this.OperationLogStartDate = this.ToDateInputValue(this.GetDateDaysAgo(365));
     }
     this.OnOperationLogDateChange();
   }
 
   OnOperationLogDateChange(): void {
-    if (!this.IncludeArchivedOperationLogs && this.OperationLogStartDate < this.OperationLogMinimumDate) {
+    if (this.OperationLogView === 'Recent' && this.OperationLogStartDate < this.OperationLogMinimumDate) {
       this.OperationLogStartDate = this.OperationLogMinimumDate;
     }
     if (this.OperationLogEndDate > this.OperationLogMaximumDate) {
@@ -144,7 +171,12 @@ export class OperationLogPageComponent {
   CloseOperationLogDetail(): void { this.SelectedOperationLog = null; }
 
   OperationLogCategoryLabel(Category: MockAuditLogCategory): string {
-    return Category === 'PermissionChange' ? '權限變動' : '報表操作';
+    return ({
+      PermissionChange: '權限變動',
+      ReportAction: '報表操作',
+      SystemManagement: '系統管理',
+      Authentication: '帳號驗證',
+    })[Category];
   }
 
   OperationLogActionLabel(Action: string): string {
@@ -159,6 +191,27 @@ export class OperationLogPageComponent {
       REPORT_PREVIEW: '預覽報表',
       REPORT_EXPORT: '匯出報表',
       REPORT_PRINT: '列印報表',
+      PARAMETER_CREATE: '新增參數',
+      PARAMETER_VIEW: '檢視參數',
+      PARAMETER_UPDATE: '更新參數',
+      PARAMETER_DELETE: '刪除參數',
+      PARAMETER_IMPORT: '匯入參數',
+      REPORT_CREATE: '新增報表',
+      REPORT_VIEW: '檢視報表',
+      REPORT_UPDATE: '更新報表',
+      REPORT_DELETE: '刪除報表',
+      ROLE_VIEW: '檢視角色',
+      ROLE_UPDATE: '更新角色',
+      DATABASE_CREATE: '新增資料庫連線',
+      DATABASE_VIEW: '檢視資料庫連線',
+      DATABASE_UPDATE: '更新資料庫連線',
+      DATABASE_DELETE: '刪除資料庫連線',
+      DATABASE_TEST_CONNECTION: '測試資料庫連線',
+      REPORT_CATEGORY_CREATE: '新增報表分類',
+      REPORT_CATEGORY_VIEW: '檢視報表分類',
+      REPORT_CATEGORY_UPDATE: '更新報表分類',
+      REPORT_CATEGORY_DELETE: '刪除報表分類',
+      LOGIN_FAILURE: '登入失敗',
     }[Action] ?? Action);
   }
 
@@ -180,5 +233,14 @@ export class OperationLogPageComponent {
 
   private ToDateInputValue(DateValue: Date): string {
     return `${DateValue.getFullYear()}-${String(DateValue.getMonth() + 1).padStart(2, '0')}-${String(DateValue.getDate()).padStart(2, '0')}`;
+  }
+
+  private IsOperationLogFilterCombinationAllowed(
+    Source: OperationLogSourceFilter,
+    Category: OperationLogCategoryFilter,
+  ): boolean {
+    if (Source === 'ALL' || Category === 'ALL' || Category === 'ReportAction') return true;
+    if (Source === 'BackOffice') return Category !== 'Authentication';
+    return Category === 'Authentication';
   }
 }
