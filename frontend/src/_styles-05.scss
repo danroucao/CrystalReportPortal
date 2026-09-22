@@ -609,32 +609,6 @@ app-demo-portal .report-upload-complete-actions {
     padding-top: 0;
   }
 }
-app-demo-portal .report-discard-confirmation-backdrop {
-  z-index: 11;
-  background: rgb(32 32 31 / 55%);
-}
-app-demo-portal .report-discard-confirmation-modal {
-  width: min(27rem, 100%);
-  padding: 1.5rem;
-}
-app-demo-portal .report-discard-confirmation-modal h2 {
-  margin: 0;
-  color: var(--color-text);
-  font-size: 1.125rem;
-}
-app-demo-portal .report-discard-confirmation-modal > p:not(.report-discard-confirmation-hint) {
-  margin: 0.65rem 0 0;
-  color: var(--color-muted);
-  line-height: 1.6;
-}
-app-demo-portal .report-discard-confirmation-actions {
-  margin-top: 1.5rem;
-}
-app-demo-portal .report-discard-confirmation-hint {
-  margin: 1rem 0 0;
-  color: var(--color-muted);
-  font-size: 0.8125rem;
-}
 app-demo-portal .report-delete-dialog {
   width: min(28rem, 100%);
 }

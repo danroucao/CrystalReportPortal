@@ -11,6 +11,33 @@ table > tbody > tr:hover > td {
   transition: background-color 150ms ease;
 }
 
+/* One visual contract for every unsaved-changes confirmation. */
+app-demo-portal .unsaved-changes-backdrop {
+  z-index: 11;
+  background: rgb(32 32 31 / 55%);
+}
+
+app-demo-portal .unsaved-changes-dialog {
+  width: min(27rem, 100%);
+  padding: 1.5rem;
+}
+
+app-demo-portal .unsaved-changes-dialog h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.125rem;
+}
+
+app-demo-portal .unsaved-changes-dialog > p {
+  margin: 0.65rem 0 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+app-demo-portal .unsaved-changes-dialog .modal-actions {
+  margin-top: 1.5rem;
+}
+
 /*
  * Global button contract. Keep these classes on native buttons so every page
  * receives the same hierarchy and interaction states without a wrapper API.

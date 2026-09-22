@@ -50,6 +50,20 @@
   padding: 0;
 }
 
+/* Keep custom checkboxes square when a role dialog is resized or table columns flex. */
+.role-global-permissions input[type='checkbox'],
+.role-permission-table input[type='checkbox'] {
+  box-sizing: border-box;
+  flex: 0 0 18px;
+  inline-size: 18px;
+  block-size: 18px;
+  min-inline-size: 18px;
+  min-block-size: 18px;
+  max-inline-size: 18px;
+  max-block-size: 18px;
+  aspect-ratio: 1;
+}
+
 .role-permission-hint {
   margin: -0.3rem 0 0.65rem;
   color: var(--color-muted);
@@ -58,8 +72,6 @@
 
 .role-permission-table input[type='checkbox']:disabled {
   appearance: none;
-  width: 1rem;
-  height: 1rem;
   border: 1px solid #d6d3ce;
   border-radius: 3px;
   background: #f3f2f0;

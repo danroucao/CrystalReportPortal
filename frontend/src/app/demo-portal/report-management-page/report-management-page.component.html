@@ -366,39 +366,12 @@
   </section>
 </section>
 
-<section
+<app-unsaved-changes-dialog
   *ngIf="IsReportDiscardConfirmationOpen"
-  class="modal-backdrop report-discard-confirmation-backdrop"
-  role="presentation"
->
-  <section
-    class="edit-user-modal report-discard-confirmation-modal"
-    role="alertdialog"
-    aria-modal="true"
-    aria-labelledby="report-discard-confirmation-title"
-    aria-describedby="report-discard-confirmation-description"
-  >
-    <h2 id="report-discard-confirmation-title">捨棄未儲存變更？</h2>
-    <p id="report-discard-confirmation-description">
-      你已修改報表資料。離開後無法還原。
-    </p>
-    <div class="modal-actions report-discard-confirmation-actions">
-      <button
-        type="button"
-        class="secondary-button"
-        (click)="ContinueEditingReport()"
-      >
-        繼續編輯</button
-      ><button
-        type="button"
-        class="danger-button"
-        (click)="DiscardReportEditorChanges()"
-      >
-        捨棄變更
-      </button>
-    </div>
-  </section>
-</section>
+  subject="報表"
+  (continueEditing)="ContinueEditingReport()"
+  (discardChanges)="DiscardReportEditorChanges()"
+/>
 
 <section
   *ngIf="IsCategoryManagementDialogOpen"

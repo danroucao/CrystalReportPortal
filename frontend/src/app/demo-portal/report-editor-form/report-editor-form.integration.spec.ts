@@ -202,21 +202,21 @@ describe('Report editor form integration', () => {
       });
       await fixture.whenStable();
       expect(Element('.report-editor-modal').hasAttribute('inert')).toBeTrue();
-      const Continue = Element('.report-discard-confirmation-modal .secondary-button');
+      const Continue = Element('.unsaved-changes-dialog .secondary-button');
       expect(document.activeElement).toBe(Continue);
       Zone.run(() => {
-        const Discard = Element('.report-discard-confirmation-modal .danger-button');
+        const Discard = Element('.unsaved-changes-dialog .danger-button');
         Discard.focus();
         Discard.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
       });
       await fixture.whenStable();
       expect(document.activeElement).toBe(Continue);
-      await Click('.report-discard-confirmation-modal .secondary-button');
+      await Click('.unsaved-changes-dialog .secondary-button');
       expect(Element('#report-editor-description')).toBe(DraftInput);
       expect(DraftInput.value).toBe(`Unsaved ${Round}`);
       expect(document.activeElement).toBe(FocusTarget);
       await Click('.report-editor-modal .modal-close-button');
-      await Click('.report-discard-confirmation-modal .danger-button');
+      await Click('.unsaved-changes-dialog .danger-button');
       expect(Host.querySelector('.report-editor-modal')).toBeNull();
       expect(document.activeElement).toBe(Opener);
       expect(Rbac.GetReport(Key)?.Description).toBe('Saved via extracted editor');

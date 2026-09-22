@@ -203,9 +203,7 @@ export class DemoPortalComponent
   @ViewChild('reportEditorDialog')
   private reportEditorDialog?: ElementRef<HTMLElement>;
   @ViewChild('reportDiscardDialog')
-  private reportDiscardDialog?: ElementRef<HTMLElement>;
-  @ViewChild('reportDiscardContinueButton')
-  private reportDiscardContinueButton?: ElementRef<HTMLButtonElement>;
+  private reportDiscardDialog?: UnsavedChangesDialogComponent;
   @ViewChild(ReportManagementPageComponent)
   private reportManagementPage?: ReportManagementPageComponent;
   @ViewChild(UserManagementPageComponent)
@@ -250,9 +248,8 @@ export class DemoPortalComponent
       this.PendingNotificationDetailFocus = null;
     }
     if (this.ShouldFocusReportDiscardContinue) {
-      const ContinueButton = this.reportDiscardContinueButton?.nativeElement;
-      if (ContinueButton) {
-        ContinueButton.focus();
+      if (this.reportDiscardDialog) {
+        this.reportDiscardDialog.FocusContinueButton();
         this.ShouldFocusReportDiscardContinue = false;
       }
     }
