@@ -1,14 +1,9 @@
 :host { display: block; }
 
-/* Align the common-parameter page with the report list's filter and row rhythm. */
 .common-parameter-management {
   display: grid;
   gap: 1.25rem;
-  padding: 1.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  box-shadow: 0 8px 22px rgb(38 35 31 / 5%);
+  padding: 0;
 }
 .common-parameter-management-heading {
   align-items: flex-start;
@@ -35,7 +30,13 @@
 .common-parameter-management-filters input, .common-parameter-management-filters select, .common-parameter-form input, .common-parameter-form select, .common-parameter-form textarea { background: var(--color-surface); border: 1px solid #aaa69e; border-radius: 5px; box-sizing: border-box; font: inherit; min-height: 38px; padding: .55rem .65rem; width: 100%; }
 .common-parameter-form textarea { min-height: 6rem; resize: vertical; }
 .common-parameter-management .table-scroll { min-width: 0; }
-.common-parameter-management-table { min-width: 58rem; table-layout: fixed; width: 100%; }
+.common-parameter-management-table {
+  min-width: 0;
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
 .common-parameter-management-table th {
   height: 3.5rem;
   padding: .7rem .6rem;
@@ -46,17 +47,10 @@
   vertical-align: middle;
   white-space: nowrap;
 }
-.common-parameter-management-table th:nth-child(1) { width: 14%; }
-.common-parameter-management-table th:nth-child(2) { width: 22%; }
-.common-parameter-management-table th:nth-child(3) { width: 20%; }
-.common-parameter-management-table th:nth-child(4) { width: 16%; }
-.common-parameter-management-table th:nth-child(5) { width: 15%; }
-.common-parameter-management-table th:nth-child(6) { width: 13%; }
 .common-parameter-management-table td {
   height: 3.75rem;
   padding: .7rem .6rem;
   overflow: hidden;
-  border-top: 1px solid var(--color-border);
   text-overflow: ellipsis;
   vertical-align: middle;
   white-space: nowrap;
@@ -65,6 +59,7 @@
 .common-parameter-management-table tbody tr:hover { background: #fdf8f9; }
 .common-parameter-management-table td strong { display: block; overflow: hidden; text-overflow: ellipsis; }
 .common-parameter-management-table small { overflow: hidden; color: var(--color-muted); display: block; font-size: .75rem; margin-top: .25rem; text-overflow: ellipsis; }
+.common-parameter-order { text-align: center; white-space: nowrap; }
 .common-parameter-actions-heading { width: auto; }
 .common-parameter-actions { display: flex; gap: .4rem; justify-content: flex-end; min-width: max-content; }
 .common-parameter-actions .tertiary-button { min-width: 2rem; min-height: 2rem; padding: .25rem .45rem; }
@@ -83,7 +78,6 @@
 .common-parameter-usage-list li { margin: .45rem 0; }
 
 @media (max-width: 720px) {
-  .common-parameter-management { padding: 1rem; border-radius: 6px; }
   .common-parameter-management-heading { align-items: stretch; flex-direction: column; }
   .common-parameter-management-filters, .common-parameter-form { grid-template-columns: 1fr; }
   .common-parameter-description { grid-column: auto; }

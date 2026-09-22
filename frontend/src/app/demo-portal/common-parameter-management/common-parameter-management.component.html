@@ -19,9 +19,10 @@
 
   <div class="table-scroll">
     <table class="common-parameter-management-table">
-      <thead><tr><th>匹配用參數名稱</th><th>顯示名稱</th><th>資料型別／輸入方式</th><th>使用中的報表</th><th>狀態</th><th class="common-parameter-actions-heading"><span class="visually-hidden">操作</span></th></tr></thead>
+      <thead><tr><th scope="col" class="common-parameter-order">順序</th><th scope="col">匹配用參數名稱</th><th scope="col">顯示名稱</th><th scope="col">資料型別／輸入方式</th><th scope="col">使用中的報表</th><th scope="col">狀態</th><th scope="col" class="common-parameter-actions-heading"><span class="visually-hidden">操作</span></th></tr></thead>
       <tbody>
-        <tr *ngFor="let template of displayedTemplates; trackBy: trackTemplate">
+        <tr *ngFor="let template of displayedTemplates; let index = index; trackBy: trackTemplate">
+          <td class="common-parameter-order">{{ index + 1 }}</td>
           <td><strong>{{ template.ParameterName }}</strong></td>
           <td><span>{{ template.DisplayName }}</span><small *ngIf="template.Description">{{ template.Description }}</small></td>
           <td>{{ template.DataType }} ／ {{ template.InputType }}</td>
@@ -29,7 +30,7 @@
           <td><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="template.Enabled" [attr.aria-checked]="template.Enabled" [attr.aria-label]="template.DisplayName + (template.Enabled ? '已啟用，點擊可停用' : '已停用，點擊可啟用')" (click)="setTemplateEnabled(template, !template.Enabled)"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ template.Enabled ? '啟用' : '停用' }}</span></td>
           <td><div class="common-parameter-actions"><button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + template.DisplayName" title="編輯共用參數" (click)="openEditEditor(template)">✎</button><button type="button" class="tertiary-button" [disabled]="usageFor(template).length > 0" [attr.aria-label]="'刪除 ' + template.DisplayName" [title]="usageFor(template).length ? '仍有報表使用中，無法刪除' : '刪除共用參數'" (click)="openDeleteDialog(template)">🗑</button></div></td>
         </tr>
-        <tr *ngIf="!displayedTemplates.length"><td colspan="6" class="common-parameter-empty">目前沒有符合條件的共用參數。</td></tr>
+        <tr *ngIf="!displayedTemplates.length"><td colspan="7" class="common-parameter-empty">目前沒有符合條件的共用參數。</td></tr>
       </tbody>
     </table>
   </div>
