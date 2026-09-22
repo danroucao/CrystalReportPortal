@@ -4,6 +4,7 @@ import {
   ConfigureDemoPortalTestBed,
   LoginFrontManager,
   MockRbacService,
+  Router,
   TestBed,
 } from './testing/demo-portal.spec-helpers';
 
@@ -34,7 +35,7 @@ describe('ReportManagementPageComponent', () => {
     expect(component.ReportManagementCurrentPage).toBe(1);
   });
 
-  it('validates RPT files and persists an uploaded report inside the management page', () => {
+  it('opens parameter setup for newly detected RPT parameters after upload', () => {
     const component = createPage();
     const rbac = TestBed.inject(MockRbacService);
     component.OpenUploadReportDialog();
@@ -53,6 +54,20 @@ describe('ReportManagementPageComponent', () => {
     component.SaveReport();
 
     expect(rbac.Reports.some((report) => report.ReportName === 'New managed report')).toBeTrue();
+    expect(component.IsUploadReportDialogOpen).toBeTrue();
+    expect(component.ReportEditorTab).toBe('parameters');
+    expect(component.DetectedParameterNames).toContain('ReportType');
+  });
+
+  it('opens a report detail route from the edit action instead of a modal', () => {
+    const component = createPage();
+    const router = TestBed.inject(Router);
+    const report = component.PagedManagedReports[0];
+    spyOn(router, 'navigate').and.resolveTo(true);
+
+    component.OpenEditReportDialog(report.ReportKey);
+
+    expect(router.navigate).toHaveBeenCalledWith(['/report-management/edit', report.ReportKey]);
     expect(component.IsUploadReportDialogOpen).toBeFalse();
   });
 

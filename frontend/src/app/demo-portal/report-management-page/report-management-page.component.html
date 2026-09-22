@@ -1,4 +1,7 @@
-<section class="management-section report-management">
+<section *ngIf="!isDetailPage && !IsUploadReportDialogOpen" class="management-section report-management">
+  <app-portal-tabs [Tabs]="ManagementTabs" [ActiveTab]="ManagementTab" AriaLabel="報表管理頁籤" (TabChange)="SetManagementTab($event)" />
+
+  <ng-container *ngIf="ManagementTab === 'reports'">
   <div class="report-management-toolbar">
     <label for="report-management-start-date">開始日期
       <input id="report-management-start-date" type="date" [(ngModel)]="ReportManagementStartDate" (change)="OnReportManagementDateChange()" />
@@ -49,7 +52,7 @@
             <svg class="sort-indicator" [class.is-ascending]="GetReportManagementSortIndicator('UpdatedAt') === '↑'" [class.is-descending]="GetReportManagementSortIndicator('UpdatedAt') === '↓'" viewBox="0 0 16 24" aria-hidden="true"><path class="sort-indicator-up" d="m3 8 5-5 5 5"></path><path class="sort-indicator-down" d="m3 16 5 5 5-5"></path></svg>
           </button>
         </th>
-        <th>操作</th>
+        <th class="report-management-actions-heading"><span class="visually-hidden">操作</span></th>
       </tr></thead>
       <tbody>
         <tr *ngFor="let Report of PagedManagedReports; trackBy: TrackReportByKey" class="report-entry-row">
@@ -74,12 +77,19 @@
     </table>
   </div>
   <app-portal-pagination [CurrentPage]="ReportManagementCurrentPage" [TotalPages]="ReportManagementTotalPages" [PageNumbers]="ReportManagementPageNumbers" AriaLabel="報表管理分頁" (PageChange)="GoToReportManagementPage($event)" />
+  </ng-container>
+
+  <app-common-parameter-management *ngIf="ManagementTab === 'common-parameters'" />
 </section>
 
-<section *ngIf="IsUploadReportDialogOpen" class="modal-backdrop" (click)="RequestCloseReportEditor()">
-  <section class="edit-user-modal report-editor-modal" role="dialog" aria-modal="true" aria-labelledby="report-editor-title" [attr.aria-hidden]="IsReportDiscardConfirmationOpen ? 'true' : null" [attr.inert]="IsReportDiscardConfirmationOpen ? '' : null" (click)="$event.stopPropagation()">
-    <div class="modal-heading"><h2 id="report-editor-title">{{ EditingReportKey ? '編輯報表' : '上傳報表' }}</h2><button type="button" class="modal-close-button" aria-label="關閉報表編輯視窗" (click)="RequestCloseReportEditor()">×</button></div>
-    <app-report-editor-form variant="modal" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [isEditing]="EditingReportKey !== null" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [canAddCategory]="Auth.HasManagementPermission('RptManagement')" [quickAddOpen]="IsReportCategoryQuickAddOpen" [quickAddName]="QuickAddCategoryName" [quickAddError]="QuickAddCategoryError" (draftChange)="ReportEditorDraft = $event" (quickAddNameChange)="QuickAddCategoryName = $event; QuickAddCategoryError = ''" (submitRequested)="SaveReport()" (cancelRequested)="RequestCloseReportEditor()" (quickAddRequested)="OpenReportCategoryQuickAdd()" (quickAddCancelled)="CloseReportCategoryQuickAdd()" (quickAddSubmitted)="CreateReportCategoryQuickAdd()" (fileSelected)="OnReportFileSelected($event)" />
+<section *ngIf="isDetailPage" class="report-editor-page" aria-labelledby="report-editor-title" [attr.aria-hidden]="IsReportDiscardConfirmationOpen ? 'true' : null" [attr.inert]="IsReportDiscardConfirmationOpen ? '' : null">
+  <p class="report-editor-breadcrumb">報表管理 ／ 編輯報表</p>
+  <button type="button" class="report-editor-back-link" (click)="RequestCloseReportEditor()">← 返回報表管理</button>
+  <section class="report-editor-content">
+    <div class="report-editor-page-heading"><h2 id="report-editor-title">{{ EditingReportKey ? '編輯報表' : '上傳報表' }}</h2></div>
+    <app-portal-tabs [Tabs]="ReportEditorTabs" [ActiveTab]="ReportEditorTab" AriaLabel="報表設定頁籤" (TabChange)="SetReportEditorTab($event)" />
+    <app-report-editor-form *ngIf="ReportEditorTab === 'basic'" variant="modal" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [isEditing]="true" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [canAddCategory]="Auth.HasManagementPermission('RptManagement')" [quickAddOpen]="IsReportCategoryQuickAddOpen" [quickAddName]="QuickAddCategoryName" [quickAddError]="QuickAddCategoryError" (draftChange)="ReportEditorDraft = $event" (quickAddNameChange)="QuickAddCategoryName = $event; QuickAddCategoryError = ''" (submitRequested)="SaveReportDetail()" (cancelRequested)="RequestCloseReportEditor()" (quickAddRequested)="OpenReportCategoryQuickAdd()" (quickAddCancelled)="CloseReportCategoryQuickAdd()" (quickAddSubmitted)="CreateReportCategoryQuickAdd()" (fileSelected)="OnReportFileSelected($event)" />
+    <app-report-parameter-management *ngIf="ReportEditorTab === 'parameters' && EditingReportKey" [reportKey]="EditingReportKey" [reportName]="ReportEditorDraft.ReportName" [detectedParameterNames]="DetectedParameterNames" (detectedParametersHandled)="DetectedParameterNames = []" />
   </section>
 </section>
 

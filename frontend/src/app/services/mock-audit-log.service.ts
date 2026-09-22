@@ -97,11 +97,11 @@ export class MockAuditLogService {
       ]),
       this.Entry(2, 225, 'admin@example.com', 'BackOffice', 'SystemManagement', 'DATABASE_DELETE', '刪除已停用的資料庫連線「測試環境」。', '測試環境', [
         { Label: '刪除原因', Value: '環境下線', Tone: 'removed' },
-      ], true),
+      ]),
       this.Entry(1, 231, 'unknown@example.com', 'FrontOffice', 'Authentication', 'LOGIN_FAILURE', '帳號登入失敗：密碼錯誤。', 'unknown@example.com', [
         { Label: '失敗原因', Value: '帳號或密碼錯誤' },
         { Label: '嘗試次數', Value: '第 3 次' },
-      ], true),
+      ]),
       this.Entry(30, 1, 'admin@example.com', 'BackOffice', 'SystemManagement', 'PARAMETER_VIEW', '檢視報表參數「結帳月份」的設定。', '結帳月份', [
         { Label: '操作類型', Value: '檢視' },
       ]),
@@ -207,7 +207,6 @@ export class MockAuditLogService {
           { Label: '封存狀態', Value: '僅供檢視' },
           { Label: '封存批次', Value: `ARCHIVE-2026-${Sequence}` },
         ],
-        true,
       );
     });
   }

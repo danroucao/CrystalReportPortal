@@ -232,26 +232,6 @@ app-demo-portal
   }
 }
 
-.notification-popover-tabs {
-  display: flex;
-  gap: 0.25rem;
-  margin: 0 -0.15rem 0.6rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-.notification-popover-tabs button {
-  min-height: 30px;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  color: var(--color-muted);
-  background: transparent;
-  font-size: 0.75rem;
-}
-.notification-popover-tabs button.is-active,
-.notification-popover-tabs button:hover {
-  color: var(--color-primary);
-  background: #fdf0f2;
-}
 .profile-menu {
   position: relative;
 }

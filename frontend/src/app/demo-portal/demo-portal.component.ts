@@ -57,6 +57,7 @@ import { MockReportParameterService } from '../services/mock-report-parameter.se
 import { MockAuditLogService } from '../services/mock-audit-log.service';
 import { BoringAvatarComponent } from '../shared/boring-avatar.component';
 import { PortalPaginationComponent } from '../shared/portal-pagination.component';
+import { PortalTab, PortalTabsComponent } from '../shared/portal-tabs.component';
 import { FavoriteReportPageComponent } from './favorite-report-page/favorite-report-page.component';
 import { OperationLogPageComponent } from './operation-log-page/operation-log-page.component';
 import { PortalNavigationComponent } from './portal-navigation/portal-navigation.component';
@@ -73,6 +74,7 @@ type DemoPortalPage =
   | 'ReportPreview'
   | 'UserManagement'
   | 'RptManagement'
+  | 'ReportEdit'
   | 'ReportUpload'
   | 'DatabaseConnection'
   | 'OperationLog'
@@ -118,6 +120,7 @@ type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
     RouterLink,
     BoringAvatarComponent,
     PortalPaginationComponent,
+    PortalTabsComponent,
     PortalNavigationComponent,
     FavoriteReportPageComponent,
     OperationLogPageComponent,
@@ -259,6 +262,7 @@ export class DemoPortalComponent
       ReportPreview: '報表預覽',
       UserManagement: '使用者管理',
       RptManagement: '報表管理',
+      ReportEdit: '編輯報表',
       ReportUpload: '上傳報表',
       DatabaseConnection: 'MSSQL 資料庫連線管理',
       OperationLog: '操作紀錄查詢',
@@ -300,6 +304,20 @@ export class DemoPortalComponent
     return this.NotificationCenterTab === 'Unread'
       ? this.CurrentNotifications.filter((Item) => !Item.ReadAt)
       : this.CurrentNotifications;
+  }
+
+  get NotificationPopoverTabs(): readonly PortalTab[] {
+    return [
+      { id: 'All', label: `全部 (${this.CurrentNotifications.length})` },
+      { id: 'Unread', label: `未讀 (${this.NotificationBadgeCount})` },
+    ];
+  }
+
+  get NotificationCenterTabs(): readonly PortalTab[] {
+    return [
+      { id: 'All', label: `全部 (${this.CurrentNotifications.length})` },
+      { id: 'Unread', label: `未讀 (${this.NotificationBadgeCount})` },
+    ];
   }
 
   get NotificationCenterTotalPages(): number {
@@ -399,9 +417,17 @@ export class DemoPortalComponent
     this.NotificationPopoverTab = Tab;
   }
 
+  SetNotificationPopoverTabFromId(Tab: string): void {
+    if (Tab === 'All' || Tab === 'Unread') this.SetNotificationPopoverTab(Tab);
+  }
+
   SetNotificationCenterTab(Tab: 'All' | 'Unread'): void {
     this.NotificationCenterTab = Tab;
     this.NotificationCenterCurrentPage = 1;
+  }
+
+  SetNotificationCenterTabFromId(Tab: string): void {
+    if (Tab === 'All' || Tab === 'Unread') this.SetNotificationCenterTab(Tab);
   }
 
   GoToNotificationCenterPage(Page: number): void {
@@ -718,6 +744,7 @@ export class DemoPortalComponent
       'UserManagement',
       'OperationLog',
       'RptManagement',
+      'ReportEdit',
       'DatabaseConnection',
     ].includes(this.Page);
   }
@@ -725,7 +752,7 @@ export class DemoPortalComponent
   get CanAccessPage(): boolean {
     if (this.Page === 'NotificationCenter') return this.Auth.IsAuthenticated;
     if (this.Page === 'UserManagement') return this.Auth.IsBackOffice;
-    if (this.Page === 'RptManagement')
+    if (this.Page === 'RptManagement' || this.Page === 'ReportEdit')
       return this.Auth.HasManagementPermission('RptManagement');
     if (this.Page === 'ReportUpload')
       return this.Auth.HasManagementPermission('RptManagement');

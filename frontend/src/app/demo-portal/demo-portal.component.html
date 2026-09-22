@@ -52,30 +52,13 @@
               ×
             </button>
           </div>
-          <div
-            class="notification-popover-tabs"
-            role="tablist"
-            aria-label="近期項目分類"
-          >
-            <ng-container *ngIf="Auth.IsAuthenticated">
-              <button
-                type="button"
-                [class.is-active]="NotificationPopoverTab === 'All'"
-                (click)="SetNotificationPopoverTab('All')"
-              >
-                全部（{{ CurrentNotifications.length }}）
-              </button>
-            </ng-container>
-            <ng-container *ngIf="Auth.IsAuthenticated">
-              <button
-                type="button"
-                [class.is-active]="NotificationPopoverTab === 'Unread'"
-                (click)="SetNotificationPopoverTab('Unread')"
-              >
-                未讀（{{ NotificationBadgeCount }}）
-              </button>
-            </ng-container>
-          </div>
+          <app-portal-tabs
+            *ngIf="Auth.IsAuthenticated"
+            [Tabs]="NotificationPopoverTabs"
+            [ActiveTab]="NotificationPopoverTab"
+            AriaLabel="近期項目分類"
+            (TabChange)="SetNotificationPopoverTabFromId($event)"
+          />
           <button
             *ngFor="let Item of RecentCenterItems"
             type="button"
@@ -207,7 +190,7 @@
       </div>
     </div>
     <ng-template #DefaultPageTitle>
-      <ng-container *ngIf="Page !== 'ReportUpload'">
+      <ng-container *ngIf="Page !== 'ReportUpload' && Page !== 'ReportEdit'">
         <h1>{{ PageTitle }}</h1>
         <p *ngIf="Page === 'OperationLog'" class="operation-log-page-subtitle">
           集中檢視參數、報表、角色、資料庫與帳號登入事件。
@@ -218,30 +201,12 @@
       *ngIf="Page === 'NotificationCenter'"
       class="content-card notification-center-page"
     >
-      <div
-        class="notification-center-tabs"
-        role="tablist"
-        aria-label="通知中心頁籤"
-      >
-        <button
-          type="button"
-          [class.is-active]="NotificationCenterTab === 'All'"
-          (click)="SetNotificationCenterTab('All')"
-        >
-          全部（{{ CurrentNotifications.length }}）
-        </button>
-        <button
-          type="button"
-          [class.is-active]="NotificationCenterTab === 'Unread'"
-          (click)="SetNotificationCenterTab('Unread')"
-        >
-          未讀（{{
-            NotificationCenter.GetUnreadNotificationCount(
-              CurrentNotificationAccount
-            )
-          }}）
-        </button>
-      </div>
+      <app-portal-tabs
+        [Tabs]="NotificationCenterTabs"
+        [ActiveTab]="NotificationCenterTab"
+        AriaLabel="通知中心頁籤"
+        (TabChange)="SetNotificationCenterTabFromId($event)"
+      />
 
       <ng-container
         *ngIf="
@@ -496,7 +461,7 @@
         {{ AdminDescription }}
       </p>
       <app-user-management-page *ngIf="Page === 'UserManagement'" />
-      <app-report-management-page *ngIf="Page === 'RptManagement'" />
+      <app-report-management-page *ngIf="Page === 'RptManagement' || Page === 'ReportEdit'" [isDetailPage]="Page === 'ReportEdit'" />
       <section *ngIf="Page === 'DatabaseConnection'" class="management-section">
         <div class="management-card-heading">
           <div>

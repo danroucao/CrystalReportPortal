@@ -20,13 +20,14 @@ import {
 import { NotificationService } from '../../services/notification.service';
 import { BoringAvatarComponent } from '../../shared/boring-avatar.component';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
+import { PortalTab, PortalTabsComponent } from '../../shared/portal-tabs.component';
 
 type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
 
 @Component({
   selector: 'app-user-management-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BoringAvatarComponent, PortalPaginationComponent],
+  imports: [CommonModule, FormsModule, BoringAvatarComponent, PortalPaginationComponent, PortalTabsComponent],
   templateUrl: './user-management-page.component.html',
   styleUrl: './user-management-page.component.scss',
 })
@@ -82,6 +83,20 @@ export class UserManagementPageComponent {
     return this.FilteredUsers.slice(Start, Start + this.PaginationPageSize);
   }
 
+  get UserRoleTabs(): readonly PortalTab[] {
+    return [
+      { id: 'all', label: `全部 (${this.MockRbac.Users.length})` },
+      ...this.MockRbac.Roles.map((Role) => ({
+        id: Role.Key,
+        label: `${Role.DisplayName} (${this.MockRbac.GetRoleUserCount(Role.Key)})`,
+      })),
+    ];
+  }
+
+  get ActiveUserRoleTab(): string {
+    return this.UserRoleFilter ?? 'all';
+  }
+
   GetRoleAvatarUsers(RoleKey: MockRoleKey): readonly MockUser[] {
     return this.MockRbac.Users.filter((User) => User.Roles.includes(RoleKey)).slice(0, 4);
   }
@@ -99,6 +114,10 @@ export class UserManagementPageComponent {
   SetUserRoleFilter(RoleKey: MockRoleKey | null): void {
     this.UserRoleFilter = RoleKey;
     this.UserCurrentPage = 1;
+  }
+
+  SetUserRoleFilterFromTab(TabId: string): void {
+    this.SetUserRoleFilter(TabId === 'all' ? null : TabId as MockRoleKey);
   }
 
   GoToUserPage(Page: number): void {

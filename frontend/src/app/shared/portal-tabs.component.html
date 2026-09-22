@@ -1,0 +1,14 @@
+<nav class="portal-tabs" role="tablist" [attr.aria-label]="AriaLabel">
+  <button
+    *ngFor="let Tab of Tabs; let index = index; trackBy: trackTab"
+    type="button"
+    role="tab"
+    #tabButton
+    [class.is-active]="Tab.id === ActiveTab"
+    [attr.aria-selected]="Tab.id === ActiveTab"
+    [attr.tabindex]="Tab.id === ActiveTab ? 0 : -1"
+    [disabled]="Tab.disabled"
+    (click)="select(Tab)"
+    (keydown)="onKeydown($event, index)"
+  >{{ Tab.label }}</button>
+</nav>

@@ -1,0 +1,46 @@
+:host { display: block; }
+
+.common-template-name { display: block; font-size: .8125rem; }
+.parameter-link-button { background: transparent; border: 0; color: var(--color-primary); cursor: pointer; font: inherit; font-size: .75rem; font-weight: 700; margin-top: .25rem; padding: 0; text-decoration: underline; }
+.parameter-link-button:hover, .parameter-link-button:focus-visible { color: var(--color-primary-hover); }
+.parameter-confirmation-dialog { width: min(34rem, calc(100vw - 2rem)); }
+.report-parameter-management { display: grid; gap: 1rem; }
+.parameter-management-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.parameter-management-heading h3, .parameter-management-heading p { margin: 0; }
+.parameter-management-heading p, .parameter-management-hint, .manual-help { color: #64748b; font-size: .875rem; line-height: 1.5; }
+.parameter-management-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: #475569; font-size: .875rem; }
+.parameter-table-scroll { border: 1px solid #dce5ef; border-radius: 8px; }
+.parameter-management-table { min-width: 1080px; border-collapse: collapse; width: 100%; }
+.parameter-management-table th { background: #edf4f9; color: #27496d; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.parameter-management-table th, .parameter-management-table td { border-bottom: 1px solid #e3eaf1; padding: .65rem .55rem; text-align: left; vertical-align: middle; }
+.parameter-management-table tr:last-child td { border-bottom: 0; }
+.parameter-management-table input:not([type='checkbox']), .parameter-management-table select, .parameter-management-table textarea { box-sizing: border-box; width: 100%; min-width: 92px; border: 1px solid #d5dee8; border-radius: 4px; background: #fff; color: #243447; font: inherit; padding: .42rem .5rem; }
+.parameter-management-table textarea { min-width: 150px; resize: vertical; }
+.parameter-management-table select:disabled { background: #f1f5f9; color: #526274; }
+.parameter-checkbox { display: grid; place-items: center; }
+.parameter-checkbox input { width: 1rem; height: 1rem; accent-color: #2563a8; }
+.pending-parameter { display: block; color: #a15c00; font-size: .75rem; margin-top: .25rem; }
+.parameter-empty { color: #64748b; padding: 1.25rem !important; text-align: center !important; }
+.parameter-management-actions { display: flex; justify-content: flex-end; }
+.parameter-dialog-backdrop { align-items: center; background: rgb(15 23 42 / 48%); display: flex; inset: 0; justify-content: center; padding: 1rem; position: fixed; z-index: 30; }
+.parameter-dialog { background: #fff; border-radius: 10px; box-shadow: 0 20px 45px rgb(15 23 42 / 24%); max-height: min(720px, calc(100vh - 2rem)); overflow: auto; width: min(600px, 100%); }
+.parameter-dialog-heading { align-items: flex-start; border-bottom: 1px solid #e3eaf1; display: flex; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; }
+.parameter-dialog-heading h2, .parameter-dialog-heading p { margin: 0; }
+.parameter-dialog-heading p { color: #64748b; margin-top: .35rem; }
+.detected-parameter-list { display: grid; gap: .75rem; padding: 1.25rem 1.5rem; }
+.detected-parameter-list label { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(10rem, 1fr) minmax(0, 1.5fr); }
+.detected-parameter-list input, .manual-parameter-form input, .manual-parameter-form select, .manual-parameter-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; font: inherit; padding: .58rem .65rem; }
+.parameter-mode-control { display: block; padding: 1.25rem 1.5rem 0; }
+.manual-parameter-form { display: grid; gap: .9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 1.25rem 1.5rem; }
+.manual-parameter-form > label { display: grid; gap: .4rem; font-weight: 700; }
+.manual-description, .manual-help, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: 1 / -1; }
+.inline-option { align-items: center; display: flex !important; font-weight: 400 !important; gap: .5rem; }
+.inline-option input { width: auto !important; }
+.modal-actions { display: flex; gap: .75rem; justify-content: flex-end; margin: 0; padding: 1rem 1.5rem; }
+.manual-parameter-form .modal-actions { border-top: 1px solid #e3eaf1; margin: .25rem -1.5rem -1.25rem; }
+@media (max-width: 720px) {
+  .parameter-management-heading, .parameter-management-toolbar { align-items: stretch; flex-direction: column; }
+  .parameter-management-heading .secondary-button { align-self: flex-start; }
+  .detected-parameter-list label, .manual-parameter-form { grid-template-columns: 1fr; }
+  .manual-description, .manual-help, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: auto; }
+}

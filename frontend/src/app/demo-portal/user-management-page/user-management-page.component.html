@@ -75,25 +75,12 @@
         </svg>
       </label>
     </div>
-    <nav class="role-filter-tabs" aria-label="依角色篩選使用者">
-      <button
-        type="button"
-        [class.is-active]="UserRoleFilter === null"
-        [attr.aria-pressed]="UserRoleFilter === null"
-        (click)="SetUserRoleFilter(null)"
-      >
-        全部 ({{ MockRbac.Users.length }})
-      </button>
-      <button
-        *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey"
-        type="button"
-        [class.is-active]="UserRoleFilter === Role.Key"
-        [attr.aria-pressed]="UserRoleFilter === Role.Key"
-        (click)="SetUserRoleFilter(Role.Key)"
-      >
-        {{ Role.DisplayName }} ({{ MockRbac.GetRoleUserCount(Role.Key) }})
-      </button>
-    </nav>
+    <app-portal-tabs
+      [Tabs]="UserRoleTabs"
+      [ActiveTab]="ActiveUserRoleTab"
+      AriaLabel="依角色篩選使用者"
+      (TabChange)="SetUserRoleFilterFromTab($event)"
+    />
     <div class="table-scroll user-table-scroll">
       <div class="user-table-content-area">
         <table class="user-management-table">
@@ -237,65 +224,14 @@
             <p>設定此角色可使用的系統功能。</p>
           </div>
           <div class="permission-dependency-group">
-            <div class="permission-parent-row">
-              <label class="permission-parent"
-                ><input
-                  type="checkbox"
-                  [ngModel]="
-                    RoleDraft.ManagementPermissions.includes('RptManagement')
-                  "
-                  [ngModelOptions]="{ standalone: true }"
-                  (ngModelChange)="
-                    ToggleManagementPermission('RptManagement', $event)
-                  "
-                />報表管理</label
-              >
-              <button
-                type="button"
-                class="permission-expand-button"
-                [attr.aria-expanded]="IsReportManagementExpanded"
-                aria-controls="report-management-children"
-                (click)="ToggleReportManagementExpanded()"
-              >
-                <span class="sr-only"
-                  >{{
-                    IsReportManagementExpanded ? "收合" : "展開"
-                  }}報表管理子權限</span
-                ><span aria-hidden="true">{{
-                  IsReportManagementExpanded ? "⌃" : "⌄"
-                }}</span>
-              </button>
-            </div>
-            <div
-              id="report-management-children"
-              class="permission-child"
-              [class.is-unavailable]="
-                !CanAssignManagementPermission('ArchivedFormData')
-              "
+            <label class="permission-parent"
+              ><input
+                type="checkbox"
+                [ngModel]="RoleDraft.ManagementPermissions.includes('RptManagement')"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="ToggleManagementPermission('RptManagement', $event)"
+              />報表管理</label
             >
-              <label
-                ><input
-                  type="checkbox"
-                  [ngModel]="
-                    RoleDraft.ManagementPermissions.includes('ArchivedFormData')
-                  "
-                  [ngModelOptions]="{ standalone: true }"
-                  [disabled]="
-                    !CanAssignManagementPermission('ArchivedFormData')
-                  "
-                  aria-describedby="archived-form-help"
-                  (ngModelChange)="
-                    ToggleManagementPermission('ArchivedFormData', $event)
-                  "
-                />檢視已封存表單資料</label
-              >
-              <p id="archived-form-help">
-                僅可檢視，無法修改、刪除或還原。<span
-                  *ngIf="!CanAssignManagementPermission('ArchivedFormData')"
-                  >需先啟用「報表管理」。</span
-                >
-              </p>
-            </div>
           </div>
           <label class="standalone-management-permission"
             ><input
@@ -310,67 +246,14 @@
             />資料庫連線管理</label
           >
           <div class="permission-dependency-group">
-            <div class="permission-parent-row">
-              <label class="permission-parent"
-                ><input
-                  type="checkbox"
-                  [ngModel]="
-                    RoleDraft.ManagementPermissions.includes('OperationLog')
-                  "
-                  [ngModelOptions]="{ standalone: true }"
-                  (ngModelChange)="
-                    ToggleManagementPermission('OperationLog', $event)
-                  "
-                />操作紀錄查詢</label
-              >
-              <button
-                type="button"
-                class="permission-expand-button"
-                [attr.aria-expanded]="IsOperationLogExpanded"
-                aria-controls="operation-log-children"
-                (click)="ToggleOperationLogExpanded()"
-              >
-                <span class="sr-only"
-                  >{{
-                    IsOperationLogExpanded ? "收合" : "展開"
-                  }}操作紀錄子權限</span
-                ><span aria-hidden="true">{{
-                  IsOperationLogExpanded ? "⌃" : "⌄"
-                }}</span>
-              </button>
-            </div>
-            <div
-              id="operation-log-children"
-              class="permission-child"
-              [class.is-unavailable]="
-                !CanAssignManagementPermission('ArchivedOperationLog')
-              "
+            <label class="permission-parent"
+              ><input
+                type="checkbox"
+                [ngModel]="RoleDraft.ManagementPermissions.includes('OperationLog')"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="ToggleManagementPermission('OperationLog', $event)"
+              />操作紀錄查詢</label
             >
-              <label
-                ><input
-                  type="checkbox"
-                  [ngModel]="
-                    RoleDraft.ManagementPermissions.includes(
-                      'ArchivedOperationLog'
-                    )
-                  "
-                  [ngModelOptions]="{ standalone: true }"
-                  [disabled]="
-                    !CanAssignManagementPermission('ArchivedOperationLog')
-                  "
-                  aria-describedby="archived-log-help"
-                  (ngModelChange)="
-                    ToggleManagementPermission('ArchivedOperationLog', $event)
-                  "
-                />檢視已封存操作紀錄</label
-              >
-              <p id="archived-log-help">
-                僅可檢視封存紀錄。<span
-                  *ngIf="!CanAssignManagementPermission('ArchivedOperationLog')"
-                  >需先啟用「操作紀錄查詢」。</span
-                >
-              </p>
-            </div>
           </div>
         </section>
         <section

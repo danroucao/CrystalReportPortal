@@ -1,0 +1,71 @@
+<section class="common-parameter-management" aria-labelledby="common-parameter-management-title">
+  <header class="common-parameter-management-heading">
+    <div>
+      <h2 id="common-parameter-management-title">共用參數管理</h2>
+      <p>集中管理可跨報表套用的參數範本；範本更新不會自動改變已套用的報表。</p>
+    </div>
+    <button type="button" class="primary-button" (click)="openCreateEditor()">＋ 新增共用參數</button>
+  </header>
+
+  <div class="common-parameter-management-filters">
+    <label for="common-parameter-status">狀態
+      <select id="common-parameter-status" [(ngModel)]="enabledFilter"><option value="all">全部</option><option value="enabled">啟用</option><option value="disabled">停用</option></select>
+    </label>
+    <label for="common-parameter-search">搜尋
+      <input id="common-parameter-search" [(ngModel)]="searchText" placeholder="參數名稱、顯示名稱或說明" />
+    </label>
+  </div>
+  <p *ngIf="actionError" class="field-error" role="alert">{{ actionError }}</p>
+
+  <div class="table-scroll">
+    <table class="common-parameter-management-table">
+      <thead><tr><th>匹配用參數名稱</th><th>顯示名稱</th><th>資料型別／輸入方式</th><th>使用中的報表</th><th>狀態</th><th class="common-parameter-actions-heading"><span class="visually-hidden">操作</span></th></tr></thead>
+      <tbody>
+        <tr *ngFor="let template of displayedTemplates; trackBy: trackTemplate">
+          <td><strong>{{ template.ParameterName }}</strong></td>
+          <td><span>{{ template.DisplayName }}</span><small *ngIf="template.Description">{{ template.Description }}</small></td>
+          <td>{{ template.DataType }} ／ {{ template.InputType }}</td>
+          <td><button type="button" class="usage-count-button" (click)="openUsage(template)">{{ usageFor(template).length }} 份報表</button></td>
+          <td><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="template.Enabled" [attr.aria-checked]="template.Enabled" [attr.aria-label]="template.DisplayName + (template.Enabled ? '已啟用，點擊可停用' : '已停用，點擊可啟用')" (click)="setTemplateEnabled(template, !template.Enabled)"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ template.Enabled ? '啟用' : '停用' }}</span></td>
+          <td><div class="common-parameter-actions"><button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + template.DisplayName" title="編輯共用參數" (click)="openEditEditor(template)">✎</button><button type="button" class="tertiary-button" [disabled]="usageFor(template).length > 0" [attr.aria-label]="'刪除 ' + template.DisplayName" [title]="usageFor(template).length ? '仍有報表使用中，無法刪除' : '刪除共用參數'" (click)="openDeleteDialog(template)">🗑</button></div></td>
+        </tr>
+        <tr *ngIf="!displayedTemplates.length"><td colspan="6" class="common-parameter-empty">目前沒有符合條件的共用參數。</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section *ngIf="isEditorOpen" class="modal-backdrop" (click)="closeEditor()">
+  <section class="edit-user-modal common-parameter-editor" role="dialog" aria-modal="true" aria-labelledby="common-parameter-editor-title" (click)="$event.stopPropagation()">
+    <div class="modal-heading"><h2 id="common-parameter-editor-title">{{ editingTemplateId ? '編輯共用參數' : '新增共用參數' }}</h2><button type="button" class="modal-close-button" aria-label="關閉共用參數編輯視窗" (click)="closeEditor()">×</button></div>
+    <form class="common-parameter-form" (ngSubmit)="saveTemplate()" novalidate>
+      <label>匹配用參數名稱<span class="required-indicator">*</span><input name="commonParameterName" [(ngModel)]="draft.ParameterName" placeholder="例如 StartDate" /></label>
+      <label>顯示名稱<span class="required-indicator">*</span><input name="commonDisplayName" [(ngModel)]="draft.DisplayName" placeholder="例如 開始日期" /></label>
+      <label>資料型別<select name="commonDataType" [ngModel]="draft.DataType" (ngModelChange)="updateDraftType($event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></label>
+      <label>輸入方式<select name="commonInputType" [(ngModel)]="draft.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></label>
+      <label>預設值<input name="commonDefaultValue" [(ngModel)]="draft.DefaultValue" /></label>
+      <label class="common-parameter-description">說明<textarea name="commonDescription" rows="3" [(ngModel)]="draft.Description"></textarea></label>
+      <label class="inline-option"><input type="checkbox" name="commonRequired" [(ngModel)]="draft.Required" /> 必填</label>
+      <label class="inline-option"><input type="checkbox" name="commonVisible" [(ngModel)]="draft.Visible" /> 顯示於執行頁</label>
+      <p *ngIf="editorError" class="field-error common-parameter-description" role="alert">{{ editorError }}</p>
+      <div class="modal-actions common-parameter-description"><button type="button" class="tertiary-button" (click)="closeEditor()">取消</button><button type="submit" class="primary-button">儲存</button></div>
+    </form>
+  </section>
+</section>
+
+<section *ngIf="selectedUsageTemplate" class="modal-backdrop" (click)="closeUsage()">
+  <section class="edit-user-modal common-parameter-usage-dialog" role="dialog" aria-modal="true" aria-labelledby="common-parameter-usage-title" (click)="$event.stopPropagation()">
+    <div class="modal-heading"><h2 id="common-parameter-usage-title">使用中的報表</h2><button type="button" class="modal-close-button" aria-label="關閉使用中的報表視窗" (click)="closeUsage()">×</button></div>
+    <p>「{{ selectedUsageTemplate.DisplayName }}」目前被下列報表使用：</p>
+    <ul class="common-parameter-usage-list"><li *ngFor="let report of usageFor(selectedUsageTemplate)">{{ report.ReportName }}</li><li *ngIf="!usageFor(selectedUsageTemplate).length">目前沒有報表使用此範本。</li></ul>
+    <div class="modal-actions"><button type="button" class="tertiary-button" (click)="closeUsage()">關閉</button></div>
+  </section>
+</section>
+
+<section *ngIf="deletingTemplate" class="modal-backdrop" (click)="closeDeleteDialog()">
+  <section class="edit-user-modal common-parameter-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="common-parameter-delete-title" (click)="$event.stopPropagation()">
+    <h2 id="common-parameter-delete-title">刪除共用參數</h2><p>確定要刪除「{{ deletingTemplate.DisplayName }}」嗎？此動作無法復原。</p>
+    <p *ngIf="usageFor(deletingTemplate).length" class="field-error">此範本目前仍有報表使用，無法刪除。</p><p *ngIf="deleteError" class="field-error" role="alert">{{ deleteError }}</p>
+    <div class="modal-actions"><button type="button" class="danger-button" [disabled]="usageFor(deletingTemplate).length > 0" (click)="confirmDelete()">確認刪除</button><button type="button" class="tertiary-button" (click)="closeDeleteDialog()">取消</button></div>
+  </section>
+</section>

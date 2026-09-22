@@ -1,0 +1,37 @@
+:host {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.portal-tabs {
+  align-items: flex-end;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: .25rem;
+  inline-size: 100%;
+  min-height: 3.5rem;
+  min-inline-size: 0;
+  overflow-x: auto;
+}
+
+.portal-tabs button {
+  align-self: stretch;
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: .9375rem;
+  font-weight: 700;
+  padding: 0 1rem;
+  white-space: nowrap;
+}
+
+.portal-tabs button:hover:not(:disabled) { color: var(--color-primary); }
+.portal-tabs button.is-active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
+.portal-tabs button:disabled { cursor: not-allowed; opacity: .45; }
+.portal-tabs button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: -3px; }

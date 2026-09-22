@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, Input, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { MockReportCategory } from '../../mock/mock-report-categories';
 import { MockReportKey, MockReportReadModel } from '../../mock/mock-reports';
@@ -9,9 +9,13 @@ import { AuthService } from '../../services/auth.service';
 import { MockNotificationCenterService } from '../../services/mock-notification-center.service';
 import { MockRbacService } from '../../services/mock-rbac.service';
 import { NotificationService } from '../../services/notification.service';
+import { MockManagedReportParameterService } from '../../services/mock-managed-report-parameter.service';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
+import { PortalTab, PortalTabsComponent } from '../../shared/portal-tabs.component';
 import { ReportEditorFormComponent } from '../report-editor-form/report-editor-form.component';
 import { ReportEditorDraft } from '../report-editor-form/report-editor-form.model';
+import { ReportParameterManagementComponent } from '../report-parameter-management/report-parameter-management.component';
+import { CommonParameterManagementComponent } from '../common-parameter-management/common-parameter-management.component';
 
 type ReportManagementSortField = 'ReportName' | 'CreatedAt' | 'UpdatedAt';
 type ReportManagementSortDirection = 'asc' | 'desc';
@@ -28,19 +32,26 @@ type ReportManagementSortDirection = 'asc' | 'desc';
     CommonModule,
     FormsModule,
     PortalPaginationComponent,
+    PortalTabsComponent,
     ReportEditorFormComponent,
+    ReportParameterManagementComponent,
+    CommonParameterManagementComponent,
   ],
   templateUrl: './report-management-page.component.html',
   styleUrl: './report-management-page.component.scss',
 })
-export class ReportManagementPageComponent {
+export class ReportManagementPageComponent implements OnInit {
   readonly PaginationPageSize = 10;
   readonly AllCategoryFilterValue = 'ALL';
   readonly Auth = inject(AuthService);
   readonly MockRbac = inject(MockRbacService);
   readonly Notifications = inject(NotificationService);
   readonly NotificationCenter = inject(MockNotificationCenterService);
+  readonly ManagedParameters = inject(MockManagedReportParameterService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  @Input() isDetailPage = false;
 
   ReportManagementStartDate = '';
   ReportManagementEndDate = '';
@@ -50,6 +61,11 @@ export class ReportManagementPageComponent {
   ReportManagementSortField: ReportManagementSortField | null = null;
   ReportManagementSortDirection: ReportManagementSortDirection = 'asc';
   ReportManagementCurrentPage = 1;
+  ManagementTab: 'reports' | 'common-parameters' = 'reports';
+  readonly ManagementTabs: readonly PortalTab[] = [
+    { id: 'reports', label: '報表清單' },
+    { id: 'common-parameters', label: '共用參數管理' },
+  ];
   private readonly PinnedReportManagementKeys = new Set<MockReportKey>();
 
   IsCategoryManagementDialogOpen = false;
@@ -72,8 +88,18 @@ export class ReportManagementPageComponent {
   SelectedReportFileName = '';
   ReportEditorError = '';
   IsReportFileInvalid = false;
+  ReportEditorTab: 'basic' | 'parameters' = 'basic';
+  DetectedParameterNames: readonly string[] = [];
   private ReportEditorInitialDraft: ReportEditorDraft | null = null;
   private InitialReportFileName = '';
+
+  ngOnInit(): void {
+    if (!this.isDetailPage) return;
+    const ReportKey = this.route.snapshot.paramMap.get('reportKey') as MockReportKey | null;
+    if (!ReportKey || !this.LoadReportDetail(ReportKey)) {
+      void this.router.navigate(['/report-management']);
+    }
+  }
 
   get ReportManagementCategories(): readonly MockReportCategory[] {
     return this.MockRbac.GetReportManagementCategories();
@@ -330,9 +356,28 @@ export class ReportManagementPageComponent {
     void this.router.navigate(['/report-management/upload']);
   }
 
+  get ReportEditorTabs(): readonly PortalTab[] {
+    return [
+      { id: 'basic', label: '基本資訊' },
+      { id: 'parameters', label: '參數設定', disabled: !this.EditingReportKey },
+    ];
+  }
+
+  SetManagementTab(Tab: string): void {
+    if (Tab === 'reports' || Tab === 'common-parameters') this.ManagementTab = Tab;
+  }
+
+  SetReportEditorTab(Tab: string): void {
+    if (Tab === 'basic' || (Tab === 'parameters' && this.EditingReportKey)) {
+      this.ReportEditorTab = Tab;
+    }
+  }
+
   OpenUploadReportDialog(): void {
     if (!this.HasReportManagementPermission()) return;
     this.EditingReportKey = null;
+    this.ReportEditorTab = 'basic';
+    this.DetectedParameterNames = [];
     this.ReportEditorDraft = this.CreateReportEditorDraft();
     this.SelectedReportFileName = '';
     this.ResetReportEditorState();
@@ -341,22 +386,11 @@ export class ReportManagementPageComponent {
 
   OpenEditReportDialog(ReportKey: MockReportKey): void {
     if (!this.HasReportManagementPermission()) return;
-    const Report = this.MockRbac.GetReport(ReportKey);
-    if (!Report) return;
-    this.EditingReportKey = Report.ReportKey;
-    this.ReportEditorDraft = {
-      ReportName: Report.ReportName,
-      Description: Report.Description,
-      CategoryId: Report.CategoryId,
-      Enabled: Report.Enabled,
-    };
-    this.SelectedReportFileName = Report.FileName;
-    this.ResetReportEditorState();
-    this.IsUploadReportDialogOpen = true;
+    void this.router.navigate(['/report-management/edit', ReportKey]);
   }
 
   RequestCloseReportEditor(): void {
-    if (!this.IsUploadReportDialogOpen) return;
+    if (!this.IsUploadReportDialogOpen && !this.isDetailPage) return;
     if (!this.IsReportEditorDirty()) {
       this.CloseReportEditor();
       return;
@@ -376,15 +410,18 @@ export class ReportManagementPageComponent {
     this.IsUploadReportDialogOpen = false;
     this.IsReportDiscardConfirmationOpen = false;
     this.EditingReportKey = null;
+    this.ReportEditorTab = 'basic';
+    this.DetectedParameterNames = [];
     this.ReportEditorDraft = this.CreateReportEditorDraft();
     this.SelectedReportFileName = '';
     this.ResetReportEditorState();
     this.ReportEditorInitialDraft = null;
     this.InitialReportFileName = '';
+    if (this.isDetailPage) void this.router.navigate(['/report-management']);
   }
 
   OpenReportCategoryQuickAdd(): void {
-    if (!this.HasReportManagementPermission() || !this.IsUploadReportDialogOpen) return;
+    if (!this.HasReportManagementPermission() || (!this.IsUploadReportDialogOpen && !this.isDetailPage)) return;
     this.QuickAddCategoryName = '';
     this.QuickAddCategoryError = '';
     this.IsReportCategoryQuickAddOpen = true;
@@ -439,19 +476,87 @@ export class ReportManagementPageComponent {
       return;
     }
     const IsEditing = this.EditingReportKey !== null;
+    let SavedReport: MockReportReadModel | null = null;
     const IsSaved = IsEditing
-      ? this.MockRbac.UpdateReport(this.EditingReportKey!, {
-          ...this.ReportEditorDraft,
-          FileName: this.SelectedReportFileName,
-        })
-      : Boolean(this.MockRbac.CreateReport({ ...this.ReportEditorDraft, FileName: this.SelectedReportFileName }));
+      ? (() => {
+          const IsUpdated = this.MockRbac.UpdateReport(this.EditingReportKey!, {
+            ...this.ReportEditorDraft,
+            FileName: this.SelectedReportFileName,
+          });
+          SavedReport = IsUpdated ? this.MockRbac.GetReport(this.EditingReportKey!) : null;
+          return Boolean(SavedReport);
+        })()
+      : (() => {
+          SavedReport = this.MockRbac.CreateReport({
+            ...this.ReportEditorDraft,
+            FileName: this.SelectedReportFileName,
+          });
+          return Boolean(SavedReport);
+        })();
     if (!IsSaved) {
       this.ReportEditorError = '儲存報表失敗，請重新確認欄位。';
       return;
     }
     this.EnsureReportManagementPagination();
+    const DetectedParameterNames =
+      !IsEditing || this.InitialReportFileName !== this.SelectedReportFileName
+        ? this.ManagedParameters.RecognizeUploadedRptParameters(SavedReport!.ReportKey)
+        : [];
+    if (DetectedParameterNames.length) {
+      this.EditingReportKey = SavedReport!.ReportKey;
+      this.ReportEditorDraft = {
+        ReportName: SavedReport!.ReportName,
+        Description: SavedReport!.Description,
+        CategoryId: SavedReport!.CategoryId,
+        Enabled: SavedReport!.Enabled,
+      };
+      this.SelectedReportFileName = SavedReport!.FileName;
+      this.ReportEditorTab = 'parameters';
+      this.DetectedParameterNames = DetectedParameterNames;
+      this.ResetReportEditorState();
+      this.ShowSuccessToast('RPT 上傳完成，請確認新辨識的參數。');
+      return;
+    }
     this.CloseReportEditor();
     this.ShowSuccessToast(IsEditing ? 'Mock 報表已更新。' : 'Mock 報表已上傳。');
+  }
+
+  SaveReportDetail(): void {
+    if (!this.isDetailPage || !this.EditingReportKey || !this.HasReportManagementPermission()) return;
+    const Error = this.GetReportEditorValidationError();
+    if (Error) {
+      this.ReportEditorError = Error;
+      return;
+    }
+    const ReportKey = this.EditingReportKey;
+    const FileChanged = this.InitialReportFileName !== this.SelectedReportFileName;
+    const IsUpdated = this.MockRbac.UpdateReport(ReportKey, {
+      ...this.ReportEditorDraft,
+      FileName: this.SelectedReportFileName,
+    });
+    if (!IsUpdated) {
+      this.ReportEditorError = '儲存報表失敗，請重新確認欄位。';
+      return;
+    }
+    const Updated = this.MockRbac.GetReport(ReportKey);
+    if (!Updated) return;
+    this.ReportEditorDraft = {
+      ReportName: Updated.ReportName,
+      Description: Updated.Description,
+      CategoryId: Updated.CategoryId,
+      Enabled: Updated.Enabled,
+    };
+    this.SelectedReportFileName = Updated.FileName;
+    this.DetectedParameterNames = FileChanged
+      ? this.ManagedParameters.RecognizeUploadedRptParameters(ReportKey)
+      : [];
+    this.ResetReportEditorState();
+    if (this.DetectedParameterNames.length) {
+      this.ReportEditorTab = 'parameters';
+      this.ShowSuccessToast('報表已儲存，請確認新辨識的參數。');
+      return;
+    }
+    this.ShowSuccessToast('報表已更新。');
   }
 
   OpenDeleteReportDialog(ReportKey: MockReportKey): void {
@@ -476,6 +581,23 @@ export class ReportManagementPageComponent {
 
   private HasReportManagementPermission(): boolean {
     return this.Auth.HasManagementPermission('RptManagement');
+  }
+
+  private LoadReportDetail(ReportKey: MockReportKey): boolean {
+    const Report = this.MockRbac.GetReport(ReportKey);
+    if (!Report) return false;
+    this.EditingReportKey = Report.ReportKey;
+    this.ReportEditorTab = 'basic';
+    this.DetectedParameterNames = [];
+    this.ReportEditorDraft = {
+      ReportName: Report.ReportName,
+      Description: Report.Description,
+      CategoryId: Report.CategoryId,
+      Enabled: Report.Enabled,
+    };
+    this.SelectedReportFileName = Report.FileName;
+    this.ResetReportEditorState();
+    return true;
   }
 
   private ResetReportManagementPagination(): void {

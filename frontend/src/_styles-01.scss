@@ -394,9 +394,7 @@ app-demo-portal .visually-hidden {
   background: transparent;
   text-align: left;
 }
-.notification-preview:hover,
-.notification-center-tabs button:hover,
-.notification-center-tabs button.is-active {
+.notification-preview:hover {
   color: var(--color-primary);
   background: #fdf0f2;
 }
@@ -460,16 +458,6 @@ app-demo-portal .notification-detail-actions {
 .work-item-actions {
   display: grid;
   gap: 1rem;
-}
-.notification-center-tabs {
-  display: flex;
-  gap: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-.notification-center-tabs button {
-  border-radius: 5px 5px 0 0;
-  color: var(--color-muted);
-  background: transparent;
 }
 .center-item {
   padding: 1rem;
@@ -767,8 +755,6 @@ app-demo-portal button.danger-button:active:not(:disabled) {
 app-demo-portal button.notification-bell,
 app-demo-portal button.notification-close,
 app-demo-portal button.notification-preview,
-app-demo-portal .notification-popover-tabs button,
-app-demo-portal .notification-center-tabs button,
 app-demo-portal button.profile-trigger,
 app-demo-portal .profile-popover-links button {
   border-color: transparent;
@@ -782,23 +768,12 @@ app-demo-portal button.profile-logout {
   background: transparent;
   box-shadow: none;
 }
-app-demo-portal .notification-popover-tabs button,
-app-demo-portal .notification-center-tabs button {
-  color: var(--color-muted);
-}
-app-demo-portal .notification-popover-tabs button.is-active,
-app-demo-portal .notification-center-tabs button.is-active {
-  color: var(--color-primary);
-  background: #fdf0f2;
-}
 app-demo-portal button.profile-trigger[aria-expanded="true"] {
   color: var(--color-primary);
   background: #fdf0f2;
 }
 app-demo-portal button.notification-bell:hover:not(:disabled),
 app-demo-portal button.notification-preview:hover:not(:disabled),
-app-demo-portal .notification-popover-tabs button:hover:not(:disabled),
-app-demo-portal .notification-center-tabs button:hover:not(:disabled),
 app-demo-portal button.profile-trigger:hover:not(:disabled),
 app-demo-portal .profile-popover-links button:hover:not(:disabled) {
   border-color: transparent;

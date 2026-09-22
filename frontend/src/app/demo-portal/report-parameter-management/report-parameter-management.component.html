@@ -1,0 +1,98 @@
+<section class="report-parameter-management" aria-labelledby="parameter-management-title">
+  <header class="parameter-management-heading">
+    <div>
+      <h3 id="parameter-management-title">報表查詢參數配置</h3>
+      <p>管理 {{ reportName }} 的 RPT 參數；常用參數可由所有具報表管理權限者重複套用。</p>
+    </div>
+    <button type="button" class="secondary-button" (click)="openManualDialog()"><span aria-hidden="true">＋</span> 新增參數</button>
+  </header>
+
+  <div class="parameter-management-toolbar">
+    <span>{{ parameters.length }} 項參數</span>
+    <span class="parameter-management-hint">「加入常用」會使用此列目前的設定建立共用範本。</span>
+  </div>
+
+  <div class="table-scroll parameter-table-scroll">
+    <table class="parameter-management-table">
+      <thead>
+        <tr>
+          <th scope="col">順序</th><th scope="col">參數名稱</th><th scope="col">顯示名稱</th>
+          <th scope="col">資料類型</th><th scope="col">輸入類型</th><th scope="col">必填</th>
+          <th scope="col">可見</th><th scope="col">預設值</th><th scope="col">常用參數</th><th scope="col">說明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let parameter of parameters; let index = index; trackBy: trackParameter">
+          <td>{{ index + 1 }}</td>
+          <td><strong>{{ parameter.ParameterName }}</strong><small *ngIf="!parameter.IsConfigured" class="pending-parameter">待設定</small></td>
+          <td><input [name]="'display-name-' + parameter.ParameterId" [(ngModel)]="parameter.DisplayName" /></td>
+          <td><select [name]="'data-type-' + parameter.ParameterId" [ngModel]="parameter.DataType" (ngModelChange)="updateParameterType(parameter, $event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></td>
+          <td><select [name]="'input-type-' + parameter.ParameterId" [(ngModel)]="parameter.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></td>
+          <td><label class="parameter-checkbox"><input type="checkbox" [name]="'required-' + parameter.ParameterId" [(ngModel)]="parameter.Required" /><span class="visually-hidden">{{ parameter.DisplayName }}必填</span></label></td>
+          <td><label class="parameter-checkbox"><input type="checkbox" [name]="'visible-' + parameter.ParameterId" [(ngModel)]="parameter.Visible" /><span class="visually-hidden">{{ parameter.DisplayName }}可見</span></label></td>
+          <td><input [name]="'default-' + parameter.ParameterId" [(ngModel)]="parameter.DefaultValue" /></td>
+          <td>
+            <ng-container *ngIf="parameter.CommonTemplateId; else TemplateAvailable">
+              <strong class="common-template-name">{{ parameter.CommonTemplateName }}</strong>
+              <button type="button" class="parameter-link-button" (click)="detachTemplate(parameter)">解除關聯</button>
+            </ng-container>
+            <ng-template #TemplateAvailable>
+              <button *ngIf="matchingTemplateName(parameter) as templateName" type="button" class="parameter-link-button" (click)="requestTemplateApply(parameter)">套用「{{ templateName }}」</button>
+              <select [name]="'common-' + parameter.ParameterId" [ngModel]="getCommonSelection(parameter)" (ngModelChange)="setCommonSelection(parameter, $event)">
+                <option value="none">非常用</option><option value="add">加入共用</option>
+              </select>
+            </ng-template>
+          </td>
+          <td><textarea [name]="'description-' + parameter.ParameterId" rows="2" [(ngModel)]="parameter.Description"></textarea></td>
+        </tr>
+        <tr *ngIf="!parameters.length"><td colspan="10" class="parameter-empty">目前沒有已設定的參數。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p *ngIf="saveError" class="field-error" role="alert">{{ saveError }}</p>
+  <footer class="parameter-management-actions"><button type="button" class="primary-button" (click)="saveParameters()">儲存參數設定</button></footer>
+</section>
+
+<section *ngIf="pendingTemplateApply" class="parameter-dialog-backdrop" (click)="cancelTemplateApply()">
+  <section class="parameter-dialog parameter-confirmation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="apply-common-template-title" (click)="$event.stopPropagation()">
+    <div class="parameter-dialog-heading"><div><h2 id="apply-common-template-title">套用共用範本</h2><p>套用後會覆蓋此報表參數的顯示名稱、型別、輸入方式、規則與預設值；RPT 原始參數名稱不會改變。</p></div></div>
+    <div class="modal-actions"><button type="button" class="tertiary-button" (click)="cancelTemplateApply()">取消</button><button type="button" class="primary-button" (click)="confirmTemplateApply()">確認套用</button></div>
+  </section>
+</section>
+
+<section *ngIf="isDetectedDialogOpen" class="parameter-dialog-backdrop" role="presentation">
+  <section class="parameter-dialog" role="dialog" aria-modal="true" aria-labelledby="detected-parameter-title">
+    <div class="parameter-dialog-heading"><div><h2 id="detected-parameter-title">偵測到新的 RPT 參數</h2><p>請確認顯示名稱；其餘設定會先帶入建議預設值。</p></div></div>
+    <div class="detected-parameter-list">
+      <label *ngFor="let name of detectedParameterNames">
+        <span>{{ name }}</span>
+        <input [name]="'detected-display-' + name" [(ngModel)]="detectedDisplayNames[getDetectedParameterId(name)]" placeholder="請輸入顯示名稱" />
+      </label>
+    </div>
+    <div class="modal-actions"><button type="button" class="tertiary-button" (click)="postponeDetectedParameters()">稍後設定</button><button type="button" class="primary-button" (click)="saveDetectedParameters()">加入參數設定</button></div>
+  </section>
+</section>
+
+<section *ngIf="isManualDialogOpen" class="parameter-dialog-backdrop" (click)="closeManualDialog()">
+  <section class="parameter-dialog parameter-manual-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-parameter-title" (click)="$event.stopPropagation()">
+    <div class="parameter-dialog-heading"><div><h2 id="manual-parameter-title">新增參數</h2><p>可新增目前 RPT 的參數，或預先建立只供未來套用的常用範本。</p></div><button type="button" class="modal-close-button" aria-label="關閉新增參數視窗" (click)="closeManualDialog()">×</button></div>
+    <app-portal-tabs class="parameter-mode-control" [Tabs]="manualModeTabs" [ActiveTab]="manualMode" AriaLabel="新增方式" (TabChange)="setManualModeFromTab($event)" />
+    <form class="manual-parameter-form" (ngSubmit)="submitManualParameter()" novalidate>
+      <label>參數名稱<span class="required-indicator">*</span>
+        <select *ngIf="manualMode === 'report'; else TemplateParameterName" name="manualParameterName" [(ngModel)]="manualDraft.ParameterName"><option value="" disabled>請選擇 RPT 參數</option><option *ngFor="let name of availableRptParameterNames" [value]="name">{{ name }}</option></select>
+        <ng-template #TemplateParameterName><input name="manualTemplateName" [(ngModel)]="manualDraft.ParameterName" placeholder="例如 CustomerGroup" /></ng-template>
+      </label>
+      <label>顯示名稱<span class="required-indicator">*</span><input name="manualDisplayName" [(ngModel)]="manualDraft.DisplayName" placeholder="例如 客戶群組" /></label>
+      <label>資料類型<select name="manualDataType" [ngModel]="manualDraft.DataType" (ngModelChange)="updateManualType($event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></label>
+      <label>輸入類型<select name="manualInputType" [(ngModel)]="manualDraft.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></label>
+      <label>預設值<input name="manualDefaultValue" [(ngModel)]="manualDraft.DefaultValue" /></label>
+      <label class="manual-description">說明<textarea name="manualDescription" rows="3" [(ngModel)]="manualDraft.Description"></textarea></label>
+      <label class="inline-option"><input type="checkbox" name="manualRequired" [(ngModel)]="manualDraft.Required" /> 必填</label>
+      <label class="inline-option"><input type="checkbox" name="manualVisible" [(ngModel)]="manualDraft.Visible" /> 可見</label>
+      <p *ngIf="manualMode === 'template'" class="manual-help">此範本不會加入目前報表；未來上傳到含同名參數的 RPT 時才會自動套用。</p>
+      <p *ngIf="manualError" class="field-error" role="alert">{{ manualError }}</p>
+      <div class="modal-actions"><button type="button" class="tertiary-button" (click)="closeManualDialog()">取消</button><button type="submit" class="primary-button">{{ manualMode === 'template' ? '加入常用' : '新增參數' }}</button></div>
+    </form>
+  </section>
+</section>
