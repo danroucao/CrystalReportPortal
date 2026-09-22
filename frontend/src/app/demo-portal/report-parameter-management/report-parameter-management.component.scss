@@ -29,13 +29,13 @@
 .parameter-dialog-heading p { color: #64748b; margin-top: .35rem; }
 .detected-parameter-list { display: grid; gap: .75rem; padding: 1.25rem 1.5rem; }
 .detected-parameter-list label { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(10rem, 1fr) minmax(0, 1.5fr); }
-.detected-parameter-list input, .manual-parameter-form input, .manual-parameter-form select, .manual-parameter-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; font: inherit; padding: .58rem .65rem; }
+.detected-parameter-list input, .manual-parameter-form input:not([type='checkbox']), .manual-parameter-form select, .manual-parameter-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; font: inherit; margin-top: .4rem; padding: .58rem .65rem; }
 .parameter-mode-control { display: block; padding: 1.25rem 1.5rem 0; }
 .manual-parameter-form { display: grid; gap: .9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 1.25rem 1.5rem; }
-.manual-parameter-form > label { display: grid; gap: .4rem; font-weight: 700; }
+.manual-parameter-form > label { display: block; font-weight: 700; }
 .manual-description, .manual-help, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: 1 / -1; }
 .inline-option { align-items: center; display: flex !important; font-weight: 400 !important; gap: .5rem; }
-.inline-option input { width: auto !important; }
+.inline-option input[type='checkbox'] { flex: 0 0 18px; height: 18px; max-height: 18px; max-width: 18px; min-height: 18px; min-width: 18px; padding: 0; width: 18px !important; }
 .modal-actions { display: flex; gap: .75rem; justify-content: flex-end; margin: 0; padding: 1rem 1.5rem; }
 .manual-parameter-form .modal-actions { border-top: 1px solid #e3eaf1; margin: .25rem -1.5rem -1.25rem; }
 @media (max-width: 720px) {

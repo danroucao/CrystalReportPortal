@@ -1,8 +1,16 @@
 <div class="portal-shell">
   <header
     class="portal-header"
-    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? '' : null"
-    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? 'true' : null"
+    [attr.inert]="
+      Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen
+        ? ''
+        : null
+    "
+    [attr.aria-hidden]="
+      Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen
+        ? 'true'
+        : null
+    "
   >
     <button
       #mobileNavigationTrigger
@@ -13,7 +21,9 @@
       aria-label="開啟導覽選單"
       (click)="ToggleMobileNavigation()"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </svg>
     </button>
     <a [routerLink]="Auth.HomeRoute" class="portal-brand">
       <span class="portal-brand-mark" aria-hidden="true">CR</span>
@@ -153,10 +163,20 @@
   <main
     *ngIf="CanAccessPage"
     class="portal-main"
-    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? '' : null"
-    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? 'true' : null"
+    [attr.inert]="
+      Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen
+        ? ''
+        : null
+    "
+    [attr.aria-hidden]="
+      Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen
+        ? 'true'
+        : null
+    "
   >
-    <p *ngIf="AccessNotice" class="mock-notice" role="status">{{ AccessNotice }}</p>
+    <p *ngIf="AccessNotice" class="mock-notice" role="status">
+      {{ AccessNotice }}
+    </p>
     <div
       *ngIf="Notifications.SuccessMessage"
       class="success-toast"
@@ -192,9 +212,6 @@
     <ng-template #DefaultPageTitle>
       <ng-container *ngIf="Page !== 'ReportUpload' && Page !== 'ReportEdit'">
         <h1>{{ PageTitle }}</h1>
-        <p *ngIf="Page === 'OperationLog'" class="operation-log-page-subtitle">
-          集中檢視參數、報表、角色、資料庫與帳號登入事件。
-        </p>
       </ng-container>
     </ng-template>
     <section
@@ -218,7 +235,10 @@
           class="notification-center-list"
         >
           <article
-            *ngFor="let Item of PagedDisplayedNotifications; trackBy: TrackNotificationById"
+            *ngFor="
+              let Item of PagedDisplayedNotifications;
+              trackBy: TrackNotificationById
+            "
             class="center-item"
             [class.is-unread]="!Item.ReadAt"
             tabindex="0"
@@ -226,7 +246,9 @@
             [attr.aria-label]="'查看通知詳細資訊：' + Item.Title"
             (click)="OpenNotificationDetail(Item)"
             (keydown.enter)="OpenNotificationDetail(Item)"
-            (keydown.space)="OpenNotificationDetail(Item); $event.preventDefault()"
+            (keydown.space)="
+              OpenNotificationDetail(Item); $event.preventDefault()
+            "
           >
             <div>
               <h2>{{ Item.Title }}</h2>
@@ -274,7 +296,9 @@
         </section>
       </ng-container>
     </section>
-    <app-favorite-report-page *ngIf="Page === 'ReportList'"></app-favorite-report-page>
+    <app-favorite-report-page
+      *ngIf="Page === 'ReportList'"
+    ></app-favorite-report-page>
     <app-report-parameter-page *ngIf="Page === 'ReportParameter'" />
     <app-report-preview-page *ngIf="Page === 'ReportPreview'" />
     <section
@@ -326,7 +350,28 @@
         </li>
       </ol>
 
-      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [canAddCategory]="Auth.HasManagementPermission('RptManagement')" [quickAddOpen]="IsReportCategoryQuickAddOpen" [quickAddName]="QuickAddCategoryName" [quickAddError]="QuickAddCategoryError" (draftChange)="ReportEditorDraft = $event" (quickAddNameChange)="QuickAddCategoryName = $event; QuickAddCategoryError = ''" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (quickAddRequested)="OpenReportCategoryQuickAdd()" (quickAddCancelled)="CloseReportCategoryQuickAdd()" (quickAddSubmitted)="CreateReportCategoryQuickAdd()" (fileSelected)="OnReportFileSelected($event)" />
+      <app-report-editor-form
+        *ngIf="ReportUploadStep === 'Form'"
+        variant="upload-page"
+        [draft]="ReportEditorDraft"
+        [categories]="ReportEditorCategories"
+        [selectedFileName]="SelectedReportFileName"
+        [error]="ReportEditorError"
+        [canAddCategory]="Auth.HasManagementPermission('RptManagement')"
+        [quickAddOpen]="IsReportCategoryQuickAddOpen"
+        [quickAddName]="QuickAddCategoryName"
+        [quickAddError]="QuickAddCategoryError"
+        (draftChange)="ReportEditorDraft = $event"
+        (quickAddNameChange)="
+          QuickAddCategoryName = $event; QuickAddCategoryError = ''
+        "
+        (submitRequested)="ContinueReportUpload()"
+        (cancelRequested)="RequestCloseReportEditor()"
+        (quickAddRequested)="OpenReportCategoryQuickAdd()"
+        (quickAddCancelled)="CloseReportCategoryQuickAdd()"
+        (quickAddSubmitted)="CreateReportCategoryQuickAdd()"
+        (fileSelected)="OnReportFileSelected($event)"
+      />
       <section
         *ngIf="ReportUploadStep === 'Confirm'"
         class="report-upload-review"
@@ -451,26 +496,13 @@
       class="management-page-content"
       [class.content-card]="Page !== 'OperationLog'"
     >
-      <p
-        *ngIf="
-          Page !== 'UserManagement' &&
-          Page !== 'RptManagement' &&
-          Page !== 'OperationLog'
-        "
-      >
-        {{ AdminDescription }}
-      </p>
       <app-user-management-page *ngIf="Page === 'UserManagement'" />
-      <app-report-management-page *ngIf="Page === 'RptManagement' || Page === 'ReportEdit'" [isDetailPage]="Page === 'ReportEdit'" />
+      <app-report-management-page
+        *ngIf="Page === 'RptManagement' || Page === 'ReportEdit'"
+        [isDetailPage]="Page === 'ReportEdit'"
+      />
       <section *ngIf="Page === 'DatabaseConnection'" class="management-section">
-        <div class="management-card-heading">
-          <div>
-            <h2>Mock 資料庫連線</h2>
-            <p class="muted">
-              密碼只可在建立或變更時輸入；既有密碼、加密密文與其他 credential
-              不會回傳或保存於前端 Mock 資料。
-            </p>
-          </div>
+        <div class="database-connection-actions">
           <button
             type="button"
             class="primary-button"
@@ -788,12 +820,19 @@
         </button>
       </div>
       <p class="notification-detail-summary">{{ Notification.Summary }}</p>
-      <time class="notification-detail-time" [attr.datetime]="Notification.CreatedAt">
+      <time
+        class="notification-detail-time"
+        [attr.datetime]="Notification.CreatedAt"
+      >
         {{ Notification.CreatedAt | date: "medium" }}
       </time>
       <div class="notification-detail-content">{{ Notification.Detail }}</div>
       <div class="modal-actions notification-detail-actions">
-        <button type="button" class="primary-button" (click)="CloseNotificationDetail()">
+        <button
+          type="button"
+          class="primary-button"
+          (click)="CloseNotificationDetail()"
+        >
           關閉
         </button>
       </div>

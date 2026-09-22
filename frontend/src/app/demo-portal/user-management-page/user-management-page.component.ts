@@ -280,8 +280,10 @@ export class UserManagementPageComponent {
 
   SaveRole(): void {
     if (!this.Auth.CanOperateBackOffice) return;
+    const ValidationError = this.GetRoleDraftValidationError();
+    if (ValidationError) return this.SetRoleDraftError(ValidationError);
     const Role = this.MockRbac.CreateRole(this.RoleDraft);
-    if (!Role) return this.SetRoleDraftError('請輸入未重複的角色名稱，並至少授予一項權限。');
+    if (!Role) return this.SetRoleDraftError('角色姓名不得重復，請重新命名。');
     this.AuditLog.RecordPermissionChange('CREATE_ROLE', `建立角色 ${Role.DisplayName}。`);
     this.CloseRoleDialog();
     this.Notifications.ShowSuccess(`角色「${Role.DisplayName}」已建立。`);
@@ -290,12 +292,14 @@ export class UserManagementPageComponent {
 
   SaveEditedRole(): void {
     if (!this.Auth.CanOperateBackOffice || !this.EditingRoleKey) return;
+    const ValidationError = this.GetRoleDraftValidationError();
+    if (ValidationError) return this.SetRoleDraftError(ValidationError);
     const Before = this.NotificationCenter.CaptureRoleUsers(this.EditingRoleKey);
     const Result = this.MockRbac.UpdateRole(this.EditingRoleKey, this.RoleDraft);
     if (Result !== 'updated') {
       const Messages: Record<Exclude<typeof Result, 'updated'>, string> = {
         invalid: '請輸入角色名稱。',
-        'duplicate-name': '角色名稱已存在。',
+        'duplicate-name': '角色姓名不得重復，請重新命名。',
         'not-found': '找不到要編輯的角色。',
       };
       this.SetRoleDraftError(Messages[Result]);
@@ -430,6 +434,28 @@ export class UserManagementPageComponent {
     return Boolean(
       this.initialRoleDraft && JSON.stringify(this.RoleDraft) !== JSON.stringify(this.initialRoleDraft),
     );
+  }
+
+  private GetRoleDraftValidationError(): string | null {
+    const HasPermission =
+      this.RoleDraft.ManagementPermissions.length > 0 ||
+      this.RoleDraft.Permissions.some(({ Permission }) =>
+        Permission.CanExecute || Permission.CanExport || Permission.CanPrint,
+      );
+    if (!HasPermission) return '請至少勾選一項權限。';
+
+    const DisplayName = this.RoleDraft.DisplayName.trim();
+    if (!DisplayName) return '請輸入角色名稱。';
+    if (
+      this.MockRbac.Roles.some(
+        (Role) =>
+          Role.Key !== this.EditingRoleKey &&
+          Role.DisplayName === DisplayName,
+      )
+    ) {
+      return '角色姓名不得重復，請重新命名。';
+    }
+    return null;
   }
 
   private CloneRoleDraft(Draft: MockRoleDraft): MockRoleDraft {

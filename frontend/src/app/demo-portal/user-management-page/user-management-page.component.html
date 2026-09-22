@@ -306,6 +306,7 @@
       <div class="role-global-permissions" role="group" aria-label="功能權限">
         <h3>功能權限</h3>
         <label
+          [class.is-selected]="RoleDraft.ManagementPermissions.includes('DatabaseConnection')"
           ><input
             type="checkbox"
             [ngModel]="
@@ -318,6 +319,7 @@
           />資料庫連線管理</label
         >
         <label
+          [class.is-selected]="RoleDraft.ManagementPermissions.includes('RptManagement')"
           ><input
             type="checkbox"
             [ngModel]="
@@ -330,6 +332,7 @@
           />報表管理</label
         >
         <label
+          [class.is-selected]="RoleDraft.ManagementPermissions.includes('OperationLog')"
           ><input
             type="checkbox"
             [ngModel]="RoleDraft.ManagementPermissions.includes('OperationLog')"

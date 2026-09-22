@@ -4,9 +4,10 @@
 .managed-reports-heading h2, .managed-reports-heading p { margin: 0; }
 .managed-reports-heading p { margin-top: .35rem; color: #666; }
 .report-management-toolbar { display: grid; grid-template-columns: repeat(3, minmax(10rem, 1fr)) minmax(16rem, 2fr); gap: .75rem; }
-.report-management-toolbar label, .managed-report-form label { display: grid; gap: .35rem; font-weight: 700; }
+.report-management-toolbar label { display: grid; gap: .35rem; font-weight: 700; }
+.managed-report-form label { display: block; font-weight: 700; }
 .report-management-toolbar input, .report-management-toolbar select,
-.managed-report-form input, .managed-report-form select, .managed-report-form textarea { box-sizing: border-box; width: 100%; padding: .65rem; border: 1px solid #c9c4be; border-radius: 4px; background: #fff; }
+.managed-report-form input, .managed-report-form select, .managed-report-form textarea { box-sizing: border-box; display: block; width: 100%; margin-top: .35rem; padding: .65rem; border: 1px solid #c9c4be; border-radius: 4px; background: #fff; }
 .report-management-table { width: 100%; border-collapse: collapse; }
 .report-management-table th, .report-management-table td { padding: .75rem .6rem; border-bottom: 1px solid #ddd7d0; text-align: left; vertical-align: middle; }
 .report-management-table small { display: block; margin-top: .2rem; color: #666; }

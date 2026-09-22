@@ -5,10 +5,11 @@
 .common-parameter-heading h2, .common-parameter-heading p { margin: 0; }
 .common-parameter-heading p { margin-top: .4rem; color: #666; }
 .common-parameter-filters { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(16rem, 1fr); gap: .75rem; }
-.common-parameter-filters label, .common-parameter-form > label { display: grid; gap: .35rem; font-weight: 600; }
+.common-parameter-filters label { display: grid; gap: .35rem; font-weight: 600; }
+.common-parameter-form > label { display: block; font-weight: 600; }
 .common-parameter-filters input, .common-parameter-filters select,
-.common-parameter-form input, .common-parameter-form select, .common-parameter-form textarea {
-  box-sizing: border-box; width: 100%; padding: .65rem .75rem; border: 1px solid #c9c4be; border-radius: 4px; background: #fff;
+.common-parameter-form input:not([type='checkbox']), .common-parameter-form select, .common-parameter-form textarea {
+  box-sizing: border-box; display: block; width: 100%; margin-top: .35rem; padding: .65rem .75rem; border: 1px solid #c9c4be; border-radius: 4px; background: #fff;
 }
 .common-parameter-table { width: 100%; border-collapse: collapse; }
 .common-parameter-table th, .common-parameter-table td { padding: .8rem .65rem; border-bottom: 1px solid #ddd7d0; text-align: left; vertical-align: middle; }
@@ -21,7 +22,7 @@
 .common-parameter-wide { grid-column: 1 / -1; }
 .common-parameter-flags { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; border: 1px solid #ddd7d0; border-radius: 4px; }
 .common-parameter-flags label { display: inline-flex; align-items: center; gap: .4rem; }
-.common-parameter-flags input { width: auto; }
+.common-parameter-flags input[type='checkbox'] { flex: 0 0 18px; height: 18px; max-height: 18px; max-width: 18px; min-height: 18px; min-width: 18px; padding: 0; width: 18px; }
 
 @media (max-width: 720px) {
   .common-parameter-heading { flex-direction: column; }

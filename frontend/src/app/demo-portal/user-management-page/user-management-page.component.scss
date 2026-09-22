@@ -45,11 +45,6 @@
   padding: 0.75rem;
 }
 
-.role-global-permissions label {
-  min-height: auto;
-  padding: 0;
-}
-
 /* Keep custom checkboxes square when a role dialog is resized or table columns flex. */
 .role-global-permissions input[type='checkbox'],
 .role-permission-table input[type='checkbox'] {

@@ -4,6 +4,7 @@ import {
   ConfigureDemoPortalTestBed,
   LoginBoundBackOfficeOperator,
   MockRbacService,
+  NotificationService,
   TestBed,
 } from './testing/demo-portal.spec-helpers';
 
@@ -130,6 +131,50 @@ describe('UserManagementPageComponent', () => {
 
     expect(Entry.Permission).toEqual({ CanExecute: false, CanExport: false, CanPrint: false });
     expect(TestBed.inject(NotificationService).SuccessMessage).toContain('匯出、列印');
+  });
+
+  it('requires at least one permission before creating or updating a role', () => {
+    const Component = createPage();
+
+    Component.OpenCreateRoleDialog();
+    Component.RoleDraft.DisplayName = '無權限角色';
+    Component.SaveRole();
+
+    expect(Component.RoleDraftError).toBe('請至少勾選一項權限。');
+    expect(Component.IsCreateRoleDialogOpen).toBeTrue();
+
+    Component.CloseRoleDialog();
+    Component.OpenEditRoleDialog('FINANCE');
+    Component.RoleDraft.ManagementPermissions = [];
+    Component.RoleDraft.Permissions.forEach((Entry) => {
+      Entry.Permission = { CanExecute: false, CanExport: false, CanPrint: false };
+    });
+    Component.SaveEditedRole();
+
+    expect(Component.RoleDraftError).toBe('請至少勾選一項權限。');
+    expect(Component.IsEditRoleDialogOpen).toBeTrue();
+  });
+
+  it('rejects duplicate role names before creating or updating a role', () => {
+    const Component = createPage();
+    const ExistingRole = Component.MockRbac.Roles.find((Role) => Role.Key !== 'FINANCE')!;
+
+    Component.OpenCreateRoleDialog();
+    Component.RoleDraft.DisplayName = ExistingRole.DisplayName;
+    Component.RoleDraft.ManagementPermissions = ['RptManagement'];
+    Component.SaveRole();
+
+    expect(Component.RoleDraftError).toBe('角色姓名不得重復，請重新命名。');
+    expect(Component.IsCreateRoleDialogOpen).toBeTrue();
+
+    Component.CloseRoleDialog();
+    Component.OpenEditRoleDialog('FINANCE');
+    Component.RoleDraft.DisplayName = ExistingRole.DisplayName;
+    Component.RoleDraft.ManagementPermissions = ['RptManagement'];
+    Component.SaveEditedRole();
+
+    expect(Component.RoleDraftError).toBe('角色姓名不得重復，請重新命名。');
+    expect(Component.IsEditRoleDialogOpen).toBeTrue();
   });
 
 });

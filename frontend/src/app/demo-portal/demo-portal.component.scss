@@ -215,6 +215,11 @@ th.is-sorted {
 .management-card-heading .muted {
   margin: -0.5rem 0 1rem;
 }
+.database-connection-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
 .edit-status-field {
   display: flex;
   align-items: center;
