@@ -1,6 +1,27 @@
 // Kept with the extracted feature so style encapsulation follows the new host.
 @import '../demo-portal.component.scss';
 
+.user-management-section > app-portal-tabs {
+  --color-surface: #fdfcf9;
+}
+
+.role-management-section > .management-card-heading .section-header-action {
+  align-self: flex-start;
+  margin-inline-start: auto;
+}
+
+@media (max-width: 768px) {
+  .role-management-section > .management-card-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .role-management-section > .management-card-heading .section-header-action {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
 .create-role-modal {
   width: min(33.75rem, calc(100vw - 2rem));
   padding: 1.5rem;
