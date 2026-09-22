@@ -377,6 +377,17 @@ app-demo-portal .compact-role-permission-table tr:last-child td {
   border-bottom: 0;
 }
 
+app-demo-portal .compact-role-permission-table input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  border-color: #c9c9c9;
+  background: #eeeeee;
+}
+
+app-demo-portal .compact-role-permission-table input[type="checkbox"]:disabled:checked {
+  border-color: #b8b8b8;
+  background: #b8b8b8;
+}
+
 @media (min-width: 641px) and (max-width: 768px) {
   app-demo-portal .create-role-modal {
     width: calc(100vw - 1rem);
