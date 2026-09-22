@@ -63,6 +63,54 @@ describe('portal workflows after page extraction', () => {
     expect(password?.value).toBe('');
   });
 
+  it('confirms before discarding changed database-connection edits', () => {
+    const auth = TestBed.inject(AuthService);
+    const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { data: { Page: string } } };
+    route.snapshot.data.Page = 'DatabaseConnection';
+    expect(LoginFrontManager(auth)).toBeTrue();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.OpenCreateDatabaseConnection();
+    component.DatabaseConnectionDraft.DataSourceName = 'ERP_Prod_DB';
+
+    component.RequestCloseDatabaseConnectionEditor();
+    expect(component.IsDatabaseConnectionDiscardConfirmationOpen).toBeTrue();
+    expect(component.IsDatabaseConnectionEditorOpen).toBeTrue();
+
+    component.ContinueEditingDatabaseConnection();
+    expect(component.IsDatabaseConnectionDiscardConfirmationOpen).toBeFalse();
+    component.DiscardDatabaseConnectionChanges();
+    expect(component.IsDatabaseConnectionEditorOpen).toBeFalse();
+  });
+
+  it('blocks in-app navigation until changed database-connection edits are resolved', () => {
+    const auth = TestBed.inject(AuthService);
+    const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { data: { Page: string } } };
+    route.snapshot.data.Page = 'DatabaseConnection';
+    expect(LoginFrontManager(auth)).toBeTrue();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.OpenCreateDatabaseConnection();
+    component.DatabaseConnectionDraft.DataSourceName = 'ERP_Prod_DB';
+
+    const firstDecision = component.CanLeavePage();
+    expect(firstDecision).not.toBeTrue();
+    let firstResult: boolean | undefined;
+    if (typeof firstDecision !== 'boolean') firstDecision.subscribe((result) => (firstResult = result));
+    expect(component.IsPageDiscardConfirmationOpen).toBeTrue();
+    component.ContinueEditingPageChanges();
+    expect(firstResult).toBeFalse();
+
+    const secondDecision = component.CanLeavePage();
+    expect(secondDecision).not.toBeTrue();
+    let secondResult: boolean | undefined;
+    if (typeof secondDecision !== 'boolean') secondDecision.subscribe((result) => (secondResult = result));
+    component.DiscardPageChanges();
+    expect(secondResult).toBeTrue();
+  });
+
   it('validates a report parameter range before generating a report', () => {
     const auth = TestBed.inject(AuthService);
     const navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);

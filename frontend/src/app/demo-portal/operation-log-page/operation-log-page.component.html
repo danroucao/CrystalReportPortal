@@ -1,31 +1,239 @@
 <section *ngIf="CanAccessOperationLog" class="operation-log-page">
   <div class="operation-log-filters" aria-label="操作紀錄篩選條件">
-    <label><span>操作來源</span><select [(ngModel)]="OperationLogSourceFilter" (ngModelChange)="OnOperationLogSourceChange()"><option value="ALL">全部</option><option value="BackOffice">後台</option><option value="FrontOffice">前台</option></select></label>
-    <label><span>紀錄分類</span><select [(ngModel)]="OperationLogCategoryFilter" (ngModelChange)="OnOperationLogFilterChange()"><option value="ALL">全部</option><option value="PermissionChange">權限變動</option><option value="ReportAction">報表操作</option></select></label>
-    <label><span>開始日期</span><input type="date" [(ngModel)]="OperationLogStartDate" [max]="OperationLogMaximumDate" (ngModelChange)="OnOperationLogDateChange()" /></label>
-    <label><span>結束日期</span><input type="date" [(ngModel)]="OperationLogEndDate" [max]="OperationLogMaximumDate" (ngModelChange)="OnOperationLogDateChange()" /></label>
-    <label class="operation-log-search parameter-search-field"><span>關鍵字搜尋</span><input type="search" [(ngModel)]="OperationLogSearchText" (ngModelChange)="OnOperationLogFilterChange()" placeholder="操作者、目標名稱或 IP" /><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.2 15.2 4 4"></path></svg></label>
+    <label
+      ><span>操作來源</span
+      ><select
+        [(ngModel)]="OperationLogSourceFilter"
+        (ngModelChange)="OnOperationLogSourceChange()"
+      >
+        <option value="ALL">全部</option>
+        <option value="BackOffice">後台</option>
+        <option value="FrontOffice">前台</option>
+      </select></label
+    >
+    <label
+      ><span>紀錄分類</span
+      ><select
+        [(ngModel)]="OperationLogCategoryFilter"
+        (ngModelChange)="OnOperationLogFilterChange()"
+      >
+        <option value="ALL">全部</option>
+        <option value="PermissionChange">權限變動</option>
+        <option value="ReportAction">報表操作</option>
+      </select></label
+    >
+    <label
+      ><span>開始日期</span
+      ><input
+        type="date"
+        [(ngModel)]="OperationLogStartDate"
+        [max]="OperationLogMaximumDate"
+        (ngModelChange)="OnOperationLogDateChange()"
+    /></label>
+    <label
+      ><span>結束日期</span
+      ><input
+        type="date"
+        [(ngModel)]="OperationLogEndDate"
+        [max]="OperationLogMaximumDate"
+        (ngModelChange)="OnOperationLogDateChange()"
+    /></label>
+    <label class="operation-log-search parameter-search-field"
+      ><span>關鍵字搜尋</span
+      ><input
+        type="search"
+        [(ngModel)]="OperationLogSearchText"
+        (ngModelChange)="OnOperationLogFilterChange()"
+        placeholder="操作者、目標名稱或 IP" /><svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <circle cx="10.8" cy="10.8" r="5.8"></circle>
+        <path d="m15.2 15.2 4 4"></path></svg
+    ></label>
   </div>
 
-  <div class="operation-log-results-bar"><p>共 <strong>{{ FilteredOperationLogs.length }}</strong> 筆紀錄</p><p>每頁顯示 10 筆</p></div>
-  <div class="operation-log-table-frame"><table class="operation-log-table"><colgroup><col class="operation-log-time-column" /><col class="operation-log-actor-column" /><col class="operation-log-source-column" /><col class="operation-log-category-column" /><col class="operation-log-action-column" /><col class="operation-log-summary-column" /><col class="operation-log-ip-column" /><col class="operation-log-detail-column" /></colgroup><thead><tr>
-    <th [attr.aria-sort]="OperationLogSortAria('OccurredAt')"><button type="button" class="sortable-table-header" (click)="ToggleOperationLogSort('OccurredAt')">操作時間</button></th>
-    <th [attr.aria-sort]="OperationLogSortAria('UserId')"><button type="button" class="sortable-table-header" (click)="ToggleOperationLogSort('UserId')">操作者</button></th>
-    <th>來源</th><th>分類</th><th>操作</th><th>操作摘要</th><th>來源 IP</th><th><span class="visually-hidden">詳細內容</span></th>
-  </tr></thead><tbody>
-    <tr *ngFor="let Entry of PagedOperationLogs" class="operation-log-row" tabindex="0" (click)="OpenOperationLogDetail(Entry)" (keydown.enter)="OpenOperationLogDetail(Entry)" (keydown.space)="OpenOperationLogDetail(Entry); $event.preventDefault()">
-      <td class="operation-log-time">{{ FormatOperationLogTime(Entry.OccurredAt) }}</td><td class="operation-log-actor">{{ Entry.UserId }}</td><td><span class="operation-log-source" [class.is-backoffice]="Entry.Source === 'BackOffice'">{{ OperationLogSourceLabel(Entry.Source) }}</span></td><td><span class="operation-log-category" [class.is-permission]="Entry.Category === 'PermissionChange'" [class.is-report]="Entry.Category === 'ReportAction'">{{ OperationLogCategoryLabel(Entry.Category) }}</span></td><td class="operation-log-action">{{ OperationLogActionLabel(Entry.Action) }}</td><td class="operation-log-summary" [title]="Entry.Summary">{{ Entry.Summary }}</td><td class="operation-log-ip">{{ Entry.IpAddress }}</td><td class="operation-log-detail-action"><button type="button" class="secondary-button" (click)="OpenOperationLogDetail(Entry); $event.stopPropagation()">檢視</button></td>
-    </tr>
-    <tr *ngIf="!FilteredOperationLogs.length"><td colspan="8" class="operation-log-empty-state">找不到符合目前篩選條件的操作紀錄。</td></tr>
-  </tbody></table></div>
-  <app-portal-pagination [CurrentPage]="OperationLogCurrentPage" [TotalPages]="OperationLogTotalPages" [PageNumbers]="OperationLogPageNumbers" AriaLabel="操作紀錄分頁" (PageChange)="GoToOperationLogPage($event)" />
+  <div class="operation-log-results-bar">
+    <p>
+      共 <strong>{{ FilteredOperationLogs.length }}</strong> 筆紀錄
+    </p>
+    <p>每頁顯示 10 筆</p>
+  </div>
+  <div class="operation-log-table-frame">
+    <table class="operation-log-table">
+      <colgroup>
+        <col class="operation-log-time-column" />
+        <col class="operation-log-actor-column" />
+        <col class="operation-log-source-column" />
+        <col class="operation-log-category-column" />
+        <col class="operation-log-action-column" />
+        <col class="operation-log-summary-column" />
+        <col class="operation-log-ip-column" />
+        <col class="operation-log-detail-column" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th [attr.aria-sort]="OperationLogSortAria('OccurredAt')">
+            <button
+              type="button"
+              class="sortable-table-header"
+              (click)="ToggleOperationLogSort('OccurredAt')"
+            >
+              操作時間
+            </button>
+          </th>
+          <th [attr.aria-sort]="OperationLogSortAria('UserId')">
+            <button
+              type="button"
+              class="sortable-table-header"
+              (click)="ToggleOperationLogSort('UserId')"
+            >
+              操作者
+            </button>
+          </th>
+          <th>來源</th>
+          <th>分類</th>
+          <th>操作</th>
+          <th>操作摘要</th>
+          <th>來源 IP</th>
+          <th>詳細內容</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let Entry of PagedOperationLogs"
+          class="operation-log-row"
+          tabindex="0"
+          (click)="OpenOperationLogDetail(Entry)"
+          (keydown.enter)="OpenOperationLogDetail(Entry)"
+          (keydown.space)="
+            OpenOperationLogDetail(Entry); $event.preventDefault()
+          "
+        >
+          <td class="operation-log-time">
+            {{ FormatOperationLogTime(Entry.OccurredAt) }}
+          </td>
+          <td class="operation-log-actor">{{ Entry.UserId }}</td>
+          <td>
+            <span
+              class="operation-log-source"
+              [class.is-backoffice]="Entry.Source === 'BackOffice'"
+              >{{ OperationLogSourceLabel(Entry.Source) }}</span
+            >
+          </td>
+          <td>
+            <span
+              class="operation-log-category"
+              [class.is-permission]="Entry.Category === 'PermissionChange'"
+              [class.is-report]="Entry.Category === 'ReportAction'"
+              >{{ OperationLogCategoryLabel(Entry.Category) }}</span
+            >
+          </td>
+          <td class="operation-log-action">
+            {{ OperationLogActionLabel(Entry.Action) }}
+          </td>
+          <td class="operation-log-summary" [title]="Entry.Summary">
+            {{ Entry.Summary }}
+          </td>
+          <td class="operation-log-ip">{{ Entry.IpAddress }}</td>
+          <td class="operation-log-detail-action">
+            <button
+              type="button"
+              class="secondary-button"
+              (click)="OpenOperationLogDetail(Entry); $event.stopPropagation()"
+            >
+              檢視
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="!FilteredOperationLogs.length">
+          <td colspan="8" class="operation-log-empty-state">
+            找不到符合目前篩選條件的操作紀錄。
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <app-portal-pagination
+    [CurrentPage]="OperationLogCurrentPage"
+    [TotalPages]="OperationLogTotalPages"
+    [PageNumbers]="OperationLogPageNumbers"
+    AriaLabel="操作紀錄分頁"
+    (PageChange)="GoToOperationLogPage($event)"
+  />
 </section>
 
-<section *ngIf="SelectedOperationLog && CanAccessOperationLog" class="modal-backdrop operation-log-detail-backdrop" (click)="CloseOperationLogDetail()">
-  <section class="edit-user-modal operation-log-detail-modal" role="dialog" aria-modal="true" aria-labelledby="operation-log-detail-title" (click)="$event.stopPropagation()">
-    <div class="modal-heading"><div><p class="operation-log-modal-eyebrow">{{ OperationLogCategoryLabel(SelectedOperationLog.Category) }}</p><h2 id="operation-log-detail-title">操作紀錄詳細內容</h2></div><button type="button" class="modal-close-button" aria-label="關閉操作紀錄詳細內容" (click)="CloseOperationLogDetail()">×</button></div>
-    <dl class="operation-log-detail-overview"><div><dt>操作時間</dt><dd>{{ FormatOperationLogTime(SelectedOperationLog.OccurredAt) }}</dd></div><div><dt>操作者</dt><dd>{{ SelectedOperationLog.UserId }}</dd></div><div><dt>操作來源</dt><dd>{{ OperationLogSourceLabel(SelectedOperationLog.Source) }}</dd></div><div><dt>來源 IP</dt><dd>{{ SelectedOperationLog.IpAddress }}</dd></div></dl>
-    <section class="operation-log-detail-content" aria-labelledby="operation-log-content-title"><h3 id="operation-log-content-title">操作內容</h3><dl><div *ngFor="let Detail of SelectedOperationLog.Details"><dt>{{ Detail.Label }}</dt><dd [class.is-added]="Detail.Tone === 'added'" [class.is-removed]="Detail.Tone === 'removed'">{{ Detail.Value }}</dd></div></dl></section>
-    <div class="modal-actions"><button type="button" class="tertiary-button" (click)="CloseOperationLogDetail()">關閉</button></div>
+<section
+  *ngIf="SelectedOperationLog && CanAccessOperationLog"
+  class="modal-backdrop operation-log-detail-backdrop"
+  (click)="CloseOperationLogDetail()"
+>
+  <section
+    class="edit-user-modal operation-log-detail-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="operation-log-detail-title"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="modal-heading">
+      <div>
+        <p class="operation-log-modal-eyebrow">
+          {{ OperationLogCategoryLabel(SelectedOperationLog.Category) }}
+        </p>
+        <h2 id="operation-log-detail-title">操作紀錄詳細內容</h2>
+      </div>
+      <button
+        type="button"
+        class="modal-close-button"
+        aria-label="關閉操作紀錄詳細內容"
+        (click)="CloseOperationLogDetail()"
+      >
+        ×
+      </button>
+    </div>
+    <dl class="operation-log-detail-overview">
+      <div>
+        <dt>操作時間</dt>
+        <dd>{{ FormatOperationLogTime(SelectedOperationLog.OccurredAt) }}</dd>
+      </div>
+      <div>
+        <dt>操作者</dt>
+        <dd>{{ SelectedOperationLog.UserId }}</dd>
+      </div>
+      <div>
+        <dt>操作來源</dt>
+        <dd>{{ OperationLogSourceLabel(SelectedOperationLog.Source) }}</dd>
+      </div>
+      <div>
+        <dt>來源 IP</dt>
+        <dd>{{ SelectedOperationLog.IpAddress }}</dd>
+      </div>
+    </dl>
+    <section
+      class="operation-log-detail-content"
+      aria-labelledby="operation-log-content-title"
+    >
+      <h3 id="operation-log-content-title">操作內容</h3>
+      <dl>
+        <div *ngFor="let Detail of SelectedOperationLog.Details">
+          <dt>{{ Detail.Label }}</dt>
+          <dd
+            [class.is-added]="Detail.Tone === 'added'"
+            [class.is-removed]="Detail.Tone === 'removed'"
+          >
+            {{ Detail.Value }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+    <div class="modal-actions">
+      <button
+        type="button"
+        class="tertiary-button"
+        (click)="CloseOperationLogDetail()"
+      >
+        關閉
+      </button>
+    </div>
   </section>
 </section>

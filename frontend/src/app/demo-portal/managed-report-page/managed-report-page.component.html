@@ -115,11 +115,11 @@
   (completed)="completeReview()"
   (approved)="completeReview()" />
 
-<section *ngIf="isEditorOpen" class="modal-backdrop" (click)="closeEditor()">
+<section *ngIf="isEditorOpen" class="modal-backdrop" (click)="requestCloseEditor()">
   <section class="edit-user-modal managed-report-editor" role="dialog" aria-modal="true" aria-labelledby="managed-report-editor-title" (click)="$event.stopPropagation()">
     <div class="modal-heading">
       <h2 id="managed-report-editor-title">{{ existingDraft ? '上傳 RPT' : '新增報表' }}</h2>
-      <button type="button" class="modal-close-button" aria-label="關閉報表視窗" (click)="closeEditor()">×</button>
+      <button type="button" class="modal-close-button" aria-label="關閉報表視窗" (click)="requestCloseEditor()">×</button>
     </div>
     <form class="managed-report-form" (ngSubmit)="save()" novalidate>
       <label>報表代碼<span class="required-indicator">*</span><input name="reportCode" [(ngModel)]="draft.reportCode" [disabled]="existingDraft !== null" placeholder="例如 SALES_DETAIL" /></label>
@@ -143,9 +143,11 @@
       </label>
       <p *ngIf="editorError" class="field-error wide" role="alert">{{ editorError }}</p>
       <div class="modal-actions wide">
-        <button type="button" class="tertiary-button" [disabled]="isSaving" (click)="closeEditor()">取消</button>
+        <button type="button" class="tertiary-button" [disabled]="isSaving" (click)="requestCloseEditor()">取消</button>
         <button type="submit" class="primary-button" [disabled]="isSaving">{{ isSaving ? '處理中…' : (existingDraft ? '上傳 RPT' : '建立並上傳') }}</button>
       </div>
     </form>
   </section>
 </section>
+
+<app-unsaved-changes-dialog *ngIf="isDiscardConfirmationOpen" subject="報表" (continueEditing)="continueEditing()" (discardChanges)="discardChanges()" />

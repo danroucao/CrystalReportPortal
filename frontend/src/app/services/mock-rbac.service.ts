@@ -328,6 +328,7 @@ export class MockRbacService {
       ReportKey: `UploadedReport${this.NextUploadedReportSequence++}` as MockReportKey,
       ReportName,
       CategoryId,
+      DataSourceName: 'ERP_Prod_DB',
       Description,
       FileName,
       Enabled: Draft.Enabled,

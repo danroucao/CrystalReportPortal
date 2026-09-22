@@ -23,6 +23,7 @@ import {
   Router,
   RouterLink,
 } from '@angular/router';
+import { Observable, Subject, take } from 'rxjs';
 
 import {
   MockCategoryPermissionEntry,
@@ -58,6 +59,7 @@ import { MockAuditLogService } from '../services/mock-audit-log.service';
 import { BoringAvatarComponent } from '../shared/boring-avatar.component';
 import { PortalPaginationComponent } from '../shared/portal-pagination.component';
 import { PortalTab, PortalTabsComponent } from '../shared/portal-tabs.component';
+import { UnsavedChangesDialogComponent } from '../shared/unsaved-changes-dialog.component';
 import { FavoriteReportPageComponent } from './favorite-report-page/favorite-report-page.component';
 import { OperationLogPageComponent } from './operation-log-page/operation-log-page.component';
 import { PortalNavigationComponent } from './portal-navigation/portal-navigation.component';
@@ -121,6 +123,7 @@ type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
     BoringAvatarComponent,
     PortalPaginationComponent,
     PortalTabsComponent,
+    UnsavedChangesDialogComponent,
     PortalNavigationComponent,
     FavoriteReportPageComponent,
     OperationLogPageComponent,
@@ -164,6 +167,8 @@ export class DemoPortalComponent
     this.CreateDatabaseConnectionDraft();
   EditingDatabaseConnectionKey: string | null = null;
   IsDatabaseConnectionEditorOpen = false;
+  IsDatabaseConnectionDiscardConfirmationOpen = false;
+  IsPageDiscardConfirmationOpen = false;
   DatabaseConnectionFormError = '';
   IsReportDiscardConfirmationOpen = false;
   IsReportCategoryQuickAddOpen = false;
@@ -177,6 +182,10 @@ export class DemoPortalComponent
   ReportUploadStep: ReportUploadStep = 'Form';
   PublishedUploadedReport: MockReportReadModel | null = null;
   private ReportEditorInitialDraft: ReportEditorDraft | null = null;
+  private pendingReportRouteLeave: Subject<boolean> | null = null;
+  private pendingPageRouteLeave: Subject<boolean> | null = null;
+  private allowReportRouteLeave = false;
+  private DatabaseConnectionInitialDraft: MockDatabaseConnectionDraft | null = null;
   private InitialReportFileName = '';
   private ReportEditorOpener: HTMLElement | null = null;
   private ReportDiscardConfirmationReturnFocus: HTMLElement | null = null;
@@ -199,6 +208,8 @@ export class DemoPortalComponent
   private reportDiscardContinueButton?: ElementRef<HTMLButtonElement>;
   @ViewChild(ReportManagementPageComponent)
   private reportManagementPage?: ReportManagementPageComponent;
+  @ViewChild(UserManagementPageComponent)
+  private userManagementPage?: UserManagementPageComponent;
   private ShouldFocusMobileNavigationTrigger = false;
 
   get AccessNotice(): string {
@@ -607,6 +618,14 @@ export class DemoPortalComponent
 
   ContinueEditingReport(): void {
     if (!this.IsReportDiscardConfirmationOpen) return;
+    if (this.pendingReportRouteLeave) {
+      this.pendingReportRouteLeave.next(false);
+      this.pendingReportRouteLeave.complete();
+      this.pendingReportRouteLeave = null;
+      this.IsReportDiscardConfirmationOpen = false;
+      this.ShouldFocusReportDiscardContinue = false;
+      return;
+    }
     this.IsReportDiscardConfirmationOpen = false;
     this.ShouldFocusReportDiscardContinue = false;
     this.ScheduleReportEditorFocus(this.ReportDiscardConfirmationReturnFocus);
@@ -615,8 +634,50 @@ export class DemoPortalComponent
 
   DiscardReportEditorChanges(): void {
     if (!this.IsReportDiscardConfirmationOpen) return;
+    if (this.pendingReportRouteLeave) {
+      this.pendingReportRouteLeave.next(true);
+      this.pendingReportRouteLeave.complete();
+      this.pendingReportRouteLeave = null;
+      this.IsReportDiscardConfirmationOpen = false;
+      return;
+    }
     this.IsReportDiscardConfirmationOpen = false;
+    this.allowReportRouteLeave = true;
     this.ReturnToReportManagement();
+  }
+
+  CanLeavePage(): boolean | Observable<boolean> {
+    if (this.allowReportRouteLeave) return true;
+    if (this.IsReportUploadFlow && this.IsReportEditorDirty()) {
+      if (!this.pendingReportRouteLeave) {
+        this.pendingReportRouteLeave = new Subject<boolean>();
+        this.IsReportDiscardConfirmationOpen = true;
+        this.ShouldFocusReportDiscardContinue = true;
+      }
+      return this.pendingReportRouteLeave.pipe(take(1));
+    }
+    if (!this.HasOtherUnsavedChanges()) return true;
+    if (!this.pendingPageRouteLeave) {
+      this.pendingPageRouteLeave = new Subject<boolean>();
+      this.IsPageDiscardConfirmationOpen = true;
+    }
+    return this.pendingPageRouteLeave.pipe(take(1));
+  }
+
+  ContinueEditingPageChanges(): void {
+    if (!this.pendingPageRouteLeave) return;
+    this.pendingPageRouteLeave.next(false);
+    this.pendingPageRouteLeave.complete();
+    this.pendingPageRouteLeave = null;
+    this.IsPageDiscardConfirmationOpen = false;
+  }
+
+  DiscardPageChanges(): void {
+    if (!this.pendingPageRouteLeave) return;
+    this.pendingPageRouteLeave.next(true);
+    this.pendingPageRouteLeave.complete();
+    this.pendingPageRouteLeave = null;
+    this.IsPageDiscardConfirmationOpen = false;
   }
 
   OpenReportCategoryQuickAdd(): void {
@@ -685,6 +746,7 @@ export class DemoPortalComponent
     if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
     this.EditingDatabaseConnectionKey = null;
     this.DatabaseConnectionDraft = this.CreateDatabaseConnectionDraft();
+    this.DatabaseConnectionInitialDraft = { ...this.DatabaseConnectionDraft };
     this.DatabaseConnectionFormError = '';
     this.IsDatabaseConnectionEditorOpen = true;
   }
@@ -705,13 +767,33 @@ export class DemoPortalComponent
       Password: '',
     };
     this.DatabaseConnectionFormError = '';
+    this.DatabaseConnectionInitialDraft = { ...this.DatabaseConnectionDraft };
     this.IsDatabaseConnectionEditorOpen = true;
+  }
+
+  RequestCloseDatabaseConnectionEditor(): void {
+    if (!this.IsDatabaseConnectionEditorDirty()) {
+      this.CloseDatabaseConnectionEditor();
+      return;
+    }
+    this.IsDatabaseConnectionDiscardConfirmationOpen = true;
+  }
+
+  ContinueEditingDatabaseConnection(): void {
+    this.IsDatabaseConnectionDiscardConfirmationOpen = false;
+  }
+
+  DiscardDatabaseConnectionChanges(): void {
+    this.IsDatabaseConnectionDiscardConfirmationOpen = false;
+    this.CloseDatabaseConnectionEditor();
   }
 
   CloseDatabaseConnectionEditor(): void {
     this.IsDatabaseConnectionEditorOpen = false;
+    this.IsDatabaseConnectionDiscardConfirmationOpen = false;
     this.EditingDatabaseConnectionKey = null;
     this.DatabaseConnectionDraft = this.CreateDatabaseConnectionDraft();
+    this.DatabaseConnectionInitialDraft = null;
     this.DatabaseConnectionFormError = '';
   }
 
@@ -870,6 +952,30 @@ export class DemoPortalComponent
       Enabled: true,
       Password: '',
     };
+  }
+
+  private IsDatabaseConnectionEditorDirty(): boolean {
+    const Initial = this.DatabaseConnectionInitialDraft;
+    const Draft = this.DatabaseConnectionDraft;
+    return Boolean(
+      Initial &&
+        (Initial.DataSourceName !== Draft.DataSourceName ||
+          Initial.ServerHost !== Draft.ServerHost ||
+          Initial.Port !== Draft.Port ||
+          Initial.DatabaseName !== Draft.DatabaseName ||
+          Initial.Username !== Draft.Username ||
+          Initial.ConnectionType !== Draft.ConnectionType ||
+          Initial.Enabled !== Draft.Enabled ||
+          Initial.Password !== Draft.Password),
+    );
+  }
+
+  private HasOtherUnsavedChanges(): boolean {
+    return (
+      (this.IsDatabaseConnectionEditorOpen && this.IsDatabaseConnectionEditorDirty()) ||
+      this.reportManagementPage?.HasUnsavedChanges() === true ||
+      this.userManagementPage?.HasUnsavedChanges() === true
+    );
   }
   private ShowSuccessToast(Message: string): void {
     this.Notifications.ShowSuccess(Message);

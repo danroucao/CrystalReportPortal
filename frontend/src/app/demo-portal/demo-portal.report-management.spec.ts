@@ -35,6 +35,25 @@ describe('ReportManagementPageComponent', () => {
     expect(component.ReportManagementCurrentPage).toBe(1);
   });
 
+  it('renders each report RPT data source after the category column', () => {
+    expect(LoginFrontManager(TestBed.inject(AuthService))).toBeTrue();
+    const fixture = TestBed.createComponent(ReportManagementPageComponent);
+    fixture.detectChanges();
+
+    const page = fixture.nativeElement as HTMLElement;
+    const headers = Array.from(page.querySelectorAll('th')).map((header) =>
+      header.textContent?.trim(),
+    );
+    const categoryIndex = headers.indexOf('報表分類');
+    const dataSourceIndex = headers.indexOf('資料來源');
+
+    expect(dataSourceIndex).toBe(categoryIndex + 1);
+    const sourceCell = page.querySelector('tbody tr td:nth-child(4)');
+    expect(sourceCell?.textContent?.trim()).toBe(
+      fixture.componentInstance.PagedManagedReports[0].DataSourceName,
+    );
+  });
+
   it('opens parameter setup for newly detected RPT parameters after upload', () => {
     const component = createPage();
     const rbac = TestBed.inject(MockRbacService);
@@ -88,6 +107,21 @@ describe('ReportManagementPageComponent', () => {
     expect(component.IsReportCategoryQuickAddOpen).toBeFalse();
     expect(component.ReportEditorDraft.ReportName).toBe('Draft stays intact');
     expect(component.ReportEditorDraft.CategoryId).not.toBe('FINANCE');
+  });
+
+  it('confirms before discarding changed category-management input', () => {
+    const component = createPage();
+    component.OpenCategoryManagementDialog();
+    component.NewCategoryName = '尚未儲存的分類';
+
+    component.RequestCloseCategoryManagementDialog();
+    expect(component.IsCategoryDiscardConfirmationOpen).toBeTrue();
+    expect(component.IsCategoryManagementDialogOpen).toBeTrue();
+
+    component.ContinueEditingCategoryManagement();
+    expect(component.IsCategoryDiscardConfirmationOpen).toBeFalse();
+    component.DiscardCategoryManagementChanges();
+    expect(component.IsCategoryManagementDialogOpen).toBeFalse();
   });
 
   it('deletes reports only through an explicit confirmation state', () => {

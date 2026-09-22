@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, inject } from '@angular/core';
+import { Component, Input, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
@@ -12,6 +12,7 @@ import { NotificationService } from '../../services/notification.service';
 import { MockManagedReportParameterService } from '../../services/mock-managed-report-parameter.service';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
 import { PortalTab, PortalTabsComponent } from '../../shared/portal-tabs.component';
+import { UnsavedChangesDialogComponent } from '../../shared/unsaved-changes-dialog.component';
 import { ReportEditorFormComponent } from '../report-editor-form/report-editor-form.component';
 import { ReportEditorDraft } from '../report-editor-form/report-editor-form.model';
 import { ReportParameterManagementComponent } from '../report-parameter-management/report-parameter-management.component';
@@ -36,6 +37,7 @@ type ReportManagementSortDirection = 'asc' | 'desc';
     ReportEditorFormComponent,
     ReportParameterManagementComponent,
     CommonParameterManagementComponent,
+    UnsavedChangesDialogComponent,
   ],
   templateUrl: './report-management-page.component.html',
   styleUrl: './report-management-page.component.scss',
@@ -67,12 +69,18 @@ export class ReportManagementPageComponent implements OnInit {
     { id: 'common-parameters', label: '共用參數管理' },
   ];
   private readonly PinnedReportManagementKeys = new Set<MockReportKey>();
+  @ViewChild(CommonParameterManagementComponent)
+  private commonParameterManagement?: CommonParameterManagementComponent;
+  @ViewChild(ReportParameterManagementComponent)
+  private reportParameterManagement?: ReportParameterManagementComponent;
 
   IsCategoryManagementDialogOpen = false;
+  IsCategoryDiscardConfirmationOpen = false;
   NewCategoryName = '';
   CategoryCreateError = '';
   EditingCategoryId: string | null = null;
   EditingCategoryName = '';
+  private InitialEditingCategoryName = '';
   CategoryEditError = '';
   DeletingCategory: MockReportCategory | null = null;
   CategoryDeleteError = '';
@@ -248,11 +256,28 @@ export class ReportManagementPageComponent implements OnInit {
   }
 
   CloseCategoryManagementDialog(): void {
+    this.IsCategoryDiscardConfirmationOpen = false;
     this.IsCategoryManagementDialogOpen = false;
     this.NewCategoryName = '';
     this.CategoryCreateError = '';
     this.CancelCategoryEdit();
     this.CategoryDeleteError = '';
+  }
+
+  RequestCloseCategoryManagementDialog(): void {
+    if (this.IsCategoryManagementDirty()) {
+      this.IsCategoryDiscardConfirmationOpen = true;
+      return;
+    }
+    this.CloseCategoryManagementDialog();
+  }
+
+  ContinueEditingCategoryManagement(): void {
+    this.IsCategoryDiscardConfirmationOpen = false;
+  }
+
+  DiscardCategoryManagementChanges(): void {
+    this.CloseCategoryManagementDialog();
   }
 
   CreateManagedCategory(): void {
@@ -277,13 +302,22 @@ export class ReportManagementPageComponent implements OnInit {
     if (!this.HasReportManagementPermission() || Category.IsSystemReserved) return;
     this.EditingCategoryId = Category.CategoryId;
     this.EditingCategoryName = Category.CategoryName;
+    this.InitialEditingCategoryName = Category.CategoryName;
     this.CategoryEditError = '';
   }
 
   CancelCategoryEdit(): void {
     this.EditingCategoryId = null;
     this.EditingCategoryName = '';
+    this.InitialEditingCategoryName = '';
     this.CategoryEditError = '';
+  }
+
+  private IsCategoryManagementDirty(): boolean {
+    return !!this.NewCategoryName.trim() || (
+      !!this.EditingCategoryId &&
+      this.EditingCategoryName !== this.InitialEditingCategoryName
+    );
   }
 
   SaveCategoryEdit(): void {
@@ -365,6 +399,15 @@ export class ReportManagementPageComponent implements OnInit {
 
   SetManagementTab(Tab: string): void {
     if (Tab === 'reports' || Tab === 'common-parameters') this.ManagementTab = Tab;
+  }
+
+  HasUnsavedChanges(): boolean {
+    return (
+      (this.IsCategoryManagementDialogOpen && this.IsCategoryManagementDirty()) ||
+      this.IsReportEditorDirty() ||
+      this.commonParameterManagement?.HasUnsavedChanges() === true ||
+      this.reportParameterManagement?.HasUnsavedChanges() === true
+    );
   }
 
   SetReportEditorTab(Tab: string): void {

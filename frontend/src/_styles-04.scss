@@ -606,15 +606,18 @@ app-demo-portal .report-management-name-column {
 app-demo-portal .report-management-category-column {
   width: 8%;
 }
+app-demo-portal .report-management-data-source-column {
+  width: 12%;
+}
 app-demo-portal .report-management-description-column {
-  width: 20%;
+  width: 16%;
 }
 app-demo-portal .report-management-enabled-column {
-  width: 13%;
+  width: 10%;
 }
 app-demo-portal .report-management-created-column,
 app-demo-portal .report-management-updated-column {
-  width: 14.5%;
+  width: 12%;
 }
 app-demo-portal .report-management-actions-column {
   width: 10%;

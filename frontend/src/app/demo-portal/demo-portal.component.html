@@ -523,7 +523,7 @@
         <section
           *ngIf="IsDatabaseConnectionEditorOpen"
           class="modal-backdrop"
-          (click)="CloseDatabaseConnectionEditor()"
+          (click)="RequestCloseDatabaseConnectionEditor()"
         >
           <section
             class="edit-user-modal database-connection-modal"
@@ -548,7 +548,7 @@
                 type="button"
                 class="modal-close-button"
                 aria-label="關閉資料庫連線視窗"
-                (click)="CloseDatabaseConnectionEditor()"
+                (click)="RequestCloseDatabaseConnectionEditor()"
               >
                 ×
               </button>
@@ -662,13 +662,19 @@
               <button
                 type="button"
                 class="tertiary-button"
-                (click)="CloseDatabaseConnectionEditor()"
+                (click)="RequestCloseDatabaseConnectionEditor()"
               >
                 取消
               </button>
             </div>
           </section>
         </section>
+        <app-unsaved-changes-dialog
+          *ngIf="IsDatabaseConnectionDiscardConfirmationOpen"
+          subject="資料庫連線"
+          (continueEditing)="ContinueEditingDatabaseConnection()"
+          (discardChanges)="DiscardDatabaseConnectionChanges()"
+        />
       </section>
       <table
         *ngIf="
@@ -794,3 +800,9 @@
     </section>
   </section>
 </div>
+
+<app-unsaved-changes-dialog
+  *ngIf="IsPageDiscardConfirmationOpen"
+  (continueEditing)="ContinueEditingPageChanges()"
+  (discardChanges)="DiscardPageChanges()"
+/>

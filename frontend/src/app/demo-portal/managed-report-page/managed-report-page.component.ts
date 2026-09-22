@@ -13,6 +13,7 @@ import {
 import { ReportService } from '../../services/report.service';
 import { NotificationService } from '../../services/notification.service';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
+import { UnsavedChangesDialogComponent } from '../../shared/unsaved-changes-dialog.component';
 import { ManagedReportReviewDialogComponent } from '../managed-report-review-dialog/managed-report-review-dialog.component';
 
 type SortField = 'reportName' | 'createdAt' | 'updatedAt';
@@ -21,7 +22,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-managed-report-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, PortalPaginationComponent, ManagedReportReviewDialogComponent],
+  imports: [CommonModule, FormsModule, PortalPaginationComponent, ManagedReportReviewDialogComponent, UnsavedChangesDialogComponent],
   templateUrl: './managed-report-page.component.html',
   styleUrl: './managed-report-page.component.scss',
 })
@@ -44,12 +45,15 @@ export class ManagedReportPageComponent implements OnInit {
   loadError = '';
 
   isEditorOpen = false;
+  isDiscardConfirmationOpen = false;
   isSaving = false;
   editorError = '';
   selectedFile: File | null = null;
   existingDraft: ManagedReport | null = null;
   reviewReport: ManagedReport | null = null;
   draft = this.createEmptyDraft();
+  private initialDraft: CreateManagedReportRequest | null = null;
+  private initialFileName = '';
 
   get displayedReports(): readonly ManagedReport[] {
     const search = this.searchText.trim().toLocaleLowerCase();
@@ -111,7 +115,11 @@ export class ManagedReportPageComponent implements OnInit {
   openCreate(): void {
     this.existingDraft = null;
     this.draft = this.createEmptyDraft();
+    this.initialDraft = { ...this.draft };
+    this.initialFileName = '';
     this.selectedFile = null;
+    this.initialDraft = { ...this.draft };
+    this.initialFileName = '';
     this.editorError = '';
     this.isEditorOpen = true;
   }
@@ -131,9 +139,27 @@ export class ManagedReportPageComponent implements OnInit {
     this.isEditorOpen = true;
   }
 
-  closeEditor(): void {
-    if (this.isSaving) return;
+  requestCloseEditor(): void {
+    if (!this.isEditorDirty()) {
+      this.closeEditor();
+      return;
+    }
+    this.isDiscardConfirmationOpen = true;
+  }
+
+  continueEditing(): void { this.isDiscardConfirmationOpen = false; }
+
+  discardChanges(): void {
+    this.isDiscardConfirmationOpen = false;
+    this.closeEditor();
+  }
+
+  closeEditor(force = false): void {
+    if (this.isSaving && !force) return;
     this.isEditorOpen = false;
+    this.isDiscardConfirmationOpen = false;
+    this.initialDraft = null;
+    this.initialFileName = '';
     this.existingDraft = null;
     this.selectedFile = null;
     this.editorError = '';
@@ -169,7 +195,7 @@ export class ManagedReportPageComponent implements OnInit {
 
     reportOperation.pipe(finalize(() => (this.isSaving = false))).subscribe({
       next: (result) => {
-        this.isEditorOpen = false;
+        this.closeEditor(true);
         this.notifications.ShowSuccess(
           `RPT 上傳成功，已辨識 ${result.data.parameterCount} 個參數。`,
         );
@@ -265,6 +291,14 @@ export class ManagedReportPageComponent implements OnInit {
       dataSourceId: this.draft.dataSourceId || null,
       credentialType: 'ReadOnly',
     };
+  }
+
+  private isEditorDirty(): boolean {
+    return Boolean(
+      this.initialDraft &&
+        (JSON.stringify(this.initialDraft) !== JSON.stringify(this.draft) ||
+          this.initialFileName !== (this.selectedFile?.name ?? '')),
+    );
   }
 
   private createEmptyDraft(): CreateManagedReportRequest & { description: string } {

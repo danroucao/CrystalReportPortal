@@ -30,13 +30,14 @@ import { NotificationService } from '../../services/notification.service';
 import { BoringAvatarComponent } from '../../shared/boring-avatar.component';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
 import { PortalTab, PortalTabsComponent } from '../../shared/portal-tabs.component';
+import { UnsavedChangesDialogComponent } from '../../shared/unsaved-changes-dialog.component';
 
 type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
 
 @Component({
   selector: 'app-user-management-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, BoringAvatarComponent, PortalPaginationComponent, PortalTabsComponent],
+  imports: [CommonModule, FormsModule, BoringAvatarComponent, PortalPaginationComponent, PortalTabsComponent, UnsavedChangesDialogComponent],
   templateUrl: './user-management-page.component.html',
   styleUrl: './user-management-page.component.scss',
 })
@@ -58,6 +59,7 @@ export class UserManagementPageComponent {
 
   IsCreateRoleDialogOpen = false;
   IsEditRoleDialogOpen = false;
+  IsDiscardConfirmationOpen = false;
   EditingRoleKey: MockRoleKey | null = null;
   DeletingRole: MockRole | null = null;
   RoleDraft: MockRoleDraft = this.CreateRoleDraft();
@@ -75,6 +77,9 @@ export class UserManagementPageComponent {
   private roleCardViewport?: ElementRef<HTMLElement>;
 
   private modalOpener: HTMLElement | null = null;
+  private initialEditingUser: MockUserEditDraft | null = null;
+  private initialRoleDraft: MockRoleDraft | null = null;
+  discardTarget: 'user' | 'role' | null = null;
   private focusTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -154,6 +159,7 @@ export class UserManagementPageComponent {
     this.RememberModalOpener();
     this.EditingAccount = User.Account;
     this.EditingUser = { Roles: [...User.Roles] };
+    this.initialEditingUser = { Roles: [...this.EditingUser.Roles] };
     this.EditUserValidationErrors = {};
     this.FocusModalSoon();
   }
@@ -187,9 +193,23 @@ export class UserManagementPageComponent {
     this.Notifications.ShowSuccess('使用者角色已更新。');
   }
 
+  RequestCancelEditUser(): void {
+    if (!this.IsEditingUserDirty()) {
+      this.CancelEditUser();
+      return;
+    }
+    this.discardTarget = 'user';
+    this.IsDiscardConfirmationOpen = true;
+  }
+
+  HasUnsavedChanges(): boolean {
+    return this.IsEditingUserDirty() || this.IsRoleDraftDirty();
+  }
+
   CancelEditUser(): void {
     this.EditingAccount = null;
     this.EditingUser = null;
+    this.initialEditingUser = null;
     this.EditUserValidationErrors = {};
     this.RestoreModalFocus();
   }
@@ -198,6 +218,7 @@ export class UserManagementPageComponent {
     if (!this.Auth.CanOperateBackOffice) return;
     this.RememberModalOpener();
     this.RoleDraft = this.CreateRoleDraft();
+    this.initialRoleDraft = this.CloneRoleDraft(this.RoleDraft);
     this.RoleDraftError = '';
     this.IsReportManagementExpanded = true;
     this.IsOperationLogExpanded = true;
@@ -216,11 +237,34 @@ export class UserManagementPageComponent {
       ManagementPermissions: [...Role.ManagementPermissions],
       Permissions: this.MockRbac.GetCategoryPermissionEntries(Role.Key),
     };
+    this.initialRoleDraft = this.CloneRoleDraft(this.RoleDraft);
     this.RoleDraftError = '';
     this.IsReportManagementExpanded = true;
     this.IsOperationLogExpanded = true;
     this.IsEditRoleDialogOpen = true;
     this.FocusModalSoon();
+  }
+
+  RequestCloseRoleDialog(): void {
+    if (!this.IsRoleDraftDirty()) {
+      this.CloseRoleDialog();
+      return;
+    }
+    this.discardTarget = 'role';
+    this.IsDiscardConfirmationOpen = true;
+  }
+
+  ContinueEditing(): void {
+    this.IsDiscardConfirmationOpen = false;
+    this.discardTarget = null;
+  }
+
+  DiscardChanges(): void {
+    const Target = this.discardTarget;
+    this.IsDiscardConfirmationOpen = false;
+    this.discardTarget = null;
+    if (Target === 'user') this.CancelEditUser();
+    if (Target === 'role') this.CloseRoleDialog();
   }
 
   CloseRoleDialog(): void {
@@ -229,6 +273,7 @@ export class UserManagementPageComponent {
     this.EditingRoleKey = null;
     this.DeletingRole = null;
     this.RoleDraft = this.CreateRoleDraft();
+    this.initialRoleDraft = null;
     this.RoleDraftError = '';
     this.RestoreModalFocus();
   }
@@ -361,8 +406,8 @@ export class UserManagementPageComponent {
   @HostListener('document:keydown.escape')
   CloseTopModalOnEscape(): void {
     if (this.DeletingRole) this.CloseDeleteRoleDialog();
-    else if (this.EditingUser) this.CancelEditUser();
-    else if (this.IsCreateRoleDialogOpen || this.IsEditRoleDialogOpen) this.CloseRoleDialog();
+    else if (this.EditingUser) this.RequestCancelEditUser();
+    else if (this.IsCreateRoleDialogOpen || this.IsEditRoleDialogOpen) this.RequestCloseRoleDialog();
   }
 
   private CreateRoleDraft(): MockRoleDraft {
@@ -371,6 +416,24 @@ export class UserManagementPageComponent {
       ManagementPermissions: [],
       Permissions: this.MockRbac.GetEmptyCategoryPermissionEntries(),
     };
+  }
+
+  private IsEditingUserDirty(): boolean {
+    return Boolean(
+      this.EditingUser &&
+        this.initialEditingUser &&
+        JSON.stringify(this.EditingUser) !== JSON.stringify(this.initialEditingUser),
+    );
+  }
+
+  private IsRoleDraftDirty(): boolean {
+    return Boolean(
+      this.initialRoleDraft && JSON.stringify(this.RoleDraft) !== JSON.stringify(this.initialRoleDraft),
+    );
+  }
+
+  private CloneRoleDraft(Draft: MockRoleDraft): MockRoleDraft {
+    return JSON.parse(JSON.stringify(Draft)) as MockRoleDraft;
   }
 
   private SetRoleDraftError(Message: string): void { this.RoleDraftError = Message; }

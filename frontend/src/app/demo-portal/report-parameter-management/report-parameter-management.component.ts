@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MockReportKey } from '../../mock/mock-reports';
 import { NotificationService } from '../../services/notification.service';
 import { PortalTab, PortalTabsComponent } from '../../shared/portal-tabs.component';
+import { UnsavedChangesDialogComponent } from '../../shared/unsaved-changes-dialog.component';
 import {
   MockManagedParameterDataType,
   MockManagedParameterInputType,
@@ -21,7 +22,7 @@ type EditableParameterDraft = {
 @Component({
   selector: 'app-report-parameter-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, PortalTabsComponent],
+  imports: [CommonModule, FormsModule, PortalTabsComponent, UnsavedChangesDialogComponent],
   templateUrl: './report-parameter-management.component.html',
   styleUrl: './report-parameter-management.component.scss',
 })
@@ -48,11 +49,13 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
   isDetectedDialogOpen = false;
   detectedDisplayNames: Record<string, string> = {};
   isManualDialogOpen = false;
+  isManualDiscardConfirmationOpen = false;
   manualMode: ManualParameterMode = 'report';
   manualError = '';
   saveError = '';
   pendingTemplateApply: MockManagedReportParameter | null = null;
   manualDraft = this.createManualDraft();
+  private initialManualDraft: EditableParameterDraft | null = null;
 
   get availableRptParameterNames(): readonly string[] {
     return this.parametersApi.GetAvailableRptParameterNames(this.reportKey);
@@ -74,11 +77,35 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
     this.manualMode = 'report';
     this.manualError = '';
     this.manualDraft = this.createManualDraft();
+    this.initialManualDraft = { ...this.manualDraft };
     this.isManualDialogOpen = true;
+  }
+
+  requestCloseManualDialog(): void {
+    if (!this.isManualDialogDirty()) {
+      this.closeManualDialog();
+      return;
+    }
+    this.isManualDiscardConfirmationOpen = true;
+  }
+
+  HasUnsavedChanges(): boolean {
+    return this.isManualDialogOpen && this.isManualDialogDirty();
+  }
+
+  continueEditingManualParameter(): void {
+    this.isManualDiscardConfirmationOpen = false;
+  }
+
+  discardManualParameterChanges(): void {
+    this.isManualDiscardConfirmationOpen = false;
+    this.closeManualDialog();
   }
 
   closeManualDialog(): void {
     this.isManualDialogOpen = false;
+    this.isManualDiscardConfirmationOpen = false;
+    this.initialManualDraft = null;
     this.manualError = '';
   }
 
@@ -237,6 +264,10 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
   private openDetectedDialogIfNeeded(): void {
     if (!this.detectedParameterNames.length || !this.parameters.length) return;
     this.isDetectedDialogOpen = true;
+  }
+
+  private isManualDialogDirty(): boolean {
+    return Boolean(this.initialManualDraft && JSON.stringify(this.initialManualDraft) !== JSON.stringify(this.manualDraft));
   }
 
   private createManualDraft(): EditableParameterDraft {

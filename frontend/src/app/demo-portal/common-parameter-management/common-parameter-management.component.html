@@ -36,9 +36,9 @@
   </div>
 </section>
 
-<section *ngIf="isEditorOpen" class="modal-backdrop" (click)="closeEditor()">
+<section *ngIf="isEditorOpen" class="modal-backdrop" (click)="requestCloseEditor()">
   <section class="edit-user-modal common-parameter-editor" role="dialog" aria-modal="true" aria-labelledby="common-parameter-editor-title" (click)="$event.stopPropagation()">
-    <div class="modal-heading"><h2 id="common-parameter-editor-title">{{ editingTemplateId ? '編輯共用參數' : '新增共用參數' }}</h2><button type="button" class="modal-close-button" aria-label="關閉共用參數編輯視窗" (click)="closeEditor()">×</button></div>
+    <div class="modal-heading"><h2 id="common-parameter-editor-title">{{ editingTemplateId ? '編輯共用參數' : '新增共用參數' }}</h2><button type="button" class="modal-close-button" aria-label="關閉共用參數編輯視窗" (click)="requestCloseEditor()">×</button></div>
     <form class="common-parameter-form" (ngSubmit)="saveTemplate()" novalidate>
       <label>匹配用參數名稱<span class="required-indicator">*</span><input name="commonParameterName" [(ngModel)]="draft.ParameterName" placeholder="例如 StartDate" /></label>
       <label>顯示名稱<span class="required-indicator">*</span><input name="commonDisplayName" [(ngModel)]="draft.DisplayName" placeholder="例如 開始日期" /></label>
@@ -49,10 +49,12 @@
       <label class="inline-option"><input type="checkbox" name="commonRequired" [(ngModel)]="draft.Required" /> 必填</label>
       <label class="inline-option"><input type="checkbox" name="commonVisible" [(ngModel)]="draft.Visible" /> 顯示於執行頁</label>
       <p *ngIf="editorError" class="field-error common-parameter-description" role="alert">{{ editorError }}</p>
-      <div class="modal-actions common-parameter-description"><button type="button" class="tertiary-button" (click)="closeEditor()">取消</button><button type="submit" class="primary-button">儲存</button></div>
+      <div class="modal-actions common-parameter-description"><button type="button" class="tertiary-button" (click)="requestCloseEditor()">取消</button><button type="submit" class="primary-button">儲存</button></div>
     </form>
   </section>
 </section>
+
+<app-unsaved-changes-dialog *ngIf="isDiscardConfirmationOpen" subject="共用參數" (continueEditing)="continueEditing()" (discardChanges)="discardChanges()" />
 
 <section *ngIf="selectedUsageTemplate" class="modal-backdrop" (click)="closeUsage()">
   <section class="edit-user-modal common-parameter-usage-dialog" role="dialog" aria-modal="true" aria-labelledby="common-parameter-usage-title" (click)="$event.stopPropagation()">

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 import { MockReportReadModel } from '../../mock/mock-reports';
 import { NotificationService } from '../../services/notification.service';
+import { UnsavedChangesDialogComponent } from '../../shared/unsaved-changes-dialog.component';
 import {
   MockManagedParameterDataType,
   MockManagedReportParameterDraft,
@@ -17,7 +18,7 @@ type EnabledFilter = 'all' | 'enabled' | 'disabled';
 @Component({
   selector: 'app-common-parameter-management',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UnsavedChangesDialogComponent],
   templateUrl: './common-parameter-management.component.html',
   styleUrl: './common-parameter-management.component.scss',
 })
@@ -37,9 +38,11 @@ export class CommonParameterManagementComponent implements OnInit {
   searchText = '';
   actionError = '';
   isEditorOpen = false;
+  isDiscardConfirmationOpen = false;
   editingTemplateId: string | null = null;
   editorError = '';
   draft = this.createDraft();
+  private initialDraft: MockManagedReportParameterDraft | null = null;
   selectedUsageTemplate: MockParameterTemplate | null = null;
   deletingTemplate: MockParameterTemplate | null = null;
   deleteError = '';
@@ -64,6 +67,7 @@ export class CommonParameterManagementComponent implements OnInit {
   openCreateEditor(): void {
     this.editingTemplateId = null;
     this.draft = this.createDraft();
+    this.initialDraft = { ...this.draft };
     this.editorError = '';
     this.isEditorOpen = true;
   }
@@ -71,12 +75,36 @@ export class CommonParameterManagementComponent implements OnInit {
   openEditEditor(template: MockParameterTemplate): void {
     this.editingTemplateId = template.TemplateId;
     this.draft = this.toDraft(template);
+    this.initialDraft = { ...this.draft };
     this.editorError = '';
     this.isEditorOpen = true;
   }
 
+  requestCloseEditor(): void {
+    if (!this.isEditorDirty()) {
+      this.closeEditor();
+      return;
+    }
+    this.isDiscardConfirmationOpen = true;
+  }
+
+  HasUnsavedChanges(): boolean {
+    return this.isEditorOpen && this.isEditorDirty();
+  }
+
+  continueEditing(): void {
+    this.isDiscardConfirmationOpen = false;
+  }
+
+  discardChanges(): void {
+    this.isDiscardConfirmationOpen = false;
+    this.closeEditor();
+  }
+
   closeEditor(): void {
     this.isEditorOpen = false;
+    this.isDiscardConfirmationOpen = false;
+    this.initialDraft = null;
     this.editorError = '';
   }
 
@@ -196,6 +224,10 @@ export class CommonParameterManagementComponent implements OnInit {
       DefaultValue: this.draft.DefaultValue.trim(),
       Description: this.draft.Description.trim(),
     };
+  }
+
+  private isEditorDirty(): boolean {
+    return Boolean(this.initialDraft && JSON.stringify(this.initialDraft) !== JSON.stringify(this.draft));
   }
 
   private defaultInputType(dataType: MockManagedParameterDataType): MockManagedParameterInputType {

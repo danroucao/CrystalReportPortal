@@ -5,6 +5,12 @@
 @use 'styles-05';
 @use 'styles-06';
 
+/* A consistent, low-contrast hover cue for every data-table row. */
+table > tbody > tr:hover > td {
+  background-color: #fdf7f8 !important;
+  transition: background-color 150ms ease;
+}
+
 /*
  * Global button contract. Keep these classes on native buttons so every page
  * receives the same hierarchy and interaction states without a wrapper API.

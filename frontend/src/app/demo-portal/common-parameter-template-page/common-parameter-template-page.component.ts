@@ -13,13 +13,14 @@ import {
   CommonParameterDataSourceOption,
 } from '../../services/common-parameter-template-api.models';
 import { CommonParameterTemplateService } from '../../services/common-parameter-template.service';
+import { UnsavedChangesDialogComponent } from '../../shared/unsaved-changes-dialog.component';
 
 type EnabledFilter = 'all' | 'enabled' | 'disabled';
 
 @Component({
   selector: 'app-common-parameter-template-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UnsavedChangesDialogComponent],
   templateUrl: './common-parameter-template-page.component.html',
   styleUrl: './common-parameter-template-page.component.scss',
 })
@@ -43,7 +44,9 @@ export class CommonParameterTemplatePageComponent implements OnInit {
   editorError = '';
   editingTemplateId: number | null = null;
   isEditorOpen = false;
+  isDiscardConfirmationOpen = false;
   draft = this.createEmptyDraft();
+  private initialDraft: SaveCommonParameterTemplateRequest | null = null;
 
   get displayedTemplates(): readonly CommonParameterTemplate[] {
     const search = this.searchText.trim().toLocaleLowerCase();
@@ -96,6 +99,7 @@ export class CommonParameterTemplatePageComponent implements OnInit {
   openCreateEditor(): void {
     this.editingTemplateId = null;
     this.draft = this.createEmptyDraft();
+    this.initialDraft = { ...this.draft };
     this.editorError = '';
     this.isEditorOpen = true;
   }
@@ -120,13 +124,31 @@ export class CommonParameterTemplatePageComponent implements OnInit {
       defaultValue: template.defaultValue,
       description: template.description,
     };
+    this.initialDraft = { ...this.draft };
     this.editorError = '';
     this.isEditorOpen = true;
   }
 
-  closeEditor(): void {
-    if (this.isSaving) return;
+  requestCloseEditor(): void {
+    if (!this.isEditorDirty()) {
+      this.closeEditor();
+      return;
+    }
+    this.isDiscardConfirmationOpen = true;
+  }
+
+  continueEditing(): void { this.isDiscardConfirmationOpen = false; }
+
+  discardChanges(): void {
+    this.isDiscardConfirmationOpen = false;
+    this.closeEditor();
+  }
+
+  closeEditor(force = false): void {
+    if (this.isSaving && !force) return;
     this.isEditorOpen = false;
+    this.isDiscardConfirmationOpen = false;
+    this.initialDraft = null;
     this.editorError = '';
   }
 
@@ -154,7 +176,7 @@ export class CommonParameterTemplatePageComponent implements OnInit {
     this.editorError = '';
     operation.pipe(finalize(() => (this.isSaving = false))).subscribe({
       next: () => {
-        this.isEditorOpen = false;
+        this.closeEditor(true);
         this.loadTemplates();
       },
       error: (error: unknown) => (this.editorError = this.getErrorMessage(error)),
@@ -182,6 +204,10 @@ export class CommonParameterTemplatePageComponent implements OnInit {
     if (this.isSqlLov && !this.draft.valueField?.trim()) return 'SQL LOV 必須輸入值欄位。';
     if (this.isSqlLov && !this.draft.displayField?.trim()) return 'SQL LOV 必須輸入顯示欄位。';
     return '';
+  }
+
+  private isEditorDirty(): boolean {
+    return Boolean(this.initialDraft && JSON.stringify(this.initialDraft) !== JSON.stringify(this.draft));
   }
 
   private normalizeDraft(): SaveCommonParameterTemplateRequest {

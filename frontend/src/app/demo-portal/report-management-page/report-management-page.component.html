@@ -1,147 +1,654 @@
-<section *ngIf="!isDetailPage && !IsUploadReportDialogOpen" class="management-section report-management">
-  <app-portal-tabs [Tabs]="ManagementTabs" [ActiveTab]="ManagementTab" AriaLabel="報表管理頁籤" (TabChange)="SetManagementTab($event)" />
+<section
+  *ngIf="!isDetailPage && !IsUploadReportDialogOpen"
+  class="management-section report-management"
+>
+  <app-portal-tabs
+    [Tabs]="ManagementTabs"
+    [ActiveTab]="ManagementTab"
+    AriaLabel="報表管理頁籤"
+    (TabChange)="SetManagementTab($event)"
+  />
 
   <ng-container *ngIf="ManagementTab === 'reports'">
-  <div class="report-management-toolbar">
-    <label for="report-management-start-date">開始日期
-      <input id="report-management-start-date" type="date" [(ngModel)]="ReportManagementStartDate" (change)="OnReportManagementDateChange()" />
-    </label>
-    <label for="report-management-end-date">結束日期
-      <input id="report-management-end-date" type="date" [min]="ReportManagementStartDate || null" [(ngModel)]="ReportManagementEndDate" (change)="OnReportManagementDateChange()" />
-    </label>
-    <label for="report-management-category">報表分類
-      <select id="report-management-category" [(ngModel)]="ReportManagementCategoryId" (ngModelChange)="SetReportManagementCategory($event)">
-        <option [value]="AllCategoryFilterValue">全部</option>
-        <option *ngFor="let Category of ReportManagementCategories" [value]="Category.CategoryId">{{ Category.CategoryName }}</option>
-      </select>
-    </label>
-    <label class="report-management-search" for="report-management-search">搜尋報表
-      <input id="report-management-search" [(ngModel)]="ReportManagementSearchText" (ngModelChange)="OnReportManagementSearchChange()" placeholder="請輸入報表名稱或報表說明" />
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.2 15.2 4 4"></path></svg>
-    </label>
-  </div>
-  <p *ngIf="ReportManagementDateNotice" class="parameter-search-error" role="alert">{{ ReportManagementDateNotice }}</p>
-  <p class="report-date-tbd">日期篩選對應欄位尚待需求確認（TBD），目前不套用資料篩選。</p>
+    <div class="report-management-toolbar">
+      <label for="report-management-start-date"
+        >開始日期
+        <input
+          id="report-management-start-date"
+          type="date"
+          [(ngModel)]="ReportManagementStartDate"
+          (change)="OnReportManagementDateChange()"
+        />
+      </label>
+      <label for="report-management-end-date"
+        >結束日期
+        <input
+          id="report-management-end-date"
+          type="date"
+          [min]="ReportManagementStartDate || null"
+          [(ngModel)]="ReportManagementEndDate"
+          (change)="OnReportManagementDateChange()"
+        />
+      </label>
+      <label for="report-management-category"
+        >報表分類
+        <select
+          id="report-management-category"
+          [(ngModel)]="ReportManagementCategoryId"
+          (ngModelChange)="SetReportManagementCategory($event)"
+        >
+          <option [value]="AllCategoryFilterValue">全部</option>
+          <option
+            *ngFor="let Category of ReportManagementCategories"
+            [value]="Category.CategoryId"
+          >
+            {{ Category.CategoryName }}
+          </option>
+        </select>
+      </label>
+      <label class="report-management-search" for="report-management-search"
+        >搜尋報表
+        <input
+          id="report-management-search"
+          [(ngModel)]="ReportManagementSearchText"
+          (ngModelChange)="OnReportManagementSearchChange()"
+          placeholder="請輸入報表名稱或報表說明"
+        />
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="10.8" cy="10.8" r="5.8"></circle>
+          <path d="m15.2 15.2 4 4"></path>
+        </svg>
+      </label>
+    </div>
+    <p
+      *ngIf="ReportManagementDateNotice"
+      class="parameter-search-error"
+      role="alert"
+    >
+      {{ ReportManagementDateNotice }}
+    </p>
+    <p class="report-date-tbd">
+      日期篩選對應欄位尚待需求確認（TBD），目前不套用資料篩選。
+    </p>
 
-  <div class="table-scroll">
-    <table class="report-management-table">
-      <colgroup>
-        <col class="report-management-pin-column" /><col class="report-management-name-column" />
-        <col class="report-management-category-column" /><col class="report-management-description-column" />
-        <col class="report-management-enabled-column" /><col class="report-management-created-column" />
-        <col class="report-management-updated-column" /><col class="report-management-actions-column" />
-      </colgroup>
-      <thead><tr>
-        <th scope="col" class="report-management-pin-cell"><span class="report-management-pin-header">釘選</span></th>
-        <th scope="col" [attr.aria-sort]="GetReportManagementAriaSort('ReportName')" [class.is-sorted]="ReportManagementSortField === 'ReportName'">
-          <button type="button" class="sortable-table-header report-management-name-sort-button" (click)="ToggleReportManagementSort('ReportName')">
-            報表名稱
-            <svg class="sort-indicator" [class.is-ascending]="GetReportManagementSortIndicator('ReportName') === '↑'" [class.is-descending]="GetReportManagementSortIndicator('ReportName') === '↓'" viewBox="0 0 16 24" aria-hidden="true"><path class="sort-indicator-up" d="m3 8 5-5 5 5"></path><path class="sort-indicator-down" d="m3 16 5 5 5-5"></path></svg>
-          </button>
-        </th>
-        <th>報表分類</th><th>報表說明</th><th>啟用狀態</th>
-        <th scope="col" [attr.aria-sort]="GetReportManagementAriaSort('CreatedAt')" [class.is-sorted]="ReportManagementSortField === 'CreatedAt'">
-          <button type="button" class="sortable-table-header report-management-created-sort-button" (click)="ToggleReportManagementSort('CreatedAt')">
-            建立時間
-            <svg class="sort-indicator" [class.is-ascending]="GetReportManagementSortIndicator('CreatedAt') === '↑'" [class.is-descending]="GetReportManagementSortIndicator('CreatedAt') === '↓'" viewBox="0 0 16 24" aria-hidden="true"><path class="sort-indicator-up" d="m3 8 5-5 5 5"></path><path class="sort-indicator-down" d="m3 16 5 5 5-5"></path></svg>
-          </button>
-        </th>
-        <th scope="col" [attr.aria-sort]="GetReportManagementAriaSort('UpdatedAt')" [class.is-sorted]="ReportManagementSortField === 'UpdatedAt'">
-          <button type="button" class="sortable-table-header report-management-updated-sort-button" (click)="ToggleReportManagementSort('UpdatedAt')">
-            更新時間
-            <svg class="sort-indicator" [class.is-ascending]="GetReportManagementSortIndicator('UpdatedAt') === '↑'" [class.is-descending]="GetReportManagementSortIndicator('UpdatedAt') === '↓'" viewBox="0 0 16 24" aria-hidden="true"><path class="sort-indicator-up" d="m3 8 5-5 5 5"></path><path class="sort-indicator-down" d="m3 16 5 5 5-5"></path></svg>
-          </button>
-        </th>
-        <th class="report-management-actions-heading"><span class="visually-hidden">操作</span></th>
-      </tr></thead>
-      <tbody>
-        <tr *ngFor="let Report of PagedManagedReports; trackBy: TrackReportByKey" class="report-entry-row">
-          <td class="report-management-pin-cell"><div class="report-management-pin-control">
-            <button type="button" class="report-management-pin-button" [class.is-pinned]="IsReportManagementPinned(Report.ReportKey)" [attr.aria-pressed]="IsReportManagementPinned(Report.ReportKey)" [attr.aria-label]="(IsReportManagementPinned(Report.ReportKey) ? '取消釘選 ' : '釘選 ') + Report.ReportName" [title]="IsReportManagementPinned(Report.ReportKey) ? '取消釘選報表' : '釘選報表'" (click)="ToggleReportManagementPin(Report.ReportKey); $event.stopPropagation()"><span class="report-management-pin-icon" aria-hidden="true"></span></button>
-          </div></td>
-          <td class="report-management-name" [title]="Report.ReportName"><span>{{ Report.ReportName }}</span></td>
-          <td>{{ Report.CategoryName }}</td>
-          <td class="report-management-description" [title]="Report.Description"><span>{{ Report.Description }}</span></td>
-          <td class="report-enabled-control">
-            <button type="button" class="account-status-switch" role="switch" [class.is-enabled]="Report.Enabled" [attr.aria-checked]="Report.Enabled" [attr.aria-label]="Report.ReportName + (Report.Enabled ? '已啟用，點擊可停用' : '已停用，點擊可啟用')" (click)="SetReportEnabled(Report.ReportKey, !Report.Enabled); $event.stopPropagation()"><span class="account-status-switch-thumb"></span></button>
-            <span class="account-status-text">{{ Report.Enabled ? '啟用' : '停用' }}</span>
-          </td>
-          <td class="report-management-timestamp">{{ Report.CreatedAt }}</td><td class="report-management-timestamp">{{ Report.UpdatedAt }}</td>
-          <td class="report-management-actions-cell"><div class="report-row-actions">
-            <button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + Report.ReportName" title="編輯報表" (click)="OpenEditReportDialog(Report.ReportKey); $event.stopPropagation()">✎</button>
-            <button type="button" class="tertiary-button" [attr.aria-label]="'刪除 ' + Report.ReportName" title="刪除報表" (click)="OpenDeleteReportDialog(Report.ReportKey); $event.stopPropagation()">🗑</button>
-          </div></td>
-        </tr>
-        <tr *ngIf="!DisplayedManagedReports.length"><td colspan="8" class="report-management-empty">找不到符合條件的報表。</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <app-portal-pagination [CurrentPage]="ReportManagementCurrentPage" [TotalPages]="ReportManagementTotalPages" [PageNumbers]="ReportManagementPageNumbers" AriaLabel="報表管理分頁" (PageChange)="GoToReportManagementPage($event)" />
+    <div class="table-scroll">
+      <table class="report-management-table">
+        <colgroup>
+          <col class="report-management-pin-column" />
+          <col class="report-management-name-column" />
+          <col class="report-management-category-column" />
+          <col class="report-management-data-source-column" />
+          <col class="report-management-description-column" />
+          <col class="report-management-enabled-column" />
+          <col class="report-management-created-column" />
+          <col class="report-management-updated-column" />
+          <col class="report-management-actions-column" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col" class="report-management-pin-cell">
+              <span class="report-management-pin-header">釘選</span>
+            </th>
+            <th
+              scope="col"
+              [attr.aria-sort]="GetReportManagementAriaSort('ReportName')"
+              [class.is-sorted]="ReportManagementSortField === 'ReportName'"
+            >
+              <button
+                type="button"
+                class="sortable-table-header report-management-name-sort-button"
+                (click)="ToggleReportManagementSort('ReportName')"
+              >
+                報表名稱
+                <svg
+                  class="sort-indicator"
+                  [class.is-ascending]="
+                    GetReportManagementSortIndicator('ReportName') === '↑'
+                  "
+                  [class.is-descending]="
+                    GetReportManagementSortIndicator('ReportName') === '↓'
+                  "
+                  viewBox="0 0 16 24"
+                  aria-hidden="true"
+                >
+                  <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                  <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                </svg>
+              </button>
+            </th>
+            <th>報表分類</th>
+            <th>資料來源</th>
+            <th>報表說明</th>
+            <th>啟用狀態</th>
+            <th
+              scope="col"
+              [attr.aria-sort]="GetReportManagementAriaSort('CreatedAt')"
+              [class.is-sorted]="ReportManagementSortField === 'CreatedAt'"
+            >
+              <button
+                type="button"
+                class="sortable-table-header report-management-created-sort-button"
+                (click)="ToggleReportManagementSort('CreatedAt')"
+              >
+                建立時間
+                <svg
+                  class="sort-indicator"
+                  [class.is-ascending]="
+                    GetReportManagementSortIndicator('CreatedAt') === '↑'
+                  "
+                  [class.is-descending]="
+                    GetReportManagementSortIndicator('CreatedAt') === '↓'
+                  "
+                  viewBox="0 0 16 24"
+                  aria-hidden="true"
+                >
+                  <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                  <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                </svg>
+              </button>
+            </th>
+            <th
+              scope="col"
+              [attr.aria-sort]="GetReportManagementAriaSort('UpdatedAt')"
+              [class.is-sorted]="ReportManagementSortField === 'UpdatedAt'"
+            >
+              <button
+                type="button"
+                class="sortable-table-header report-management-updated-sort-button"
+                (click)="ToggleReportManagementSort('UpdatedAt')"
+              >
+                更新時間
+                <svg
+                  class="sort-indicator"
+                  [class.is-ascending]="
+                    GetReportManagementSortIndicator('UpdatedAt') === '↑'
+                  "
+                  [class.is-descending]="
+                    GetReportManagementSortIndicator('UpdatedAt') === '↓'
+                  "
+                  viewBox="0 0 16 24"
+                  aria-hidden="true"
+                >
+                  <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+                  <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+                </svg>
+              </button>
+            </th>
+            <th class="report-management-actions-heading">
+              <span class="report-management-pin-header">操作</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="
+              let Report of PagedManagedReports;
+              trackBy: TrackReportByKey
+            "
+            class="report-entry-row"
+          >
+            <td class="report-management-pin-cell">
+              <div class="report-management-pin-control">
+                <button
+                  type="button"
+                  class="report-management-pin-button"
+                  [class.is-pinned]="IsReportManagementPinned(Report.ReportKey)"
+                  [attr.aria-pressed]="
+                    IsReportManagementPinned(Report.ReportKey)
+                  "
+                  [attr.aria-label]="
+                    (IsReportManagementPinned(Report.ReportKey)
+                      ? '取消釘選 '
+                      : '釘選 ') + Report.ReportName
+                  "
+                  [title]="
+                    IsReportManagementPinned(Report.ReportKey)
+                      ? '取消釘選報表'
+                      : '釘選報表'
+                  "
+                  (click)="
+                    ToggleReportManagementPin(Report.ReportKey);
+                    $event.stopPropagation()
+                  "
+                >
+                  <span
+                    class="report-management-pin-icon"
+                    aria-hidden="true"
+                  ></span>
+                </button>
+              </div>
+            </td>
+            <td class="report-management-name" [title]="Report.ReportName">
+              <span>{{ Report.ReportName }}</span>
+            </td>
+            <td>{{ Report.CategoryName }}</td>
+            <td [title]="Report.DataSourceName">
+              <span>{{ Report.DataSourceName }}</span>
+            </td>
+            <td
+              class="report-management-description"
+              [title]="Report.Description"
+            >
+              <span>{{ Report.Description }}</span>
+            </td>
+            <td class="report-enabled-control">
+              <button
+                type="button"
+                class="account-status-switch"
+                role="switch"
+                [class.is-enabled]="Report.Enabled"
+                [attr.aria-checked]="Report.Enabled"
+                [attr.aria-label]="
+                  Report.ReportName +
+                  (Report.Enabled ? '已啟用，點擊可停用' : '已停用，點擊可啟用')
+                "
+                (click)="
+                  SetReportEnabled(Report.ReportKey, !Report.Enabled);
+                  $event.stopPropagation()
+                "
+              >
+                <span class="account-status-switch-thumb"></span>
+              </button>
+              <span class="account-status-text">{{
+                Report.Enabled ? "啟用" : "停用"
+              }}</span>
+            </td>
+            <td class="report-management-timestamp">{{ Report.CreatedAt }}</td>
+            <td class="report-management-timestamp">{{ Report.UpdatedAt }}</td>
+            <td class="report-management-actions-cell">
+              <div class="report-row-actions">
+                <button
+                  type="button"
+                  class="tertiary-button"
+                  [attr.aria-label]="'編輯 ' + Report.ReportName"
+                  title="編輯報表"
+                  (click)="
+                    OpenEditReportDialog(Report.ReportKey);
+                    $event.stopPropagation()
+                  "
+                >
+                  ✎
+                </button>
+                <button
+                  type="button"
+                  class="tertiary-button"
+                  [attr.aria-label]="'刪除 ' + Report.ReportName"
+                  title="刪除報表"
+                  (click)="
+                    OpenDeleteReportDialog(Report.ReportKey);
+                    $event.stopPropagation()
+                  "
+                >
+                  🗑
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="!DisplayedManagedReports.length">
+            <td colspan="9" class="report-management-empty">
+              找不到符合條件的報表。
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <app-portal-pagination
+      [CurrentPage]="ReportManagementCurrentPage"
+      [TotalPages]="ReportManagementTotalPages"
+      [PageNumbers]="ReportManagementPageNumbers"
+      AriaLabel="報表管理分頁"
+      (PageChange)="GoToReportManagementPage($event)"
+    />
   </ng-container>
 
-  <app-common-parameter-management *ngIf="ManagementTab === 'common-parameters'" />
+  <app-common-parameter-management
+    *ngIf="ManagementTab === 'common-parameters'"
+  />
 </section>
 
-<section *ngIf="isDetailPage" class="report-editor-page" aria-labelledby="report-editor-title" [attr.aria-hidden]="IsReportDiscardConfirmationOpen ? 'true' : null" [attr.inert]="IsReportDiscardConfirmationOpen ? '' : null">
+<section
+  *ngIf="isDetailPage"
+  class="report-editor-page"
+  aria-labelledby="report-editor-title"
+  [attr.aria-hidden]="IsReportDiscardConfirmationOpen ? 'true' : null"
+  [attr.inert]="IsReportDiscardConfirmationOpen ? '' : null"
+>
   <p class="report-editor-breadcrumb">報表管理 ／ 編輯報表</p>
-  <button type="button" class="report-editor-back-link" (click)="RequestCloseReportEditor()">← 返回報表管理</button>
+  <button
+    type="button"
+    class="report-editor-back-link"
+    (click)="RequestCloseReportEditor()"
+  >
+    ← 返回報表管理
+  </button>
   <section class="report-editor-content">
-    <div class="report-editor-page-heading"><h2 id="report-editor-title">{{ EditingReportKey ? '編輯報表' : '上傳報表' }}</h2></div>
-    <app-portal-tabs [Tabs]="ReportEditorTabs" [ActiveTab]="ReportEditorTab" AriaLabel="報表設定頁籤" (TabChange)="SetReportEditorTab($event)" />
-    <app-report-editor-form *ngIf="ReportEditorTab === 'basic'" variant="modal" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [isEditing]="true" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [canAddCategory]="Auth.HasManagementPermission('RptManagement')" [quickAddOpen]="IsReportCategoryQuickAddOpen" [quickAddName]="QuickAddCategoryName" [quickAddError]="QuickAddCategoryError" (draftChange)="ReportEditorDraft = $event" (quickAddNameChange)="QuickAddCategoryName = $event; QuickAddCategoryError = ''" (submitRequested)="SaveReportDetail()" (cancelRequested)="RequestCloseReportEditor()" (quickAddRequested)="OpenReportCategoryQuickAdd()" (quickAddCancelled)="CloseReportCategoryQuickAdd()" (quickAddSubmitted)="CreateReportCategoryQuickAdd()" (fileSelected)="OnReportFileSelected($event)" />
-    <app-report-parameter-management *ngIf="ReportEditorTab === 'parameters' && EditingReportKey" [reportKey]="EditingReportKey" [reportName]="ReportEditorDraft.ReportName" [detectedParameterNames]="DetectedParameterNames" (detectedParametersHandled)="DetectedParameterNames = []" />
+    <div class="report-editor-page-heading">
+      <h2 id="report-editor-title">
+        {{ EditingReportKey ? "編輯報表" : "上傳報表" }}
+      </h2>
+    </div>
+    <app-portal-tabs
+      [Tabs]="ReportEditorTabs"
+      [ActiveTab]="ReportEditorTab"
+      AriaLabel="報表設定頁籤"
+      (TabChange)="SetReportEditorTab($event)"
+    />
+    <app-report-editor-form
+      *ngIf="ReportEditorTab === 'basic'"
+      variant="modal"
+      [draft]="ReportEditorDraft"
+      [categories]="ReportEditorCategories"
+      [isEditing]="true"
+      [selectedFileName]="SelectedReportFileName"
+      [error]="ReportEditorError"
+      [canAddCategory]="Auth.HasManagementPermission('RptManagement')"
+      [quickAddOpen]="IsReportCategoryQuickAddOpen"
+      [quickAddName]="QuickAddCategoryName"
+      [quickAddError]="QuickAddCategoryError"
+      (draftChange)="ReportEditorDraft = $event"
+      (quickAddNameChange)="
+        QuickAddCategoryName = $event; QuickAddCategoryError = ''
+      "
+      (submitRequested)="SaveReportDetail()"
+      (cancelRequested)="RequestCloseReportEditor()"
+      (quickAddRequested)="OpenReportCategoryQuickAdd()"
+      (quickAddCancelled)="CloseReportCategoryQuickAdd()"
+      (quickAddSubmitted)="CreateReportCategoryQuickAdd()"
+      (fileSelected)="OnReportFileSelected($event)"
+    />
+    <app-report-parameter-management
+      *ngIf="ReportEditorTab === 'parameters' && EditingReportKey"
+      [reportKey]="EditingReportKey"
+      [reportName]="ReportEditorDraft.ReportName"
+      [detectedParameterNames]="DetectedParameterNames"
+      (detectedParametersHandled)="DetectedParameterNames = []"
+    />
   </section>
 </section>
 
-<section *ngIf="IsReportDiscardConfirmationOpen" class="modal-backdrop report-discard-confirmation-backdrop" role="presentation">
-  <section class="edit-user-modal report-discard-confirmation-modal" role="alertdialog" aria-modal="true" aria-labelledby="report-discard-confirmation-title" aria-describedby="report-discard-confirmation-description">
-    <h2 id="report-discard-confirmation-title">捨棄未儲存變更？</h2><p id="report-discard-confirmation-description">你已修改報表資料。離開後無法還原。</p>
-    <div class="modal-actions report-discard-confirmation-actions"><button type="button" class="secondary-button" (click)="ContinueEditingReport()">繼續編輯</button><button type="button" class="danger-button" (click)="DiscardReportEditorChanges()">捨棄變更</button></div>
+<section
+  *ngIf="IsReportDiscardConfirmationOpen"
+  class="modal-backdrop report-discard-confirmation-backdrop"
+  role="presentation"
+>
+  <section
+    class="edit-user-modal report-discard-confirmation-modal"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="report-discard-confirmation-title"
+    aria-describedby="report-discard-confirmation-description"
+  >
+    <h2 id="report-discard-confirmation-title">捨棄未儲存變更？</h2>
+    <p id="report-discard-confirmation-description">
+      你已修改報表資料。離開後無法還原。
+    </p>
+    <div class="modal-actions report-discard-confirmation-actions">
+      <button
+        type="button"
+        class="secondary-button"
+        (click)="ContinueEditingReport()"
+      >
+        繼續編輯</button
+      ><button
+        type="button"
+        class="danger-button"
+        (click)="DiscardReportEditorChanges()"
+      >
+        捨棄變更
+      </button>
+    </div>
   </section>
 </section>
 
-<section *ngIf="IsCategoryManagementDialogOpen" class="modal-backdrop" (click)="CloseCategoryManagementDialog()">
-  <section class="edit-user-modal category-management-modal" role="dialog" aria-modal="true" aria-labelledby="category-management-title" (click)="$event.stopPropagation()">
-    <div class="modal-heading"><h2 id="category-management-title">報表分類管理</h2><button type="button" class="modal-close-button" aria-label="關閉報表分類管理視窗" (click)="CloseCategoryManagementDialog()">×</button></div>
-    <form class="category-create-form" (ngSubmit)="CreateManagedCategory()" novalidate>
-      <label for="new-category-name"><span class="form-field-label">分類名稱<span class="required-indicator" aria-hidden="true">*</span></span><input id="new-category-name" name="newCategoryName" [(ngModel)]="NewCategoryName" (ngModelChange)="CategoryCreateError = ''" placeholder="請輸入新分類名稱" [attr.aria-invalid]="CategoryCreateError ? 'true' : null" /></label>
-      <button type="submit" class="primary-button"><span aria-hidden="true">＋</span> 新增分類</button>
-      <p *ngIf="CategoryCreateError" class="field-error" role="alert">{{ CategoryCreateError }}</p>
+<section
+  *ngIf="IsCategoryManagementDialogOpen"
+  class="modal-backdrop"
+  (click)="RequestCloseCategoryManagementDialog()"
+>
+  <section
+    class="edit-user-modal category-management-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="category-management-title"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="modal-heading">
+      <h2 id="category-management-title">報表分類管理</h2>
+      <button
+        type="button"
+        class="modal-close-button"
+        aria-label="關閉報表分類管理視窗"
+        (click)="RequestCloseCategoryManagementDialog()"
+      >
+        ×
+      </button>
+    </div>
+    <form
+      class="category-create-form"
+      (ngSubmit)="CreateManagedCategory()"
+      novalidate
+    >
+      <label for="new-category-name"
+        ><span class="form-field-label"
+          >分類名稱<span class="required-indicator" aria-hidden="true"
+            >*</span
+          ></span
+        ><input
+          id="new-category-name"
+          name="newCategoryName"
+          [(ngModel)]="NewCategoryName"
+          (ngModelChange)="CategoryCreateError = ''"
+          placeholder="請輸入新分類名稱"
+          [attr.aria-invalid]="CategoryCreateError ? 'true' : null"
+      /></label>
+      <button type="submit" class="primary-button">
+        <span aria-hidden="true">＋</span> 新增分類
+      </button>
+      <p *ngIf="CategoryCreateError" class="field-error" role="alert">
+        {{ CategoryCreateError }}
+      </p>
     </form>
-    <section class="category-management-list" aria-labelledby="existing-categories-title">
+    <section
+      class="category-management-list"
+      aria-labelledby="existing-categories-title"
+    >
       <h3 id="existing-categories-title">既有分類</h3>
-      <div *ngFor="let Category of CategoryManagementCategories" class="category-management-row" [class.is-editing]="EditingCategoryId === Category.CategoryId">
+      <div
+        *ngFor="let Category of CategoryManagementCategories"
+        class="category-management-row"
+        [class.is-editing]="EditingCategoryId === Category.CategoryId"
+      >
         <div class="category-management-name">
-          <ng-container *ngIf="EditingCategoryId === Category.CategoryId; else CategoryName"><label [attr.for]="'category-edit-' + Category.CategoryId" class="visually-hidden">分類名稱</label><input [id]="'category-edit-' + Category.CategoryId" name="editingCategoryName" [(ngModel)]="EditingCategoryName" (ngModelChange)="CategoryEditError = ''" [attr.aria-invalid]="CategoryEditError ? 'true' : null" /><p *ngIf="CategoryEditError" class="field-error" role="alert">{{ CategoryEditError }}</p></ng-container>
+          <ng-container
+            *ngIf="EditingCategoryId === Category.CategoryId; else CategoryName"
+            ><label
+              [attr.for]="'category-edit-' + Category.CategoryId"
+              class="visually-hidden"
+              >分類名稱</label
+            ><input
+              [id]="'category-edit-' + Category.CategoryId"
+              name="editingCategoryName"
+              [(ngModel)]="EditingCategoryName"
+              (ngModelChange)="CategoryEditError = ''"
+              [attr.aria-invalid]="CategoryEditError ? 'true' : null"
+            />
+            <p *ngIf="CategoryEditError" class="field-error" role="alert">
+              {{ CategoryEditError }}
+            </p></ng-container
+          >
           <ng-template #CategoryName>{{ Category.CategoryName }}</ng-template>
         </div>
-        <span class="category-management-usage">{{ GetCategoryUsageLabel(Category) }}</span>
+        <span class="category-management-usage">{{
+          GetCategoryUsageLabel(Category)
+        }}</span>
         <div class="category-management-action-slot">
-          <span *ngIf="Category.IsSystemReserved" class="category-system-reserved">系統保留</span>
-          <div *ngIf="!Category.IsSystemReserved" class="category-management-actions">
-            <ng-container *ngIf="EditingCategoryId === Category.CategoryId; else CategoryActions"><button type="button" class="primary-button" (click)="SaveCategoryEdit()">儲存</button><button type="button" class="tertiary-button" (click)="CancelCategoryEdit()">取消</button></ng-container>
-            <ng-template #CategoryActions><button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + Category.CategoryName" title="編輯分類" (click)="StartCategoryEdit(Category)">✎</button><button type="button" class="tertiary-button" [attr.aria-label]="'刪除 ' + Category.CategoryName" title="刪除分類" (click)="OpenDeleteCategoryDialog(Category.CategoryId)">🗑</button></ng-template>
+          <span
+            *ngIf="Category.IsSystemReserved"
+            class="category-system-reserved"
+            >系統保留</span
+          >
+          <div
+            *ngIf="!Category.IsSystemReserved"
+            class="category-management-actions"
+          >
+            <ng-container
+              *ngIf="
+                EditingCategoryId === Category.CategoryId;
+                else CategoryActions
+              "
+              ><button
+                type="button"
+                class="primary-button"
+                (click)="SaveCategoryEdit()"
+              >
+                儲存</button
+              ><button
+                type="button"
+                class="tertiary-button"
+                (click)="CancelCategoryEdit()"
+              >
+                取消
+              </button></ng-container
+            >
+            <ng-template #CategoryActions
+              ><button
+                type="button"
+                class="tertiary-button"
+                [attr.aria-label]="'編輯 ' + Category.CategoryName"
+                title="編輯分類"
+                (click)="StartCategoryEdit(Category)"
+              >
+                ✎</button
+              ><button
+                type="button"
+                class="tertiary-button"
+                [attr.aria-label]="'刪除 ' + Category.CategoryName"
+                title="刪除分類"
+                (click)="OpenDeleteCategoryDialog(Category.CategoryId)"
+              >
+                🗑
+              </button></ng-template
+            >
           </div>
         </div>
       </div>
     </section>
-    <div class="modal-actions category-management-close-action"><button type="button" class="tertiary-button" (click)="CloseCategoryManagementDialog()">關閉</button></div>
+    <div class="modal-actions category-management-close-action">
+      <button
+        type="button"
+        class="tertiary-button"
+        (click)="RequestCloseCategoryManagementDialog()"
+      >
+        關閉
+      </button>
+    </div>
   </section>
 </section>
 
-<section *ngIf="DeletingCategory" class="modal-backdrop" (click)="CloseDeleteCategoryDialog()">
-  <section class="edit-user-modal category-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-category-title" (click)="$event.stopPropagation()">
-    <div class="modal-heading"><h2 id="delete-category-title">{{ GetCategoryUsageCount(DeletingCategory.CategoryId) ? '刪除分類：' + DeletingCategory.CategoryName : '刪除報表分類' }}</h2><button type="button" class="modal-close-button" aria-label="關閉刪除報表分類確認視窗" (click)="CloseDeleteCategoryDialog()">×</button></div>
-    <ng-container *ngIf="GetCategoryUsageCount(DeletingCategory.CategoryId) as UsageCount"><p>「{{ DeletingCategory.CategoryName }}」目前仍有 {{ UsageCount }} 份報表使用中。</p><p>若刪除此分類，這些報表將自動移至「未分類」。</p><p class="muted">刪除完成後，請重新替這些報表設定正確分類。</p></ng-container>
-    <p *ngIf="!GetCategoryUsageCount(DeletingCategory.CategoryId)">確定要刪除報表分類「{{ DeletingCategory.CategoryName }}」嗎？</p>
-    <p *ngIf="CategoryDeleteError" class="field-error" role="alert">{{ CategoryDeleteError }}</p>
-    <div class="modal-actions category-delete-actions"><button type="button" class="role-delete-button danger-button" (click)="ConfirmDeleteCategory()">{{ GetCategoryUsageCount(DeletingCategory.CategoryId) ? '確認移動並刪除' : '確認刪除' }}</button><button type="button" class="tertiary-button" (click)="CloseDeleteCategoryDialog()">取消</button></div>
+<app-unsaved-changes-dialog
+  *ngIf="IsCategoryDiscardConfirmationOpen"
+  subject="報表分類"
+  (continueEditing)="ContinueEditingCategoryManagement()"
+  (discardChanges)="DiscardCategoryManagementChanges()"
+/>
+
+<section
+  *ngIf="DeletingCategory"
+  class="modal-backdrop"
+  (click)="CloseDeleteCategoryDialog()"
+>
+  <section
+    class="edit-user-modal category-delete-dialog"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="delete-category-title"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="modal-heading">
+      <h2 id="delete-category-title">
+        {{
+          GetCategoryUsageCount(DeletingCategory.CategoryId)
+            ? "刪除分類：" + DeletingCategory.CategoryName
+            : "刪除報表分類"
+        }}
+      </h2>
+      <button
+        type="button"
+        class="modal-close-button"
+        aria-label="關閉刪除報表分類確認視窗"
+        (click)="CloseDeleteCategoryDialog()"
+      >
+        ×
+      </button>
+    </div>
+    <ng-container
+      *ngIf="GetCategoryUsageCount(DeletingCategory.CategoryId) as UsageCount"
+      ><p>
+        「{{ DeletingCategory.CategoryName }}」目前仍有
+        {{ UsageCount }} 份報表使用中。
+      </p>
+      <p>若刪除此分類，這些報表將自動移至「未分類」。</p>
+      <p class="muted">
+        刪除完成後，請重新替這些報表設定正確分類。
+      </p></ng-container
+    >
+    <p *ngIf="!GetCategoryUsageCount(DeletingCategory.CategoryId)">
+      確定要刪除報表分類「{{ DeletingCategory.CategoryName }}」嗎？
+    </p>
+    <p *ngIf="CategoryDeleteError" class="field-error" role="alert">
+      {{ CategoryDeleteError }}
+    </p>
+    <div class="modal-actions category-delete-actions">
+      <button
+        type="button"
+        class="role-delete-button danger-button"
+        (click)="ConfirmDeleteCategory()"
+      >
+        {{
+          GetCategoryUsageCount(DeletingCategory.CategoryId)
+            ? "確認移動並刪除"
+            : "確認刪除"
+        }}</button
+      ><button
+        type="button"
+        class="tertiary-button"
+        (click)="CloseDeleteCategoryDialog()"
+      >
+        取消
+      </button>
+    </div>
   </section>
 </section>
 
-<section *ngIf="DeletingReport" class="modal-backdrop" (click)="CloseDeleteReportDialog()">
-  <section class="edit-user-modal report-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-report-title" (click)="$event.stopPropagation()">
-    <h2 id="delete-report-title">刪除報表</h2><p>確定要刪除此報表嗎？</p><p class="report-delete-target">報表：{{ DeletingReport.ReportName }}</p>
-    <div class="modal-actions report-editor-actions"><button type="button" class="role-delete-button danger-button" (click)="ConfirmDeleteReport()">刪除</button><button type="button" class="tertiary-button" (click)="CloseDeleteReportDialog()">取消</button></div>
+<section
+  *ngIf="DeletingReport"
+  class="modal-backdrop"
+  (click)="CloseDeleteReportDialog()"
+>
+  <section
+    class="edit-user-modal report-delete-dialog"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="delete-report-title"
+    (click)="$event.stopPropagation()"
+  >
+    <h2 id="delete-report-title">刪除報表</h2>
+    <p>確定要刪除此報表嗎？</p>
+    <p class="report-delete-target">報表：{{ DeletingReport.ReportName }}</p>
+    <div class="modal-actions report-editor-actions">
+      <button
+        type="button"
+        class="role-delete-button danger-button"
+        (click)="ConfirmDeleteReport()"
+      >
+        刪除</button
+      ><button
+        type="button"
+        class="tertiary-button"
+        (click)="CloseDeleteReportDialog()"
+      >
+        取消
+      </button>
+    </div>
   </section>
 </section>
