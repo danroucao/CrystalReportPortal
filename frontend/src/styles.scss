@@ -191,6 +191,8 @@ app-demo-portal button.role-carousel-nav > svg {
 /* Report-management detail views retain the existing portal palette. */
 .report-editor-page { max-width: 1100px; }
 .report-editor-breadcrumb { color: var(--color-muted); font-size: .8125rem; margin: 0 0 .65rem; }
+.report-editor-breadcrumb-link { appearance: none; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; }
+.report-editor-breadcrumb-link:hover, .report-editor-breadcrumb-link:focus-visible { color: var(--color-primary); text-decoration: underline; }
 .report-editor-back-link { appearance: none; background: transparent; border: 0; color: var(--color-primary); cursor: pointer; font: inherit; font-weight: 700; margin: 0 0 .8rem; padding: .25rem 0; }
 .report-editor-back-link:hover, .report-editor-back-link:focus-visible { color: var(--color-primary-hover); text-decoration: underline; }
 .report-editor-content { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 6px; }
@@ -199,6 +201,10 @@ app-demo-portal button.role-carousel-nav > svg {
 .report-management > app-portal-tabs { margin-bottom: 1.25rem; }
 .report-editor-content > app-portal-tabs { padding: 0 1.25rem; }
 .report-editor-content app-report-parameter-management { display: block; padding: 1.5rem; }
+.report-editor-detail-page .report-editor-content { background: transparent; border: 0; border-radius: 0; }
+.report-editor-detail-page .report-editor-page-heading { display: block; min-height: 0; padding: 0 0 1rem; border-bottom: 0; }
+.report-editor-detail-page .report-editor-page-heading p { margin: .55rem 0 0; color: var(--color-muted); }
+.report-editor-detail-page .report-editor-content > app-portal-tabs { display: block; margin-bottom: 1.25rem; padding: 0; border-bottom: 1px solid var(--color-border); }
 .report-management-actions-heading { width: 6.5rem; }
 
 @media (max-width: 640px) {

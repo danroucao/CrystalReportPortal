@@ -1,5 +1,5 @@
-<form [class]="IsUploadPage ? 'report-upload-form' : 'report-editor-form'" (ngSubmit)="submitRequested.emit()" novalidate>
-  <ng-container *ngIf="IsUploadPage; else ModalFields">
+<form [class]="IsUploadPage ? 'report-upload-form' : (IsDetailPage ? 'report-editor-detail-form' : 'report-editor-form')" (ngSubmit)="submitRequested.emit()" novalidate>
+  <ng-container *ngIf="IsUploadPage; else DetailOrModalFields">
     <section class="report-upload-panel">
       <header>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h6M9 17h6" /></svg>
@@ -22,6 +22,40 @@
       </footer>
     </section>
   </ng-container>
+
+  <ng-template #DetailOrModalFields>
+    <ng-container *ngIf="IsDetailPage; else ModalFields">
+      <section class="report-upload-panel report-editor-detail-panel">
+        <header>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h6M9 17h6" /></svg>
+          <div><h2>報表基本資料</h2><p>設定報表名稱、說明與分類。</p></div>
+        </header>
+        <div class="report-upload-fields report-editor-detail-fields">
+          <ng-container *ngTemplateOutlet="EditorFields"></ng-container>
+        </div>
+      </section>
+      <section class="report-upload-panel report-editor-detail-file-panel">
+        <header>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12.5 13.5 4-4a3 3 0 0 0-4.2-4.3l-6.8 6.9a4.5 4.5 0 0 0 6.4 6.4l6.2-6.2" /></svg>
+          <div><h2>目前 RPT 檔案</h2><p>可選擇新的 RPT 檔案取代目前版本。</p></div>
+        </header>
+        <div class="report-editor-current-file">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h6M9 17h6" /></svg>
+          <div><strong>{{ currentFileName || '尚未選擇檔案' }}</strong><span *ngIf="currentFileName">目前使用的 RPT 報表檔案</span></div>
+          <label class="secondary-button report-editor-replace-file" [for]="IdPrefix + '-file'">更換檔案<input [id]="IdPrefix + '-file'" type="file" accept=".rpt" (change)="fileSelected.emit($event)" /></label>
+        </div>
+        <div *ngIf="selectedFileName && selectedFileName !== currentFileName" class="report-editor-replacement-notice" role="status">
+          <span>待替換檔案：<strong>{{ selectedFileName }}</strong></span>
+          <button type="button" class="parameter-link-button" (click)="fileReplacementCleared.emit()">撤銷更換</button>
+        </div>
+        <ng-container *ngTemplateOutlet="FormError"></ng-container>
+      </section>
+      <footer class="report-upload-actions report-editor-detail-actions">
+        <button type="button" class="tertiary-button report-upload-secondary-action" (click)="cancelRequested.emit()">取消</button>
+        <button type="submit" class="primary-button">儲存變更</button>
+      </footer>
+    </ng-container>
+  </ng-template>
 
   <ng-template #ModalFields>
     <ng-container *ngTemplateOutlet="EditorFields"></ng-container>

@@ -309,12 +309,18 @@
 <section
   *ngIf="isDetailPage"
   class="report-editor-page"
+  [class.report-editor-detail-page]="EditingReportKey !== null"
   aria-labelledby="report-editor-title"
   [attr.aria-hidden]="IsReportDiscardConfirmationOpen ? 'true' : null"
   [attr.inert]="IsReportDiscardConfirmationOpen ? '' : null"
 >
-  <p class="report-editor-breadcrumb">報表管理 ／ 編輯報表</p>
+  <nav class="report-editor-breadcrumb" aria-label="麵包屑">
+    <button type="button" class="report-editor-breadcrumb-link" (click)="RequestCloseReportEditor()">報表管理</button>
+    <span aria-hidden="true">／</span>
+    <span>編輯報表</span>
+  </nav>
   <button
+    *ngIf="!EditingReportKey"
     type="button"
     class="report-editor-back-link"
     (click)="RequestCloseReportEditor()"
@@ -326,6 +332,7 @@
       <h2 id="report-editor-title">
         {{ EditingReportKey ? "編輯報表" : "上傳報表" }}
       </h2>
+      <p *ngIf="EditingReportKey">更新報表資料與 RPT 檔案。</p>
     </div>
     <app-portal-tabs
       [Tabs]="ReportEditorTabs"
@@ -335,11 +342,12 @@
     />
     <app-report-editor-form
       *ngIf="ReportEditorTab === 'basic'"
-      variant="modal"
+      variant="detail-page"
       [draft]="ReportEditorDraft"
       [categories]="ReportEditorCategories"
       [isEditing]="true"
       [selectedFileName]="SelectedReportFileName"
+      [currentFileName]="OriginalReportFileName"
       [error]="ReportEditorError"
       [canAddCategory]="Auth.HasManagementPermission('RptManagement')"
       [quickAddOpen]="IsReportCategoryQuickAddOpen"
@@ -355,6 +363,7 @@
       (quickAddCancelled)="CloseReportCategoryQuickAdd()"
       (quickAddSubmitted)="CreateReportCategoryQuickAdd()"
       (fileSelected)="OnReportFileSelected($event)"
+      (fileReplacementCleared)="ClearReportFileReplacement()"
     />
     <app-report-parameter-management
       *ngIf="ReportEditorTab === 'parameters' && EditingReportKey"

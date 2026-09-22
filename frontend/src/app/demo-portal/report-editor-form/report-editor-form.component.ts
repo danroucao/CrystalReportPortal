@@ -13,11 +13,12 @@ import { ReportEditorDraft } from './report-editor-form.model';
   styleUrl: './report-editor-form.component.scss',
 })
 export class ReportEditorFormComponent {
-  @Input({ required: true }) variant!: 'modal' | 'upload-page';
+  @Input({ required: true }) variant!: 'modal' | 'upload-page' | 'detail-page';
   @Input({ required: true }) draft!: Readonly<ReportEditorDraft>;
   @Input({ required: true }) categories!: readonly MockReportCategory[];
   @Input() isEditing = false;
   @Input() selectedFileName = '';
+  @Input() currentFileName = '';
   @Input() error = '';
   @Input() canAddCategory = false;
   @Input() quickAddOpen = false;
@@ -32,9 +33,14 @@ export class ReportEditorFormComponent {
   @Output() readonly quickAddCancelled = new EventEmitter<void>();
   @Output() readonly quickAddSubmitted = new EventEmitter<void>();
   @Output() readonly fileSelected = new EventEmitter<Event>();
+  @Output() readonly fileReplacementCleared = new EventEmitter<void>();
 
   get IsUploadPage(): boolean {
     return this.variant === 'upload-page';
+  }
+
+  get IsDetailPage(): boolean {
+    return this.variant === 'detail-page';
   }
 
   get IdPrefix(): string {

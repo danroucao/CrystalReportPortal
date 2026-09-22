@@ -264,6 +264,10 @@ export class ReportManagementPageComponent implements OnInit {
     this.CategoryDeleteError = '';
   }
 
+  get OriginalReportFileName(): string {
+    return this.InitialReportFileName;
+  }
+
   RequestCloseCategoryManagementDialog(): void {
     if (this.IsCategoryManagementDirty()) {
       this.IsCategoryDiscardConfirmationOpen = true;
@@ -507,6 +511,12 @@ export class ReportManagementPageComponent implements OnInit {
       return;
     }
     this.SelectedReportFileName = File.name;
+    this.ReportEditorError = '';
+    this.IsReportFileInvalid = false;
+  }
+
+  ClearReportFileReplacement(): void {
+    this.SelectedReportFileName = this.InitialReportFileName;
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
   }

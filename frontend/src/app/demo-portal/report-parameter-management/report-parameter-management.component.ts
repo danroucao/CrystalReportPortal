@@ -45,6 +45,7 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
   ];
 
   parameters: MockManagedReportParameter[] = [];
+  expandedParameterId: string | null = null;
   commonSelections: Record<string, 'none' | 'add' | 'common'> = {};
   isDetectedDialogOpen = false;
   detectedDisplayNames: Record<string, string> = {};
@@ -122,6 +123,14 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
   updateParameterType(parameter: MockManagedReportParameter, value: string): void {
     parameter.DataType = value as MockManagedParameterDataType;
     parameter.InputType = this.defaultInputType(parameter.DataType);
+  }
+
+  isParameterExpanded(parameterId: string): boolean {
+    return this.expandedParameterId === parameterId;
+  }
+
+  toggleParameter(parameterId: string): void {
+    this.expandedParameterId = this.expandedParameterId === parameterId ? null : parameterId;
   }
 
   updateManualType(value: string): void {
@@ -259,6 +268,9 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
     this.detectedDisplayNames = Object.fromEntries(
       this.parameters.map((parameter) => [parameter.ParameterId, parameter.DisplayName]),
     );
+    if (!this.parameters.some((parameter) => parameter.ParameterId === this.expandedParameterId)) {
+      this.expandedParameterId = this.parameters[0]?.ParameterId ?? null;
+    }
   }
 
   private openDetectedDialogIfNeeded(): void {

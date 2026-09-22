@@ -12,43 +12,46 @@
     <span class="parameter-management-hint">「加入常用」會使用此列目前的設定建立共用範本。</span>
   </div>
 
-  <div class="table-scroll parameter-table-scroll">
-    <table class="parameter-management-table">
-      <thead>
-        <tr>
-          <th scope="col">順序</th><th scope="col">參數名稱</th><th scope="col">顯示名稱</th>
-          <th scope="col">資料類型</th><th scope="col">輸入類型</th><th scope="col">必填</th>
-          <th scope="col">可見</th><th scope="col">預設值</th><th scope="col">常用參數</th><th scope="col">說明</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let parameter of parameters; let index = index; trackBy: trackParameter">
-          <td>{{ index + 1 }}</td>
-          <td><strong>{{ parameter.ParameterName }}</strong><small *ngIf="!parameter.IsConfigured" class="pending-parameter">待設定</small></td>
-          <td><input [name]="'display-name-' + parameter.ParameterId" [(ngModel)]="parameter.DisplayName" /></td>
-          <td><select [name]="'data-type-' + parameter.ParameterId" [ngModel]="parameter.DataType" (ngModelChange)="updateParameterType(parameter, $event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></td>
-          <td><select [name]="'input-type-' + parameter.ParameterId" [(ngModel)]="parameter.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></td>
-          <td><label class="parameter-checkbox"><input type="checkbox" [name]="'required-' + parameter.ParameterId" [(ngModel)]="parameter.Required" /><span class="visually-hidden">{{ parameter.DisplayName }}必填</span></label></td>
-          <td><label class="parameter-checkbox"><input type="checkbox" [name]="'visible-' + parameter.ParameterId" [(ngModel)]="parameter.Visible" /><span class="visually-hidden">{{ parameter.DisplayName }}可見</span></label></td>
-          <td><input [name]="'default-' + parameter.ParameterId" [(ngModel)]="parameter.DefaultValue" /></td>
-          <td>
-            <ng-container *ngIf="parameter.CommonTemplateId; else TemplateAvailable">
-              <strong class="common-template-name">{{ parameter.CommonTemplateName }}</strong>
-              <button type="button" class="parameter-link-button" (click)="detachTemplate(parameter)">解除關聯</button>
-            </ng-container>
-            <ng-template #TemplateAvailable>
-              <button *ngIf="matchingTemplateName(parameter) as templateName" type="button" class="parameter-link-button" (click)="requestTemplateApply(parameter)">套用「{{ templateName }}」</button>
-              <select [name]="'common-' + parameter.ParameterId" [ngModel]="getCommonSelection(parameter)" (ngModelChange)="setCommonSelection(parameter, $event)">
-                <option value="none">非常用</option><option value="add">加入共用</option>
-              </select>
-            </ng-template>
-          </td>
-          <td><textarea [name]="'description-' + parameter.ParameterId" rows="2" [(ngModel)]="parameter.Description"></textarea></td>
-        </tr>
-        <tr *ngIf="!parameters.length"><td colspan="10" class="parameter-empty">目前沒有已設定的參數。</td></tr>
-      </tbody>
-    </table>
+  <div *ngIf="parameters.length" class="parameter-accordion-list">
+    <section *ngFor="let parameter of parameters; let index = index; trackBy: trackParameter" class="parameter-accordion-item" [class.is-expanded]="isParameterExpanded(parameter.ParameterId)">
+      <button type="button" class="parameter-accordion-trigger" [attr.aria-expanded]="isParameterExpanded(parameter.ParameterId)" (click)="toggleParameter(parameter.ParameterId)">
+        <span class="parameter-sequence">{{ index + 1 }}</span>
+        <span class="parameter-identity"><strong>{{ parameter.ParameterName }}</strong><small>{{ parameter.DisplayName || '尚未設定顯示名稱' }}</small></span>
+        <span class="parameter-summary">{{ parameter.DataType }} ・ {{ parameter.InputType }}</span>
+        <span class="parameter-chevron" aria-hidden="true">⌄</span>
+      </button>
+
+      <div *ngIf="isParameterExpanded(parameter.ParameterId)" class="parameter-accordion-content">
+        <div class="parameter-editor-grid">
+          <label>顯示名稱<input [name]="'display-name-' + parameter.ParameterId" [(ngModel)]="parameter.DisplayName" /></label>
+          <label>資料類型<select [name]="'data-type-' + parameter.ParameterId" [ngModel]="parameter.DataType" (ngModelChange)="updateParameterType(parameter, $event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></label>
+          <label>輸入類型<select [name]="'input-type-' + parameter.ParameterId" [(ngModel)]="parameter.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></label>
+          <label>預設值<input [name]="'default-' + parameter.ParameterId" [(ngModel)]="parameter.DefaultValue" /></label>
+        </div>
+        <div class="parameter-editor-options">
+          <label class="parameter-switch"><span>必填</span><input type="checkbox" [name]="'required-' + parameter.ParameterId" [(ngModel)]="parameter.Required" /><span class="parameter-switch-track" aria-hidden="true"><span></span></span></label>
+          <label class="parameter-switch"><span>可見</span><input type="checkbox" [name]="'visible-' + parameter.ParameterId" [(ngModel)]="parameter.Visible" /><span class="parameter-switch-track" aria-hidden="true"><span></span></span></label>
+        </div>
+        <div class="parameter-common-settings">
+          <label>常用參數
+            <select *ngIf="!parameter.CommonTemplateId" [name]="'common-' + parameter.ParameterId" [ngModel]="getCommonSelection(parameter)" (ngModelChange)="setCommonSelection(parameter, $event)">
+              <option value="none">非常用</option><option value="add">加入共用</option>
+            </select>
+            <input *ngIf="parameter.CommonTemplateId" readonly [value]="parameter.CommonTemplateName || ''" />
+          </label>
+          <ng-container *ngIf="parameter.CommonTemplateId; else TemplateAvailable">
+            <button type="button" class="parameter-link-button" (click)="detachTemplate(parameter)">解除關聯</button>
+          </ng-container>
+          <ng-template #TemplateAvailable>
+            <button *ngIf="matchingTemplateName(parameter) as templateName" type="button" class="parameter-link-button" (click)="requestTemplateApply(parameter)">套用「{{ templateName }}」</button>
+          </ng-template>
+        </div>
+        <label class="parameter-description-field">說明<textarea [name]="'description-' + parameter.ParameterId" rows="3" [(ngModel)]="parameter.Description"></textarea></label>
+      </div>
+    </section>
   </div>
+
+  <p *ngIf="!parameters.length" class="parameter-empty">目前沒有已設定的參數。</p>
 
   <p *ngIf="saveError" class="field-error" role="alert">{{ saveError }}</p>
   <footer class="parameter-management-actions"><button type="button" class="primary-button" (click)="saveParameters()">儲存參數設定</button></footer>

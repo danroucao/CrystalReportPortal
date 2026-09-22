@@ -7,8 +7,35 @@
 .report-parameter-management { display: grid; gap: 1rem; }
 .parameter-management-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .parameter-management-heading h3, .parameter-management-heading p { margin: 0; }
-.parameter-management-heading p, .parameter-management-hint, .manual-help { color: #64748b; font-size: .875rem; line-height: 1.5; }
-.parameter-management-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: #475569; font-size: .875rem; }
+.parameter-management-heading p, .parameter-management-hint, .manual-help { color: var(--color-muted); font-size: .875rem; line-height: 1.5; }
+.parameter-management-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: var(--color-muted); font-size: .875rem; }
+.parameter-accordion-list { display: grid; gap: 0.75rem; }
+.parameter-accordion-item { overflow: hidden; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); }
+.parameter-accordion-item.is-expanded { border-color: #d8b9c0; }
+.parameter-accordion-trigger { display: grid; width: 100%; grid-template-columns: 2.25rem minmax(11rem, 1.3fr) minmax(9rem, .8fr) 1.5rem; align-items: center; gap: 1rem; padding: 0.9rem 1rem; border: 0; border-left: 3px solid #c7c7c7; background: transparent; color: var(--color-text); cursor: pointer; font: inherit; text-align: left; }
+.parameter-accordion-item.is-expanded .parameter-accordion-trigger { border-left-color: var(--color-primary); background: #fffafb; }
+.parameter-accordion-trigger:hover { background: #faf9f6; }
+.parameter-sequence { display: grid; width: 1.75rem; height: 1.75rem; place-items: center; border-radius: 50%; background: #f1f0ed; font-size: .8125rem; font-weight: 700; }
+.parameter-identity { display: grid; gap: 0.15rem; }
+.parameter-identity small, .parameter-summary { color: var(--color-muted); font-size: .8125rem; }
+.parameter-chevron { justify-self: end; font-size: 1.25rem; transition: transform 160ms ease; }
+.parameter-accordion-item.is-expanded .parameter-chevron { transform: rotate(180deg); }
+.parameter-accordion-content { display: grid; gap: 1rem; padding: 1.1rem 1.35rem 1.25rem; border-top: 1px solid var(--color-border); }
+.parameter-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.parameter-editor-grid label, .parameter-common-settings > label, .parameter-description-field { display: grid; gap: 0.4rem; color: var(--color-muted); font-size: .8125rem; font-weight: 700; }
+.parameter-editor-grid input, .parameter-editor-grid select, .parameter-common-settings input, .parameter-common-settings select, .parameter-description-field textarea { box-sizing: border-box; width: 100%; min-height: 2.5rem; padding: 0.55rem 0.65rem; border: 1px solid #aaa69e; border-radius: 5px; background: #fff; color: var(--color-text); font: inherit; }
+.parameter-description-field textarea { min-height: 5.75rem; resize: vertical; }
+.parameter-editor-options { display: flex; gap: 2rem; }
+.parameter-switch { display: inline-flex; align-items: center; gap: 0.55rem; color: var(--color-text); font-size: .875rem; font-weight: 700; }
+.parameter-switch input { position: absolute; opacity: 0; }
+.parameter-switch-track { display: inline-flex; align-items: center; width: 2.5rem; height: 1.4rem; padding: 0.15rem; border-radius: 999px; background: #a7adb5; transition: background-color 160ms ease; }
+.parameter-switch-track span { width: 1.1rem; height: 1.1rem; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 20%); transition: transform 160ms ease; }
+.parameter-switch input:checked + .parameter-switch-track { background: var(--color-primary); }
+.parameter-switch input:checked + .parameter-switch-track span { transform: translateX(1.1rem); }
+.parameter-switch input:focus-visible + .parameter-switch-track { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.parameter-common-settings { display: flex; align-items: end; gap: 1rem; }
+.parameter-common-settings > label { flex: 1 1 auto; }
+.parameter-common-settings .parameter-link-button { min-height: 2.5rem; margin: 0 0 0.1rem; }
 .parameter-table-scroll { border: 1px solid #dce5ef; border-radius: 8px; }
 .parameter-management-table { min-width: 1080px; border-collapse: collapse; width: 100%; }
 .parameter-management-table th { background: #edf4f9; color: #27496d; font-size: .78rem; font-weight: 700; white-space: nowrap; }
@@ -41,6 +68,10 @@
 @media (max-width: 720px) {
   .parameter-management-heading, .parameter-management-toolbar { align-items: stretch; flex-direction: column; }
   .parameter-management-heading .secondary-button { align-self: flex-start; }
+  .parameter-accordion-trigger { grid-template-columns: 2.25rem minmax(0, 1fr) 1.5rem; gap: .75rem; }
+  .parameter-summary { display: none; }
+  .parameter-editor-grid { grid-template-columns: 1fr; }
+  .parameter-editor-options, .parameter-common-settings { align-items: stretch; flex-direction: column; gap: .75rem; }
   .detected-parameter-list label, .manual-parameter-form { grid-template-columns: 1fr; }
   .manual-description, .manual-help, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: auto; }
 }
