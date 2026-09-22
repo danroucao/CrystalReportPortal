@@ -42,6 +42,51 @@ describe('UserManagementPageComponent', () => {
     expect(Component.UserCurrentPage).toBe(1);
   });
 
+  it('shows a neutral avatar placeholder for roles without users', () => {
+    expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
+    const Rbac = TestBed.inject(MockRbacService);
+    Rbac.CreateRole({
+      DisplayName: '尚未指派',
+      ManagementPermissions: [],
+      Permissions: Rbac.GetEmptyCategoryPermissionEntries(),
+    });
+    const Fixture = TestBed.createComponent(UserManagementPageComponent);
+    Fixture.detectChanges();
+
+    expect((Fixture.nativeElement as HTMLElement).querySelector('.role-avatar-placeholder')).not.toBeNull();
+  });
+
+  it('only exposes role-card navigation in directions that overflow', () => {
+    expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
+    const Fixture = TestBed.createComponent(UserManagementPageComponent);
+    const Component = Fixture.componentInstance;
+    Fixture.detectChanges();
+    const Viewport = (Fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.role-card-viewport')!;
+
+    Object.defineProperties(Viewport, {
+      clientWidth: { configurable: true, value: 300 },
+      scrollWidth: { configurable: true, value: 900 },
+      scrollLeft: { configurable: true, value: 0, writable: true },
+    });
+
+    Component.UpdateRoleCardNavigation();
+    Fixture.detectChanges();
+    expect(Component.RoleCardHasOverflow).toBeTrue();
+    expect((Fixture.nativeElement as HTMLElement).querySelector('.role-carousel-nav.is-previous')).toBeNull();
+    expect((Fixture.nativeElement as HTMLElement).querySelector('.role-carousel-nav.is-next')).not.toBeNull();
+
+    Viewport.scrollLeft = 300;
+    Component.UpdateRoleCardNavigation();
+    Fixture.detectChanges();
+    expect((Fixture.nativeElement as HTMLElement).querySelector('.role-carousel-nav.is-previous')).not.toBeNull();
+    expect((Fixture.nativeElement as HTMLElement).querySelector('.role-carousel-nav.is-next')).not.toBeNull();
+
+    Viewport.scrollLeft = 600;
+    Component.UpdateRoleCardNavigation();
+    Fixture.detectChanges();
+    expect((Fixture.nativeElement as HTMLElement).querySelector('.role-carousel-nav.is-next')).toBeNull();
+  });
+
   it('renders three management permissions, keeps deletion exclusive to edit mode, and enforces report permission dependencies', () => {
     expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
     const Fixture = TestBed.createComponent(UserManagementPageComponent);

@@ -112,6 +112,49 @@ button.danger-button:focus-visible {
   outline-offset: 2px;
 }
 
+/* Role-card carousel: solid C variant with a consistently centered hit target and chevron. */
+app-demo-portal button.role-carousel-nav {
+  display: grid;
+  box-sizing: border-box;
+  width: 2.5rem;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #a81c28;
+  border-radius: 50%;
+  color: #fff;
+  background: #a81c28;
+  font-size: 0;
+  line-height: 0;
+  text-align: center;
+}
+
+app-demo-portal button.role-carousel-nav:hover:not(:disabled) {
+  border-color: #8b141e;
+  color: #fff;
+  background: #8b141e;
+}
+
+app-demo-portal button.role-carousel-nav:active:not(:disabled) {
+  border-color: #751019;
+  color: #fff;
+  background: #751019;
+}
+
+app-demo-portal button.role-carousel-nav > svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.75;
+}
+
 /* Report-management detail views retain the existing portal palette. */
 .report-editor-page { max-width: 1100px; }
 .report-editor-breadcrumb { color: var(--color-muted); font-size: .8125rem; margin: 0 0 .65rem; }

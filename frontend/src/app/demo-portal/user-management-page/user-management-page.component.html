@@ -13,36 +13,70 @@
         <span aria-hidden="true">＋</span>新增角色
       </button>
     </div>
-    <div class="role-card-grid">
-      <article
-        *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey"
-        class="role-card"
+    <div class="role-card-carousel">
+      <button
+        *ngIf="CanScrollRoleCardsLeft"
+        type="button"
+        class="role-carousel-nav is-previous secondary-button"
+        aria-label="顯示前一組角色"
+        (click)="ScrollRoleCards(-1)"
       >
-        <div class="role-card-summary">
-          <p class="role-card-count">
-            {{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者
-          </p>
-          <div class="role-avatar-group" aria-hidden="true">
-            <ngx-boring-avatar
-              *ngFor="
-                let User of GetRoleAvatarUsers(Role.Key);
-                trackBy: TrackUserByAccount
-              "
-              variant="beam"
-              [name]="User.Account"
-              [size]="26"
-            />
-          </div>
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      </button>
+      <div
+        #roleCardViewport
+        class="role-card-viewport"
+        (scroll)="UpdateRoleCardNavigation()"
+      >
+        <div class="role-card-grid" [class.has-overflow]="RoleCardHasOverflow">
+          <article
+            *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey"
+            class="role-card"
+          >
+            <div class="role-card-summary">
+              <p class="role-card-count">
+                {{ MockRbac.GetRoleUserCount(Role.Key) }} 位使用者
+              </p>
+              <div class="role-avatar-group" aria-hidden="true">
+                <ngx-boring-avatar
+                  *ngFor="
+                    let User of GetRoleAvatarUsers(Role.Key);
+                    trackBy: TrackUserByAccount
+                  "
+                  variant="beam"
+                  [name]="User.Account"
+                  [size]="26"
+                />
+                <span
+                  *ngIf="!GetRoleAvatarUsers(Role.Key).length"
+                  class="role-avatar-placeholder"
+                ></span>
+              </div>
+            </div>
+            <h3>{{ Role.DisplayName }}</h3>
+            <button
+              type="button"
+              class="role-card-action secondary-button"
+              (click)="OpenEditRoleDialog(Role.Key)"
+            >
+              編輯角色
+            </button>
+          </article>
         </div>
-        <h3>{{ Role.DisplayName }}</h3>
-        <button
-          type="button"
-          class="role-card-action secondary-button"
-          (click)="OpenEditRoleDialog(Role.Key)"
-        >
-          編輯角色
-        </button>
-      </article>
+      </div>
+      <button
+        *ngIf="CanScrollRoleCardsRight"
+        type="button"
+        class="role-carousel-nav is-next secondary-button"
+        aria-label="顯示下一組角色"
+        (click)="ScrollRoleCards(1)"
+      >
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </button>
     </div>
   </section>
 

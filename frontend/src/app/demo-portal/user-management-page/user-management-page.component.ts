@@ -1,5 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
+import {
+  AfterRenderPhase,
+  Component,
+  ElementRef,
+  HostListener,
+  Injector,
+  ViewChild,
+  afterNextRender,
+  inject,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import {
@@ -38,6 +47,7 @@ export class UserManagementPageComponent {
   readonly Notifications = inject(NotificationService);
   readonly NotificationCenter = inject(MockNotificationCenterService);
   readonly AuditLog = inject(MockAuditLogService);
+  private readonly injector = inject(Injector);
 
   UserSearchText = '';
   UserCurrentPage = 1;
@@ -54,12 +64,25 @@ export class UserManagementPageComponent {
   RoleDraftError = '';
   IsReportManagementExpanded = true;
   IsOperationLogExpanded = true;
+  RoleCardHasOverflow = false;
+  CanScrollRoleCardsLeft = false;
+  CanScrollRoleCardsRight = false;
 
   @ViewChild('activeModal')
   private activeModal?: ElementRef<HTMLElement>;
 
+  @ViewChild('roleCardViewport')
+  private roleCardViewport?: ElementRef<HTMLElement>;
+
   private modalOpener: HTMLElement | null = null;
   private focusTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    afterNextRender(() => this.UpdateRoleCardNavigation(), {
+      injector: this.injector,
+      phase: AfterRenderPhase.Read,
+    });
+  }
 
   get FilteredUsers(): readonly MockUser[] {
     const SearchText = this.UserSearchText.trim().toLocaleLowerCase();
@@ -217,6 +240,7 @@ export class UserManagementPageComponent {
     this.AuditLog.RecordPermissionChange('CREATE_ROLE', `建立角色 ${Role.DisplayName}。`);
     this.CloseRoleDialog();
     this.Notifications.ShowSuccess(`角色「${Role.DisplayName}」已建立。`);
+    this.ScheduleRoleCardNavigationUpdate();
   }
 
   SaveEditedRole(): void {
@@ -268,6 +292,7 @@ export class UserManagementPageComponent {
     this.AuditLog.RecordPermissionChange('DELETE_ROLE', `刪除角色 ${Role.DisplayName}。`);
     this.CloseRoleDialog();
     this.Notifications.ShowSuccess(`角色「${Role.DisplayName}」已刪除。`);
+    this.ScheduleRoleCardNavigationUpdate();
   }
 
   ToggleManagementPermission(Permission: MockManagementPermission, Enabled: boolean): void {
@@ -292,6 +317,47 @@ export class UserManagementPageComponent {
   TrackRoleByKey(_: number, Role: MockRole): MockRoleKey { return Role.Key; }
   TrackByCategoryPermissionEntry(_: number, Entry: MockCategoryPermissionEntry): string { return Entry.CategoryId; }
 
+  ScrollRoleCards(Direction: -1 | 1): void {
+    const Viewport = this.roleCardViewport?.nativeElement;
+    if (
+      !Viewport ||
+      (Direction === -1 && !this.CanScrollRoleCardsLeft) ||
+      (Direction === 1 && !this.CanScrollRoleCardsRight)
+    ) return;
+
+    Viewport.scrollBy({
+      left: Direction * Math.max(Viewport.clientWidth * 0.8, 240),
+      behavior: 'smooth',
+    });
+  }
+
+  UpdateRoleCardNavigation(): void {
+    const Viewport = this.roleCardViewport?.nativeElement;
+    if (!Viewport) {
+      this.SetRoleCardNavigationState(false, true, true);
+      return;
+    }
+
+    const MaximumScrollLeft = Math.max(0, Viewport.scrollWidth - Viewport.clientWidth);
+    const HasOverflow = MaximumScrollLeft > 2;
+    if (!HasOverflow) {
+      Viewport.scrollLeft = 0;
+      this.SetRoleCardNavigationState(false, true, true);
+      return;
+    }
+
+    this.SetRoleCardNavigationState(
+      true,
+      Viewport.scrollLeft <= 2,
+      Viewport.scrollLeft >= MaximumScrollLeft - 2,
+    );
+  }
+
+  @HostListener('window:resize')
+  UpdateRoleCardNavigationOnResize(): void {
+    this.UpdateRoleCardNavigation();
+  }
+
   @HostListener('document:keydown.escape')
   CloseTopModalOnEscape(): void {
     if (this.DeletingRole) this.CloseDeleteRoleDialog();
@@ -308,6 +374,19 @@ export class UserManagementPageComponent {
   }
 
   private SetRoleDraftError(Message: string): void { this.RoleDraftError = Message; }
+
+  private ScheduleRoleCardNavigationUpdate(): void {
+    afterNextRender(() => this.UpdateRoleCardNavigation(), {
+      injector: this.injector,
+      phase: AfterRenderPhase.Read,
+    });
+  }
+
+  private SetRoleCardNavigationState(HasOverflow: boolean, AtStart: boolean, AtEnd: boolean): void {
+    this.RoleCardHasOverflow = HasOverflow;
+    this.CanScrollRoleCardsLeft = HasOverflow && !AtStart;
+    this.CanScrollRoleCardsRight = HasOverflow && !AtEnd;
+  }
 
   private RememberModalOpener(): void {
     this.modalOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
