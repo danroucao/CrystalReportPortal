@@ -46,7 +46,6 @@ export interface MockReportParameterDefinition {
   readonly DataType: MockParameterDataType;
   readonly InputType: MockParameterInputType;
   readonly ValueSourceType: MockParameterValueSourceType;
-  readonly IsRequired: boolean;
   readonly AllowMultipleValues: boolean;
   readonly AllowRangeValues: boolean;
   readonly IsVisible: boolean;
@@ -79,7 +78,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Date',
       InputType: 'Date',
       ValueSourceType: 'None',
-      IsRequired: true,
       AllowMultipleValues: false,
       AllowRangeValues: true,
       IsVisible: true,
@@ -92,7 +90,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Text',
       InputType: 'SingleSelect',
       ValueSourceType: 'SqlLov',
-      IsRequired: true,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: true,
@@ -106,7 +103,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Text',
       InputType: 'Text',
       ValueSourceType: 'None',
-      IsRequired: false,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: false,
@@ -122,7 +118,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'DateTime',
       InputType: 'DateTime',
       ValueSourceType: 'None',
-      IsRequired: true,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: true,
@@ -135,7 +130,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Text',
       InputType: 'Text',
       ValueSourceType: 'None',
-      IsRequired: true,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: true,
@@ -148,7 +142,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Text',
       InputType: 'LongText',
       ValueSourceType: 'None',
-      IsRequired: false,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: true,
@@ -161,7 +154,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Integer',
       InputType: 'Number',
       ValueSourceType: 'None',
-      IsRequired: true,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: true,
@@ -174,7 +166,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Float',
       InputType: 'Number',
       ValueSourceType: 'None',
-      IsRequired: false,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: true,
@@ -187,7 +178,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Boolean',
       InputType: 'Checkbox',
       ValueSourceType: 'None',
-      IsRequired: false,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: true,
@@ -202,7 +192,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Text',
       InputType: 'SingleSelect',
       ValueSourceType: 'Static',
-      IsRequired: true,
       AllowMultipleValues: false,
       AllowRangeValues: false,
       IsVisible: true,
@@ -219,7 +208,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Text',
       InputType: 'MultiSelect',
       ValueSourceType: 'SqlLov',
-      IsRequired: true,
       AllowMultipleValues: true,
       AllowRangeValues: false,
       IsVisible: true,
@@ -233,7 +221,6 @@ export const MockReportParameterDefinitions: MockReportParameterDefinitions = {
       DataType: 'Integer',
       InputType: 'Number',
       ValueSourceType: 'None',
-      IsRequired: true,
       AllowMultipleValues: false,
       AllowRangeValues: true,
       IsVisible: true,

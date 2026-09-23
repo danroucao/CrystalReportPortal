@@ -26,7 +26,7 @@
 
         <ng-template #PreviewParameters>
         <label *ngFor="let parameter of visibleParameters">
-          {{ parameter.displayName }}<span *ngIf="parameter.isRequired" class="required-indicator">*</span>
+          {{ parameter.displayName }}
 
           <select *ngIf="parameter.valueSourceType === 'SqlLov' && parameter.allowMultipleValues"
             multiple [name]="'parameter-' + parameter.parameterId"

@@ -90,15 +90,6 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
   }
 
   testPreview(): void {
-    if (!this.isSavedDataPreview) {
-      const validationError = this.validate();
-
-      if (validationError) {
-        this.errorMessage = validationError;
-        return;
-      }
-    }
-
     const request: ReportTestPreviewRequest = {
       parameters: this.isSavedDataPreview
         ? []
@@ -286,15 +277,6 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
     if (dataType === 'Date') return 'DatePicker';
     if (dataType === 'Number') return 'Number';
     return 'Text';
-  }
-
-  private validate(): string {
-    for (const parameter of this.visibleParameters) {
-      if (parameter.isRequired && !(this.values[parameter.parameterId]?.length)) {
-        return `請填寫「${parameter.displayName}」。`;
-      }
-    }
-    return '';
   }
 
   private invalidatePreview(): void {

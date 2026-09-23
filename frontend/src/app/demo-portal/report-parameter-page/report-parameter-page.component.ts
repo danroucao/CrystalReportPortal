@@ -590,25 +590,12 @@ export class ReportParameterPageComponent implements OnInit {
     Definition: MockReportParameterDefinition,
   ): ValidatorFn[] {
     const Validators: ValidatorFn[] = [];
-    if (Definition.IsRequired) Validators.push(this.RequiredParameterValidator);
     if (Definition.DataType === 'Integer') Validators.push(this.IntegerValidator);
     if (Definition.DataType === 'Float') Validators.push(this.NumberValidator);
     if (Definition.DataType === 'Date') Validators.push(this.DateValidator);
     if (Definition.DataType === 'DateTime') Validators.push(this.DateTimeValidator);
     return Validators;
   }
-
-  private readonly RequiredParameterValidator: ValidatorFn = (
-    Control: AbstractControl,
-  ): ValidationErrors | null => {
-    const Value = Control.value;
-    return Value === null ||
-      Value === undefined ||
-      Value === '' ||
-      (Array.isArray(Value) && Value.length === 0)
-      ? { required: true }
-      : null;
-  };
 
   private readonly IntegerValidator: ValidatorFn = (
     Control: AbstractControl,

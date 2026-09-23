@@ -18,8 +18,6 @@ export interface MockManagedReportParameter {
   DisplayName: string;
   DataType: MockManagedParameterDataType;
   InputType: MockManagedParameterInputType;
-  Required: boolean;
-  Visible: boolean;
   DefaultValue: string;
   Description: string;
   IsConfigured: boolean;
@@ -32,13 +30,20 @@ export interface MockManagedReportParameterDraft {
   DisplayName: string;
   DataType: MockManagedParameterDataType;
   InputType: MockManagedParameterInputType;
-  Required: boolean;
-  Visible: boolean;
   DefaultValue: string;
   Description: string;
 }
 
-export interface MockParameterTemplate extends Readonly<MockManagedReportParameterDraft> {
+export interface MockCommonParameterDraft {
+  ParameterName: string;
+  DisplayName: string;
+  DataType: MockManagedParameterDataType;
+  InputType: MockManagedParameterInputType;
+  DefaultValue: string;
+  Description: string;
+}
+
+export interface MockParameterTemplate extends Readonly<MockCommonParameterDraft> {
   readonly TemplateId: string;
   readonly Enabled: boolean;
 }
@@ -46,27 +51,27 @@ export interface MockParameterTemplate extends Readonly<MockManagedReportParamet
 const RPT_PARAMETER_CANDIDATES: readonly MockManagedReportParameterDraft[] = [
   {
     ParameterName: 'StartDate', DisplayName: '報表起始日期', DataType: 'Date',
-    InputType: 'DatePicker', Required: true, Visible: true, DefaultValue: '', Description: '查詢開始日期。',
+    InputType: 'DatePicker', DefaultValue: '', Description: '查詢開始日期。',
   },
   {
     ParameterName: 'EndDate', DisplayName: '報表結束日期', DataType: 'Date',
-    InputType: 'DatePicker', Required: true, Visible: true, DefaultValue: '', Description: '查詢結束日期。',
+    InputType: 'DatePicker', DefaultValue: '', Description: '查詢結束日期。',
   },
   {
     ParameterName: 'DepartmentCode', DisplayName: '部門代碼', DataType: 'String',
-    InputType: 'Select', Required: true, Visible: true, DefaultValue: 'ALL', Description: '選擇要查詢的部門。',
+    InputType: 'Select', DefaultValue: 'ALL', Description: '選擇要查詢的部門。',
   },
   {
     ParameterName: 'ReportType', DisplayName: '報表類型', DataType: 'String',
-    InputType: 'Select', Required: false, Visible: true, DefaultValue: '', Description: '選擇輸出報表類型。',
+    InputType: 'Select', DefaultValue: '', Description: '選擇輸出報表類型。',
   },
   {
     ParameterName: 'Currency', DisplayName: '幣別', DataType: 'String',
-    InputType: 'Select', Required: false, Visible: true, DefaultValue: 'TWD', Description: '報表顯示的幣別。',
+    InputType: 'Select', DefaultValue: 'TWD', Description: '報表顯示的幣別。',
   },
   {
     ParameterName: 'IncludeInactive', DisplayName: '包含停用資料', DataType: 'Boolean',
-    InputType: 'Checkbox', Required: false, Visible: true, DefaultValue: 'false', Description: '是否包含已停用資料。',
+    InputType: 'Checkbox', DefaultValue: 'false', Description: '是否包含已停用資料。',
   },
 ];
 
@@ -78,8 +83,8 @@ export class MockManagedReportParameterService {
   private NextTemplateId = 1;
 
   constructor(private readonly mockRbac: MockRbacService) {
-    this.CreateTemplate(RPT_PARAMETER_CANDIDATES[0]);
-    this.CreateTemplate(RPT_PARAMETER_CANDIDATES[1]);
+    this.CreateTemplate(this.ToCommonDraft(RPT_PARAMETER_CANDIDATES[0]));
+    this.CreateTemplate(this.ToCommonDraft(RPT_PARAMETER_CANDIDATES[1]));
   }
 
   GetParameters(ReportKey: MockReportKey): readonly MockManagedReportParameter[] {
@@ -118,7 +123,7 @@ export class MockManagedReportParameterService {
 
   UpdateTemplate(
     TemplateId: string,
-    Draft: MockManagedReportParameterDraft,
+    Draft: MockCommonParameterDraft,
   ): { Success: true; Template: MockParameterTemplate } | { Success: false; Error: string } {
     const Template = this.FindTemplateById(TemplateId);
     if (!Template) return { Success: false, Error: '找不到要編輯的共用參數。' };
@@ -220,11 +225,18 @@ export class MockManagedReportParameterService {
   AddReportParameter(
     ReportKey: MockReportKey,
     Draft: MockManagedReportParameterDraft,
+    AddToCommon = false,
   ): { Success: true; Parameter: MockManagedReportParameter } | { Success: false; Error: string } {
     const Name = Draft.ParameterName.trim();
     if (!Name) return { Success: false, Error: '請選擇 RPT 參數名稱。' };
     if (!this.GetAvailableRptParameterNames(ReportKey).includes(Name)) {
       return { Success: false, Error: '此參數已存在，或不在目前 RPT 的可用參數中。' };
+    }
+    if (AddToCommon && this.GetEnabledTemplate(Name)) {
+      return { Success: false, Error: '相同名稱的共用參數已存在，請取消勾選或改由共用參數管理調整。' };
+    }
+    if (AddToCommon) {
+      this.CreateTemplate(this.ToCommonDraft({ ...Draft, ParameterName: Name }));
     }
     const Parameter = this.CreateParameter({ ...Draft, ParameterName: Name }, true);
     this.GetStoredParameters(ReportKey).push(Parameter);
@@ -232,7 +244,7 @@ export class MockManagedReportParameterService {
   }
 
   AddCommonTemplate(
-    Draft: MockManagedReportParameterDraft,
+    Draft: MockCommonParameterDraft,
   ): { Success: true; Template: MockParameterTemplate } | { Success: false; Error: string } {
     const Name = Draft.ParameterName.trim();
     if (!Name) return { Success: false, Error: '請輸入參數名稱。' };
@@ -247,7 +259,7 @@ export class MockManagedReportParameterService {
   ): { Success: true; Template: MockParameterTemplate } | { Success: false; Error: string } {
     const Existing = this.GetEnabledTemplate(Parameter.ParameterName);
     if (Existing) return { Success: false, Error: '相同名稱的常用參數已存在。' };
-    const Template = this.CreateTemplate(Parameter);
+    const Template = this.CreateTemplate(this.ToCommonDraft(Parameter));
     return { Success: true, Template };
   }
 
@@ -278,8 +290,6 @@ export class MockManagedReportParameterService {
       DisplayName: Template?.DisplayName ?? Draft.DisplayName,
       DataType: Template?.DataType ?? Draft.DataType,
       InputType: Template?.InputType ?? Draft.InputType,
-      Required: Template?.Required ?? Draft.Required,
-      Visible: Template?.Visible ?? Draft.Visible,
       DefaultValue: Template?.DefaultValue ?? Draft.DefaultValue,
       Description: Template?.Description ?? Draft.Description,
       IsConfigured,
@@ -288,7 +298,7 @@ export class MockManagedReportParameterService {
     };
   }
 
-  private CreateTemplate(Draft: MockManagedReportParameterDraft): MockParameterTemplate {
+  private CreateTemplate(Draft: MockCommonParameterDraft): MockParameterTemplate {
     const Template: MockParameterTemplate = {
       TemplateId: `COMMON_${this.NextTemplateId++}`,
       ...Draft,
@@ -324,13 +334,27 @@ export class MockManagedReportParameterService {
       DisplayName: Template.DisplayName,
       DataType: Template.DataType,
       InputType: Template.InputType,
-      Required: Template.Required,
-      Visible: Template.Visible,
       DefaultValue: Template.DefaultValue,
       Description: Template.Description,
       IsConfigured: true,
       CommonTemplateId: Template.TemplateId,
       CommonTemplateName: Template.DisplayName,
+    };
+  }
+
+  private ToCommonDraft(
+    Draft: Pick<
+      MockManagedReportParameterDraft,
+      'ParameterName' | 'DisplayName' | 'DataType' | 'InputType' | 'DefaultValue' | 'Description'
+    >,
+  ): MockCommonParameterDraft {
+    return {
+      ParameterName: Draft.ParameterName,
+      DisplayName: Draft.DisplayName,
+      DataType: Draft.DataType,
+      InputType: Draft.InputType,
+      DefaultValue: Draft.DefaultValue,
+      Description: Draft.Description,
     };
   }
 }

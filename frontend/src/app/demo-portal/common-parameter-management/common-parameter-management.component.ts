@@ -6,8 +6,8 @@ import { MockReportReadModel } from '../../mock/mock-reports';
 import { NotificationService } from '../../services/notification.service';
 import { UnsavedChangesDialogComponent } from '../../shared/unsaved-changes-dialog.component';
 import {
+  MockCommonParameterDraft,
   MockManagedParameterDataType,
-  MockManagedReportParameterDraft,
   MockManagedParameterInputType,
   MockManagedReportParameterService,
   MockParameterTemplate,
@@ -42,7 +42,7 @@ export class CommonParameterManagementComponent implements OnInit {
   editingTemplateId: string | null = null;
   editorError = '';
   draft = this.createDraft();
-  private initialDraft: MockManagedReportParameterDraft | null = null;
+  private initialDraft: MockCommonParameterDraft | null = null;
   selectedUsageTemplate: MockParameterTemplate | null = null;
   deletingTemplate: MockParameterTemplate | null = null;
   deleteError = '';
@@ -196,27 +196,25 @@ export class CommonParameterManagementComponent implements OnInit {
     );
   }
 
-  private createDraft(): MockManagedReportParameterDraft {
+  private createDraft(): MockCommonParameterDraft {
     return {
       ParameterName: '', DisplayName: '', DataType: 'String', InputType: 'Text',
-      Required: false, Visible: true, DefaultValue: '', Description: '',
+      DefaultValue: '', Description: '',
     };
   }
 
-  private toDraft(template: MockParameterTemplate): MockManagedReportParameterDraft {
+  private toDraft(template: MockParameterTemplate): MockCommonParameterDraft {
     return {
       ParameterName: template.ParameterName,
       DisplayName: template.DisplayName,
       DataType: template.DataType,
       InputType: template.InputType,
-      Required: template.Required,
-      Visible: template.Visible,
       DefaultValue: template.DefaultValue,
       Description: template.Description,
     };
   }
 
-  private normalizedDraft(): MockManagedReportParameterDraft {
+  private normalizedDraft(): MockCommonParameterDraft {
     return {
       ...this.draft,
       ParameterName: this.draft.ParameterName.trim(),

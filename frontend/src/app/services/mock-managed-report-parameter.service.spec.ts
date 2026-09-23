@@ -22,8 +22,6 @@ describe('MockManagedReportParameterService', () => {
       DisplayName: '客戶群組',
       DataType: 'String',
       InputType: 'Select',
-      Required: false,
-      Visible: true,
       DefaultValue: '',
       Description: '依客戶群組篩選。',
     });

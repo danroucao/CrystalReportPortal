@@ -83,8 +83,6 @@
 .common-parameter-editor { width: min(42rem, calc(100vw - 2rem)); }
 .common-parameter-form { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .common-parameter-description { grid-column: 1 / -1; }
-.inline-option { align-items: center; color: var(--color-text) !important; display: flex !important; font-size: .875rem !important; gap: .45rem; }
-.inline-option input[type='checkbox'] { flex: 0 0 18px; height: 18px; max-height: 18px; max-width: 18px; min-height: 18px; min-width: 18px; padding: 0; width: 18px; }
 .common-parameter-usage-dialog, .common-parameter-delete-dialog { width: min(32rem, calc(100vw - 2rem)); }
 .common-parameter-usage-list { margin: 1rem 0; padding-left: 1.25rem; }
 .common-parameter-usage-list li { margin: .45rem 0; }

@@ -7,7 +7,7 @@
 .report-parameter-management { display: grid; gap: 1rem; }
 .parameter-management-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .parameter-management-heading h3, .parameter-management-heading p { margin: 0; }
-.parameter-management-heading p, .parameter-management-hint, .manual-help { color: var(--color-muted); font-size: .875rem; line-height: 1.5; }
+.parameter-management-heading p, .parameter-management-hint { color: var(--color-muted); font-size: .875rem; line-height: 1.5; }
 .parameter-management-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: var(--color-muted); font-size: .875rem; }
 .parameter-accordion-list { display: grid; gap: 0.75rem; }
 .parameter-accordion-item { overflow: hidden; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); }
@@ -28,14 +28,6 @@
 .parameter-editor-grid input, .parameter-editor-grid select, .parameter-common-settings input, .parameter-common-settings select, .parameter-description-field textarea { box-sizing: border-box; width: 100%; min-height: 2.5rem; padding: 0.55rem 0.65rem; border: 1px solid #aaa69e; border-radius: 5px; background: #fff; color: var(--color-text); font: inherit; }
 .parameter-editor-grid input[aria-invalid='true'] { border-color: #be123c; outline: 2px solid rgb(190 18 60 / 14%); outline-offset: 0; }
 .parameter-description-field textarea { min-height: 5.75rem; resize: vertical; }
-.parameter-editor-options { display: flex; gap: 2rem; }
-.parameter-switch { display: inline-flex; align-items: center; gap: 0.55rem; color: var(--color-text); font-size: .875rem; font-weight: 700; }
-.parameter-switch input { position: absolute; opacity: 0; }
-.parameter-switch-track { display: inline-flex; align-items: center; width: 2.5rem; height: 1.4rem; padding: 0.15rem; border-radius: 999px; background: #a7adb5; transition: background-color 160ms ease; }
-.parameter-switch-track span { width: 1.1rem; height: 1.1rem; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 20%); transition: transform 160ms ease; }
-.parameter-switch input:checked + .parameter-switch-track { background: var(--color-primary); }
-.parameter-switch input:checked + .parameter-switch-track span { transform: translateX(1.1rem); }
-.parameter-switch input:focus-visible + .parameter-switch-track { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .parameter-common-settings { display: flex; align-items: end; gap: 1rem; }
 .parameter-common-settings > label { flex: 1 1 auto; }
 .parameter-common-settings .parameter-link-button { min-height: 2.5rem; margin: 0 0 0.1rem; }
@@ -54,27 +46,41 @@
 .parameter-management-actions { display: flex; justify-content: flex-end; }
 .parameter-dialog-backdrop { align-items: center; background: rgb(15 23 42 / 48%); display: flex; inset: 0; justify-content: center; padding: 1rem; position: fixed; z-index: 30; }
 .parameter-dialog { background: #fff; border-radius: 10px; box-shadow: 0 20px 45px rgb(15 23 42 / 24%); max-height: min(720px, calc(100vh - 2rem)); overflow: auto; width: min(600px, 100%); }
-.parameter-dialog-heading { align-items: flex-start; border-bottom: 1px solid #e3eaf1; display: flex; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; }
+.parameter-manual-dialog { max-height: calc(100vh - 1rem); overflow: hidden; width: min(640px, 100%); }
+.parameter-dialog-heading { align-items: flex-start; border-bottom: 1px solid #e3eaf1; display: flex; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; }
 .parameter-dialog-heading h2, .parameter-dialog-heading p { margin: 0; }
 .parameter-dialog-heading p { color: #64748b; margin-top: .35rem; }
 .detected-parameter-list { display: grid; gap: .75rem; padding: 1.25rem 1.5rem; }
 .detected-parameter-list label { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(10rem, 1fr) minmax(0, 1.5fr); }
-.detected-parameter-list input, .manual-parameter-form input:not([type='checkbox']), .manual-parameter-form select, .manual-parameter-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; font: inherit; margin-top: .4rem; padding: .58rem .65rem; }
-.parameter-mode-control { display: block; padding: 1.25rem 1.5rem 0; }
-.manual-parameter-form { display: grid; gap: .9rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 1.25rem 1.5rem; }
+.detected-parameter-list input, .manual-parameter-form input:not([type='checkbox']), .manual-parameter-form select, .manual-parameter-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; font: inherit; margin-top: .3rem; padding: .5rem .6rem; }
+.manual-parameter-form { display: grid; gap: .75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 1rem 1.25rem; }
 .manual-parameter-form > label { display: block; font-weight: 700; }
-.manual-description, .manual-help, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: 1 / -1; }
-.inline-option { align-items: center; display: flex !important; font-weight: 400 !important; gap: .5rem; }
-.inline-option input[type='checkbox'] { flex: 0 0 18px; height: 18px; max-height: 18px; max-width: 18px; min-height: 18px; min-width: 18px; padding: 0; width: 18px !important; }
-.modal-actions { display: flex; gap: .75rem; justify-content: flex-end; margin: 0; padding: 1rem 1.5rem; }
-.manual-parameter-form .modal-actions { border-top: 1px solid #e3eaf1; margin: .25rem -1.5rem -1.25rem; }
+.manual-report-context { grid-column: 1 / -1; margin: -0.1rem 0 0; padding: .55rem .7rem; border-radius: 5px; background: #f5f7fa; color: var(--color-muted); font-size: .875rem; line-height: 1.4; }
+.manual-description, .manual-common-option, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: 1 / -1; }
+.manual-description textarea { height: 4.5rem; min-height: 4.5rem; resize: none; }
+.manual-common-option { align-items: flex-start; display: flex !important; gap: .65rem; padding-top: .7rem; border-top: 1px solid #e3eaf1; font-weight: 400 !important; }
+.manual-common-option input[type='checkbox'] { flex: 0 0 18px; width: 18px !important; height: 18px; margin: .1rem 0 0; padding: 0; }
+.manual-common-option span { display: grid; gap: .2rem; }
+.manual-common-option strong { color: var(--color-text); font-weight: 700; }
+.manual-common-option small { color: var(--color-muted); font-size: .8125rem; line-height: 1.45; }
+.modal-actions { display: flex; gap: .75rem; justify-content: flex-end; margin: 0; padding: .75rem 1.25rem; }
+.manual-parameter-form .modal-actions { border-top: 1px solid #e3eaf1; margin: .1rem -1.25rem -1rem; }
+@media (max-height: 700px) and (min-width: 721px) {
+  .parameter-dialog-heading { padding-block: .8rem; }
+  .manual-parameter-form { gap: .55rem; padding-block: .75rem; }
+  .manual-report-context { padding-block: .4rem; font-size: .8125rem; }
+  .manual-parameter-form input:not([type='checkbox']), .manual-parameter-form select, .manual-parameter-form textarea { margin-top: .2rem; padding-block: .38rem; }
+  .manual-description textarea { height: 3.75rem; min-height: 3.75rem; }
+  .manual-common-option { padding-top: .5rem; }
+  .manual-parameter-form .modal-actions { margin-bottom: -.75rem; padding-block: .6rem; }
+}
 @media (max-width: 720px) {
   .parameter-management-heading, .parameter-management-toolbar { align-items: stretch; flex-direction: column; }
   .parameter-management-heading .secondary-button { align-self: flex-start; }
   .parameter-accordion-trigger { grid-template-columns: 2.25rem minmax(0, 1fr) 1.5rem; gap: .75rem; }
   .parameter-summary { display: none; }
   .parameter-editor-grid { grid-template-columns: 1fr; }
-  .parameter-editor-options, .parameter-common-settings { align-items: stretch; flex-direction: column; gap: .75rem; }
+  .parameter-common-settings { align-items: stretch; flex-direction: column; gap: .75rem; }
   .detected-parameter-list label, .manual-parameter-form { grid-template-columns: 1fr; }
-  .manual-description, .manual-help, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: auto; }
+  .manual-report-context, .manual-description, .manual-common-option, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: auto; }
 }

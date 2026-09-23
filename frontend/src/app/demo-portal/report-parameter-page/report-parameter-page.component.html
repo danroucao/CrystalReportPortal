@@ -372,13 +372,7 @@
                 [formGroupName]="Definition.ParameterName"
               >
                 <legend>
-                  {{ Definition.DisplayName
-                  }}<span
-                    *ngIf="Definition.IsRequired"
-                    class="required-indicator"
-                    aria-hidden="true"
-                    >*</span
-                  >
+                  {{ Definition.DisplayName }}
                 </legend>
                 <label>
                   開始{{ Definition.DataType === "Date" ? "日期" : "值" }}
@@ -411,13 +405,7 @@
                 class="parameter-field"
               >
                 <span class="form-field-label"
-                  >{{ Definition.DisplayName
-                  }}<span
-                    *ngIf="Definition.IsRequired"
-                    class="required-indicator"
-                    aria-hidden="true"
-                    >*</span
-                  ></span
+                  >{{ Definition.DisplayName }}</span
                 >
                 <input
                   [type]="GetInputHtmlType(Definition)"
@@ -436,13 +424,7 @@
                 class="parameter-field"
               >
                 <span class="form-field-label"
-                  >{{ Definition.DisplayName
-                  }}<span
-                    *ngIf="Definition.IsRequired"
-                    class="required-indicator"
-                    aria-hidden="true"
-                    >*</span
-                  ></span
+                  >{{ Definition.DisplayName }}</span
                 >
                 <textarea
                   [formControlName]="Definition.ParameterName"
@@ -471,13 +453,7 @@
                 class="parameter-field"
               >
                 <label [for]="Definition.ParameterName">
-                  {{ Definition.DisplayName
-                  }}<span
-                    *ngIf="Definition.IsRequired"
-                    class="required-indicator"
-                    aria-hidden="true"
-                    >*</span
-                  >
+                  {{ Definition.DisplayName }}
                 </label>
                 <p
                   *ngIf="
@@ -524,7 +500,6 @@
                   <option
                     *ngIf="!Definition.AllowMultipleValues"
                     value=""
-                    [disabled]="Definition.IsRequired"
                   >
                     請選擇
                   </option>

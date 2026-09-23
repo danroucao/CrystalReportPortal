@@ -23,14 +23,10 @@
 
       <div *ngIf="isParameterExpanded(parameter.ParameterId)" class="parameter-accordion-content">
         <div class="parameter-editor-grid">
-          <label><span class="form-field-label required-field-label">顯示名稱<span class="required-indicator" aria-hidden="true">*</span></span><input [name]="'display-name-' + parameter.ParameterId" required aria-required="true" [ngModel]="parameter.DisplayName" (ngModelChange)="updateDisplayName(parameter, $event)" [attr.aria-invalid]="invalidDisplayNameParameterId === parameter.ParameterId ? 'true' : null" /></label>
+          <label>顯示名稱<input [name]="'display-name-' + parameter.ParameterId" [ngModel]="parameter.DisplayName" (ngModelChange)="updateDisplayName(parameter, $event)" /></label>
           <label>資料類型<select [name]="'data-type-' + parameter.ParameterId" [ngModel]="parameter.DataType" (ngModelChange)="updateParameterType(parameter, $event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></label>
           <label>輸入類型<select [name]="'input-type-' + parameter.ParameterId" [(ngModel)]="parameter.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></label>
           <label>預設值<input [name]="'default-' + parameter.ParameterId" [(ngModel)]="parameter.DefaultValue" /></label>
-        </div>
-        <div class="parameter-editor-options">
-          <label class="parameter-switch"><span>必填</span><input type="checkbox" [name]="'required-' + parameter.ParameterId" [(ngModel)]="parameter.Required" /><span class="parameter-switch-track" aria-hidden="true"><span></span></span></label>
-          <label class="parameter-switch"><span>可見</span><input type="checkbox" [name]="'visible-' + parameter.ParameterId" [(ngModel)]="parameter.Visible" /><span class="parameter-switch-track" aria-hidden="true"><span></span></span></label>
         </div>
         <div class="parameter-common-settings">
           <label>常用參數
@@ -80,21 +76,19 @@
 <section *ngIf="isManualDialogOpen" class="parameter-dialog-backdrop" (click)="requestCloseManualDialog()">
   <section class="parameter-dialog parameter-manual-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-parameter-title" (click)="$event.stopPropagation()">
     <div class="parameter-dialog-heading"><div><h2 id="manual-parameter-title">新增參數</h2></div><button type="button" class="modal-close-button" aria-label="關閉新增參數視窗" (click)="requestCloseManualDialog()">×</button></div>
-    <app-portal-tabs class="parameter-mode-control" [Tabs]="manualModeTabs" [ActiveTab]="manualMode" AriaLabel="新增方式" (TabChange)="setManualModeFromTab($event)" />
     <form class="manual-parameter-form" (ngSubmit)="submitManualParameter()" novalidate>
-      <label>參數名稱<span class="required-indicator">*</span>
-        <select *ngIf="manualMode === 'report'; else TemplateParameterName" name="manualParameterName" [(ngModel)]="manualDraft.ParameterName"><option value="" disabled>請選擇 RPT 參數</option><option *ngFor="let name of availableRptParameterNames" [value]="name">{{ name }}</option></select>
-        <ng-template #TemplateParameterName><input name="manualTemplateName" [(ngModel)]="manualDraft.ParameterName" placeholder="例如 CustomerGroup" /></ng-template>
+      <p class="manual-report-context">新增至目前報表：{{ reportName }}</p>
+      <label><span class="form-field-label required-field-label">RPT 參數名稱<span class="required-indicator" aria-hidden="true">*</span></span>
+        <select name="manualParameterName" [(ngModel)]="manualDraft.ParameterName"><option value="" disabled>請選擇 RPT 參數</option><option *ngFor="let name of availableRptParameterNames" [value]="name">{{ name }}</option></select>
       </label>
-      <label>顯示名稱<span class="required-indicator">*</span><input name="manualDisplayName" [(ngModel)]="manualDraft.DisplayName" placeholder="例如 客戶群組" /></label>
+      <label>顯示名稱<input name="manualDisplayName" [(ngModel)]="manualDraft.DisplayName" placeholder="例如 客戶群組" /></label>
       <label>資料類型<select name="manualDataType" [ngModel]="manualDraft.DataType" (ngModelChange)="updateManualType($event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></label>
       <label>輸入類型<select name="manualInputType" [(ngModel)]="manualDraft.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></label>
       <label>預設值<input name="manualDefaultValue" [(ngModel)]="manualDraft.DefaultValue" /></label>
       <label class="manual-description">說明<textarea name="manualDescription" rows="3" [(ngModel)]="manualDraft.Description"></textarea></label>
-      <label class="inline-option"><input type="checkbox" name="manualRequired" [(ngModel)]="manualDraft.Required" /> 必填</label>
-      <label class="inline-option"><input type="checkbox" name="manualVisible" [(ngModel)]="manualDraft.Visible" /> 可見</label>
+      <label class="manual-common-option"><input type="checkbox" name="manualAddToCommon" [(ngModel)]="manualAddToCommon" /><span><strong>同時加入共用參數</strong><small>儲存後將可在「共用參數管理」中供其他報表套用。</small></span></label>
       <p *ngIf="manualError" class="field-error" role="alert">{{ manualError }}</p>
-      <div class="modal-actions"><button type="button" class="tertiary-button" (click)="requestCloseManualDialog()">取消</button><button type="submit" class="primary-button">{{ manualMode === 'template' ? '加入常用' : '新增參數' }}</button></div>
+      <div class="modal-actions"><button type="button" class="tertiary-button" (click)="requestCloseManualDialog()">取消</button><button type="submit" class="primary-button">新增至報表</button></div>
     </form>
   </section>
 </section>

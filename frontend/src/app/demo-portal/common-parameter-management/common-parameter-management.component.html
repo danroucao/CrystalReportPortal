@@ -46,8 +46,6 @@
       <label>輸入方式<select name="commonInputType" [(ngModel)]="draft.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></label>
       <label>預設值<input name="commonDefaultValue" [(ngModel)]="draft.DefaultValue" /></label>
       <label class="common-parameter-description">說明<textarea name="commonDescription" rows="3" [(ngModel)]="draft.Description"></textarea></label>
-      <label class="inline-option"><input type="checkbox" name="commonRequired" [(ngModel)]="draft.Required" /> 必填</label>
-      <label class="inline-option"><input type="checkbox" name="commonVisible" [(ngModel)]="draft.Visible" /> 顯示於執行頁</label>
       <p *ngIf="editorError" class="field-error common-parameter-description" role="alert">{{ editorError }}</p>
       <div class="modal-actions common-parameter-description"><button type="button" class="tertiary-button" (click)="requestCloseEditor()">取消</button><button type="submit" class="primary-button">儲存</button></div>
     </form>
