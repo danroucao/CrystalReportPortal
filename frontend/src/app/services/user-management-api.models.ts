@@ -44,6 +44,10 @@ export interface UpdateManagedUserApiRequest {
   isEnabled: boolean;
 }
 
+export interface UpdateManagedUserStatusApiRequest {
+  isEnabled: boolean;
+}
+
 export interface UpdateUserRolesApiRequest {
   roleCodes: string[];
 }

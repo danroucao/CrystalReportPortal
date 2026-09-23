@@ -37,13 +37,6 @@ export const routes: Routes = [
     title: '報表預覽｜Crystal Reports 外部報表系統',
   },
   {
-    path: 'account/settings',
-    component: DemoPortalComponent,
-    canActivate: [FrontOfficeGuard],
-    data: { Page: 'AccountSettings' },
-    title: '帳號設定｜Crystal Reports 外部報表系統',
-  },
-  {
     path: 'notification-center',
     component: DemoPortalComponent,
     canActivate: [FrontOfficeGuard],

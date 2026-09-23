@@ -31,6 +31,11 @@ public class UpdateUserRolesRequest
     public List<string> RoleCodes { get; set; } = [];
 }
 
+public class UpdateManagedUserStatusRequest
+{
+    public bool IsEnabled { get; set; }
+}
+
 public class UpdateManagedUserRequest
 {
     [System.ComponentModel.DataAnnotations.Required]

@@ -27,8 +27,7 @@
 
   <section class="management-card user-management-section" aria-labelledby="user-management-title">
     <div class="management-card-heading">
-      <div><h2 id="user-management-title">使用者帳號</h2></div>
-      <button type="button" class="section-header-action primary-button" (click)="OpenCreateUserDialog()"><span aria-hidden="true">＋</span>建立使用者</button>
+      <div><h2 id="user-management-title">AD 使用者帳號</h2><p class="muted">使用者帳密由企業 AD 管理；此處僅設定系統啟用狀態與角色。</p></div>
     </div>
     <p *ngIf="ManagementNotice" class="mock-notice" role="status">{{ ManagementNotice }}</p>
     <div class="user-management-toolbar" role="search">
@@ -50,7 +49,7 @@
             <td>{{ User.DisplayName }}</td><td>{{ GetRoleNames(User.Roles) }}</td>
             <td class="account-status-column"><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="User.Enabled" [attr.aria-checked]="User.Enabled" [attr.aria-label]="User.Enabled ? '停用 ' + User.Account : '啟用 ' + User.Account" (click)="SetUserEnabled(User.Account, !User.Enabled); $event.stopPropagation()"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ User.Enabled ? '啟用' : '停用' }}</span></td>
             <td>{{ User.CreatedAt }}</td><td>{{ User.UpdatedAt }}</td>
-            <td><button type="button" class="tertiary-button" [attr.aria-label]="'編輯 ' + User.Account" title="編輯使用者" (click)="EditUser(User.Account); $event.stopPropagation()">✎</button><button type="button" class="tertiary-button" [attr.aria-label]="'刪除 ' + User.Account" title="刪除使用者" (click)="OpenDeleteUserDialog(User.Account); $event.stopPropagation()">🗑</button></td>
+            <td><button type="button" class="tertiary-button" [attr.aria-label]="'設定 ' + User.Account" title="設定角色與啟用狀態" (click)="EditUser(User.Account); $event.stopPropagation()">設定</button></td>
           </tr>
           <tr *ngIf="!FilteredUsers.length"><td colspan="7"><div class="user-empty-state" role="status">找不到符合條件的使用者。</div></td></tr>
         </tbody>
@@ -98,9 +97,9 @@
 
   <section *ngIf="EditingUser" class="modal-backdrop" (click)="CancelEditUser()">
     <section #activeModal class="edit-user-modal" role="dialog" aria-modal="true" aria-labelledby="edit-user-title" tabindex="-1" (click)="$event.stopPropagation()">
-      <div class="modal-heading"><div><h2 id="edit-user-title">編輯使用者</h2><p class="muted">管理員只能調整角色與啟用狀態；名稱與密碼由使用者本人在帳號設定修改。</p></div><button type="button" class="modal-close-button" aria-label="關閉編輯使用者視窗" (click)="CancelEditUser()">×</button></div>
-      <div class="form-grid edit-user-form"><label>使用者帳號<input [value]="EditingAccount" disabled /></label><label>使用者名稱<input [value]="MockRbac.GetUser(EditingAccount || '')?.DisplayName" disabled /></label><div class="edit-status-field"><span class="form-field-label">啟用狀態</span><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="EditingUser.Enabled" [attr.aria-checked]="EditingUser.Enabled" aria-label="切換使用者啟用狀態" (click)="EditingUser.Enabled = !EditingUser.Enabled"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ EditingUser.Enabled ? '啟用' : '停用' }}</span></div></div>
-      <div class="edit-user-role-field"><span class="form-field-label">所屬角色 <span class="required-indicator" aria-hidden="true">*</span></span><div class="edit-user-role-options" role="group" aria-label="所屬角色"><label *ngFor="let Role of MockRbac.Roles; trackBy: TrackRoleByKey" class="edit-user-role-option" [class.is-selected]="EditingUser.Roles.includes(Role.Key)"><input type="checkbox" [ngModel]="EditingUser.Roles.includes(Role.Key)" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleEditingUserRole(Role.Key, $event)" />{{ Role.DisplayName }}</label></div></div>
+      <div class="modal-heading"><div><h2 id="edit-user-title">設定 AD 使用者</h2><p class="muted">AD 帳號與密碼由企業目錄服務管理；此處只會影響本系統的啟用狀態與角色權限。</p></div><button type="button" class="modal-close-button" aria-label="關閉 AD 使用者設定視窗" (click)="CancelEditUser()">×</button></div>
+      <div class="form-grid edit-user-form"><label>AD 帳號<input [value]="EditingAccount" disabled /></label><label>使用者名稱<input [value]="GetManagedUserName(EditingAccount)" disabled /></label><div class="edit-status-field"><span class="form-field-label">系統啟用狀態</span><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="EditingUser.Enabled" [attr.aria-checked]="EditingUser.Enabled" aria-label="切換使用者啟用狀態" (click)="EditingUser.Enabled = !EditingUser.Enabled"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ EditingUser.Enabled ? '啟用' : '停用' }}</span></div></div>
+      <div class="edit-user-role-field"><span class="form-field-label">所屬角色 <span class="required-indicator" aria-hidden="true">*</span></span><div class="edit-user-role-options" role="group" aria-label="所屬角色"><label *ngFor="let Role of DisplayRoles; trackBy: TrackRoleByKey" class="edit-user-role-option" [class.is-selected]="EditingUser.Roles.includes(Role.Key)"><input type="checkbox" [ngModel]="EditingUser.Roles.includes(Role.Key)" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleEditingUserRole(Role.Key, $event)" />{{ Role.DisplayName }}</label></div></div>
       <small *ngIf="EditUserValidationErrors.Roles" id="edit-user-roles-error" class="field-error" role="alert">{{ EditUserValidationErrors.Roles }}</small><p *ngIf="EditUserValidationErrors.Form" class="field-error" role="alert">{{ EditUserValidationErrors.Form }}</p>
       <div class="modal-actions"><button type="button" class="primary-button" (click)="SaveEditedUser()">儲存變更</button><button type="button" class="tertiary-button" (click)="CancelEditUser()">取消</button></div>
     </section>

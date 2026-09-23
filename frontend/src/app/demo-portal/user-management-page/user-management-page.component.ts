@@ -153,6 +153,10 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     }));
   }
 
+  GetManagedUserName(account: string | null): string {
+    return this.ApiUsers.find((user) => user.account === account)?.userName ?? '';
+  }
+
   ngAfterViewInit(): void {
     if (typeof ResizeObserver !== 'undefined' && this.roleCardViewport) {
       this.roleCardResizeObserver = new ResizeObserver(() =>
@@ -328,10 +332,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     }
     forkJoin({
       roles: this.UserManagementApi.updateUserRoles(apiUser.userId, { roleCodes: [...this.EditingUser.Roles] }),
-      user: this.UserManagementApi.updateUser(apiUser.userId, {
-        employeeNo: apiUser.employeeNo,
-        account: apiUser.account,
-        userName: apiUser.userName,
+      user: this.UserManagementApi.updateUserStatus(apiUser.userId, {
         isEnabled: this.EditingUser.Enabled,
       }),
     }).subscribe({
@@ -391,10 +392,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     if (!this.Auth.CanOperateBackOffice) return;
     const user = this.ApiUsers.find((entry) => entry.account === account);
     if (!user) return;
-    this.UserManagementApi.updateUser(user.userId, {
-      employeeNo: user.employeeNo,
-      account: user.account,
-      userName: user.userName,
+    this.UserManagementApi.updateUserStatus(user.userId, {
       isEnabled: enabled,
     }).subscribe({
       next: () => this.LoadApiManagementData(),

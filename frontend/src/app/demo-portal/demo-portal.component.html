@@ -140,12 +140,6 @@
           </div>
           <div class="profile-popover-links">
             <p class="profile-popover-actions-title">帳號與通知</p>
-            <a
-              *ngIf="Auth.IsFrontOffice"
-              routerLink="/account/settings"
-              (click)="IsProfileMenuOpen = false"
-              >帳號設定</a
-            >
             <button type="button" (click)="OpenNotificationCenter('All')">
               通知中心<span
                 *ngIf="NotificationBadgeCount"

@@ -249,7 +249,6 @@ export class DemoPortalComponent
 
   ngOnInit(): void {
     this.UpdateCompactNavigationState();
-    this.LoadAccountSettings();
       if (this.Page === 'ReportUpload') {
         this.InitializeReportUploadFlow();
         this.LoadReportUploadCategories();

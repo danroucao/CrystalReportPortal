@@ -165,6 +165,45 @@ public class UsersController : ControllerBase
     }
 
     // 修改使用者資料，以及啟用／停用帳號
+    [HttpPut("{userId:long}/status")]
+    public async Task<ActionResult<ManagedUserDto>> UpdateUserStatus(
+        long userId,
+        UpdateManagedUserStatusRequest request)
+    {
+        var user = await db.Users
+            .Include(candidate => candidate.UserRoles)
+            .ThenInclude(userRole => userRole.Role)
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId);
+
+        if (user == null)
+        {
+            return NotFound(new { message = "User not found." });
+        }
+
+        user.IsEnabled = request.IsEnabled;
+        user.TokenVersion += 1;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        AddUserManagementAudit(
+            "UPDATE_USER_STATUS",
+            $"Updated AD user status: {user.Account} => {(user.IsEnabled ? "enabled" : "disabled")}");
+
+        await db.SaveChangesAsync();
+
+        return Ok(new ManagedUserDto
+        {
+            UserId = user.UserId,
+            EmployeeNo = user.EmployeeNo,
+            Account = user.Account,
+            UserName = user.UserName,
+            IsEnabled = user.IsEnabled,
+            RoleCodes = user.UserRoles
+                .Where(userRole => userRole.Role.IsEnabled)
+                .Select(userRole => userRole.Role.RoleCode)
+                .ToList()
+        });
+    }
+
     [HttpPut("{userId:long}")]
     public async Task<IActionResult> UpdateUser(
         long userId,

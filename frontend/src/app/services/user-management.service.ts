@@ -12,6 +12,7 @@ import {
   ResetUserPasswordApiRequest,
   RoleOptionApiModel,
   UpdateManagedUserApiRequest,
+  UpdateManagedUserStatusApiRequest,
   UpdateRoleApiRequest,
   UpdateRolePermissionsApiRequest,
   UpdateUserRolesApiRequest,
@@ -66,6 +67,16 @@ export class UserManagementService {
   ): Observable<ManagedUserApiModel> {
     return this.http.put<ManagedUserApiModel>(
       `${this.usersUrl}/${userId}/roles`,
+      request,
+    );
+  }
+
+  updateUserStatus(
+    userId: number,
+    request: UpdateManagedUserStatusApiRequest,
+  ): Observable<ManagedUserApiModel> {
+    return this.http.put<ManagedUserApiModel>(
+      `${this.usersUrl}/${userId}/status`,
       request,
     );
   }
