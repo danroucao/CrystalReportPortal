@@ -55,7 +55,7 @@
         type="search"
         [(ngModel)]="OperationLogSearchText"
         (ngModelChange)="OnOperationLogFilterChange()"
-        placeholder="請輸入操作者、目標名稱或 IP"
+        placeholder="可搜尋帳號、報表、動作、內容或 IP"
       />
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="10.8" cy="10.8" r="5.8"></circle>
@@ -141,7 +141,9 @@
           (keydown.space)="OpenOperationLogDetail(Entry); $event.preventDefault()"
         >
           <td class="operation-log-time">{{ FormatOperationLogTime(Entry.OccurredAt) }}</td>
-          <td class="operation-log-actor">{{ Entry.UserId }}</td>
+          <td class="operation-log-actor" [title]="Entry.UserId">
+            {{ Entry.UserId }}
+          </td>
           <td>
             <span
               class="operation-log-source"
