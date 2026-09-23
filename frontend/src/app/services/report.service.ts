@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, map, of, switchMap, throwError } from 'rxjs';
 
 import { API_BASE_URL } from './api.config';
 import {
@@ -102,6 +102,24 @@ export class ReportService {
     return this.Http.post<RptUploadResult>(
       `${API_BASE_URL}/Reports/${reportId}/rpt`,
       formData,
+    );
+  }
+
+  CreateManagedReportWithRpt(
+    request: CreateManagedReportRequest,
+    file: File,
+  ): Observable<RptUploadResult> {
+    return this.CreateManagedReport(request).pipe(
+      switchMap((report) =>
+        this.UploadRpt(report.reportId, file).pipe(
+          catchError((uploadError: unknown) =>
+            this.DeleteManagedReport(report.reportId).pipe(
+              catchError(() => of(undefined)),
+              switchMap(() => throwError(() => uploadError)),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

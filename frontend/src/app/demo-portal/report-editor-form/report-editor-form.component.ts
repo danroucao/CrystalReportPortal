@@ -17,6 +17,7 @@ export class ReportEditorFormComponent {
   @Input({ required: true }) draft!: Readonly<ReportEditorDraft>;
   @Input({ required: true }) categories!: readonly MockReportCategory[];
   @Input() isEditing = false;
+  @Input() showEnabled = true;
   @Input() selectedFileName = '';
   @Input() error = '';
   @Input() canAddCategory = false;

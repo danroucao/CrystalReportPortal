@@ -72,6 +72,7 @@ import { ReportPreviewPageComponent } from './report-preview-page/report-preview
 import { UserManagementPageComponent } from './user-management-page/user-management-page.component';
 import { ReportEditorDraft } from './report-editor-form/report-editor-form.model';
 import { DataSourceService } from '../services/data-source.service';
+import { ReportService } from '../services/report.service';
 import {
   DataSourceConnectionTestResponse,
   DataSourceManagementModel,
@@ -116,6 +117,13 @@ interface ParameterReportSearchState {
 
 type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
 
+interface PublishedUploadSummary {
+  readonly ReportName: string;
+  readonly CategoryName: string;
+  readonly FileName: string;
+  readonly CreatedAt: string;
+}
+
 type CreateUserField = 'Account' | 'DisplayName' | 'Roles';
 type CreateUserValidationErrors = Partial<Record<CreateUserField, string>>;
 type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
@@ -154,6 +162,7 @@ export class DemoPortalComponent
   readonly ReportParameters = inject(MockReportParameterService);
   readonly DatabaseConnections = inject(MockDatabaseConnectionService);
   readonly DataSourcesApi = inject(DataSourceService);
+  readonly ReportsApi = inject(ReportService);
   ApiDataSources: DataSourceManagementModel[] = [];
   IsDataSourcesLoading = false;
   readonly Notifications = inject(NotificationService);
@@ -195,10 +204,13 @@ export class DemoPortalComponent
   EditingReportKey: MockReportKey | null = null;
   ReportEditorDraft: ReportEditorDraft = this.CreateReportEditorDraft();
   SelectedReportFileName = '';
+  SelectedReportFile: File | null = null;
+  ReportUploadCategories: MockReportCategory[] = [];
   ReportEditorError = '';
   IsReportFileInvalid = false;
+  IsReportUploadPublishing = false;
   ReportUploadStep: ReportUploadStep = 'Form';
-  PublishedUploadedReport: MockReportReadModel | null = null;
+  PublishedUploadedReport: PublishedUploadSummary | null = null;
   private ReportEditorInitialDraft: ReportEditorDraft | null = null;
   private InitialReportFileName = '';
   private ReportEditorOpener: HTMLElement | null = null;
@@ -238,7 +250,10 @@ export class DemoPortalComponent
   ngOnInit(): void {
     this.UpdateCompactNavigationState();
     this.LoadAccountSettings();
-      if (this.Page === 'ReportUpload') this.InitializeReportUploadFlow();
+      if (this.Page === 'ReportUpload') {
+        this.InitializeReportUploadFlow();
+        this.LoadReportUploadCategories();
+      }
       if (this.Page === 'DatabaseConnection') this.LoadDataSources();
     const NavigationState =
       this.router.getCurrentNavigation()?.extras.state ?? history.state;
@@ -473,6 +488,7 @@ export class DemoPortalComponent
 
 
   get ReportEditorCategories() {
+    if (this.IsReportUploadFlow) return this.ReportUploadCategories;
     return this.MockRbac.GetReportEditorCategories(
       this.ReportEditorDraft.CategoryId,
     );
@@ -506,7 +522,7 @@ export class DemoPortalComponent
 
   StartReportUpload(): void {
     if (!this.Auth.HasManagementPermission('RptManagement')) return;
-    this.reportManagementPage?.OpenCreate();
+    void this.router.navigate(['/report-management/upload']);
   }
 
   ContinueReportUpload(): void {
@@ -533,21 +549,35 @@ export class DemoPortalComponent
       this.ReportUploadStep = 'Form';
       return;
     }
-    const PublishedReport = this.MockRbac.CreateReport({
-      ReportName: this.ReportEditorDraft.ReportName,
-      Description: this.ReportEditorDraft.Description,
-      CategoryId: this.ReportEditorDraft.CategoryId,
-      Enabled: this.ReportEditorDraft.Enabled,
-      FileName: this.SelectedReportFileName,
+    this.IsReportUploadPublishing = true;
+    this.ReportsApi.CreateManagedReportWithRpt(
+      {
+        reportCode: this.ReportEditorDraft.ReportCode!.trim(),
+        reportName: this.ReportEditorDraft.ReportName.trim(),
+        description: this.ReportEditorDraft.Description.trim(),
+        categoryId: Number(this.ReportEditorDraft.CategoryId),
+        dataSourceId: null,
+        credentialType: 'ReadOnly',
+      },
+      this.SelectedReportFile!,
+    ).subscribe({
+      next: (result) => {
+        this.PublishedUploadedReport = {
+          ReportName: this.ReportEditorDraft.ReportName.trim(),
+          CategoryName: this.ReportUploadCategoryName,
+          FileName: result.data.fileName,
+          CreatedAt: new Date().toISOString(),
+        };
+        this.ReportUploadStep = 'Complete';
+        this.RememberInitialReportEditorState();
+        this.IsReportUploadPublishing = false;
+      },
+      error: (error: unknown) => {
+        this.ReportEditorError = this.GetApiErrorMessage(error);
+        this.ReportUploadStep = 'Form';
+        this.IsReportUploadPublishing = false;
+      },
     });
-    if (!PublishedReport) {
-      this.ReportEditorError = '發佈報表失敗，請重新確認欄位。';
-      this.ReportUploadStep = 'Form';
-      return;
-    }
-    this.PublishedUploadedReport = PublishedReport;
-    this.ReportUploadStep = 'Complete';
-    this.RememberInitialReportEditorState();
   }
 
   ReturnToReportManagement(): void {
@@ -631,12 +661,14 @@ export class DemoPortalComponent
     if (!File) return;
     if (!File.name.toLocaleLowerCase().endsWith('.rpt')) {
       this.SelectedReportFileName = '';
+      this.SelectedReportFile = null;
       this.ReportEditorError = '僅允許上傳 .rpt 報表檔案。';
       this.IsReportFileInvalid = true;
       Input.value = '';
       return;
     }
     this.SelectedReportFileName = File.name;
+    this.SelectedReportFile = File;
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
   }
@@ -873,8 +905,10 @@ export class DemoPortalComponent
     this.EditingReportKey = null;
     this.ReportEditorDraft = this.CreateReportEditorDraft();
     this.SelectedReportFileName = '';
+    this.SelectedReportFile = null;
     this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
+    this.IsReportUploadPublishing = false;
     this.ReportUploadStep = 'Form';
     this.PublishedUploadedReport = null;
     this.IsReportDiscardConfirmationOpen = false;
@@ -916,6 +950,9 @@ export class DemoPortalComponent
     if (this.IsReportFileInvalid) {
       return '僅允許上傳 .rpt 報表檔案。';
     }
+    if (this.IsReportUploadFlow && !this.ReportEditorDraft.ReportCode?.trim()) {
+      return '請輸入報表代碼。';
+    }
     if (!this.ReportEditorDraft.ReportName.trim()) {
       return '請輸入報表名稱。';
     }
@@ -925,7 +962,7 @@ export class DemoPortalComponent
     if (!this.ReportEditorDraft.CategoryId) {
       return '請選擇報表分類。';
     }
-    if (!this.EditingReportKey && !this.SelectedReportFileName) {
+    if (!this.EditingReportKey && !this.SelectedReportFile) {
       return '請選擇 RPT 報表檔案。';
     }
     if (
@@ -935,6 +972,28 @@ export class DemoPortalComponent
       return '僅允許上傳 .rpt 報表檔案。';
     }
     return '';
+  }
+
+  private LoadReportUploadCategories(): void {
+    this.ReportsApi.GetManagedReportCategories().subscribe({
+      next: (categories) => {
+        this.ReportUploadCategories = categories.map((category) => ({
+          CategoryId: String(category.categoryId),
+          CategoryName: category.categoryName,
+          IsSystemReserved: false,
+        }));
+      },
+      error: (error: unknown) => {
+        this.ReportEditorError = this.GetApiErrorMessage(error);
+      },
+    });
+  }
+
+  private GetApiErrorMessage(error: unknown): string {
+    return error instanceof HttpErrorResponse &&
+      typeof error.error?.message === 'string'
+      ? error.error.message
+      : '服務暫時無法使用，請稍後再試。';
   }
 
 

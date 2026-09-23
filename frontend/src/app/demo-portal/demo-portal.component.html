@@ -494,7 +494,7 @@
         </li>
       </ol>
 
-      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [canAddCategory]="Auth.HasManagementPermission('RptManagement')" [quickAddOpen]="IsReportCategoryQuickAddOpen" [quickAddName]="QuickAddCategoryName" [quickAddError]="QuickAddCategoryError" (draftChange)="ReportEditorDraft = $event" (quickAddNameChange)="QuickAddCategoryName = $event; QuickAddCategoryError = ''" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (quickAddRequested)="OpenReportCategoryQuickAdd()" (quickAddCancelled)="CloseReportCategoryQuickAdd()" (quickAddSubmitted)="CreateReportCategoryQuickAdd()" (fileSelected)="OnReportFileSelected($event)" />
+      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [showEnabled]="false" [canAddCategory]="false" [quickAddOpen]="false" [quickAddName]="''" [quickAddError]="''" (draftChange)="ReportEditorDraft = $event" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (fileSelected)="OnReportFileSelected($event)" />
       <section
         *ngIf="ReportUploadStep === 'Confirm'"
         class="report-upload-review"
@@ -556,8 +556,9 @@
             type="button"
             class="primary-button"
             (click)="PublishReportUpload()"
+            [disabled]="IsReportUploadPublishing"
           >
-            確認並發佈
+            {{ IsReportUploadPublishing ? '發佈中…' : '確認並發佈' }}
           </button>
         </footer>
       </section>
