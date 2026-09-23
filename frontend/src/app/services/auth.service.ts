@@ -378,6 +378,13 @@ export class AuthService {
     );
   }
 
+  HasPermission(PermissionCode: string): boolean {
+    return (
+      this.IsFrontOffice &&
+      this.AuthenticatedUser?.permissions.includes(PermissionCode) === true
+    );
+  }
+
   SetAccessibleReports(Reports: readonly MockReportReadModel[]): void {
     this.ApiReports = [...Reports];
     if (

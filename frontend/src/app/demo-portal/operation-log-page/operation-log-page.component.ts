@@ -102,8 +102,14 @@ export class OperationLogPageComponent implements OnInit {
     return this.Auth.HasManagementPermission('OperationLog');
   }
 
-  get OperationLogMinimumDate(): string {
-    return this.ToDateInputValue(this.GetDateDaysAgo(179));
+  get CanViewOperationLogArchive(): boolean {
+    return this.Auth.HasPermission('AuditLog.ViewArchive');
+  }
+
+  get OperationLogMinimumDate(): string | null {
+    return this.CanViewOperationLogArchive
+      ? null
+      : this.ToDateInputValue(this.GetDateDaysAgo(179));
   }
 
   get OperationLogMaximumDate(): string {
@@ -207,8 +213,9 @@ export class OperationLogPageComponent implements OnInit {
 
   OnOperationLogDateChange(): void {
     if (!this.CanAccessOperationLog) return;
-    if (this.OperationLogStartDate < this.OperationLogMinimumDate) {
-      this.OperationLogStartDate = this.OperationLogMinimumDate;
+    const minimumDate = this.OperationLogMinimumDate;
+    if (minimumDate && this.OperationLogStartDate < minimumDate) {
+      this.OperationLogStartDate = minimumDate;
     }
     if (this.OperationLogEndDate > this.OperationLogMaximumDate) {
       this.OperationLogEndDate = this.OperationLogMaximumDate;
