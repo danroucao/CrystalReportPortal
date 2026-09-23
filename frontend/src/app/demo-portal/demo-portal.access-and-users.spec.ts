@@ -53,7 +53,7 @@ xdescribe('portal access and user-management boundaries', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     component.SelectExportOption(component.ExportOptions[0]);
-    expect(component.MockNotice).toContain('PDF');
+    expect(component.PreviewNotice).toContain('PDF');
 
     const permissions = rbac.GetCategoryPermissionEntries('FINANCE');
     permissions.find((entry) => entry.CategoryId === 'FINANCE')!.Permission = {
@@ -62,12 +62,12 @@ xdescribe('portal access and user-management boundaries', () => {
       CanPrint: false,
     };
     rbac.SaveCategoryPermissions('FINANCE', permissions);
-    component.MockNotice = '';
+    component.PreviewNotice = '';
     component.ToggleExportMenu();
     component.TogglePrintMenu();
     expect(component.IsExportMenuOpen).toBeFalse();
     expect(component.IsPrintMenuOpen).toBeFalse();
-    expect(component.MockNotice).toContain('權限');
+    expect(component.PreviewNotice).toContain('權限');
   });
 
   it('logs out and queues the global success notification for the login page', () => {

@@ -134,9 +134,9 @@ describe('report catalog and extracted report pages', () => {
 
     component.ToggleExportMenu();
     expect(component.IsExportMenuOpen).toBeTrue();
-    component.SelectExportOption(component.ExportOptions[1]);
+    component.SelectExportOption(component.ExportOptions[0]);
     expect(component.IsExportMenuOpen).toBeFalse();
-    expect(component.MockNotice).toBe('目前角色沒有匯出權限。');
+    expect(component.PreviewNotice).toBe('目前角色沒有匯出權限。');
 
     component.ReportPreviewOrigin = 'favorites';
     component.ReturnToReportList();

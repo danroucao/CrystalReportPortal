@@ -19,13 +19,13 @@ export interface ParameterReportSearchState {
   readonly EndDate: string;
 }
 
-interface MockExportOption {
+interface ExportOption {
   readonly Label: string;
   readonly FormatKey: string;
   readonly Enabled: boolean;
 }
 
-type OutputAction = 'BrowserPrint' | 'FixedPrinterPrint';
+type OutputAction = 'BrowserPrint';
 
 /**
  * The report-preview content extracted from DemoPortalComponent.
@@ -48,7 +48,7 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
 
   IsExportMenuOpen = false;
   IsPrintMenuOpen = false;
-  MockNotice = '';
+  PreviewNotice = '';
   PreviewUrl: SafeResourceUrl | null = null;
   IsPreviewLoading = false;
   PreviewError = '';
@@ -59,13 +59,8 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
   private ReturnToParameterSearchState: ParameterReportSearchState | null =
     null;
 
-  readonly ExportOptions: readonly MockExportOption[] = [
+  readonly ExportOptions: readonly ExportOption[] = [
     { Label: 'PDF', FormatKey: 'Pdf', Enabled: true },
-    { Label: 'Excel', FormatKey: 'Excel', Enabled: false },
-    { Label: 'Word', FormatKey: 'Word', Enabled: false },
-    { Label: 'CSV', FormatKey: 'Csv', Enabled: false },
-    { Label: 'RTF', FormatKey: 'Rtf', Enabled: false },
-    { Label: '文字檔', FormatKey: 'Text', Enabled: false },
   ];
 
   get ReportPreviewReturnLabel(): string {
@@ -164,7 +159,7 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     this.IsExportMenuOpen = !this.IsExportMenuOpen;
   }
 
-  SelectExportOption(Option: MockExportOption): void {
+  SelectExportOption(Option: ExportOption): void {
     if (
       !this.Auth.SelectedReportCategoryPermission.CanExport ||
       !Option.Enabled ||
@@ -175,7 +170,7 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     }
     this.IsExportMenuOpen = false;
     if (Option.FormatKey !== 'Pdf' || !this.PreviewBlob) {
-      this.MockNotice = `${Option.Label} 匯出目前尚未支援。`;
+      this.PreviewNotice = `${Option.Label} 匯出目前尚未支援。`;
       return;
     }
 
@@ -185,12 +180,12 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     Link.download = `${this.Auth.SelectedReport?.ReportName ?? 'report'}.pdf`;
     Link.click();
     URL.revokeObjectURL(DownloadUrl);
-    this.MockNotice = 'PDF 已開始下載。';
+    this.PreviewNotice = 'PDF 已開始下載。';
   }
 
   DownloadPdf(): void {
     if (!this.PreviewBlob) {
-      this.MockNotice = '目前沒有可下載的 PDF。';
+      this.PreviewNotice = '目前沒有可下載的 PDF。';
       return;
     }
 
@@ -200,17 +195,17 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     link.download = `${this.Auth.SelectedReport?.ReportName ?? 'report'}.pdf`;
     link.click();
     URL.revokeObjectURL(downloadUrl);
-    this.MockNotice = 'PDF 已開始下載。';
+    this.PreviewNotice = 'PDF 已開始下載。';
   }
 
   OpenPdfPreview(): void {
     if (!this.PreviewObjectUrl) {
-      this.MockNotice = '目前沒有可開啟的 PDF。';
+      this.PreviewNotice = '目前沒有可開啟的 PDF。';
       return;
     }
 
     const previewWindow = window.open(this.PreviewObjectUrl, '_blank');
-    this.MockNotice = previewWindow
+    this.PreviewNotice = previewWindow
       ? '已在新視窗開啟 PDF 預覽。'
       : '瀏覽器封鎖了新視窗，請改用下載 PDF。';
   }
@@ -230,26 +225,21 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
       return;
     }
     this.IsPrintMenuOpen = false;
-    if (ActionName === 'FixedPrinterPrint') {
-      this.MockNotice = '固定印表機列印目前尚未支援。';
-      return;
-    }
-
     if (!this.PreviewObjectUrl) {
-      this.MockNotice = '目前沒有可列印的 PDF 預覽。';
+      this.PreviewNotice = '目前沒有可列印的 PDF 預覽。';
       return;
     }
 
     const PrintWindow = window.open(this.PreviewObjectUrl, '_blank');
     if (!PrintWindow) {
-      this.MockNotice = '瀏覽器封鎖了列印視窗，請允許彈出視窗後再試。';
+      this.PreviewNotice = '瀏覽器封鎖了列印視窗，請允許彈出視窗後再試。';
       return;
     }
 
     PrintWindow.addEventListener('load', () => PrintWindow.print(), {
       once: true,
     });
-    this.MockNotice = '已開啟列印視窗。';
+    this.PreviewNotice = '已開啟列印視窗。';
   }
 
   ReturnToReportList(): void {
@@ -285,7 +275,7 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
   private ShowPermissionNotice(ActionName: string): void {
     this.IsExportMenuOpen = false;
     this.IsPrintMenuOpen = false;
-    this.MockNotice = `目前角色沒有${ActionName}權限。`;
+    this.PreviewNotice = `目前角色沒有${ActionName}權限。`;
   }
 
   private ToReportPreviewOrigin(State: unknown): ReportPreviewOrigin {
