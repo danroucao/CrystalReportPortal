@@ -197,14 +197,6 @@
       <h1>{{ PageTitle }}</h1>
       <div class="report-management-header-actions">
         <button
-          *ngIf="Auth.HasManagementPermission('RptManagement')"
-          type="button"
-          class="secondary-button"
-          (click)="OpenCategoryManagementDialog()"
-        >
-          管理分類
-        </button>
-        <button
           type="button"
           class="section-header-action primary-button"
           (click)="StartReportUpload()"
