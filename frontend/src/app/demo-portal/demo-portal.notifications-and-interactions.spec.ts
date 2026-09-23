@@ -39,17 +39,31 @@ describe('portal notifications and extracted interactions', () => {
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const page = host.querySelector('app-notification-center-page');
+    expect(page).not.toBeNull();
+    expect(page?.querySelectorAll('.center-item')).toHaveSize(10);
     expect(component.NotificationCenterTotalPages).toBe(2);
     expect(component.PagedDisplayedNotifications).toHaveSize(10);
-    component.GoToNotificationCenterPage(2);
+    page?.querySelector<HTMLButtonElement>('app-portal-pagination button[aria-label="第 2 頁"]')?.click();
+    fixture.detectChanges();
+    expect(component.NotificationCenterCurrentPage).toBe(2);
     expect(component.PagedDisplayedNotifications).toHaveSize(4);
     const unread = component.NotificationBadgeCount;
-    component.SetNotificationCenterTab('Unread');
+    page?.querySelectorAll<HTMLButtonElement>('app-portal-tabs button')[1]?.click();
+    fixture.detectChanges();
+    expect(component.NotificationCenterTab).toBe('Unread');
     expect(component.NotificationCenterCurrentPage).toBe(1);
-    component.MarkCenterNotificationRead(component.CurrentNotifications[0].Id);
+    page?.querySelector<HTMLElement>('.center-item')?.click();
+    fixture.detectChanges();
+    expect(host.querySelector('.notification-detail-modal')).not.toBeNull();
+    host.querySelector<HTMLButtonElement>('.notification-detail-modal .modal-close-button')?.click();
+    fixture.detectChanges();
+    expect(host.querySelector('.notification-detail-modal')).toBeNull();
 
     expect(component.DisplayedNotifications).toHaveSize(unread - 1);
-    component.SetNotificationCenterTab('All');
+    page?.querySelectorAll<HTMLButtonElement>('app-portal-tabs button')[0]?.click();
+    fixture.detectChanges();
     expect(component.DisplayedNotifications.length).toBeGreaterThanOrEqual(unread);
   });
 
@@ -91,27 +105,18 @@ describe('portal notifications and extracted interactions', () => {
     expect(component.SelectedOperationLog).toBeNull();
   });
 
-  it('does not render or reserve space for the view switcher without archive-log access', () => {
-    const Auth = TestBed.inject(AuthService);
-    const Rbac = TestBed.inject(MockRbacService);
-    expect(LoginFrontManager(Auth)).toBeTrue();
-    const Permissions = Rbac.GetCategoryPermissionEntries('FINANCE');
-    Rbac.UpdateRole('FINANCE', {
-      DisplayName: '財務人員',
-      ManagementPermissions: ['OperationLog'],
-      Permissions,
-    });
+  it('does not render an archive view switcher for operation-log readers', () => {
+    expect(LoginFrontManager(TestBed.inject(AuthService))).toBeTrue();
     const fixture = TestBed.createComponent(OperationLogPageComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
 
     expect(fixture.componentInstance.CanAccessOperationLog).toBeTrue();
-    expect(fixture.componentInstance.CanAccessArchivedOperationLogs).toBeFalse();
     expect(host.querySelector('.operation-log-view-switcher')).toBeNull();
     expect(host.querySelector('app-portal-two-tab-segmented-control')).toBeNull();
   });
 
-  it('keeps operation-log source and category filters compatible in both directions', () => {
+  it('resets an incompatible category when the source changes', () => {
     expect(LoginFrontManager(TestBed.inject(AuthService))).toBeTrue();
     const fixture = TestBed.createComponent(OperationLogPageComponent);
     const component = fixture.componentInstance;
@@ -122,13 +127,11 @@ describe('portal notifications and extracted interactions', () => {
     component.OnOperationLogSourceChange();
 
     expect(component.OperationLogCategoryFilter).toBe('ALL');
-    expect(component.IsOperationLogCategoryAvailable('PermissionChange')).toBeFalse();
-    expect(component.IsOperationLogCategoryAvailable('SystemManagement')).toBeFalse();
-
-    component.OperationLogCategoryFilter = 'Authentication';
-    component.OnOperationLogCategoryChange();
-
-    expect(component.IsOperationLogSourceAvailable('BackOffice')).toBeFalse();
-    expect(component.IsOperationLogSourceAvailable('FrontOffice')).toBeTrue();
+    expect(component.FilteredOperationLogs.every((entry) => entry.Source === 'FrontOffice')).toBeTrue();
+    const host = fixture.nativeElement as HTMLElement;
+    const categories = host.querySelectorAll<HTMLSelectElement>('.operation-log-filters select')[1];
+    expect(Array.from(categories.options, (option) => option.value)).toEqual([
+      'ALL', 'PermissionChange', 'ReportAction',
+    ]);
   });
 });

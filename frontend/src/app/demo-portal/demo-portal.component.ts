@@ -53,7 +53,6 @@ import {
 import { MockReportParameterService } from '../services/mock-report-parameter.service';
 import { MockAuditLogService } from '../services/mock-audit-log.service';
 import { BoringAvatarComponent } from '../shared/boring-avatar.component';
-import { PortalPaginationComponent } from '../shared/portal-pagination.component';
 import { PortalTab, PortalTabsComponent } from '../shared/portal-tabs.component';
 import { UnsavedChangesDialogComponent } from '../shared/unsaved-changes-dialog.component';
 import { FavoriteReportPageComponent } from './favorite-report-page/favorite-report-page.component';
@@ -66,6 +65,7 @@ import { ReportPreviewPageComponent } from './report-preview-page/report-preview
 import { UserManagementPageComponent } from './user-management-page/user-management-page.component';
 import { ReportEditorDraft } from './report-editor-form/report-editor-form.model';
 import { DatabaseConnectionPageComponent } from './database-connection-page/database-connection-page.component';
+import { NotificationCenterPageComponent } from './notification-center-page/notification-center-page.component';
 
 type DemoPortalPage =
   | 'ReportList'
@@ -118,7 +118,6 @@ type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
     ReactiveFormsModule,
     RouterLink,
     BoringAvatarComponent,
-    PortalPaginationComponent,
     PortalTabsComponent,
     UnsavedChangesDialogComponent,
     PortalNavigationComponent,
@@ -130,6 +129,7 @@ type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
     ReportPreviewPageComponent,
     UserManagementPageComponent,
     DatabaseConnectionPageComponent,
+    NotificationCenterPageComponent,
   ],
   templateUrl: './demo-portal.component.html',
   styleUrl: './demo-portal.component.scss',
@@ -313,13 +313,6 @@ export class DemoPortalComponent
     ];
   }
 
-  get NotificationCenterTabs(): readonly PortalTab[] {
-    return [
-      { id: 'All', label: `全部 (${this.CurrentNotifications.length})` },
-      { id: 'Unread', label: `未讀 (${this.NotificationBadgeCount})` },
-    ];
-  }
-
   get NotificationCenterTotalPages(): number {
     return Math.max(
       1,
@@ -468,13 +461,6 @@ export class DemoPortalComponent
     this.SelectedCenterNotification = Notification;
     this.MarkCenterNotificationRead(Notification.Id);
     this.ShouldFocusNotificationDetailClose = true;
-  }
-
-  TrackNotificationById(
-    _: number,
-    Notification: MockCenterNotification,
-  ): string {
-    return Notification.Id;
   }
 
   CloseNotificationDetail(): void {

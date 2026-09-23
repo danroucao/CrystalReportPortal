@@ -10,21 +10,16 @@ import {
 } from '../../services/mock-audit-log.service';
 import { AuthService } from '../../services/auth.service';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
-import {
-  PortalTwoTabOption,
-  PortalTwoTabSegmentedControlComponent,
-} from '../../shared/portal-two-tab-segmented-control.component';
 
 type OperationLogCategoryFilter = MockAuditLogCategory | 'ALL';
 type OperationLogSourceFilter = MockAuditLogSource | 'ALL';
 type OperationLogSortField = 'OccurredAt' | 'UserId';
 type OperationLogSortDirection = 'asc' | 'desc';
-type OperationLogView = 'Recent' | 'Archived';
 
 @Component({
   selector: 'app-operation-log-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, PortalPaginationComponent, PortalTwoTabSegmentedControlComponent],
+  imports: [CommonModule, FormsModule, PortalPaginationComponent],
   templateUrl: './operation-log-page.component.html',
 })
 export class OperationLogPageComponent {
@@ -41,11 +36,6 @@ export class OperationLogPageComponent {
   OperationLogSortField: OperationLogSortField = 'OccurredAt';
   OperationLogSortDirection: OperationLogSortDirection = 'desc';
   SelectedOperationLog: MockAuditLogEntry | null = null;
-
-  readonly OperationLogViewTabs: readonly [PortalTwoTabOption, PortalTwoTabOption] = [
-    { Value: 'Recent', Label: '最近 180 天' },
-    { Value: 'Archived', Label: '封存紀錄' },
-  ];
 
   get CanAccessOperationLog(): boolean {
     return this.Auth.HasManagementPermission('OperationLog');

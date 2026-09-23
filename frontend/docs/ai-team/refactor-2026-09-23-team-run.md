@@ -68,3 +68,25 @@ Residual risk after the first milestone: the portal remained a single 377.06 kB 
 | Independent QA diff review | PASS | No concrete behavior, authorization, or style regression found in the changed diff. Rendered database interactions still need runtime verification. |
 
 The database page, its new stylesheet, and the focused portal-workflow spec are the traceability path for the extracted editor, status switch, and unsaved-changes behavior. The removed preview files were standalone design experiments, not Angular inputs. Parent-scoped operation-log CSS that could not reach its already extracted child was removed; the active global operation-log styling remains in `_styles-01.scss`.
+
+## Third-milestone evidence (2026-09-23)
+
+The current `CONTEXT.md` excludes archived operation-log functionality. The prior plan's reference to keeping the segmented switcher is historical: no production template used it. This pass removed that unused four-file component and an uncalled archived mock-data factory, while keeping the active audit-log entries and record IDs unchanged. Notification-center list, tabs, pagination, and empty state moved into a presentation component; the portal still owns notification state and the detail dialog.
+
+| Check | Status | Evidence |
+| --- | --- | --- |
+| Production build | PASS | Initial total stays 393.30 kB; generated `main` stays 4.20 kB. Portal lazy chunk 333.17 → 332.65 kB. |
+| Spec TypeScript | PASS | `npx tsc -p tsconfig.spec.json --noEmit` now has zero errors after aligning stale archive tests with the current contract. |
+| Diff | PASS | `git diff --check` clean; no auth, API, route, or production mock-provider changes. |
+| Karma cases | BLOCKED | Plain `npm test` cannot resolve root `webpack`; a diagnostic `NODE_PATH` pointing to the already-installed nested webpack reaches Karma, but both ChromeHeadless and Edge-as-ChromeHeadless crash before running tests because the Windows GPU process is unusable. No dependency installation or permanent environment workaround was made. |
+| Rendered journey | NOT VERIFIED | Browser automation did not complete the local Demo login reliably. The new tab, page change, notification read, dialog close, and repeated interaction spec was written but not executed. |
+
+Lesson (environment/testing): successful TypeScript and production builds do not establish that rendered interactions pass. Confirm browser-runner health before larger refactors, and keep bundle measurements separate from source-line measurements: extracting a component reduced the parent template but added Angular component overhead.
+
+## Third-milestone follow-up: executed browser tests
+
+The missing `webpack` is an npm module-layout issue: `webpack-subresource-integrity` resolves from root `node_modules`, while this installation has `webpack` only under `@angular-devkit/build-angular/node_modules`. No package was installed. Setting `NODE_PATH` to that already-installed nested directory lets Karma compile. Both new ChromeHeadless and Edge-as-ChromeHeadless processes still fail during GPU initialization on this Windows machine.
+
+`karma.manual.conf.cjs` retains a no-launch Karma configuration for local diagnosis. With `NODE_PATH` set as above, run `npm test -- --karma-config=karma.manual.conf.cjs --watch=true --progress=false`, open `http://localhost:9876/` in an already-running Chrome, then run `npx karma run --port 9876 --no-colors`. This is a manual local test route, not a replacement for the normal project or CI command. It requires the already-installed nested webpack layout and an open browser.
+
+Actual Chrome 154 results: the full suite executed 96 tests, 88 passing and 8 failing. The five `portal notifications and extracted interactions` cases passed, including rendered notification pagination, unread tab, marking a notification read, opening its detail, and closing it. The two `MockAuditLogService` cases passed. The other eight failures concern report editor (3), favorites (1), user management (1), and route guard fixtures (3); their causes and whether they predate this change were not established in this focused pass. Visual pixel parity was not checked.

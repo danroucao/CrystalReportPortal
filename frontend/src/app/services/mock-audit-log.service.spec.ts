@@ -3,17 +3,16 @@ import { MockAuditLogService } from './mock-audit-log.service';
 import { MockRbacService } from './mock-rbac.service';
 
 describe('MockAuditLogService', () => {
-  it('adds thirty archived demo entries while preserving the existing audit-log coverage', () => {
+  it('keeps current and historical demo events without a separate archive model', () => {
     const AuditLog = new MockAuditLogService(new AuthService(new MockRbacService()));
     const Actions = AuditLog.OperationLogs.map((Entry) => Entry.Action);
     const Sources = AuditLog.OperationLogs.map((Entry) => Entry.Source);
     const Categories = AuditLog.OperationLogs.map((Entry) => Entry.Category);
 
-    const ArchivedLogs = AuditLog.OperationLogs.filter((Entry) => Entry.ArchivedAt !== null);
-
-    expect(AuditLog.OperationLogs).toHaveSize(60);
-    expect(ArchivedLogs).toHaveSize(32);
-    expect(ArchivedLogs.filter((Entry) => Entry.Id >= 31 && Entry.Id <= 60)).toHaveSize(30);
+    expect(AuditLog.OperationLogs).toHaveSize(22);
+    expect(AuditLog.OperationLogs.some((Entry) =>
+      Entry.OccurredAt < new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+    )).toBeTrue();
     expect(Actions).toContain('PARAMETER_CREATE');
     expect(Actions).toContain('REPORT_CREATE');
     expect(Actions).toContain('CREATE_ROLE');
