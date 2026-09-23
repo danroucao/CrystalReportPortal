@@ -4,15 +4,40 @@
 .common-parameter-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .common-parameter-heading h2, .common-parameter-heading p { margin: 0; }
 .common-parameter-heading p { margin-top: .4rem; color: #666; }
-.common-parameter-filters { display: grid; grid-template-columns: minmax(10rem, 14rem) minmax(16rem, 1fr); gap: .75rem; }
-.common-parameter-filters label, .common-parameter-form > label { display: grid; gap: .35rem; font-weight: 600; }
+.common-parameter-filters {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) minmax(16rem, 1fr);
+  gap: .75rem;
+  padding: 1rem;
+  border: 1px solid #ded8d1;
+  border-radius: 7px;
+  background: #fcfbfa;
+}
+.common-parameter-filters label, .common-parameter-form > label {
+  display: grid;
+  gap: .35rem;
+  color: #4e4a46;
+  font-size: .8125rem;
+  font-weight: 700;
+}
 .common-parameter-filters input, .common-parameter-filters select,
 .common-parameter-form input, .common-parameter-form select, .common-parameter-form textarea {
   box-sizing: border-box; width: 100%; padding: .65rem .75rem; border: 1px solid #c9c4be; border-radius: 4px; background: #fff;
 }
-.common-parameter-table { width: 100%; border-collapse: collapse; }
-.common-parameter-table th, .common-parameter-table td { padding: .8rem .65rem; border-bottom: 1px solid #ddd7d0; text-align: left; vertical-align: middle; }
-.common-parameter-table small { display: block; margin-top: .25rem; color: #666; }
+.common-parameter-filters input:focus, .common-parameter-filters select:focus,
+.common-parameter-form input:focus, .common-parameter-form select:focus, .common-parameter-form textarea:focus {
+  outline: 2px solid rgb(189 23 49 / 22%);
+  border-color: var(--color-primary);
+}
+.table-scroll { border: 1px solid #ded8d1; border-radius: 7px; overflow: auto; }
+.common-parameter-table { width: 100%; min-width: 58rem; border-collapse: collapse; background: #fff; }
+.common-parameter-table th, .common-parameter-table td { padding: .85rem .75rem; border-bottom: 1px solid #e2ddd7; text-align: left; vertical-align: middle; }
+.common-parameter-table th { color: #4e4a46; font-size: .8125rem; font-weight: 700; background: #faf9f7; white-space: nowrap; }
+.common-parameter-table tbody tr:hover { background: #fffaf8; }
+.common-parameter-table td:first-child { min-width: 13rem; }
+.common-parameter-table td:first-child strong { display: block; color: #252321; }
+.common-parameter-table small { display: block; margin-top: .25rem; color: #706b66; line-height: 1.35; }
+.common-parameter-table code { padding: .2rem .4rem; border-radius: 3px; background: #f4f1ee; color: #514c46; font-size: .8125rem; }
 .common-parameter-table td:nth-child(5) { white-space: nowrap; }
 .common-parameter-table .account-status-switch { margin-right: .5rem; }
 .common-parameter-empty, .common-parameter-state { padding: 2rem; text-align: center; color: #666; }
