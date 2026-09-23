@@ -437,13 +437,6 @@ export class UserManagementPageComponent {
   }
 
   private GetRoleDraftValidationError(): string | null {
-    const HasPermission =
-      this.RoleDraft.ManagementPermissions.length > 0 ||
-      this.RoleDraft.Permissions.some(({ Permission }) =>
-        Permission.CanExecute || Permission.CanExport || Permission.CanPrint,
-      );
-    if (!HasPermission) return '請至少勾選一項權限。';
-
     const DisplayName = this.RoleDraft.DisplayName.trim();
     if (!DisplayName) return '請輸入角色名稱。';
     if (
@@ -455,6 +448,14 @@ export class UserManagementPageComponent {
     ) {
       return '角色姓名不得重復，請重新命名。';
     }
+
+    const HasPermission =
+      this.RoleDraft.ManagementPermissions.length > 0 ||
+      this.RoleDraft.Permissions.some(({ Permission }) =>
+        Permission.CanExecute || Permission.CanExport || Permission.CanPrint,
+      );
+    if (!HasPermission) return '請至少勾選一項權限。';
+
     return null;
   }
 

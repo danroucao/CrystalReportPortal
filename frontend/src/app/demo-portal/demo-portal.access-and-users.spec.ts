@@ -30,6 +30,35 @@ describe('portal access and user-management boundaries', () => {
     expect(navigate).toHaveBeenCalledWith(['/login']);
   });
 
+  it('lets an operator show and hide the identity-binding password without clearing it', () => {
+    const auth = TestBed.inject(AuthService);
+    expect(auth.Login('admin@example.com', 'admin123')).toBeTrue();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    fixture.detectChanges();
+
+    const password = fixture.nativeElement.querySelector<HTMLInputElement>(
+      'input[name="backOfficeBindingPassword"]',
+    )!;
+    const passwordLabel = fixture.nativeElement.querySelector<HTMLLabelElement>(
+      'label[for="backOfficeBindingPassword"]',
+    )!;
+    const toggle = fixture.nativeElement.querySelector<HTMLButtonElement>(
+      '.password-toggle',
+    )!;
+    password.value = 'user123';
+    password.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(password.type).toBe('password');
+    expect(passwordLabel.control).toBe(password);
+    toggle.click();
+    fixture.detectChanges();
+
+    expect(password.type).toBe('text');
+    expect(password.value).toBe('user123');
+    expect(toggle.getAttribute('aria-label')).toBe('隱藏密碼');
+  });
+
   it('renders a bound operator user-management page and keeps its role dialog in the child component', () => {
     expect(LoginBoundBackOfficeOperator(TestBed.inject(AuthService))).toBeTrue();
     const fixture = TestBed.createComponent(UserManagementPageComponent);

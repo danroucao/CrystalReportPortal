@@ -1,3 +1,7 @@
+@use '../password-visibility' as password-visibility;
+
+@include password-visibility.styles;
+
 :host {
   display: block;
   min-height: 100vh;
@@ -11,6 +15,9 @@
 }
 .portal-header {
   grid-column: 1 / -1;
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -305,4 +312,14 @@ th.is-sorted {
   display: grid;
   grid-template-columns: 1fr;
   margin: 1.5rem 0 0;
+}
+.back-office-binding-password-field {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.back-office-binding-password-field .password-row input {
+  padding-right: 4.6rem;
 }

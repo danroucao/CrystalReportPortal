@@ -156,6 +156,7 @@ export class DemoPortalComponent
   IsProfileMenuOpen = false;
   BackOfficeBindingAccount = '';
   BackOfficeBindingPassword = '';
+  BackOfficeBindingPasswordVisible = false;
   BackOfficeBindingError = '';
   NotificationCenterTab: 'All' | 'Unread' = 'All';
   NotificationCenterCurrentPage = 1;
@@ -488,6 +489,10 @@ export class DemoPortalComponent
     this.Notifications.ShowSuccess('身分驗證成功，已進入後台。');
     this.BackOfficeBindingAccount = '';
     this.BackOfficeBindingPassword = '';
+  }
+
+  ToggleBackOfficeBindingPasswordVisibility(): void {
+    this.BackOfficeBindingPasswordVisible = !this.BackOfficeBindingPasswordVisible;
   }
 
   ReturnToLoginFromBackOfficeBinding(): void {

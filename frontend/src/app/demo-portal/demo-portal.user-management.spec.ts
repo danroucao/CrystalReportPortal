@@ -155,6 +155,42 @@ describe('UserManagementPageComponent', () => {
     expect(Component.IsEditRoleDialogOpen).toBeTrue();
   });
 
+  it('prioritizes role-name validation before duplicate-name and permission validation', () => {
+    const Component = createPage();
+    const ExistingRole = Component.MockRbac.Roles.find((Role) => Role.Key !== 'FINANCE')!;
+
+    Component.OpenCreateRoleDialog();
+    Component.SaveRole();
+    expect(Component.RoleDraftError).toBe('請輸入角色名稱。');
+
+    Component.RoleDraft.DisplayName = ExistingRole.DisplayName;
+    Component.SaveRole();
+    expect(Component.RoleDraftError).toBe('角色姓名不得重復，請重新命名。');
+
+    Component.RoleDraft.DisplayName = '新角色';
+    Component.SaveRole();
+    expect(Component.RoleDraftError).toBe('請至少勾選一項權限。');
+
+    Component.CloseRoleDialog();
+    Component.OpenEditRoleDialog('FINANCE');
+    Component.RoleDraft.ManagementPermissions = [];
+    Component.RoleDraft.Permissions.forEach((Entry) => {
+      Entry.Permission = { CanExecute: false, CanExport: false, CanPrint: false };
+    });
+
+    Component.RoleDraft.DisplayName = '';
+    Component.SaveEditedRole();
+    expect(Component.RoleDraftError).toBe('請輸入角色名稱。');
+
+    Component.RoleDraft.DisplayName = ExistingRole.DisplayName;
+    Component.SaveEditedRole();
+    expect(Component.RoleDraftError).toBe('角色姓名不得重復，請重新命名。');
+
+    Component.RoleDraft.DisplayName = '財務人員更新';
+    Component.SaveEditedRole();
+    expect(Component.RoleDraftError).toBe('請至少勾選一項權限。');
+  });
+
   it('rejects duplicate role names before creating or updating a role', () => {
     const Component = createPage();
     const ExistingRole = Component.MockRbac.Roles.find((Role) => Role.Key !== 'FINANCE')!;

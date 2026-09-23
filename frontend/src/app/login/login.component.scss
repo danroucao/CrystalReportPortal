@@ -1,3 +1,7 @@
+@use '../password-visibility' as password-visibility;
+
+@include password-visibility.styles;
+
 :host {
   display: block;
   min-height: 100vh;
@@ -28,13 +32,9 @@ label { display: block; margin-bottom: 0.45rem; color: #161616; font-size: 0.875
 .required-indicator, .field-error { color: #bd1933; }
 .required-indicator { display: inline-block; margin-left: 0.2rem; font-weight: 700; line-height: 1; position: relative; top: -0.25em; vertical-align: baseline; white-space: nowrap; }
 input { box-sizing: border-box; width: 100%; height: 46px; padding: 0 0.75rem; border: 1px solid #aaa69e; border-radius: 6px; color: var(--color-text); font: inherit; background: #fff; }
-input:focus-visible, .password-toggle:focus-visible { outline: 3px solid rgb(189 25 51 / 24%); outline-offset: 2px; }
+input:focus-visible { outline: 3px solid rgb(189 25 51 / 24%); outline-offset: 2px; }
 input[aria-invalid="true"] { border: 2px solid #bd1933; }
 input:disabled { cursor: wait; background: #f4f1ec; }
-.password-row { position: relative; }
-.password-row input { padding-right: 4.6rem; }
-.password-toggle { position: absolute; top: 50%; right: 0.4rem; min-width: 3.25rem; height: 2rem; transform: translateY(-50%); border: 0; border-radius: 4px; color: #bd1933; background: transparent; font: inherit; font-size: 0.8125rem; cursor: pointer; }
-.password-toggle:disabled { cursor: wait; }
 .field-error { display: block; min-height: 1.25rem; margin-top: 0.4rem; text-align: right; font-size: 0.8125rem; }
 .submit-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; min-height: 48px; border-radius: 6px; font: inherit; font-weight: 700; }
 .submit-button:disabled { cursor: wait; }
