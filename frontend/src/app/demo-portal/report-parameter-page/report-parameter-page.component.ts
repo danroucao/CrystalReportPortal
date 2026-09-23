@@ -165,7 +165,8 @@ export class ReportParameterPageComponent implements OnInit {
         (!SearchText ||
           `${Report.ReportName} ${Report.CategoryName} ${Report.Description}`
             .toLocaleLowerCase()
-            .includes(SearchText)),
+            .includes(SearchText)) &&
+        this.IsReportWithinSelectedDateRange(Report.CreatedAt),
     );
     if (!this.ParameterReportSortField) return Reports;
 
@@ -495,15 +496,7 @@ export class ReportParameterPageComponent implements OnInit {
       (Entry) => Entry.ReportKey === ReportKey,
     );
     if (!Report) return;
-    this.Auth.SelectReport(
-      ReportKey,
-      this.ParameterReportStartDate && this.ParameterReportEndDate
-        ? {
-            StartDate: this.ParameterReportStartDate,
-            EndDate: this.ParameterReportEndDate,
-          }
-        : null,
-    );
+    this.Auth.SelectReport(ReportKey);
     const Account = this.Auth.CurrentUser?.Account;
     if (Account) this.MockRbac.RecordReportExecution(Account, ReportKey);
     void this.router.navigate(['/reports/preview'], {
@@ -853,6 +846,27 @@ export class ReportParameterPageComponent implements OnInit {
     const StartDate = this.ParseDateOnly(String(StartDateValue ?? ''));
     return Boolean(
       EndDate && StartDate && EndDate.getTime() < StartDate.getTime(),
+    );
+  }
+
+  private IsReportWithinSelectedDateRange(CreatedAt: string): boolean {
+    if (!this.ParameterReportStartDate && !this.ParameterReportEndDate) {
+      return true;
+    }
+
+    const CreatedDate = this.ParseDateOnly(CreatedAt);
+    if (!CreatedDate) return false;
+
+    const StartDate = this.ParameterReportStartDate
+      ? this.ParseDateOnly(this.ParameterReportStartDate)
+      : null;
+    const EndDate = this.ParameterReportEndDate
+      ? this.ParseDateOnly(this.ParameterReportEndDate)
+      : null;
+
+    return (
+      (!StartDate || CreatedDate >= StartDate) &&
+      (!EndDate || CreatedDate <= EndDate)
     );
   }
 

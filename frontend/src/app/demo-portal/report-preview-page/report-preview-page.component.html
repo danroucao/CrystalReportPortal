@@ -9,16 +9,6 @@
         <dt>報表分類</dt>
         <dd>{{ Report.CategoryName }}</dd>
       </div>
-      <ng-container *ngIf="Auth.SelectedReportSearchCriteria as Criteria">
-        <div>
-          <dt>開始日期</dt>
-          <dd>{{ Criteria.StartDate }}</dd>
-        </div>
-        <div>
-          <dt>結束日期</dt>
-          <dd>{{ Criteria.EndDate }}</dd>
-        </div>
-      </ng-container>
     </dl>
   </div>
 

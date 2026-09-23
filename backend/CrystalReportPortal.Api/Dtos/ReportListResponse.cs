@@ -19,6 +19,10 @@ public class ReportDto
 
     public string? Description { get; set; }
 
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
     public ReportCategoryDto Category { get; set; } = new();
 
     public ReportPermissionDto Permissions { get; set; } = new();

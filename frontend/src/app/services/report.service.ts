@@ -45,8 +45,8 @@ export class ReportService {
           Description: Report.description ?? '',
           FileName: '',
           Enabled: true,
-          CreatedAt: '',
-          UpdatedAt: '',
+          CreatedAt: Report.createdAt,
+          UpdatedAt: Report.updatedAt ?? Report.createdAt,
           Permissions: {
             CanExecute: Report.permissions.canExecute,
             CanExport: Report.permissions.canExport,

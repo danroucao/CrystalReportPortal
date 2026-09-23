@@ -49,6 +49,8 @@ public class ReportService : IReportService
                 permission.Report.ReportCode,
                 permission.Report.ReportName,
                 permission.Report.Description,
+                permission.Report.CreatedAt,
+                permission.Report.UpdatedAt,
                 permission.Report.Category.CategoryId,
                 permission.Report.Category.CategoryName
             })
@@ -60,6 +62,8 @@ public class ReportService : IReportService
                 ReportCode = group.Key.ReportCode,
                 ReportName = group.Key.ReportName,
                 Description = group.Key.Description,
+                CreatedAt = group.Key.CreatedAt,
+                UpdatedAt = group.Key.UpdatedAt,
 
                 Category = new ReportCategoryDto
                 {
