@@ -58,7 +58,7 @@ import {
   MockDatabaseConnectionDraft,
   MockDatabaseConnectionService,
 } from '../services/mock-database-connection.service';
-import { MockReportParameterService } from '../services/mock-report-parameter.service';
+import { ReportParameterService } from '../services/mock-report-parameter.service';
 import { MockAuditLogService } from '../services/mock-audit-log.service';
 import { BoringAvatarComponent } from '../shared/boring-avatar.component';
 import { PortalPaginationComponent } from '../shared/portal-pagination.component';
@@ -159,7 +159,7 @@ export class DemoPortalComponent
   readonly AllCategoryFilterValue = 'ALL';
   readonly Auth = inject(AuthService);
   readonly MockRbac = inject(MockRbacService);
-  readonly ReportParameters = inject(MockReportParameterService);
+  readonly ReportParameters = inject(ReportParameterService);
   readonly DatabaseConnections = inject(MockDatabaseConnectionService);
   readonly DataSourcesApi = inject(DataSourceService);
   readonly ReportsApi = inject(ReportService);

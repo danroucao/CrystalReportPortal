@@ -20,7 +20,7 @@ import {
 import { MockReportKey } from '../../mock/mock-reports';
 import { AuthService } from '../../services/auth.service';
 import { MockRbacService } from '../../services/mock-rbac.service';
-import { MockReportParameterService } from '../../services/mock-report-parameter.service';
+import { ReportParameterService } from '../../services/mock-report-parameter.service';
 import { NotificationService } from '../../services/notification.service';
 import { ReportService } from '../../services/report.service';
 import { ReportExecutionRequest } from '../../services/report-api.models';
@@ -73,7 +73,7 @@ export class ReportParameterPageComponent implements OnInit {
   readonly AllCategoryFilterValue = 'ALL';
   readonly Auth = inject(AuthService);
   private readonly MockRbac = inject(MockRbacService);
-  private readonly ReportParameters = inject(MockReportParameterService);
+  private readonly ReportParameters = inject(ReportParameterService);
   private readonly Notifications = inject(NotificationService);
   private readonly Reports = inject(ReportService);
   private readonly router = inject(Router);

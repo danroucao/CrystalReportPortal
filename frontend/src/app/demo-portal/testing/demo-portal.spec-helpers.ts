@@ -14,7 +14,7 @@ import { AuthenticatedUser } from '../../services/auth-api.models';
 import { AuthService } from '../../services/auth.service';
 import { MockNotificationCenterService } from '../../services/mock-notification-center.service';
 import { NotificationService } from '../../services/notification.service';
-import { MockReportParameterService } from '../../services/mock-report-parameter.service';
+import { ReportParameterService } from '../../services/mock-report-parameter.service';
 import { MockRbacService } from '../../services/mock-rbac.service';
 import { DemoPortalComponent } from '../demo-portal.component';
 import { FavoriteReportPageComponent } from '../favorite-report-page/favorite-report-page.component';
@@ -33,7 +33,7 @@ export {
   FormGroup,
   MockNotificationCenterService,
   MockRbacService,
-  MockReportParameterService,
+  ReportParameterService,
   NgZone,
   NotificationService,
   Router,

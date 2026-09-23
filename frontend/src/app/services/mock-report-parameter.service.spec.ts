@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { MockReportParameterService } from './mock-report-parameter.service';
+import { ReportParameterService } from './mock-report-parameter.service';
 
 import {
   provideHttpClient,
@@ -12,7 +12,7 @@ import {
 } from '@angular/common/http/testing';
 
 // TODO: Replace with ReportService HTTP tests for parameters and SQL LOV.
-xdescribe('MockReportParameterService', () => {
+xdescribe('ReportParameterService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -23,7 +23,7 @@ xdescribe('MockReportParameterService', () => {
   });
 
   it('provides per-report definitions without exposing SQL or connection details', () => {
-    const Service = TestBed.inject(MockReportParameterService);
+    const Service = TestBed.inject(ReportParameterService);
     const Definitions = Service.GetDefinitions('AccountBalance');
 
     expect(Definitions.map((Definition) => Definition.ParameterName)).toEqual([
@@ -40,7 +40,7 @@ xdescribe('MockReportParameterService', () => {
   });
 
   it('models loading, success, empty, error, and retry for a SQL LOV', () => {
-    const Service = TestBed.inject(MockReportParameterService);
+    const Service = TestBed.inject(ReportParameterService);
 
     expect(Service.GetLovStatus('AccountBalance', 'CustomerCode')).toBe('success');
     expect(Service.GetLovOptions('AccountBalance', 'CustomerCode')).toHaveSize(2);

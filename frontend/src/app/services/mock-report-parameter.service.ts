@@ -7,7 +7,10 @@ import { API_BASE_URL } from './api.config';
 import { ReportParameterListResponse, ReportParameterOptionsResponse, ReportParameterResponse } from './report-parameter-api.models';
 
 @Injectable({ providedIn: 'root' })
-export class MockReportParameterService {
+// Despite the legacy file name, this service loads definitions and LOV options
+// from the front-office report APIs.  Keep the implementation here while the
+// remaining Stage 3 mock types are migrated separately.
+export class ReportParameterService {
   private readonly Definitions = new Map<MockReportKey, MockReportParameterDefinition[]>();
   private readonly LovStatuses = new Map<string, MockLovStatus>();
   private readonly LovErrorMessages = new Map<string, string>();
