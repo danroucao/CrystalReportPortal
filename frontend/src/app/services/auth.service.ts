@@ -17,6 +17,8 @@ import {
   BackOfficeOperatorResponse,
   LoginRequest,
   LoginResponse,
+  ChangePasswordRequest,
+  UpdateProfileRequest,
 } from './auth-api.models';
 import { AuthIdentity } from './auth-identity';
 import {
@@ -63,7 +65,7 @@ export class AuthService {
   }
 
   get IsDemoAuthenticationEnabled(): boolean {
-    return false;
+    return true;
   }
 
   get CurrentIdentity(): AuthIdentity | null {
@@ -209,6 +211,20 @@ export class AuthService {
           Response.user,
         );
       }),
+    );
+  }
+
+  ChangePassword(request: ChangePasswordRequest): Observable<LoginResponse> {
+    return this.Http.post<LoginResponse>(
+      `${API_BASE_URL}/auth/change-password`,
+      request,
+    );
+  }
+
+  UpdateProfile(request: UpdateProfileRequest): Observable<{ success: boolean; message: string }> {
+    return this.Http.put<{ success: boolean; message: string }>(
+      `${API_BASE_URL}/auth/me`,
+      request,
     );
   }
 

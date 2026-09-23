@@ -53,17 +53,19 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
   IsPreviewLoading = false;
   PreviewError = '';
   private PreviewObjectUrl: string | null = null;
+  private PreviewBlob: Blob | null = null;
+  private CurrentExecutionRequest: ReportExecutionRequest | null = null;
   ReportPreviewOrigin: ReportPreviewOrigin = 'all';
   private ReturnToParameterSearchState: ParameterReportSearchState | null =
     null;
 
   readonly ExportOptions: readonly MockExportOption[] = [
     { Label: 'PDF', FormatKey: 'Pdf', Enabled: true },
-    { Label: 'Excel', FormatKey: 'Excel', Enabled: true },
-    { Label: 'Word', FormatKey: 'Word', Enabled: true },
-    { Label: 'CSV', FormatKey: 'Csv', Enabled: true },
-    { Label: 'RTF', FormatKey: 'Rtf', Enabled: true },
-    { Label: '文字檔', FormatKey: 'Text', Enabled: true },
+    { Label: 'Excel', FormatKey: 'Excel', Enabled: false },
+    { Label: 'Word', FormatKey: 'Word', Enabled: false },
+    { Label: 'CSV', FormatKey: 'Csv', Enabled: false },
+    { Label: 'RTF', FormatKey: 'Rtf', Enabled: false },
+    { Label: '文字檔', FormatKey: 'Text', Enabled: false },
   ];
 
   get ReportPreviewReturnLabel(): string {
@@ -91,6 +93,7 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     const ExecutionRequest = this.ToExecutionRequest(
       NavigationState?.['ReportExecutionRequest'],
     );
+    this.CurrentExecutionRequest = ExecutionRequest;
     this.LoadPreview(ExecutionRequest);
   }
 
@@ -112,15 +115,24 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (Pdf) => {
           this.RevokePreviewUrl();
+          this.PreviewBlob = Pdf;
           this.PreviewObjectUrl = URL.createObjectURL(Pdf);
           this.PreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
             this.PreviewObjectUrl,
           );
         },
         error: () => {
+          this.RevokePreviewUrl();
+          this.PreviewBlob = null;
+          this.PreviewUrl = null;
           this.PreviewError = '目前無法產生報表預覽，請稍後再試。';
         },
       });
+  }
+
+  RetryPreview(): void {
+    if (this.IsPreviewLoading) return;
+    this.LoadPreview(this.CurrentExecutionRequest);
   }
 
   private ToExecutionRequest(State: unknown): ReportExecutionRequest | null {
@@ -140,6 +152,7 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
   private RevokePreviewUrl(): void {
     if (this.PreviewObjectUrl) URL.revokeObjectURL(this.PreviewObjectUrl);
     this.PreviewObjectUrl = null;
+    this.PreviewBlob = null;
   }
 
   ToggleExportMenu(): void {
@@ -161,7 +174,45 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
       return;
     }
     this.IsExportMenuOpen = false;
-    this.MockNotice = `${Option.Label} 匯出目前為前端 Mock 操作，尚未串接正式報表匯出服務。`;
+    if (Option.FormatKey !== 'Pdf' || !this.PreviewBlob) {
+      this.MockNotice = `${Option.Label} 匯出目前尚未支援。`;
+      return;
+    }
+
+    const DownloadUrl = URL.createObjectURL(this.PreviewBlob);
+    const Link = document.createElement('a');
+    Link.href = DownloadUrl;
+    Link.download = `${this.Auth.SelectedReport?.ReportName ?? 'report'}.pdf`;
+    Link.click();
+    URL.revokeObjectURL(DownloadUrl);
+    this.MockNotice = 'PDF 已開始下載。';
+  }
+
+  DownloadPdf(): void {
+    if (!this.PreviewBlob) {
+      this.MockNotice = '目前沒有可下載的 PDF。';
+      return;
+    }
+
+    const downloadUrl = URL.createObjectURL(this.PreviewBlob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `${this.Auth.SelectedReport?.ReportName ?? 'report'}.pdf`;
+    link.click();
+    URL.revokeObjectURL(downloadUrl);
+    this.MockNotice = 'PDF 已開始下載。';
+  }
+
+  OpenPdfPreview(): void {
+    if (!this.PreviewObjectUrl) {
+      this.MockNotice = '目前沒有可開啟的 PDF。';
+      return;
+    }
+
+    const previewWindow = window.open(this.PreviewObjectUrl, '_blank');
+    this.MockNotice = previewWindow
+      ? '已在新視窗開啟 PDF 預覽。'
+      : '瀏覽器封鎖了新視窗，請改用下載 PDF。';
   }
 
   TogglePrintMenu(): void {
@@ -179,9 +230,26 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
       return;
     }
     this.IsPrintMenuOpen = false;
-    const ActionLabel =
-      ActionName === 'BrowserPrint' ? '瀏覽器列印' : '固定印表機列印';
-    this.MockNotice = `${ActionLabel}目前為前端 Mock 操作，尚未串接正式列印服務。`;
+    if (ActionName === 'FixedPrinterPrint') {
+      this.MockNotice = '固定印表機列印目前尚未支援。';
+      return;
+    }
+
+    if (!this.PreviewObjectUrl) {
+      this.MockNotice = '目前沒有可列印的 PDF 預覽。';
+      return;
+    }
+
+    const PrintWindow = window.open(this.PreviewObjectUrl, '_blank');
+    if (!PrintWindow) {
+      this.MockNotice = '瀏覽器封鎖了列印視窗，請允許彈出視窗後再試。';
+      return;
+    }
+
+    PrintWindow.addEventListener('load', () => PrintWindow.print(), {
+      once: true,
+    });
+    this.MockNotice = '已開啟列印視窗。';
   }
 
   ReturnToReportList(): void {

@@ -25,22 +25,37 @@
   <div class="preview-placeholder" *ngIf="IsPreviewLoading" role="status">
     正在產生報表預覽…
   </div>
-  <p *ngIf="PreviewError" class="mock-notice" role="alert">
-    {{ PreviewError }}
-  </p>
-  <iframe
-    *ngIf="PreviewUrl && !IsPreviewLoading"
-    class="report-preview-frame"
-    [src]="PreviewUrl"
-    title="報表 PDF 預覽"
-  ></iframe>
+  <div *ngIf="PreviewError" class="preview-error" role="alert">
+    <p>{{ PreviewError }}</p>
+    <button
+      type="button"
+      class="secondary-button"
+      [disabled]="IsPreviewLoading"
+      (click)="RetryPreview()"
+    >
+      重新產生預覽
+    </button>
+  </div>
+  <section *ngIf="PreviewUrl && !IsPreviewLoading" class="pdf-preview-card" aria-label="PDF 預覽狀態">
+    <div class="pdf-preview-card__icon" aria-hidden="true">PDF</div>
+    <div class="pdf-preview-card__content">
+      <strong>PDF 已成功產生</strong>
+      <p>目前瀏覽器的內嵌 PDF 預覽無法顯示，請開啟新視窗或下載檔案查看。</p>
+    </div>
+    <button type="button" class="secondary-button" (click)="OpenPdfPreview()">
+      開啟預覽
+    </button>
+  </section>
+  <div *ngIf="PreviewUrl && !IsPreviewLoading && Auth.SelectedReportCategoryPermission.CanExport" class="preview-download-fallback">
+    <span>PDF 已產生；若預覽區未顯示，可直接下載檔案。</span>
+    <button type="button" class="secondary-button" (click)="DownloadPdf()">
+      下載 PDF
+    </button>
+  </div>
 
   <div class="preview-output-bar">
-    <div class="output-actions">
-      <div
-        *ngIf="Auth.SelectedReportCategoryPermission.CanExport"
-        class="export-dropdown"
-      >
+    <div *ngIf="PreviewUrl && !IsPreviewLoading" class="output-actions">
+      <div *ngIf="Auth.SelectedReportCategoryPermission.CanExport" class="export-dropdown">
         <button
           type="button"
           class="export-trigger secondary-button"

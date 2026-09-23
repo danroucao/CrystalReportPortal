@@ -6,6 +6,7 @@ using CrystalReportPortal.Api.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CrystalReportPortal.Api.Controllers;
 
@@ -59,6 +60,155 @@ public class DataSourcesController : ControllerBase
                     credential.EncryptedPassword != string.Empty)
             }).ToListAsync();
         return Ok(dataSources);
+    }
+
+    [HttpPost("managed")]
+    public Task<ActionResult<DataSourceManagementDto>> CreateManagedDataSource(
+        SaveManagedDataSourceRequest request)
+    {
+        return SaveManagedDataSource(request, null);
+    }
+
+    [HttpPut("{dataSourceId:long}/managed")]
+    public Task<ActionResult<DataSourceManagementDto>> UpdateManagedDataSource(
+        long dataSourceId,
+        SaveManagedDataSourceRequest request)
+    {
+        return SaveManagedDataSource(request, dataSourceId);
+    }
+
+    private async Task<ActionResult<DataSourceManagementDto>> SaveManagedDataSource(
+        SaveManagedDataSourceRequest request,
+        long? dataSourceId)
+    {
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var name = request.DataSourceName?.Trim();
+        var serverHost = request.ServerHost?.Trim();
+        var databaseName = request.DatabaseName?.Trim();
+        var authenticationType = request.AuthenticationType?.Trim();
+
+        if (string.IsNullOrWhiteSpace(name) ||
+            string.IsNullOrWhiteSpace(serverHost) ||
+            string.IsNullOrWhiteSpace(databaseName) ||
+            request.Port is < 1 or > 65535)
+        {
+            return BadRequest(new { message = "資料來源、主機、資料庫名稱與有效連接埠為必填。" });
+        }
+
+        var isSqlServer = string.Equals(authenticationType, "SqlServer", StringComparison.OrdinalIgnoreCase);
+        var isWindows = string.Equals(authenticationType, "Windows", StringComparison.OrdinalIgnoreCase);
+        if (!isSqlServer && !isWindows)
+        {
+            return BadRequest(new { message = "AuthenticationType 只能是 Windows 或 SqlServer。" });
+        }
+
+        var username = request.Username?.Trim();
+        if (isSqlServer && string.IsNullOrWhiteSpace(username))
+        {
+            return BadRequest(new { message = "使用 SQL Server Authentication 時必須輸入帳號。" });
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        var source = dataSourceId.HasValue
+            ? await _dbContext.ReportDataSources
+                .Include(item => item.Credentials)
+                .SingleOrDefaultAsync(item => item.DataSourceId == dataSourceId.Value)
+            : null;
+
+        if (dataSourceId.HasValue && source == null)
+        {
+            return NotFound(new { message = "找不到指定的資料來源。" });
+        }
+
+        var duplicateName = await _dbContext.ReportDataSources.AnyAsync(item =>
+            item.DataSourceName == name && item.DataSourceId != dataSourceId);
+        if (duplicateName)
+        {
+            return Conflict(new { message = "資料來源名稱已存在。" });
+        }
+
+        var now = DateTime.UtcNow;
+        var isCreate = source == null;
+        source ??= new ReportDataSource { CreatedAt = now };
+        source.DataSourceName = name!;
+        source.ServerHost = serverHost!;
+        source.Port = request.Port;
+        source.DatabaseName = databaseName!;
+        source.IsEnabled = request.IsEnabled;
+        source.UpdatedAt = now;
+
+        if (isCreate)
+        {
+            _dbContext.ReportDataSources.Add(source);
+        }
+
+        var credential = source.Credentials.FirstOrDefault(item =>
+            string.Equals(item.CredentialType, "ReadOnly", StringComparison.OrdinalIgnoreCase));
+        credential ??= new DataSourceCredential
+        {
+            CredentialType = "ReadOnly",
+            CreatedAt = now
+        };
+
+        if (isSqlServer)
+        {
+            var hasPassword = !string.IsNullOrEmpty(request.Password);
+            var hasExistingPassword = !string.IsNullOrWhiteSpace(credential.EncryptedPassword);
+            if (!hasPassword && !hasExistingPassword)
+            {
+                return BadRequest(new { message = "使用 SQL Server Authentication 時必須輸入密碼。" });
+            }
+
+            credential.AuthenticationType = "SqlServer";
+            credential.Username = username;
+            if (hasPassword)
+            {
+                credential.EncryptedPassword = _credentialProtector.Protect(request.Password!);
+            }
+        }
+        else
+        {
+            credential.AuthenticationType = "Windows";
+            credential.Username = string.Empty;
+            credential.EncryptedPassword = string.Empty;
+        }
+
+        credential.UpdatedAt = now;
+        if (credential.DataSourceId == 0)
+        {
+            source.Credentials.Add(credential);
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        _dbContext.AuditLogs.Add(new AuditLog
+        {
+            UserId = userId,
+            ReportId = null,
+            Action = isCreate ? "CREATE_DATA_SOURCE" : "UPDATE_DATA_SOURCE_CREDENTIAL",
+            Result = "SUCCESS",
+            Details = $"{(isCreate ? "建立" : "更新")}資料來源：{source.DataSourceName}（{credential.AuthenticationType}）",
+            CreatedAt = now
+        });
+        await _dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return Ok(new DataSourceManagementDto
+        {
+            DataSourceId = source.DataSourceId,
+            DataSourceName = source.DataSourceName,
+            ServerHost = source.ServerHost,
+            Port = source.Port,
+            DatabaseName = source.DatabaseName,
+            IsEnabled = source.IsEnabled,
+            AuthenticationType = credential.AuthenticationType,
+            Username = credential.Username ?? string.Empty,
+            HasPassword = !string.IsNullOrWhiteSpace(credential.EncryptedPassword)
+        });
     }
 
     [HttpPost]

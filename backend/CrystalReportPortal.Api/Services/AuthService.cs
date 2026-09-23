@@ -262,7 +262,8 @@ public class AuthService : IAuthService
     }
 
     public async Task<LoginResponse> ChangePasswordAsync(
-        ChangePasswordRequest request)
+        ChangePasswordRequest request,
+        long userId)
     {
         if (!IsPasswordComplexEnough(
                 request.NewPassword))
@@ -271,12 +272,8 @@ public class AuthService : IAuthService
                 "新密碼至少 8 碼，且必須同時包含英文與數字");
         }
 
-        var user =
-            await _dbContext.Users
-                .SingleOrDefaultAsync(
-                    candidate =>
-                        candidate.Account
-                        == request.Account);
+        var user = await _dbContext.Users
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId);
 
         if (user == null ||
             !user.IsEnabled ||
@@ -290,11 +287,17 @@ public class AuthService : IAuthService
                     user.UserId,
                     "FAILED",
                     null,
-                    "修改密碼驗證失敗");
+                    "修改密碼驗證失敗",
+                    "CHANGE_PASSWORD");
             }
 
             return LoginFailed(
                 "帳號、目前密碼錯誤，或帳號已停用");
+        }
+
+        if (request.NewPassword.Length > 64)
+        {
+            return LoginFailed("新密碼不可超過 64 碼");
         }
 
         var now = DateTime.UtcNow;
@@ -311,7 +314,8 @@ public class AuthService : IAuthService
             user.UserId,
             "SUCCESS",
             null,
-            "密碼已更新");
+            "密碼已更新",
+            "CHANGE_PASSWORD");
 
         await _dbContext.SaveChangesAsync();
 
@@ -321,6 +325,30 @@ public class AuthService : IAuthService
             Message =
                 "密碼修改成功，請使用新密碼重新登入"
         };
+    }
+
+    public async Task<bool> UpdateProfileAsync(
+        long userId,
+        UpdateProfileRequest request)
+    {
+        var userName = request.UserName?.Trim();
+        if (string.IsNullOrWhiteSpace(userName) || userName.Length > 200)
+        {
+            return false;
+        }
+
+        var user = await _dbContext.Users
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId);
+        if (user == null || !user.IsEnabled)
+        {
+            return false;
+        }
+
+        user.UserName = userName;
+        user.UpdatedAt = DateTime.UtcNow;
+        await WriteAuditLogAsync(userId, "SUCCESS", "個人資料已更新", null, "UPDATE_PROFILE");
+        await _dbContext.SaveChangesAsync();
+        return true;
     }
 
     private static LoginResponse LoginFailed(
@@ -357,13 +385,14 @@ public class AuthService : IAuthService
         long? userId,
         string result,
         string? details,
-        string? errorMessage)
+        string? errorMessage,
+        string? action = null)
     {
         _dbContext.AuditLogs.Add(
             new AuditLog
             {
                 UserId = userId,
-                Action = LoginAction,
+                Action = action ?? LoginAction,
                 Result = result,
                 Details = details,
                 ErrorMessage = errorMessage,

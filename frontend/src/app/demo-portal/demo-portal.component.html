@@ -678,6 +678,18 @@
                   <button
                     type="button"
                     class="secondary-button"
+                    [disabled]="TestingDataSourceId !== null"
+                    (click)="TestDataSourceConnection(Connection.dataSourceId)"
+                  >
+                    {{
+                      TestingDataSourceId === Connection.dataSourceId
+                        ? "測試中…"
+                        : "測試連線"
+                    }}
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary-button"
                     (click)="OpenEditDatabaseConnection(Connection.dataSourceId + '')"
                   >
                     編輯
@@ -686,6 +698,30 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <div
+          *ngIf="DataSourceTestResult || DataSourceTestError"
+          class="database-connection-test-result"
+          [class.is-success]="DataSourceTestResult?.connected"
+          [class.is-error]="!!DataSourceTestError || DataSourceTestResult?.connected === false"
+          role="status"
+          aria-live="polite"
+        >
+          <strong>
+            {{
+              DataSourceTestResult?.connected
+                ? "資料庫連線成功"
+                : "資料庫連線失敗"
+            }}
+          </strong>
+          <span *ngIf="DataSourceTestResult as Result">
+            {{ Result.server }} / {{ Result.database }}
+            <ng-container *ngIf="Result.elapsedMilliseconds >= 0">
+              （{{ Result.elapsedMilliseconds }} ms）
+            </ng-container>
+            <span *ngIf="Result.message">：{{ Result.message }}</span>
+          </span>
+          <span *ngIf="DataSourceTestError">{{ DataSourceTestError }}</span>
         </div>
         <section
           *ngIf="IsDatabaseConnectionEditorOpen"
@@ -762,19 +798,23 @@
               /></label>
               <label
                 ><span class="form-field-label"
+                  >資料庫驗證方式<span class="required-indicator" aria-hidden="true"
+                    >*</span
+                  ></span
+                ><select [(ngModel)]="DatabaseAuthenticationType">
+                  <option value="Windows">Windows Authentication</option>
+                  <option value="SqlServer">SQL Server Authentication</option>
+                </select>
+              </label>
+              <label *ngIf="DatabaseAuthenticationType === 'SqlServer'"
+                ><span class="form-field-label"
                   >資料庫帳號<span class="required-indicator" aria-hidden="true"
                     >*</span
                   ></span
                 ><input [(ngModel)]="DatabaseConnectionDraft.Username"
               /></label>
-              <label
-                >連線類型
-                <select [(ngModel)]="DatabaseConnectionDraft.ConnectionType">
-                  <option value="ReadOnly">唯讀</option>
-                  <option value="ReadWrite">讀寫</option>
-                </select>
-              </label>
-              <label
+              <div class="form-field-label">連線類型：唯讀</div>
+              <label *ngIf="DatabaseAuthenticationType === 'SqlServer'"
                 ><span class="form-field-label"
                   >資料庫密碼<span
                     *ngIf="!EditingDatabaseConnectionKey"

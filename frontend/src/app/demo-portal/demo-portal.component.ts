@@ -72,8 +72,10 @@ import { ReportPreviewPageComponent } from './report-preview-page/report-preview
 import { UserManagementPageComponent } from './user-management-page/user-management-page.component';
 import { ReportEditorDraft } from './report-editor-form/report-editor-form.model';
 import { DataSourceService } from '../services/data-source.service';
-import { DataSourceManagementModel } from '../services/data-source-api.models';
-import { switchMap } from 'rxjs';
+import {
+  DataSourceConnectionTestResponse,
+  DataSourceManagementModel,
+} from '../services/data-source-api.models';
 
 type DemoPortalPage =
   | 'ReportList'
@@ -182,6 +184,10 @@ export class DemoPortalComponent
   EditingDatabaseConnectionKey: string | null = null;
   IsDatabaseConnectionEditorOpen = false;
   DatabaseConnectionFormError = '';
+  DatabaseAuthenticationType: 'Windows' | 'SqlServer' = 'SqlServer';
+  TestingDataSourceId: number | null = null;
+  DataSourceTestResult: DataSourceConnectionTestResponse | null = null;
+  DataSourceTestError = '';
   IsReportDiscardConfirmationOpen = false;
   IsReportCategoryQuickAddOpen = false;
   QuickAddCategoryName = '';
@@ -640,6 +646,7 @@ export class DemoPortalComponent
     if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
     this.EditingDatabaseConnectionKey = null;
     this.DatabaseConnectionDraft = this.CreateDatabaseConnectionDraft();
+    this.DatabaseAuthenticationType = 'SqlServer';
     this.DatabaseConnectionFormError = '';
     this.IsDatabaseConnectionEditorOpen = true;
   }
@@ -674,14 +681,41 @@ export class DemoPortalComponent
       Enabled: Connection.isEnabled,
       Password: '',
     };
+    this.DatabaseAuthenticationType = Connection.authenticationType === 'Windows'
+      ? 'Windows'
+      : 'SqlServer';
     this.DatabaseConnectionFormError = '';
     this.IsDatabaseConnectionEditorOpen = true;
+  }
+
+  TestDataSourceConnection(dataSourceId: number): void {
+    if (this.TestingDataSourceId !== null) return;
+
+    this.TestingDataSourceId = dataSourceId;
+    this.DataSourceTestResult = null;
+    this.DataSourceTestError = '';
+
+    this.DataSourcesApi.testConnection(dataSourceId).subscribe({
+      next: (result) => {
+        this.DataSourceTestResult = result;
+        this.TestingDataSourceId = null;
+      },
+      error: (error: unknown) => {
+        this.DataSourceTestError =
+          error instanceof HttpErrorResponse &&
+          typeof error.error?.message === 'string'
+            ? error.error.message
+            : '資料庫連線測試失敗。';
+        this.TestingDataSourceId = null;
+      },
+    });
   }
 
   CloseDatabaseConnectionEditor(): void {
     this.IsDatabaseConnectionEditorOpen = false;
     this.EditingDatabaseConnectionKey = null;
     this.DatabaseConnectionDraft = this.CreateDatabaseConnectionDraft();
+    this.DatabaseAuthenticationType = 'SqlServer';
     this.DatabaseConnectionFormError = '';
   }
 
@@ -689,15 +723,29 @@ export class DemoPortalComponent
     if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
     this.DatabaseConnectionFormError = '';
     const Draft = this.DatabaseConnectionDraft;
-    if (!Draft.DataSourceName.trim() || !Draft.ServerHost.trim() || !Draft.DatabaseName.trim() || !Draft.Port || !Draft.Username.trim() || (!this.EditingDatabaseConnectionKey && !Draft.Password)) {
-      this.DatabaseConnectionFormError = '請確認資料來源、主機、連接埠、資料庫、帳號與密碼。';
+    const RequiresSqlCredentials = this.DatabaseAuthenticationType === 'SqlServer';
+    if (!Draft.DataSourceName.trim() || !Draft.ServerHost.trim() || !Draft.DatabaseName.trim() || !Draft.Port || (RequiresSqlCredentials && (!Draft.Username.trim() || (!this.EditingDatabaseConnectionKey && !Draft.Password)))) {
+      this.DatabaseConnectionFormError = RequiresSqlCredentials
+        ? '請確認資料來源、主機、連接埠、資料庫、帳號與密碼。'
+        : '請確認資料來源、主機、連接埠與資料庫名稱。';
       return;
     }
-    const request = { dataSourceName: Draft.DataSourceName.trim(), serverHost: Draft.ServerHost.trim(), port: Number(Draft.Port), databaseName: Draft.DatabaseName.trim(), isEnabled: Draft.Enabled };
-    const operation = this.EditingDatabaseConnectionKey
-      ? this.DataSourcesApi.updateDataSource(Number(this.EditingDatabaseConnectionKey), request)
-      : this.DataSourcesApi.createDataSource(request);
-    operation.pipe(switchMap((source) => this.DataSourcesApi.updateReadOnlyCredential(source.dataSourceId, Draft.Username.trim(), Draft.Password))).subscribe({
+    const request = {
+      dataSourceName: Draft.DataSourceName.trim(),
+      serverHost: Draft.ServerHost.trim(),
+      port: Number(Draft.Port),
+      databaseName: Draft.DatabaseName.trim(),
+      isEnabled: Draft.Enabled,
+      authenticationType: this.DatabaseAuthenticationType,
+      username: RequiresSqlCredentials ? Draft.Username.trim() : undefined,
+      password: RequiresSqlCredentials ? Draft.Password : undefined,
+    };
+    this.DataSourcesApi.saveManagedDataSource(
+      request,
+      this.EditingDatabaseConnectionKey
+        ? Number(this.EditingDatabaseConnectionKey)
+        : undefined,
+    ).subscribe({
       next: () => {
         this.CloseDatabaseConnectionEditor();
         this.LoadDataSources();
@@ -711,25 +759,20 @@ export class DemoPortalComponent
     const CurrentUser = this.Auth.CurrentUser;
     if (!CurrentUser) return;
     this.AccountProfileNotice = '';
-    const Result = this.MockRbac.UpdateOwnAccount(
-      CurrentUser.Account,
-      {
-        DisplayName: this.AccountSettingsDraft.DisplayName,
-        OldPassword: '',
-        NewPassword: '',
+    this.Auth.UpdateProfile({
+      userName: this.AccountSettingsDraft.DisplayName,
+    }).subscribe({
+      next: (response) => {
+        this.AccountProfileNotice = response.message;
+        this.LoadAccountSettings();
       },
-    );
-    const Messages: Record<string, string> = {
-      updated: '個人資料已儲存。',
-      invalid: '請輸入使用者名稱。',
-      'not-found': '找不到目前登入的使用者。',
-    };
-    if (Result === 'updated') {
-      this.LoadAccountSettings();
-      this.AccountProfileNotice = Messages['updated'];
-      return;
-    }
-    this.AccountProfileNotice = Messages[Result] ?? '無法儲存個人資料。';
+      error: (error: unknown) => {
+        this.AccountProfileNotice = error instanceof HttpErrorResponse &&
+          typeof error.error?.message === 'string'
+          ? error.error.message
+          : '無法儲存個人資料。';
+      },
+    });
   }
 
   ChangePassword(): void {
@@ -752,23 +795,21 @@ export class DemoPortalComponent
       this.AccountPasswordNotice = '新密碼與確認新密碼不一致。';
       return;
     }
-    const Result = this.MockRbac.UpdateOwnAccount(CurrentUser.Account, {
-      DisplayName: CurrentUser.DisplayName,
-      OldPassword: this.AccountSettingsDraft.OldPassword,
-      NewPassword: this.AccountSettingsDraft.NewPassword,
+    this.Auth.ChangePassword({
+      currentPassword: this.AccountSettingsDraft.OldPassword,
+      newPassword: this.AccountSettingsDraft.NewPassword,
+    }).subscribe({
+      next: () => {
+        this.LoadAccountSettings();
+        this.IsPasswordChangeSuccessModalOpen = true;
+      },
+      error: (error: unknown) => {
+        this.AccountPasswordNotice = error instanceof HttpErrorResponse &&
+          typeof error.error?.message === 'string'
+          ? error.error.message
+          : '無法更新密碼，請稍後再試。';
+      },
     });
-    if (Result === 'password-updated') {
-      this.LoadAccountSettings();
-      this.IsPasswordChangeSuccessModalOpen = true;
-      return;
-    }
-    const Messages: Partial<Record<typeof Result, string>> = {
-      'incorrect-password': '目前密碼不正確。',
-      'not-found': '找不到目前登入的使用者。',
-      invalid: '無法更新密碼，請稍後再試。',
-    };
-    this.AccountPasswordNotice =
-      Messages[Result] ?? '無法更新密碼，請稍後再試。';
   }
 
   ConfirmPasswordChangeAndLogout(): void {

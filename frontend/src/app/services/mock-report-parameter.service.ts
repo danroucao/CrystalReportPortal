@@ -10,6 +10,7 @@ import { ReportParameterListResponse, ReportParameterOptionsResponse, ReportPara
 export class MockReportParameterService {
   private readonly Definitions = new Map<MockReportKey, MockReportParameterDefinition[]>();
   private readonly LovStatuses = new Map<string, MockLovStatus>();
+  private readonly LovErrorMessages = new Map<string, string>();
   constructor(private readonly Http: HttpClient) {}
 
   LoadDefinitions(ReportId: number, ReportKey: MockReportKey): Observable<MockReportParameterDefinition[]> {
@@ -35,6 +36,9 @@ export class MockReportParameterService {
     if (this.GetLovStatus(ReportKey, ParameterName) !== 'success') return [];
     return this.GetDefinitions(ReportKey).find((Item) => Item.ParameterName === ParameterName)?.Options ?? [];
   }
+  GetLovErrorMessage(ReportKey: MockReportKey, ParameterName: string): string {
+    return this.LovErrorMessages.get(this.Key(ReportKey, ParameterName)) ?? '無法載入選項，請重試。';
+  }
   SetLovStatus(ReportKey: MockReportKey, ParameterName: string, Status: MockLovStatus): void {
     this.LovStatuses.set(this.Key(ReportKey, ParameterName), Status);
   }
@@ -47,6 +51,7 @@ export class MockReportParameterService {
   private LoadOptions(ReportId: number, ReportKey: MockReportKey, Definition: MockReportParameterDefinition): Observable<unknown> {
     const Key = this.Key(ReportKey, Definition.ParameterName);
     this.LovStatuses.set(Key, 'loading');
+    this.LovErrorMessages.delete(Key);
     return this.Http.get<ReportParameterOptionsResponse>(`${API_BASE_URL}/Reports/${ReportId}/parameters/${Definition.ParameterId}/options`).pipe(
       tap((Response) => {
         const Options = Response.data.map((Option) => ({ Value: Option.value, DisplayText: Option.label }));
@@ -54,8 +59,26 @@ export class MockReportParameterService {
         const Index = Definitions.findIndex((Item) => Item.ParameterName === Definition.ParameterName);
         if (Index >= 0) Definitions[Index] = { ...Definitions[Index], Options };
         this.LovStatuses.set(Key, Options.length ? 'success' : 'empty');
+        this.LovErrorMessages.delete(Key);
       }),
-      catchError((Error) => { this.LovStatuses.set(Key, 'error'); return throwError(() => Error); }),
+      catchError((Error) => {
+        this.LovStatuses.set(Key, 'error');
+
+        const Message =
+          Error?.error?.message ??
+          Error?.error?.Message ??
+          Error?.message ??
+          '無法載入選項，請重試。';
+
+        this.LovErrorMessages.set(
+          Key,
+          typeof Message === 'string' && Message.trim().length
+            ? Message.trim()
+            : '無法載入選項，請重試。',
+        );
+
+        return throwError(() => Error);
+      }),
     );
   }
 

@@ -40,13 +40,19 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(
         ChangePasswordRequest request)
     {
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return Unauthorized();
+        }
+
         var result =
             await _authService
-                .ChangePasswordAsync(request);
+                .ChangePasswordAsync(request, userId);
 
         if (!result.Success)
         {
@@ -54,6 +60,20 @@ public class AuthController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    [Authorize]
+    [HttpPut("me")]
+    public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
+    {
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return Unauthorized();
+        }
+
+        return await _authService.UpdateProfileAsync(userId, request)
+            ? Ok(new { success = true, message = "個人資料已更新。" })
+            : BadRequest(new { message = "使用者名稱不可為空白。" });
     }
 
     [Authorize]

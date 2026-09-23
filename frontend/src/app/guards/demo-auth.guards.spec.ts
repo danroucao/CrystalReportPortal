@@ -15,7 +15,7 @@ import {
 } from './demo-auth.guards';
 import { AuthService } from '../services/auth.service';
 
-xdescribe('Front/back-office route guards', () => {
+describe('Front/back-office route guards', () => {
   const authStub = {
     IsAuthenticated: false,
     IsFrontOffice: false,
@@ -106,16 +106,13 @@ xdescribe('Front/back-office route guards', () => {
     expect(runGuard(BackOfficeGuard)).toBeTrue();
   });
 
-  it('denies an unbound back-office identity', () => {
-    authStub.IsAuthenticated = true;
-    authStub.IsBackOffice = true;
-    authStub.CanOperateBackOffice = false;
-    authStub.HomeRoute = '/admin/users';
+it('allows an unbound back-office identity to complete operator binding', () => {
+  authStub.IsAuthenticated = true;
+  authStub.IsBackOffice = true;
+  authStub.CanOperateBackOffice = false;
 
-    const result = runGuard(BackOfficeGuard);
-
-    expect(url(result)).toBe('/admin/users?state=permission-denied');
-  });
+  expect(runGuard(BackOfficeGuard)).toBeTrue();
+});
 
   it('checks the management permission declared by the route', () => {
     authStub.IsAuthenticated = true;

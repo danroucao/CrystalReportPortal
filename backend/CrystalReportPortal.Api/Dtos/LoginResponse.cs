@@ -37,9 +37,12 @@ public class LoginUserDto
 
 public class ChangePasswordRequest
 {
-    public string Account { get; set; } = string.Empty;
-
     public string CurrentPassword { get; set; } = string.Empty;
 
     public string NewPassword { get; set; } = string.Empty;
+}
+
+public class UpdateProfileRequest
+{
+    public string UserName { get; set; } = string.Empty;
 }

@@ -17,6 +17,8 @@ import {
   ApproveReportConfigurationResult,
   RptUploadResult,
   UpdateReportStatusResult,
+  ManagedRole,
+  RoleReportPermission,
 } from './managed-report-api.models';
 import {
   PortalReport,
@@ -177,6 +179,33 @@ export class ReportService {
     return this.Http.post<ApproveReportConfigurationResult>(
       `${this.managementEndpoint}/${reportId}/configuration/approve`,
       {},
+    );
+  }
+
+  GetBackOfficeRoles(): Observable<readonly ManagedRole[]> {
+    return this.Http.get<readonly ManagedRole[]>(`${API_BASE_URL}/backoffice/roles`);
+  }
+
+  GetRoleReportPermissions(roleId: number): Observable<readonly RoleReportPermission[]> {
+    return this.Http.get<readonly RoleReportPermission[]>(
+      `${API_BASE_URL}/backoffice/report-permissions/roles/${roleId}/reports`,
+    );
+  }
+
+  UpdateRoleReportPermission(
+    roleId: number,
+    reportId: number,
+    permission: Pick<RoleReportPermission, 'canExecute' | 'canExport' | 'canPrint'>,
+  ): Observable<RoleReportPermission> {
+    return this.Http.put<RoleReportPermission>(
+      `${API_BASE_URL}/backoffice/report-permissions/roles/${roleId}/reports/${reportId}`,
+      {
+        ...permission,
+        canUpload: false,
+        canMaintain: false,
+        canSetParameters: false,
+        canEnableDisable: false,
+      },
     );
   }
 }

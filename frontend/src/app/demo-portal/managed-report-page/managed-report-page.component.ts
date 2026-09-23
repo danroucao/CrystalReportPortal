@@ -9,6 +9,8 @@ import {
   ManagedReport,
   ManagedReportCategoryOption,
   ManagedReportDataSourceOption,
+  ManagedRole,
+  RoleReportPermission,
 } from '../../services/managed-report-api.models';
 import { ReportService } from '../../services/report.service';
 import { NotificationService } from '../../services/notification.service';
@@ -49,6 +51,10 @@ export class ManagedReportPageComponent implements OnInit {
   selectedFile: File | null = null;
   existingDraft: ManagedReport | null = null;
   reviewReport: ManagedReport | null = null;
+  permissionReport: ManagedReport | null = null;
+  permissionRows: RoleReportPermission[] = [];
+  isPermissionsLoading = false;
+  permissionError = '';
   draft = this.createEmptyDraft();
 
   get displayedReports(): readonly ManagedReport[] {
@@ -208,6 +214,46 @@ export class ManagedReportPageComponent implements OnInit {
 
   closeReview(): void {
     this.reviewReport = null;
+  }
+
+  openPermissions(report: ManagedReport): void {
+    this.permissionReport = report;
+    this.permissionRows = [];
+    this.permissionError = '';
+    this.isPermissionsLoading = true;
+    this.reportsApi.GetBackOfficeRoles().pipe(
+      switchMap((roles) => forkJoin(
+        roles.filter((role) => role.isEnabled).map((role) =>
+          this.reportsApi.GetRoleReportPermissions(role.roleId)),
+      )),
+      finalize(() => (this.isPermissionsLoading = false)),
+    ).subscribe({
+      next: (permissionGroups) => {
+        this.permissionRows = permissionGroups
+          .flatMap((group) => group)
+          .filter((permission) => permission.reportId === report.reportId)
+          .map((permission) => ({ ...permission }));
+      },
+      error: (error: unknown) => (this.permissionError = this.errorMessage(error)),
+    });
+  }
+
+  closePermissions(): void {
+    if (!this.isPermissionsLoading) this.permissionReport = null;
+  }
+
+  savePermission(permission: RoleReportPermission): void {
+    this.reportsApi.UpdateRoleReportPermission(
+      permission.roleId,
+      permission.reportId,
+      permission,
+    ).subscribe({
+      next: (updated) => {
+        Object.assign(permission, updated);
+        this.notifications.ShowSuccess(`角色「${permission.roleName}」的報表權限已更新。`);
+      },
+      error: (error: unknown) => (this.permissionError = this.errorMessage(error)),
+    });
   }
 
   completeReview(): void {

@@ -98,6 +98,19 @@ public class AdminReportReviewController : ControllerBase
             try
             {
                 var savedDataPdf = await _crystalProcess.PreviewAsync(report.RptFilePath);
+                var now = DateTime.UtcNow;
+
+                AddAuditLog(
+                    userId,
+                    reportId,
+                    TestPreviewAction,
+                    "SUCCESS",
+                    $"報表 {report.ReportCode} Saved Data 測試預覽成功。",
+                    null,
+                    now);
+
+                await _dbContext.SaveChangesAsync();
+
                 return File(savedDataPdf, "application/pdf", $"report-{reportId}-saved-data-preview.pdf");
             }
             catch (Exception exception)

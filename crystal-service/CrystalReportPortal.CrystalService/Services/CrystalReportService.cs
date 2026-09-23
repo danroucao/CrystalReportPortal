@@ -3,10 +3,12 @@ using CrystalDecisions.Shared;
 using CrystalReportPortal.CrystalService.Models;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace CrystalReportPortal.CrystalService.Services
@@ -328,9 +330,33 @@ namespace CrystalReportPortal.CrystalService.Services
                                 "即時報表匯出缺少資料庫設定。");
                         }
 
+                        SetParameters(
+                            report,
+                            request.Parameters);
+
                         ApplyRasCommandConnection(
                             report,
+                            request.Database,
+                            request.Parameters);
+
+                        foreach (ReportDocument subreport in report.Subreports)
+                        {
+                            ApplyRasCommandConnection(
+                                subreport,
+                                request.Database,
+                                request.Parameters);
+                        }
+
+                        ApplyConnectionToTables(
+                            report.Database.Tables,
                             request.Database);
+
+                        foreach (ReportDocument subreport in report.Subreports)
+                        {
+                            ApplyConnectionToTables(
+                                subreport.Database.Tables,
+                                request.Database);
+                        }
 
                         if (DiagnosticsEnabled)
                         {
@@ -339,14 +365,38 @@ namespace CrystalReportPortal.CrystalService.Services
                                 "AFTER DATABASE CONNECTION");
                         }
 
-                        SetParameters(
-                            report,
-                            request.Parameters);
                     }
 
-                    report.ExportToDisk(
-                        ExportFormatType.PortableDocFormat,
-                        request.OutputPath);
+                    try
+                    {
+                        report.ExportToDisk(
+                            ExportFormatType.PortableDocFormat,
+                            request.OutputPath);
+                    }
+                    catch (Exception primaryExportException)
+                    {
+                        if (request.UseSavedDataOnly ||
+                            request.Database == null)
+                        {
+                            throw;
+                        }
+
+                        Console.Error.WriteLine(
+                            "Crystal native export failed; trying ADO.NET data-source fallback: " +
+                            primaryExportException.Message);
+
+                        try
+                        {
+                            ExportWithAdoNetDataSource(request);
+                        }
+                        catch (Exception fallbackException)
+                        {
+                            throw new InvalidOperationException(
+                                "ADO.NET RPT schema fallback failed: " +
+                                fallbackException.Message,
+                                fallbackException);
+                        }
+                    }
 
                     return new CrystalExportResponse
                     {
@@ -371,6 +421,251 @@ namespace CrystalReportPortal.CrystalService.Services
                     OutputPath = null
                 };
             }
+        }
+
+        private void ExportWithAdoNetDataSource(
+            CrystalExportRequest request)
+        {
+            using (var report = new ReportDocument())
+            {
+                report.Load(request.RptPath);
+                SetParameters(report, request.Parameters);
+
+                var mainCommand = GetSingleCommandTable(report);
+                var mainData = ExecuteCommand(
+                    mainCommand.CommandText,
+                    request.Database,
+                    request.Parameters);
+
+                SetTableDataSource(report, mainCommand, mainData);
+
+                foreach (ReportDocument subreport in report.Subreports)
+                {
+                    var subreportCommand = GetSingleCommandTable(subreport);
+                    var subreportData = ExecuteCommand(
+                        subreportCommand.CommandText,
+                        request.Database,
+                        request.Parameters);
+
+                    SetTableDataSource(subreport, subreportCommand, subreportData);
+                }
+
+                report.ExportToDisk(
+                    ExportFormatType.PortableDocFormat,
+                    request.OutputPath);
+            }
+        }
+
+        private CrystalDecisions.ReportAppServer.DataDefModel.CommandTable
+            GetSingleCommandTable(ReportDocument report)
+        {
+            CrystalDecisions.ReportAppServer.DataDefModel.CommandTable result = null;
+            var tables = report.ReportClientDocument.DatabaseController.Database.Tables;
+
+            for (int index = 0; index < tables.Count; index++)
+            {
+                var command = tables[index]
+                    as CrystalDecisions.ReportAppServer.DataDefModel.CommandTable;
+
+                if (command == null)
+                {
+                    continue;
+                }
+
+                if (result != null)
+                {
+                    throw new NotSupportedException(
+                        "此 RPT 包含多個 Command Table，暫不支援自動資料來源轉換。");
+                }
+
+                result = command;
+            }
+
+            if (result == null || string.IsNullOrWhiteSpace(result.CommandText))
+            {
+                throw new NotSupportedException(
+                    "此 RPT 找不到可執行的 Command Table。");
+            }
+
+            return result;
+        }
+
+        private DataTable ExecuteCommand(
+            string commandText,
+            CrystalDatabaseConfig database,
+            List<CrystalExportParameter> parameters)
+        {
+            var sqlParameters = new List<SqlParameter>();
+            var sql = BuildParameterizedCommand(
+                commandText,
+                parameters,
+                sqlParameters);
+            var table = new DataTable();
+
+            if (DiagnosticsEnabled)
+            {
+                Console.Error.WriteLine("ADO.NET fallback SQL:");
+                Console.Error.WriteLine(sql);
+            }
+
+            using (var connection = new SqlConnection(
+                CreateConnectionStringBuilder(database).ConnectionString))
+            using (var command = new SqlCommand(sql, connection))
+            {
+                command.Parameters.AddRange(sqlParameters.ToArray());
+                command.CommandTimeout = 120;
+                connection.Open();
+
+                using (var reader = command.ExecuteReader())
+                {
+                    table.Load(reader);
+                }
+            }
+
+            return table;
+        }
+
+        private static string BuildParameterizedCommand(
+            string commandText,
+            List<CrystalExportParameter> parameters,
+            List<SqlParameter> sqlParameters)
+        {
+            var result = commandText;
+            var parameterIndex = 0;
+
+            foreach (var parameter in parameters ?? new List<CrystalExportParameter>())
+            {
+                if (parameter == null || parameter.Values == null || parameter.Values.Count == 0)
+                {
+                    continue;
+                }
+
+                var placeholders = new List<string>();
+                foreach (var value in parameter.Values)
+                {
+                    var parameterName = "@crystalParam" + parameterIndex++;
+                    placeholders.Add(parameterName);
+                    sqlParameters.Add(new SqlParameter(
+                        parameterName,
+                        ToSqlParameterValue(value, parameter.DataType)));
+                }
+
+                var name = parameter.Name ?? string.Empty;
+                var atIndex = name.IndexOf('@');
+                var shortName = atIndex > 0
+                    ? name.Substring(0, atIndex + 1)
+                    : name;
+                var replacement = "(" + string.Join(",", placeholders) + ")";
+
+                result = ReplaceCommandToken(result, "{?" + name + "}", replacement);
+                result = ReplaceCommandToken(result, "{?" + shortName + "}", replacement);
+            }
+
+            return result;
+        }
+
+        private static object ToSqlParameterValue(
+            string value,
+            string dataType)
+        {
+            if (dataType.IndexOf("Date", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            {
+                return date;
+            }
+
+            if ((string.Equals(dataType, "Number", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(dataType, "NumberField", StringComparison.OrdinalIgnoreCase)) &&
+                decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var number))
+            {
+                return number;
+            }
+
+            if (string.Equals(dataType, "Boolean", StringComparison.OrdinalIgnoreCase))
+            {
+                return bool.TryParse(value, out var boolean) && boolean;
+            }
+
+            return value ?? string.Empty;
+        }
+
+        private void SetTableDataSource(
+            ReportDocument report,
+            CrystalDecisions.ReportAppServer.DataDefModel.CommandTable commandTable,
+            DataTable data)
+        {
+            if (report.Database.Tables.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "RPT 沒有可套用查詢結果的資料表。");
+            }
+
+            var reportTable = report.Database.Tables[0];
+            var mappedData = MapDataTableToReportSchema(
+                reportTable,
+                data,
+                commandTable.Name);
+
+            reportTable.SetDataSource(mappedData);
+        }
+
+        private DataTable MapDataTableToReportSchema(
+            Table reportTable,
+            DataTable source,
+            string tableName)
+        {
+            var mapped = new DataTable(tableName);
+            var sourceColumns = source.Columns
+                .Cast<DataColumn>()
+                .ToDictionary(
+                    column => NormalizeSchemaName(column.ColumnName),
+                    StringComparer.OrdinalIgnoreCase);
+
+            foreach (FieldDefinition field in reportTable.Fields)
+            {
+                DataColumn sourceColumn;
+                if (!sourceColumns.TryGetValue(
+                        NormalizeSchemaName(field.Name),
+                        out sourceColumn))
+                {
+                    throw new InvalidOperationException(
+                        $"SQL 查詢結果缺少 RPT 欄位：{field.Name}");
+                }
+
+                mapped.Columns.Add(
+                    field.Name,
+                    Nullable.GetUnderlyingType(sourceColumn.DataType) ?? sourceColumn.DataType);
+            }
+
+            foreach (DataRow sourceRow in source.Rows)
+            {
+                var mappedRow = mapped.NewRow();
+                foreach (DataColumn mappedColumn in mapped.Columns)
+                {
+                    mappedRow[mappedColumn.ColumnName] =
+                        sourceRow[sourceColumns[
+                            NormalizeSchemaName(mappedColumn.ColumnName)]];
+                }
+
+                mapped.Rows.Add(mappedRow);
+            }
+
+            return mapped;
+        }
+
+        private static string NormalizeSchemaName(string name)
+        {
+            var normalized = (name ?? string.Empty).Trim();
+            var dotIndex = normalized.LastIndexOf('.');
+
+            if (dotIndex >= 0)
+            {
+                normalized = normalized.Substring(dotIndex + 1);
+            }
+
+            return normalized
+                .Trim('[', ']', ' ', '`', '"')
+                .ToUpperInvariant();
         }
 
         public List<CrystalDataSourceInfo>
@@ -1588,7 +1883,8 @@ namespace CrystalReportPortal.CrystalService.Services
 
         private void ApplyRasCommandConnection(
     ReportDocument report,
-    CrystalDatabaseConfig database)
+    CrystalDatabaseConfig database,
+    List<CrystalExportParameter> parameters)
         {
             if (report == null)
             {
@@ -1653,6 +1949,16 @@ namespace CrystalReportPortal.CrystalService.Services
                     throw new InvalidOperationException(
                         $"Command Table Clone 失敗：{oldCommandTable.Name}");
                 }
+
+                newCommandTable.CommandText =
+                    InlineCommandParameters(
+                        newCommandTable.CommandText,
+                        parameters);
+
+                newCommandTable.CommandText =
+                    AlignCommandParameterNames(
+                        report,
+                        newCommandTable.CommandText);
 
                 // =====================================================
                 // 2. Clone 原 ConnectionInfo Attributes
@@ -1865,17 +2171,19 @@ namespace CrystalReportPortal.CrystalService.Services
                     oldCommandTable,
                     newCommandTable);
 
+                newCommandTable.CommandText =
+                    AlignCommandParameterNames(
+                        report,
+                        newCommandTable.CommandText);
+
+                databaseController.SetTableLocation(
+                    databaseController.Database.Tables[i],
+                    newCommandTable);
+
                 replacedCommandCount++;
             }
 
-            if (replacedCommandCount == 0)
-            {
-                throw new NotSupportedException(
-                    "目前此匯出流程僅支援主報表的 Command Table，" +
-                    "但指定的 RPT 找不到可替換的 Command Table。");
-            }
-
-            if (!database.IntegratedSecurity)
+            if (replacedCommandCount > 0 && !database.IntegratedSecurity)
             {
                 databaseController.LogonEx(
                     database.Server,
@@ -1911,6 +2219,133 @@ namespace CrystalReportPortal.CrystalService.Services
                     "QE_SSOEnabled",
                     enabled);
             }
+        }
+
+        private static string AlignCommandParameterNames(
+            ReportDocument report,
+            string commandText)
+        {
+            if (string.IsNullOrWhiteSpace(commandText))
+            {
+                return commandText;
+            }
+
+            foreach (ParameterFieldDefinition parameter
+                     in report.DataDefinition.ParameterFields)
+            {
+                var parameterName = parameter.Name;
+                var atIndex = parameterName.IndexOf('@');
+
+                if (atIndex <= 0)
+                {
+                    continue;
+                }
+
+                var sqlPart = parameterName
+                    .Substring(atIndex + 1)
+                    .TrimStart();
+                if (!sqlPart.StartsWith("select ", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var shortToken = "{?" + parameterName.Substring(0, atIndex + 1) + "}";
+                var fullToken = "{?" + parameterName + "}";
+
+                commandText = Regex.Replace(
+                    commandText,
+                    Regex.Escape(shortToken),
+                    fullToken,
+                    RegexOptions.IgnoreCase);
+            }
+
+            return commandText;
+        }
+
+        private static string InlineCommandParameters(
+            string commandText,
+            List<CrystalExportParameter> parameters)
+        {
+            if (string.IsNullOrWhiteSpace(commandText) || parameters == null)
+            {
+                return commandText;
+            }
+
+            foreach (var parameter in parameters)
+            {
+                if (parameter == null || parameter.Values == null || parameter.Values.Count == 0)
+                {
+                    continue;
+                }
+
+                var literal = string.Join(",", parameter.Values.Select(value =>
+                    ToSqlLiteral(value, parameter.DataType)));
+                var name = parameter.Name ?? string.Empty;
+                var atIndex = name.IndexOf('@');
+                var shortName = atIndex > 0
+                    ? name.Substring(0, atIndex + 1)
+                    : name;
+
+                commandText = ReplaceCommandToken(
+                    commandText,
+                    "{?" + name + "}",
+                    literal);
+                commandText = ReplaceCommandToken(
+                    commandText,
+                    "{?" + shortName + "}",
+                    literal);
+            }
+
+            return commandText;
+        }
+
+        private static string ReplaceCommandToken(
+            string commandText,
+            string token,
+            string replacement)
+        {
+            var result = commandText.Replace(token, replacement);
+            var upperToken = token.ToUpperInvariant();
+
+            if (!string.Equals(token, upperToken, StringComparison.Ordinal))
+            {
+                result = Regex.Replace(
+                    result,
+                    Regex.Escape(upperToken),
+                    replacement.Replace("$", "$$$$"),
+                    RegexOptions.IgnoreCase);
+            }
+
+            return result;
+        }
+
+        private static string ToSqlLiteral(
+            string value,
+            string dataType)
+        {
+            if (string.Equals(dataType, "Number", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(dataType, "NumberField", StringComparison.OrdinalIgnoreCase))
+            {
+                if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var number))
+                {
+                    return number.ToString(CultureInfo.InvariantCulture);
+                }
+            }
+
+            if (string.Equals(dataType, "Boolean", StringComparison.OrdinalIgnoreCase))
+            {
+                return bool.TryParse(value, out var boolean) && boolean ? "1" : "0";
+            }
+
+            if (dataType.IndexOf("Date", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                {
+                    return "'" + date.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "'";
+                }
+            }
+
+            return "'" + (value ?? string.Empty).Replace("'", "''") + "'";
         }
 
         private void ValidateExportRequest(

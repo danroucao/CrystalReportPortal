@@ -200,7 +200,7 @@
               <tr
                 *ngFor="let Report of PagedParameterReports"
                 class="report-entry-row"
-                (click)="SelectReportForPreview(Report.ReportKey)"
+                (click)="SelectReportForParameters(Report.ReportKey)"
               >
                 <td *ngIf="Auth.IsFrontOffice">
                   <button
@@ -265,11 +265,11 @@
                     type="button"
                     class="secondary-button"
                     (click)="
-                      SelectReportForPreview(Report.ReportKey);
+                      SelectReportForParameters(Report.ReportKey);
                       $event.stopPropagation()
                     "
                   >
-                    預覽
+                    輸入條件
                   </button>
                 </td>
               </tr>
@@ -373,8 +373,12 @@
           </button>
         </div>
         <h2 class="parameter-section-heading">報表條件</h2>
-        <p>{{ Auth.SelectedReport?.ReportName }} 的 Mock 動態參數表單。</p>
+        <p>請輸入查詢條件，再產生符合條件的即時報表 PDF。</p>
+        <p *ngIf="IsLoadingReportParameters" class="parameter-state" role="status">
+          載入報表條件中…
+        </p>
         <form
+          *ngIf="!IsLoadingReportParameters"
           class="parameter-form"
           [formGroup]="ReportParameterForm"
           (ngSubmit)="ExecuteReport()"
@@ -519,7 +523,7 @@
                   class="parameter-state parameter-state-error"
                   role="alert"
                 >
-                  無法載入選項，請重試。
+                  {{ GetLovErrorMessage(Definition) }}
                   <button
                     type="button"
                     class="secondary-button"

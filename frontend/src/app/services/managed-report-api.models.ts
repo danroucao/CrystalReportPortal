@@ -25,6 +25,29 @@ export interface ManagedReportDataSourceOption {
   readonly dataSourceName: string;
 }
 
+export interface ManagedRole {
+  readonly roleId: number;
+  readonly roleCode: string;
+  readonly roleName: string;
+  readonly isEnabled: boolean;
+}
+
+export interface RoleReportPermission {
+  readonly roleId: number;
+  readonly roleCode: string;
+  readonly roleName: string;
+  readonly reportId: number;
+  readonly reportCode: string;
+  readonly reportName: string;
+  canExecute: boolean;
+  canExport: boolean;
+  canPrint: boolean;
+  canUpload: boolean;
+  canMaintain: boolean;
+  canSetParameters: boolean;
+  canEnableDisable: boolean;
+}
+
 export interface CreateManagedReportRequest {
   reportCode: string;
   reportName: string;

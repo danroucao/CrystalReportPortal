@@ -21,6 +21,15 @@ export interface LoginResponse {
   user?: AuthenticatedUser;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface UpdateProfileRequest {
+  userName: string;
+}
+
 export interface BackOfficeLoginResponse {
   success: boolean;
   message: string;

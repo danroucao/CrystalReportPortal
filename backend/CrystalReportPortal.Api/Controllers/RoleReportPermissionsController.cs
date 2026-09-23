@@ -1,6 +1,7 @@
 ﻿using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
+using CrystalReportPortal.Api.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
 [Route("api/backoffice/report-permissions")]
-[Authorize(Policy = "BackOffice")]
+[Authorize(Policy = PermissionCodes.ReportMaintain)]
 public class RoleReportPermissionsController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
@@ -100,7 +101,8 @@ public class RoleReportPermissionsController : ControllerBase
 
         var operatorIdText =
             HttpContext.Session.GetString(
-                "BackOffice.OperatorUserId");
+                "BackOffice.OperatorUserId")
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (!long.TryParse(
                 operatorIdText,

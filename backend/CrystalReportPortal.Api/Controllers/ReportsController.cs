@@ -115,18 +115,42 @@ public class ReportsController : ControllerBase
                 reportId,
                 roleCodes);
 
-        if (!allowed)
+        var canExport =
+            await _reportService.CanExportReportAsync(
+                reportId,
+                roleCodes);
+
+        if (!allowed || !canExport)
         {
             return Forbid();
         }
 
-        var result =
-            await _reportService.GetParameterOptionsAsync(
-                reportId,
-                parameterId,
-                roleCodes);
+        try
+        {
+            var result =
+                await _reportService.GetParameterOptionsAsync(
+                    reportId,
+                    parameterId,
+                    roleCodes);
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return UnprocessableEntity(new
+            {
+                success = false,
+                message = exception.Message
+            });
+        }
     }
 
     [HttpGet("test-crystal-parameters")]

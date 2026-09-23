@@ -11,7 +11,7 @@ namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
 [Route("api/backoffice/roles")]
-[Authorize(Policy = "BackOffice")]
+[Authorize(Policy = PermissionCodes.ReportMaintain)]
 public class RolesController : ControllerBase
 {
     private readonly AppDbContext _dbContext;

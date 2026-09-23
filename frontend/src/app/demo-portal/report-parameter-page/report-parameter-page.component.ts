@@ -95,6 +95,7 @@ export class ReportParameterPageComponent implements OnInit {
     Record<string, MockParameterFormValue>
   > | null = null;
   IsLoadingReports = false;
+  IsLoadingReportParameters = false;
   ReportLoadError = '';
   private FavoriteReportKeys = new Set<MockReportKey>();
 
@@ -415,6 +416,16 @@ export class ReportParameterPageComponent implements OnInit {
     this.ReportParameterForm.updateValueAndValidity();
   }
 
+  GetLovErrorMessage(Definition: MockReportParameterDefinition): string {
+    const ReportKey = this.SelectedReportKey;
+    if (!ReportKey) return '無法載入選項，請重試。';
+
+    return this.ReportParameters.GetLovErrorMessage(
+      ReportKey,
+      Definition.ParameterName,
+    );
+  }
+
   OnRangeValueChange(Definition: MockReportParameterDefinition): void {
     if (Definition.DataType !== 'Date') return;
     const RangeControl = this.GetRangeControl(Definition);
@@ -586,14 +597,17 @@ export class ReportParameterPageComponent implements OnInit {
       this.ReportParameterForm = new FormGroup({});
       return;
     }
+    this.IsLoadingReportParameters = true;
     this.ReportParameters.LoadDefinitions(Report.ReportId, ReportKey).subscribe({
       next: (Definitions) => {
         this.ReportParameterDefinitions = Definitions;
         this.ReportParameterForm = this.BuildParameterForm(this.VisibleReportParameters);
+        this.IsLoadingReportParameters = false;
       },
       error: () => {
         this.ReportParameterDefinitions = [];
         this.ReportParameterForm = new FormGroup({});
+        this.IsLoadingReportParameters = false;
         this.ParameterReportSelectionNotice = '目前無法載入報表參數，請稍後再試。';
       },
     });

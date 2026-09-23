@@ -48,35 +48,45 @@ public class ReportExecutionsController : ControllerBase
                 reportId,
                 roleCodes);
 
-        if (!canExecute)
-        {
-            return Forbid();
-        }
-
         var canExport =
             await _reportService.CanExportReportAsync(
                 reportId,
                 roleCodes);
 
-        if (!canExport)
+        if (!canExecute || !canExport)
         {
             return Forbid();
         }
 
-        var result =
-            await _executions.ExecuteAsync(
-                reportId,
-                userId,
-                roleCodes,
-                request);
+        try
+        {
+            var result =
+                await _executions.ExecuteAsync(
+                    reportId,
+                    userId,
+                    roleCodes,
+                    request);
 
-        Response.Headers.Append(
-            "X-Report-Execution-Id",
-            result.ExecutionId.ToString());
+            Response.Headers.Append(
+                "X-Report-Execution-Id",
+                result.ExecutionId.ToString());
 
-        return File(
-            result.Pdf,
-            "application/pdf",
-            $"report-{reportId}-{result.ExecutionId:N}.pdf");
+            return File(
+                result.Pdf,
+                "application/pdf",
+                $"report-{reportId}-{result.ExecutionId:N}.pdf");
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return UnprocessableEntity(new
+            {
+                message = "報表資料來源或資料庫憑證設定無法使用。",
+                detail = exception.Message
+            });
+        }
     }
 }

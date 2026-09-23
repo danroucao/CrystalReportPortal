@@ -136,7 +136,7 @@ describe('report catalog and extracted report pages', () => {
     expect(component.IsExportMenuOpen).toBeTrue();
     component.SelectExportOption(component.ExportOptions[1]);
     expect(component.IsExportMenuOpen).toBeFalse();
-    expect(component.MockNotice).toContain('Excel');
+    expect(component.MockNotice).toBe('目前角色沒有匯出權限。');
 
     component.ReportPreviewOrigin = 'favorites';
     component.ReturnToReportList();

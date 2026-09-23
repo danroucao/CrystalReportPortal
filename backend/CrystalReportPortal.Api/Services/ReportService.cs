@@ -4,6 +4,7 @@ using CrystalReportPortal.Api.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Security.Cryptography;
 
 namespace CrystalReportPortal.Api.Services;
 
@@ -333,6 +334,12 @@ public class ReportService : IReportService
 
         var dataSource = lovConfig.DataSource;
 
+        if (dataSource == null)
+        {
+            throw new InvalidOperationException(
+                "此參數的 LOV 未綁定資料來源。");
+        }
+
         if (!dataSource.IsEnabled)
         {
             throw new InvalidOperationException(
@@ -382,8 +389,16 @@ public class ReportService : IReportService
                     "SQL Server Authentication 缺少資料庫密碼。");
             }
 
-            password = _credentialProtector.Unprotect(
-                credential.EncryptedPassword);
+            try
+            {
+                password = _credentialProtector.Unprotect(
+                    credential.EncryptedPassword);
+            }
+            catch (CryptographicException)
+            {
+                throw new InvalidOperationException(
+                    "資料來源憑證已失效，請至資料庫連線管理重新儲存密碼後再試。");
+            }
         }
         else
         {

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
@@ -25,9 +26,14 @@ public class ReportExecutionService : IReportExecutionService
         var report = await db.Reports.Include(x => x.DataSource).ThenInclude(x => x.Credentials)
             .Include(x => x.ReportParameters).FirstOrDefaultAsync(x => x.ReportId == reportId)
             ?? throw new KeyNotFoundException("Report was not found.");
-        if (!report.DataSource.IsEnabled || !File.Exists(report.RptFilePath)) throw new InvalidOperationException("The report or its data source is unavailable.");
+        if (report.DataSource == null || !report.DataSource.IsEnabled || !File.Exists(report.RptFilePath))
+        {
+            throw new InvalidOperationException("報表 RPT 或資料來源不存在、未啟用。");
+        }
 
-        var supplied = request.Parameters.GroupBy(x => x.ParameterId).ToDictionary(x => x.Key, x => x.Last().Values.Where(v => !string.IsNullOrWhiteSpace(v)).ToList());
+        var supplied = (request.Parameters ?? [])
+            .GroupBy(x => x.ParameterId)
+            .ToDictionary(x => x.Key, x => x.Last().Values.Where(v => !string.IsNullOrWhiteSpace(v)).ToList());
         var reportParameters = report.ReportParameters.ToDictionary(x => x.ParameterId);
         if (supplied.Keys.Any(id => !reportParameters.ContainsKey(id))) throw new ArgumentException("An unknown report parameter was supplied.");
         var employeeNo = await db.Users.Where(x => x.UserId == userId).Select(x => x.EmployeeNo).SingleAsync();
@@ -37,7 +43,14 @@ public class ReportExecutionService : IReportExecutionService
         {
             var values = supplied.GetValueOrDefault(parameter.ParameterId) ?? [];
             if (string.Equals(parameter.ValueSourceType, "CurrentUser", StringComparison.OrdinalIgnoreCase)) values = [employeeNo];
+            if (!parameter.IsVisible && supplied.ContainsKey(parameter.ParameterId) &&
+                !string.Equals(parameter.ValueSourceType, "CurrentUser", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"Parameter '{parameter.DisplayName}' is not user-editable.");
+            }
             if (parameter.IsRequired && values.Count == 0) throw new ArgumentException($"Parameter '{parameter.DisplayName}' is required.");
+            if (!parameter.AllowMultipleValues && values.Count > 1) throw new ArgumentException($"Parameter '{parameter.DisplayName}' accepts only one value.");
+            ValidateParameterValues(parameter, values);
             if (values.Count > 0) exportParameters.Add(new CrystalExportProcessParameter { Name = parameter.ParameterName, DataType = parameter.DataType, Values = values });
         }
 
@@ -65,6 +78,7 @@ public class ReportExecutionService : IReportExecutionService
             username = string.Empty;
             password = string.Empty;
         }
+
         else if (string.Equals(
                      credential.AuthenticationType,
                      "SqlServer",
@@ -178,5 +192,27 @@ public class ReportExecutionService : IReportExecutionService
 
             throw;
         }
+    }
+
+    private static void ValidateParameterValues(ReportParameter parameter, List<string> values)
+    {
+        foreach (var value in values)
+        {
+            if (string.Equals(parameter.DataType, "Number", StringComparison.OrdinalIgnoreCase) &&
+                !decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out _))
+                throw new ArgumentException($"Parameter '{parameter.DisplayName}' contains an invalid number.");
+            if ((string.Equals(parameter.DataType, "Date", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(parameter.DataType, "DateTime", StringComparison.OrdinalIgnoreCase)) &&
+                !DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+                throw new ArgumentException($"Parameter '{parameter.DisplayName}' contains an invalid date.");
+            if (string.Equals(parameter.DataType, "Boolean", StringComparison.OrdinalIgnoreCase) &&
+                !bool.TryParse(value, out _))
+                throw new ArgumentException($"Parameter '{parameter.DisplayName}' contains an invalid boolean value.");
+        }
+
+        if (parameter.AllowRangeValues && values.Count == 2 &&
+            DateTime.TryParse(values[0], CultureInfo.InvariantCulture, out var start) &&
+            DateTime.TryParse(values[1], CultureInfo.InvariantCulture, out var end) && start > end)
+            throw new ArgumentException($"Parameter '{parameter.DisplayName}' has an invalid range.");
     }
 }

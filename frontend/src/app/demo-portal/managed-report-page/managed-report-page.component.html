@@ -91,6 +91,13 @@
             </span>
             <button
               type="button"
+              class="secondary-button"
+              (click)="openPermissions(report)"
+            >
+              設定權限
+            </button>
+            <button
+              type="button"
               class="danger-button managed-report-delete-button"
               (click)="deleteReport(report)"
             >
@@ -106,6 +113,34 @@
 
   <app-portal-pagination [CurrentPage]="currentPage" [TotalPages]="totalPages" [PageNumbers]="pageNumbers"
     AriaLabel="報表管理分頁" (PageChange)="goToPage($event)" />
+</section>
+
+<section *ngIf="permissionReport" class="modal-backdrop" (click)="closePermissions()">
+  <section class="edit-user-modal managed-report-permission-modal" role="dialog" aria-modal="true"
+    aria-labelledby="managed-report-permission-title" (click)="$event.stopPropagation()">
+    <div class="modal-heading">
+      <h2 id="managed-report-permission-title">設定報表權限：{{ permissionReport.reportName }}</h2>
+      <button type="button" class="modal-close-button" aria-label="關閉報表權限視窗" (click)="closePermissions()">×</button>
+    </div>
+    <p class="muted">只有同時具備「可執行」與「可匯出」的角色，才能產生 PDF。</p>
+    <p *ngIf="permissionError" class="field-error" role="alert">{{ permissionError }}</p>
+    <p *ngIf="isPermissionsLoading" class="managed-report-state" role="status">載入角色權限中…</p>
+    <div *ngIf="!isPermissionsLoading" class="table-scroll">
+      <table class="report-management-table">
+        <thead><tr><th>角色</th><th>可執行</th><th>可匯出</th><th>可列印</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let permission of permissionRows">
+            <td><strong>{{ permission.roleName }}</strong><small>{{ permission.roleCode }}</small></td>
+            <td><input type="checkbox" [(ngModel)]="permission.canExecute" /></td>
+            <td><input type="checkbox" [(ngModel)]="permission.canExport" /></td>
+            <td><input type="checkbox" [(ngModel)]="permission.canPrint" /></td>
+            <td><button type="button" class="primary-button" (click)="savePermission(permission)">保存</button></td>
+          </tr>
+          <tr *ngIf="!permissionRows.length"><td colspan="5" class="managed-report-state">目前沒有可設定的啟用角色。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </section>
 
 <app-managed-report-review-dialog
