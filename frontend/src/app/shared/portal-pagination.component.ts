@@ -37,6 +37,26 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
       >
         下一頁
       </button>
+      <label class="list-pagination-jump">
+        <span>頁碼</span>
+        <input
+          #targetPage
+          type="number"
+          inputmode="numeric"
+          min="1"
+          [max]="TotalPages"
+          [value]="CurrentPage"
+          aria-label="輸入欲前往的頁碼"
+          (keydown.enter)="SelectPageValue(targetPage.value)"
+        />
+      </label>
+      <button
+        type="button"
+        class="list-pagination-go"
+        (click)="SelectPageValue(targetPage.value)"
+      >
+        前往
+      </button>
     </nav>
   `,
 })
@@ -80,5 +100,11 @@ export class PortalPaginationComponent {
     }
 
     this.PageChange.emit(Page);
+  }
+
+  SelectPageValue(Value: string): void {
+    const page = Number(Value);
+    if (!Number.isInteger(page)) return;
+    this.SelectPage(page);
   }
 }

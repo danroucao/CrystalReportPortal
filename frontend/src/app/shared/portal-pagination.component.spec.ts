@@ -28,7 +28,20 @@ describe('PortalPaginationComponent', () => {
     component.CurrentPage = 15;
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll('.list-pagination button')).toHaveSize(7);
+    expect(fixture.nativeElement.querySelectorAll('.list-pagination button')).toHaveSize(8);
     expect(fixture.nativeElement.querySelector('.list-pagination-ellipsis')?.textContent.trim()).toBe('…');
+  });
+
+  it('emits the requested page only when it is a valid page number', () => {
+    component.TotalPages = 29;
+    component.CurrentPage = 1;
+    const pageChange = jasmine.createSpy('pageChange');
+    component.PageChange.subscribe(pageChange);
+
+    component.SelectPageValue('18');
+    component.SelectPageValue('30');
+    component.SelectPageValue('1.5');
+
+    expect(pageChange).toHaveBeenCalledOnceWith(18);
   });
 });
