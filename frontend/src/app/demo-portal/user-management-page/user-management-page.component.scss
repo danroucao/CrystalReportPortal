@@ -1,5 +1,56 @@
-// Kept with the extracted feature so style encapsulation follows the new host.
-@import '../demo-portal.component.scss';
+@use '../portal-shared' as shared;
+
+.user-management {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.management-card {
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fdfcf9;
+}
+
+.management-card h2 {
+  margin: 0 0 0.7rem;
+  font-size: 1rem;
+}
+
+.management-card .form-grid {
+  margin-bottom: 1rem;
+}
+
+.management-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.management-card-heading .muted {
+  margin: -0.5rem 0 1rem;
+}
+
+@include shared.form-grid;
+
+@include shared.muted;
+
+.mock-notice {
+  padding: 0.75rem;
+  color: #674a1f;
+  background: #fdf7ea;
+  font-size: 0.875rem;
+}
+
+@include shared.table;
+
+@media (max-width: 768px) {
+  .management-card-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 
 .user-management-section > app-portal-tabs {
   --color-surface: #fdfcf9;

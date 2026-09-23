@@ -1,7 +1,5 @@
 import { Routes } from '@angular/router';
 
-import { LoginComponent } from './login/login.component';
-import { DemoPortalComponent } from './demo-portal/demo-portal.component';
 import {
   BackOfficeGuard,
   FrontOfficeGuard,
@@ -10,15 +8,23 @@ import {
 } from './guards/demo-auth.guards';
 import { unsavedChangesGuard } from './guards/unsaved-changes.guard';
 
+const loadLoginComponent = () =>
+  import('./login/login.component').then((module) => module.LoginComponent);
+
+const loadDemoPortalComponent = () =>
+  import('./demo-portal/demo-portal.component').then(
+    (module) => module.DemoPortalComponent,
+  );
+
 export const routes: Routes = [
   {
     path: 'login',
-    component: LoginComponent,
+    loadComponent: loadLoginComponent,
     title: '登入｜Crystal Reports 外部報表系統',
   },
   {
     path: 'reports',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [FrontOfficeGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'ReportList' },
@@ -26,7 +32,7 @@ export const routes: Routes = [
   },
   {
     path: 'reports/parameters',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [FrontOfficeGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'ReportParameter' },
@@ -34,7 +40,7 @@ export const routes: Routes = [
   },
   {
     path: 'reports/preview',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [ReportPreviewGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'ReportPreview' },
@@ -42,7 +48,7 @@ export const routes: Routes = [
   },
   {
     path: 'notification-center',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [FrontOfficeGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'NotificationCenter' },
@@ -50,7 +56,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin/users',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [BackOfficeGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'UserManagement' },
@@ -58,7 +64,7 @@ export const routes: Routes = [
   },
   {
     path: 'report-management/upload',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [FrontOfficePermissionGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'ReportUpload', Permission: 'RptManagement' },
@@ -66,7 +72,7 @@ export const routes: Routes = [
   },
   {
     path: 'report-management/edit/:reportKey',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [FrontOfficePermissionGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'ReportEdit', Permission: 'RptManagement' },
@@ -74,7 +80,7 @@ export const routes: Routes = [
   },
   {
     path: 'report-management',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [FrontOfficePermissionGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'RptManagement', Permission: 'RptManagement' },
@@ -82,7 +88,7 @@ export const routes: Routes = [
   },
   {
     path: 'database-connections',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [FrontOfficePermissionGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'DatabaseConnection', Permission: 'DatabaseConnection' },
@@ -90,7 +96,7 @@ export const routes: Routes = [
   },
   {
     path: 'operation-logs',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [FrontOfficePermissionGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'OperationLog', Permission: 'OperationLog' },
@@ -98,7 +104,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin/notification-center',
-    component: DemoPortalComponent,
+    loadComponent: loadDemoPortalComponent,
     canActivate: [BackOfficeGuard],
     canDeactivate: [unsavedChangesGuard],
     data: { Page: 'NotificationCenter' },

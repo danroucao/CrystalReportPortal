@@ -1,0 +1,230 @@
+<section class="management-section">
+  <div class="database-connection-actions">
+    <button
+      type="button"
+      class="section-header-action primary-button"
+      (click)="OpenCreateDatabaseConnection()"
+    >
+      <span aria-hidden="true">＋</span>建立連線
+    </button>
+  </div>
+  <div class="table-scroll">
+    <table class="database-connection-table">
+      <thead>
+        <tr>
+          <th>資料來源</th>
+          <th>主機</th>
+          <th>資料庫</th>
+          <th>帳號</th>
+          <th>類型</th>
+          <th>狀態</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="
+            let Connection of DatabaseConnections.Connections;
+            trackBy: TrackDatabaseConnection
+          "
+          class="database-connection-row"
+        >
+          <td>{{ Connection.DataSourceName }}</td>
+          <td>{{ Connection.ServerHost }}:{{ Connection.Port }}</td>
+          <td>{{ Connection.DatabaseName }}</td>
+          <td>{{ Connection.Username }}</td>
+          <td>
+            {{
+              Connection.ConnectionType === "ReadOnly" ? "唯讀" : "讀寫"
+            }}
+          </td>
+          <td class="account-status-column">
+            <button
+              type="button"
+              class="account-status-switch"
+              role="switch"
+              [class.is-enabled]="Connection.Enabled"
+              [attr.aria-checked]="Connection.Enabled"
+              [attr.aria-label]="
+                (Connection.Enabled ? '停用' : '啟用') +
+                '資料庫連線 ' +
+                Connection.DataSourceName
+              "
+              [title]="Connection.Enabled ? '停用連線' : '啟用連線'"
+              (click)="ToggleDatabaseConnectionEnabled(Connection)"
+            >
+              <span class="account-status-switch-thumb"></span>
+            </button>
+            <span class="account-status-text">{{
+              Connection.Enabled ? "啟用" : "停用"
+            }}</span>
+          </td>
+          <td>
+            <button
+              type="button"
+              class="secondary-button"
+              (click)="OpenEditDatabaseConnection(Connection.Key)"
+            >
+              編輯
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <section
+    *ngIf="IsDatabaseConnectionEditorOpen"
+    class="modal-backdrop"
+    (click)="RequestCloseDatabaseConnectionEditor()"
+  >
+    <section
+      class="edit-user-modal database-connection-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="database-connection-dialog-title"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-heading">
+        <div>
+          <h2 id="database-connection-dialog-title">
+            {{
+              EditingDatabaseConnectionKey
+                ? "編輯資料庫連線"
+                : "建立資料庫連線"
+            }}
+          </h2>
+          <p class="muted">密碼僅用於本次輸入，絕不回填至此表單。</p>
+        </div>
+        <button
+          type="button"
+          class="modal-close-button"
+          aria-label="關閉資料庫連線視窗"
+          (click)="RequestCloseDatabaseConnectionEditor()"
+        >
+          ×
+        </button>
+      </div>
+      <p
+        *ngIf="DatabaseConnectionFormError"
+        class="field-error"
+        role="alert"
+      >
+        {{ DatabaseConnectionFormError }}
+      </p>
+      <div class="form-grid database-connection-form">
+        <label
+          ><span class="form-field-label"
+            >資料來源名稱<span
+              class="required-indicator"
+              aria-hidden="true"
+              >*</span
+            ></span
+          ><input [(ngModel)]="DatabaseConnectionDraft.DataSourceName"
+        /></label>
+        <label
+          ><span class="form-field-label"
+            >主機<span class="required-indicator" aria-hidden="true"
+              >*</span
+            ></span
+          ><input [(ngModel)]="DatabaseConnectionDraft.ServerHost"
+        /></label>
+        <label
+          ><span class="form-field-label"
+            >連接埠<span class="required-indicator" aria-hidden="true"
+              >*</span
+            ></span
+          ><input
+            [(ngModel)]="DatabaseConnectionDraft.Port"
+            inputmode="numeric"
+        /></label>
+        <label
+          ><span class="form-field-label"
+            >資料庫名稱<span class="required-indicator" aria-hidden="true"
+              >*</span
+            ></span
+          ><input [(ngModel)]="DatabaseConnectionDraft.DatabaseName"
+        /></label>
+        <label
+          ><span class="form-field-label"
+            >資料庫帳號<span class="required-indicator" aria-hidden="true"
+              >*</span
+            ></span
+          ><input [(ngModel)]="DatabaseConnectionDraft.Username"
+        /></label>
+        <label
+          >連線類型
+          <select [(ngModel)]="DatabaseConnectionDraft.ConnectionType">
+            <option value="ReadOnly">唯讀</option>
+            <option value="ReadWrite">讀寫</option>
+          </select>
+        </label>
+        <label
+          ><span class="form-field-label"
+            >資料庫密碼<span
+              *ngIf="!EditingDatabaseConnectionKey"
+              class="required-indicator"
+              aria-hidden="true"
+              >*</span
+            ></span
+          >
+          <input
+            id="database-password"
+            type="password"
+            autocomplete="new-password"
+            [(ngModel)]="DatabaseConnectionDraft.Password"
+            [placeholder]="
+              EditingDatabaseConnectionKey
+                ? '••••••••'
+                : '請輸入資料庫密碼'
+            "
+          />
+        </label>
+        <div class="edit-status-field">
+          <span class="form-field-label">啟用狀態</span>
+          <button
+            type="button"
+            class="account-status-switch"
+            role="switch"
+            [class.is-enabled]="DatabaseConnectionDraft.Enabled"
+            [attr.aria-checked]="DatabaseConnectionDraft.Enabled"
+            (click)="
+              DatabaseConnectionDraft.Enabled =
+                !DatabaseConnectionDraft.Enabled
+            "
+          >
+            <span class="account-status-switch-thumb"></span>
+          </button>
+          <span class="account-status-text">{{
+            DatabaseConnectionDraft.Enabled ? "啟用" : "停用"
+          }}</span>
+        </div>
+      </div>
+      <p *ngIf="EditingDatabaseConnectionKey" class="muted">
+        若不修改密碼請保持空白。
+      </p>
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="primary-button"
+          (click)="SaveDatabaseConnection()"
+        >
+          {{ EditingDatabaseConnectionKey ? "儲存變更" : "建立連線" }}
+        </button>
+        <button
+          type="button"
+          class="tertiary-button"
+          (click)="RequestCloseDatabaseConnectionEditor()"
+        >
+          取消
+        </button>
+      </div>
+    </section>
+  </section>
+  <app-unsaved-changes-dialog
+    *ngIf="IsDatabaseConnectionDiscardConfirmationOpen"
+    subject="資料庫連線"
+    (continueEditing)="ContinueEditingDatabaseConnection()"
+    (discardChanges)="DiscardDatabaseConnectionChanges()"
+  />
+</section>

@@ -15,7 +15,9 @@ describe('Front/back-office route boundaries', () => {
   let Harness: RouterTestingHarness;
   beforeEach(async () => {
     TestBed.configureTestingModule({ providers: [provideRouter(routes.map((Route) =>
-      Route.component ? { ...Route, component: RoutePage } : Route))] });
+      Route.loadComponent
+        ? { ...Route, loadComponent: () => RoutePage }
+        : Route))] });
     Auth = TestBed.inject(AuthService);
     Rbac = TestBed.inject(MockRbacService);
     Harness = await RouterTestingHarness.create();

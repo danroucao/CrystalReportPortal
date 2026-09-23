@@ -1,4 +1,6 @@
 import { DemoPortalComponent } from './demo-portal.component';
+import { By } from '@angular/platform-browser';
+import { DatabaseConnectionPageComponent } from './database-connection-page/database-connection-page.component';
 import { ReportPreviewPageComponent } from './report-preview-page/report-preview-page.component';
 import { UserManagementPageComponent } from './user-management-page/user-management-page.component';
 import {
@@ -53,9 +55,10 @@ describe('portal workflows after page extraction', () => {
     route.snapshot.data.Page = 'DatabaseConnection';
     expect(LoginFrontManager(auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
-    const component = fixture.componentInstance;
     fixture.detectChanges();
-    component.OpenEditDatabaseConnection(component.DatabaseConnections.Connections[0].Key);
+    const databasePage = fixture.debugElement.query(By.directive(DatabaseConnectionPageComponent))
+      .componentInstance as DatabaseConnectionPageComponent;
+    databasePage.OpenEditDatabaseConnection(databasePage.DatabaseConnections.Connections[0].Key);
     fixture.detectChanges();
 
     const password = (fixture.nativeElement as HTMLElement)
@@ -69,19 +72,20 @@ describe('portal workflows after page extraction', () => {
     route.snapshot.data.Page = 'DatabaseConnection';
     expect(LoginFrontManager(auth)).toBeTrue();
     const fixture = TestBed.createComponent(DemoPortalComponent);
-    const component = fixture.componentInstance;
     fixture.detectChanges();
-    component.OpenCreateDatabaseConnection();
-    component.DatabaseConnectionDraft.DataSourceName = 'ERP_Prod_DB';
+    const databasePage = fixture.debugElement.query(By.directive(DatabaseConnectionPageComponent))
+      .componentInstance as DatabaseConnectionPageComponent;
+    databasePage.OpenCreateDatabaseConnection();
+    databasePage.DatabaseConnectionDraft.DataSourceName = 'ERP_Prod_DB';
 
-    component.RequestCloseDatabaseConnectionEditor();
-    expect(component.IsDatabaseConnectionDiscardConfirmationOpen).toBeTrue();
-    expect(component.IsDatabaseConnectionEditorOpen).toBeTrue();
+    databasePage.RequestCloseDatabaseConnectionEditor();
+    expect(databasePage.IsDatabaseConnectionDiscardConfirmationOpen).toBeTrue();
+    expect(databasePage.IsDatabaseConnectionEditorOpen).toBeTrue();
 
-    component.ContinueEditingDatabaseConnection();
-    expect(component.IsDatabaseConnectionDiscardConfirmationOpen).toBeFalse();
-    component.DiscardDatabaseConnectionChanges();
-    expect(component.IsDatabaseConnectionEditorOpen).toBeFalse();
+    databasePage.ContinueEditingDatabaseConnection();
+    expect(databasePage.IsDatabaseConnectionDiscardConfirmationOpen).toBeFalse();
+    databasePage.DiscardDatabaseConnectionChanges();
+    expect(databasePage.IsDatabaseConnectionEditorOpen).toBeFalse();
   });
 
   it('blocks in-app navigation until changed database-connection edits are resolved', () => {
@@ -92,8 +96,10 @@ describe('portal workflows after page extraction', () => {
     const fixture = TestBed.createComponent(DemoPortalComponent);
     const component = fixture.componentInstance;
     fixture.detectChanges();
-    component.OpenCreateDatabaseConnection();
-    component.DatabaseConnectionDraft.DataSourceName = 'ERP_Prod_DB';
+    const databasePage = fixture.debugElement.query(By.directive(DatabaseConnectionPageComponent))
+      .componentInstance as DatabaseConnectionPageComponent;
+    databasePage.OpenCreateDatabaseConnection();
+    databasePage.DatabaseConnectionDraft.DataSourceName = 'ERP_Prod_DB';
 
     const firstDecision = component.CanLeavePage();
     expect(firstDecision).not.toBeTrue();

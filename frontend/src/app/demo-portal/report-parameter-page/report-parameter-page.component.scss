@@ -1,1 +1,38 @@
-@import '../demo-portal.component.scss';
+@use '../portal-shared' as shared;
+
+.content-card {
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 6px 18px rgb(32 32 31 / 5%);
+}
+
+@include shared.form-grid;
+
+@include shared.muted;
+
+.mock-notice {
+  padding: 0.75rem;
+  color: #674a1f;
+  background: #fdf7ea;
+  font-size: 0.875rem;
+}
+
+button.favorite-star-button {
+  padding: 0;
+  color: #b9132b;
+  background: transparent;
+}
+
+button.favorite-star-button:hover,
+button.favorite-star-button:focus-visible {
+  color: #8f0f22;
+  background: transparent;
+}
+
+@include shared.table;
+
+th.is-sorted {
+  color: var(--color-primary);
+}

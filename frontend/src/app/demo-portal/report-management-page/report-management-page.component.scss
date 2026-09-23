@@ -1,1 +1,39 @@
-@import '../demo-portal.component.scss';
+@use '../portal-shared' as shared;
+
+.management-section {
+  margin-top: 1.25rem;
+}
+
+.management-section:first-of-type {
+  margin-top: 0;
+}
+
+.management-section h2 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+
+.management-section > button {
+  margin-bottom: 1rem;
+}
+
+@include shared.muted;
+
+@include shared.table;
+
+th.is-sorted {
+  color: var(--color-primary);
+}
+
+@include shared.status-switch;
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

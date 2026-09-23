@@ -1,0 +1,48 @@
+@use '../portal-shared' as shared;
+
+.management-section {
+  margin-top: 1.25rem;
+}
+
+.management-section:first-of-type {
+  margin-top: 0;
+}
+
+.management-section h2 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+
+.database-connection-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+@include shared.form-grid;
+
+.edit-status-field {
+  display: flex;
+  align-items: center;
+  align-self: end;
+  gap: 0.5rem;
+  min-height: 38px;
+}
+
+.edit-status-field .form-field-label {
+  display: block;
+  margin-right: 0.25rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+@include shared.muted;
+
+@include shared.table;
+
+.account-status-column {
+  white-space: nowrap;
+}
+
+@include shared.status-switch;
