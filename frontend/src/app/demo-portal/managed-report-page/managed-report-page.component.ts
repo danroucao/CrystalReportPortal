@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { finalize, forkJoin, switchMap } from 'rxjs';
+import { catchError, finalize, forkJoin, of, switchMap, throwError } from 'rxjs';
 
 import {
   CreateManagedReportRequest,
@@ -170,7 +170,17 @@ export class ManagedReportPageComponent implements OnInit {
     const reportOperation = this.existingDraft
       ? this.reportsApi.UploadRpt(this.existingDraft.reportId, this.selectedFile!)
       : this.reportsApi.CreateManagedReport(this.normalizedDraft()).pipe(
-          switchMap((report) => this.reportsApi.UploadRpt(report.reportId, this.selectedFile!)),
+          switchMap((report) =>
+            this.reportsApi.UploadRpt(report.reportId, this.selectedFile!).pipe(
+              catchError((uploadError: unknown) =>
+                this.reportsApi.DeleteManagedReport(report.reportId).pipe(
+                  // Keep the original upload error even when compensating cleanup fails.
+                  catchError(() => of(undefined)),
+                  switchMap(() => throwError(() => uploadError)),
+                ),
+              ),
+            ),
+          ),
         );
 
     reportOperation.pipe(finalize(() => (this.isSaving = false))).subscribe({
