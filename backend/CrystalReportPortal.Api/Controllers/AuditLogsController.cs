@@ -28,6 +28,11 @@ public class AuditLogsController : ControllerBase
         GetAuditLogs(
             [FromQuery] AuditLogQueryRequest request)
     {
+        var archiveBoundary = DateTime.UtcNow.AddDays(-180);
+        var canViewArchive = User.HasClaim(
+            "Permission",
+            PermissionCodes.AuditLogViewArchive);
+
         if (request.Page < 1)
         {
             return BadRequest(new
@@ -112,14 +117,31 @@ public class AuditLogsController : ControllerBase
             var fromUtc =
                 EnsureUtc(request.FromUtc.Value);
 
+            if (!canViewArchive &&
+                fromUtc < archiveBoundary)
+            {
+                return Forbid();
+            }
+
             query = query.Where(log =>
                 log.CreatedAt >= fromUtc);
+        }
+        else if (!canViewArchive)
+        {
+            query = query.Where(log =>
+                log.CreatedAt >= archiveBoundary);
         }
 
         if (request.ToUtc.HasValue)
         {
             var toUtc =
                 EnsureUtc(request.ToUtc.Value);
+
+            if (!canViewArchive &&
+                toUtc < archiveBoundary)
+            {
+                return Forbid();
+            }
 
             query = query.Where(log =>
                 log.CreatedAt <= toUtc);

@@ -20,6 +20,9 @@ public static class PermissionCodes
     public const string AuditLogView =
         "AuditLog.View";
 
+    public const string AuditLogViewArchive =
+        "AuditLog.ViewArchive";
+
     public static readonly IReadOnlyList<string> All =
     [
         ReportUpload,
@@ -27,6 +30,7 @@ public static class PermissionCodes
         ReportSetParameters,
         ReportEnableDisable,
         DataSourceManage,
-        AuditLogView
+        AuditLogView,
+        AuditLogViewArchive
     ];
 }

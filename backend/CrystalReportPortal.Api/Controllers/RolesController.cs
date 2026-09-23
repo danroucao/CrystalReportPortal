@@ -11,7 +11,7 @@ namespace CrystalReportPortal.Api.Controllers;
 
 [ApiController]
 [Route("api/backoffice/roles")]
-[Authorize(Policy = PermissionCodes.ReportMaintain)]
+[Authorize(Policy = "BackOffice")]
 public class RolesController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
@@ -212,6 +212,11 @@ public class RolesController : ControllerBase
             {
                 Code = PermissionCodes.AuditLogView,
                 Name = "查詢操作紀錄"
+            },
+            new
+            {
+                Code = PermissionCodes.AuditLogViewArchive,
+                Name = "查詢 180 天以前操作紀錄"
             }
         };
 
