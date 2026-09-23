@@ -123,4 +123,32 @@ describe('AuthService API authentication', () => {
     expect(Auth.IsAuthenticated).toBeFalse();
     expect(sessionStorage.getItem('crystal-report-token')).toBeNull();
   });
+
+  it('keeps credentials enabled throughout the back-office session flow', () => {
+    Auth.LoginBackOffice('admin', 'shared-password').subscribe();
+    const SharedLogin = HttpTesting.expectOne(
+      'http://localhost:5181/api/backoffice-auth/login',
+    );
+    expect(SharedLogin.request.withCredentials).toBeTrue();
+    SharedLogin.flush({ success: true, message: 'Shared login complete.' });
+
+    Auth.VerifyBackOfficeOperator('admin@example.com', 'operator-password')
+      .subscribe();
+    const OperatorVerification = HttpTesting.expectOne(
+      'http://localhost:5181/api/backoffice-auth/verify-operator',
+    );
+    expect(OperatorVerification.request.withCredentials).toBeTrue();
+    OperatorVerification.flush({
+      success: true,
+      message: 'Operator verified.',
+      passwordExpired: false,
+      operator: {
+        userId: 1,
+        account: 'admin@example.com',
+        userName: 'Test Admin',
+      },
+    });
+
+    expect(Auth.CanOperateBackOffice).toBeTrue();
+  });
 });

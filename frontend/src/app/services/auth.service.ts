@@ -256,6 +256,7 @@ export class AuthService {
     return this.Http.post<BackOfficeLoginResponse>(
       `${API_BASE_URL}/backoffice-auth/login`,
       { account: Account.trim(), password: Password },
+      { withCredentials: true },
     ).pipe(
       tap((Response) => {
         if (!Response.success) {
@@ -277,6 +278,7 @@ export class AuthService {
     return this.Http.post<BackOfficeOperatorResponse>(
       `${API_BASE_URL}/backoffice-auth/verify-operator`,
       { account: Account.trim(), password: Password },
+      { withCredentials: true },
     ).pipe(
       tap((Response) => {
         if (!Response.success || !Response.operator) {
