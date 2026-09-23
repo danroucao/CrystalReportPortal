@@ -15,12 +15,14 @@ export class AuditLogService {
     pageSize: number;
     fromUtc?: string;
     toUtc?: string;
+    search?: string;
   }): Observable<AuditLogApiResponse> {
     let params = new HttpParams()
       .set('page', query.page)
       .set('pageSize', query.pageSize);
     if (query.fromUtc) params = params.set('fromUtc', query.fromUtc);
     if (query.toUtc) params = params.set('toUtc', query.toUtc);
+    if (query.search) params = params.set('search', query.search);
     return this.http.get<AuditLogApiResponse>(this.endpoint, { params });
   }
 }

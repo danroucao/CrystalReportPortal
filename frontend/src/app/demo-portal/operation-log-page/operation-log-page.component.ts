@@ -83,6 +83,7 @@ export class OperationLogPageComponent implements OnInit {
       pageSize: this.PaginationPageSize,
       fromUtc: this.OperationLogStartDate ? `${this.OperationLogStartDate}T00:00:00Z` : undefined,
       toUtc: this.OperationLogEndDate ? `${this.OperationLogEndDate}T23:59:59.999Z` : undefined,
+      search: this.OperationLogSearchText.trim() || undefined,
     }).subscribe({
       next: (response) => {
         this.ApiLogs = response.items.map((item) => this.MapApiLog(item));
@@ -117,21 +118,13 @@ export class OperationLogPageComponent implements OnInit {
   }
 
   get FilteredOperationLogs(): readonly MockAuditLogEntry[] {
-    const SearchText = this.OperationLogSearchText.trim().toLocaleLowerCase();
     const FilteredLogs = this.ApiLogs.filter((Entry) => {
       const OccurredDate = Entry.OccurredAt.slice(0, 10);
       const MatchesDate =
         (!this.OperationLogStartDate || OccurredDate >= this.OperationLogStartDate) &&
         (!this.OperationLogEndDate || OccurredDate <= this.OperationLogEndDate);
-      const MatchesSearch =
-        !SearchText ||
-        `${Entry.UserId} ${Entry.TargetId} ${Entry.IpAddress} ${Entry.Summary}`
-          .toLocaleLowerCase()
-          .includes(SearchText);
-
       return (
         MatchesDate &&
-        MatchesSearch &&
         (this.OperationLogCategoryFilter === 'ALL' ||
           Entry.Category === this.OperationLogCategoryFilter) &&
         (this.OperationLogSourceFilter === 'ALL' ||

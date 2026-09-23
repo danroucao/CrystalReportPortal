@@ -16,6 +16,8 @@ public class AuditLogQueryRequest
 
     public string? IpAddress { get; set; }
 
+    public string? Search { get; set; }
+
     public DateTime? FromUtc { get; set; }
 
     public DateTime? ToUtc { get; set; }

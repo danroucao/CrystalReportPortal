@@ -112,6 +112,24 @@ public class AuditLogsController : ControllerBase
                 log.IpAddress == ipAddress);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var search = request.Search.Trim();
+
+            query = query.Where(log =>
+                (log.User != null &&
+                    (log.User.Account.Contains(search) ||
+                     log.User.UserName.Contains(search))) ||
+                (log.Report != null &&
+                    (log.Report.ReportCode.Contains(search) ||
+                     log.Report.ReportName.Contains(search))) ||
+                log.Action.Contains(search) ||
+                log.Result.Contains(search) ||
+                (log.Details != null && log.Details.Contains(search)) ||
+                (log.ErrorMessage != null && log.ErrorMessage.Contains(search)) ||
+                (log.IpAddress != null && log.IpAddress.Contains(search)));
+        }
+
         if (request.FromUtc.HasValue)
         {
             var fromUtc =
