@@ -91,6 +91,19 @@ export class MockManagedReportParameterService {
     return this.GetStoredParameters(ReportKey).map((Parameter) => ({ ...Parameter }));
   }
 
+  SynchronizeParametersWithCommonTemplates(
+    ReportKey: MockReportKey,
+  ): readonly MockManagedReportParameter[] {
+    const Parameters = this.GetStoredParameters(ReportKey);
+    Parameters.forEach((Parameter, Index) => {
+      if (Parameter.CommonTemplateId) return;
+      const Template = this.GetEnabledTemplate(Parameter.ParameterName);
+      if (!Template) return;
+      Parameters[Index] = this.ApplyTemplateToParameter(Parameter, Template);
+    });
+    return Parameters.map((Parameter) => ({ ...Parameter }));
+  }
+
   GetAvailableRptParameterNames(ReportKey: MockReportKey): readonly string[] {
     const ExistingNames = new Set(
       this.GetStoredParameters(ReportKey).map((Parameter) => Parameter.ParameterName),

@@ -1,75 +1,45 @@
-<section class="report-parameter-management" aria-labelledby="parameter-management-title">
+<section class="report-parameter-management" aria-label="報表參數">
   <header class="parameter-management-heading">
-    <div>
-      <h3 id="parameter-management-title">報表查詢參數配置</h3>
-      <p>管理 {{ reportName }} 的 RPT 參數；常用參數可由所有具報表管理權限者重複套用。</p>
-    </div>
     <button type="button" class="secondary-button" (click)="openManualDialog()"><span aria-hidden="true">＋</span> 新增參數</button>
   </header>
 
   <div class="parameter-management-toolbar">
     <span>{{ parameters.length }} 項參數</span>
-    <span class="parameter-management-hint">「加入常用」會使用此列目前的設定建立共用範本。</span>
   </div>
 
   <div *ngIf="parameters.length" class="parameter-accordion-list">
     <section *ngFor="let parameter of parameters; let index = index; trackBy: trackParameter" class="parameter-accordion-item" [class.is-expanded]="isParameterExpanded(parameter.ParameterId)">
       <button type="button" class="parameter-accordion-trigger" [attr.aria-expanded]="isParameterExpanded(parameter.ParameterId)" (click)="toggleParameter(parameter.ParameterId)">
         <span class="parameter-sequence">{{ index + 1 }}</span>
-        <span class="parameter-identity"><strong>{{ parameter.ParameterName }}</strong><small>{{ parameter.DisplayName || '尚未設定顯示名稱' }}</small></span>
+        <span class="parameter-identity"><strong>{{ parameter.ParameterName }}</strong><small>{{ parameter.DisplayName }}</small></span>
         <span class="parameter-summary">{{ parameter.DataType }} ・ {{ parameter.InputType }}</span>
         <span class="parameter-chevron" aria-hidden="true">⌄</span>
       </button>
 
       <div *ngIf="isParameterExpanded(parameter.ParameterId)" class="parameter-accordion-content">
-        <div class="parameter-editor-grid">
-          <label>顯示名稱<input [name]="'display-name-' + parameter.ParameterId" [ngModel]="parameter.DisplayName" (ngModelChange)="updateDisplayName(parameter, $event)" /></label>
-          <label>資料類型<select [name]="'data-type-' + parameter.ParameterId" [ngModel]="parameter.DataType" (ngModelChange)="updateParameterType(parameter, $event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></label>
-          <label>輸入類型<select [name]="'input-type-' + parameter.ParameterId" [(ngModel)]="parameter.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></label>
-          <label>預設值<input [name]="'default-' + parameter.ParameterId" [(ngModel)]="parameter.DefaultValue" /></label>
+        <dl class="parameter-readonly-grid">
+          <div><dt>顯示名稱</dt><dd>{{ parameter.DisplayName }}</dd></div>
+          <div><dt>資料類型</dt><dd>{{ parameter.DataType }}</dd></div>
+          <div><dt>輸入類型</dt><dd>{{ parameter.InputType }}</dd></div>
+          <div><dt>預設值</dt><dd>{{ parameter.DefaultValue || '—' }}</dd></div>
+        </dl>
+        <div class="parameter-common-reference" [class.is-unmatched]="!parameter.CommonTemplateId">
+          <div><span>共用參數</span><strong>{{ getParameterTemplateStatus(parameter) }}</strong></div>
+          <button type="button" class="parameter-link-button" (click)="requestCommonParameterManagement()">前往共用參數管理</button>
         </div>
-        <div class="parameter-common-settings">
-          <label>常用參數
-            <select *ngIf="!parameter.CommonTemplateId" [name]="'common-' + parameter.ParameterId" [ngModel]="getCommonSelection(parameter)" (ngModelChange)="setCommonSelection(parameter, $event)">
-              <option value="none">非常用</option><option value="add">加入共用</option>
-            </select>
-            <input *ngIf="parameter.CommonTemplateId" readonly [value]="parameter.CommonTemplateName || ''" />
-          </label>
-          <ng-container *ngIf="parameter.CommonTemplateId; else TemplateAvailable">
-            <button type="button" class="parameter-link-button" (click)="detachTemplate(parameter)">解除關聯</button>
-          </ng-container>
-          <ng-template #TemplateAvailable>
-            <button *ngIf="matchingTemplateName(parameter) as templateName" type="button" class="parameter-link-button" (click)="requestTemplateApply(parameter)">套用「{{ templateName }}」</button>
-          </ng-template>
-        </div>
-        <label class="parameter-description-field">說明<textarea [name]="'description-' + parameter.ParameterId" rows="3" [(ngModel)]="parameter.Description"></textarea></label>
+        <dl class="parameter-description-field"><dt>說明</dt><dd>{{ parameter.Description || '—' }}</dd></dl>
       </div>
     </section>
   </div>
 
-  <p *ngIf="!parameters.length" class="parameter-empty">目前沒有已設定的參數。</p>
-
-  <p *ngIf="saveError" class="field-error" role="alert">{{ saveError }}</p>
-  <footer class="parameter-management-actions"><button type="button" class="primary-button" (click)="saveParameters()">儲存參數設定</button></footer>
+  <p *ngIf="!parameters.length" class="parameter-empty">目前沒有可顯示的報表參數。</p>
 </section>
 
-<section *ngIf="pendingTemplateApply" class="parameter-dialog-backdrop" (click)="cancelTemplateApply()">
-  <section class="parameter-dialog parameter-confirmation-dialog" role="alertdialog" aria-modal="true" aria-labelledby="apply-common-template-title" (click)="$event.stopPropagation()">
-    <div class="parameter-dialog-heading"><div><h2 id="apply-common-template-title">套用共用範本</h2><p>套用後會覆蓋此報表參數的顯示名稱、型別、輸入方式、規則與預設值；RPT 原始參數名稱不會改變。</p></div></div>
-    <div class="modal-actions"><button type="button" class="tertiary-button" (click)="cancelTemplateApply()">取消</button><button type="button" class="primary-button" (click)="confirmTemplateApply()">確認套用</button></div>
-  </section>
-</section>
-
-<section *ngIf="isDetectedDialogOpen" class="parameter-dialog-backdrop" role="presentation">
-  <section class="parameter-dialog" role="dialog" aria-modal="true" aria-labelledby="detected-parameter-title">
-    <div class="parameter-dialog-heading"><div><h2 id="detected-parameter-title">偵測到新的 RPT 參數</h2><p>請確認顯示名稱；其餘設定會先帶入建議預設值。</p></div></div>
-    <div class="detected-parameter-list">
-      <label *ngFor="let name of detectedParameterNames">
-        <span>{{ name }}</span>
-        <input [name]="'detected-display-' + name" [(ngModel)]="detectedDisplayNames[getDetectedParameterId(name)]" placeholder="請輸入顯示名稱" />
-      </label>
-    </div>
-    <div class="modal-actions"><button type="button" class="tertiary-button" (click)="postponeDetectedParameters()">稍後設定</button><button type="button" class="primary-button" (click)="saveDetectedParameters()">加入參數設定</button></div>
+<section *ngIf="isDetectedDialogOpen" class="parameter-dialog-backdrop" (click)="acknowledgeDetectedParameters()">
+  <section class="parameter-dialog parameter-detected-dialog" role="dialog" aria-modal="true" aria-labelledby="detected-parameter-title" (click)="$event.stopPropagation()">
+    <div class="parameter-dialog-heading"><div><h2 id="detected-parameter-title">偵測到新的 RPT 參數</h2><p>請先在共用參數管理建立設定，再回到此報表查看對應結果。</p></div></div>
+    <ul class="detected-parameter-list"><li *ngFor="let name of detectedParameterNames">{{ name }}</li></ul>
+    <div class="modal-actions"><button type="button" class="tertiary-button" (click)="acknowledgeDetectedParameters()">稍後處理</button><button type="button" class="primary-button" (click)="requestCommonParameterManagement()">前往共用參數管理</button></div>
   </section>
 </section>
 
@@ -77,11 +47,11 @@
   <section class="parameter-dialog parameter-manual-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-parameter-title" (click)="$event.stopPropagation()">
     <div class="parameter-dialog-heading"><div><h2 id="manual-parameter-title">新增參數</h2></div><button type="button" class="modal-close-button" aria-label="關閉新增參數視窗" (click)="requestCloseManualDialog()">×</button></div>
     <form class="manual-parameter-form" (ngSubmit)="submitManualParameter()" novalidate>
-      <p class="manual-report-context">新增至目前報表：{{ reportName }}</p>
+      <p class="manual-report-context">加入至目前報表：{{ reportName }}</p>
       <label><span class="form-field-label required-field-label">RPT 參數名稱<span class="required-indicator" aria-hidden="true">*</span></span>
         <select name="manualParameterName" [(ngModel)]="manualDraft.ParameterName"><option value="" disabled>請選擇 RPT 參數</option><option *ngFor="let name of availableRptParameterNames" [value]="name">{{ name }}</option></select>
       </label>
-      <label>顯示名稱<input name="manualDisplayName" [(ngModel)]="manualDraft.DisplayName" placeholder="例如 客戶群組" /></label>
+      <label><span class="form-field-label required-field-label">顯示名稱<span class="required-indicator" aria-hidden="true">*</span></span><input name="manualDisplayName" [(ngModel)]="manualDraft.DisplayName" placeholder="例如 客戶群組" /></label>
       <label>資料類型<select name="manualDataType" [ngModel]="manualDraft.DataType" (ngModelChange)="updateManualType($event)"><option *ngFor="let type of dataTypes" [value]="type">{{ type }}</option></select></label>
       <label>輸入類型<select name="manualInputType" [(ngModel)]="manualDraft.InputType"><option *ngFor="let type of inputTypes" [value]="type">{{ type }}</option></select></label>
       <label>預設值<input name="manualDefaultValue" [(ngModel)]="manualDraft.DefaultValue" /></label>

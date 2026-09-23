@@ -5,9 +5,7 @@
 .parameter-link-button:hover, .parameter-link-button:focus-visible { color: var(--color-primary-hover); }
 .parameter-confirmation-dialog { width: min(34rem, calc(100vw - 2rem)); }
 .report-parameter-management { display: grid; gap: 1rem; }
-.parameter-management-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-.parameter-management-heading h3, .parameter-management-heading p { margin: 0; }
-.parameter-management-heading p, .parameter-management-hint { color: var(--color-muted); font-size: .875rem; line-height: 1.5; }
+.parameter-management-heading { display: flex; justify-content: flex-end; }
 .parameter-management-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: var(--color-muted); font-size: .875rem; }
 .parameter-accordion-list { display: grid; gap: 0.75rem; }
 .parameter-accordion-item { overflow: hidden; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); }
@@ -23,6 +21,15 @@
 .parameter-chevron { justify-self: end; font-size: 1.25rem; transition: transform 160ms ease; }
 .parameter-accordion-item.is-expanded .parameter-chevron { transform: rotate(180deg); }
 .parameter-accordion-content { display: grid; gap: 1rem; padding: 1.1rem 1.35rem 1.25rem; border-top: 1px solid var(--color-border); }
+.parameter-readonly-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; }
+.parameter-readonly-grid div, .parameter-description-field { display: grid; gap: .35rem; }
+.parameter-readonly-grid dt, .parameter-description-field dt, .parameter-common-reference span { color: var(--color-muted); font-size: .8125rem; font-weight: 700; }
+.parameter-readonly-grid dd, .parameter-description-field dd { margin: 0; min-height: 2.5rem; padding: .55rem .65rem; border: 1px solid var(--color-border); border-radius: 5px; background: #fbfaf8; color: var(--color-text); }
+.parameter-common-reference { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: .8rem .9rem; border: 1px solid #d8e2ec; border-radius: 5px; background: #f7fafc; }
+.parameter-common-reference > div { display: grid; gap: .25rem; }
+.parameter-common-reference strong { color: var(--color-text); }
+.parameter-common-reference.is-unmatched { border-color: #e5c779; background: #fffaf0; }
+.parameter-common-reference.is-unmatched strong { color: #8a5a00; }
 .parameter-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .parameter-editor-grid label, .parameter-common-settings > label, .parameter-description-field { display: grid; gap: 0.4rem; color: var(--color-muted); font-size: .8125rem; font-weight: 700; }
 .parameter-editor-grid input, .parameter-editor-grid select, .parameter-common-settings input, .parameter-common-settings select, .parameter-description-field textarea { box-sizing: border-box; width: 100%; min-height: 2.5rem; padding: 0.55rem 0.65rem; border: 1px solid #aaa69e; border-radius: 5px; background: #fff; color: var(--color-text); font: inherit; }
@@ -46,17 +53,19 @@
 .parameter-management-actions { display: flex; justify-content: flex-end; }
 .parameter-dialog-backdrop { align-items: center; background: rgb(15 23 42 / 48%); display: flex; inset: 0; justify-content: center; padding: 1rem; position: fixed; z-index: 30; }
 .parameter-dialog { background: #fff; border-radius: 10px; box-shadow: 0 20px 45px rgb(15 23 42 / 24%); max-height: min(720px, calc(100vh - 2rem)); overflow: auto; width: min(600px, 100%); }
-.parameter-manual-dialog { max-height: calc(100vh - 1rem); overflow: hidden; width: min(640px, 100%); }
+.parameter-manual-dialog { max-height: calc(100vh - 1rem); overflow: clip; width: min(36rem, 100%); }
 .parameter-dialog-heading { align-items: flex-start; border-bottom: 1px solid #e3eaf1; display: flex; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; }
 .parameter-dialog-heading h2, .parameter-dialog-heading p { margin: 0; }
 .parameter-dialog-heading p { color: #64748b; margin-top: .35rem; }
-.detected-parameter-list { display: grid; gap: .75rem; padding: 1.25rem 1.5rem; }
-.detected-parameter-list label { align-items: center; display: grid; gap: .75rem; grid-template-columns: minmax(10rem, 1fr) minmax(0, 1.5fr); }
+.detected-parameter-list { display: grid; gap: .5rem; margin: 0; padding: 1.25rem 1.5rem; list-style: none; }
+.detected-parameter-list li { padding: .55rem .65rem; border: 1px solid var(--color-border); border-radius: 5px; background: #fbfaf8; font-weight: 700; }
+.parameter-detected-dialog { width: min(34rem, 100%); }
 .detected-parameter-list input, .manual-parameter-form input:not([type='checkbox']), .manual-parameter-form select, .manual-parameter-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; font: inherit; margin-top: .3rem; padding: .5rem .6rem; }
 .manual-parameter-form { display: grid; gap: .75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 1rem 1.25rem; }
 .manual-parameter-form > label { display: block; font-weight: 700; }
 .manual-report-context { grid-column: 1 / -1; margin: -0.1rem 0 0; padding: .55rem .7rem; border-radius: 5px; background: #f5f7fa; color: var(--color-muted); font-size: .875rem; line-height: 1.4; }
 .manual-description, .manual-common-option, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: 1 / -1; }
+.manual-empty-state { grid-column: 1 / -1; margin: 0; color: var(--color-muted); font-size: .875rem; line-height: 1.5; }
 .manual-description textarea { height: 4.5rem; min-height: 4.5rem; resize: none; }
 .manual-common-option { align-items: flex-start; display: flex !important; gap: .65rem; padding-top: .7rem; border-top: 1px solid #e3eaf1; font-weight: 400 !important; }
 .manual-common-option input[type='checkbox'] { flex: 0 0 18px; width: 18px !important; height: 18px; margin: .1rem 0 0; padding: 0; }
@@ -75,12 +84,13 @@
   .manual-parameter-form .modal-actions { margin-bottom: -.75rem; padding-block: .6rem; }
 }
 @media (max-width: 720px) {
-  .parameter-management-heading, .parameter-management-toolbar { align-items: stretch; flex-direction: column; }
+  .parameter-management-toolbar { align-items: stretch; flex-direction: column; }
   .parameter-management-heading .secondary-button { align-self: flex-start; }
   .parameter-accordion-trigger { grid-template-columns: 2.25rem minmax(0, 1fr) 1.5rem; gap: .75rem; }
   .parameter-summary { display: none; }
-  .parameter-editor-grid { grid-template-columns: 1fr; }
+  .parameter-editor-grid, .parameter-readonly-grid { grid-template-columns: 1fr; }
   .parameter-common-settings { align-items: stretch; flex-direction: column; gap: .75rem; }
-  .detected-parameter-list label, .manual-parameter-form { grid-template-columns: 1fr; }
-  .manual-report-context, .manual-description, .manual-common-option, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: auto; }
+  .parameter-common-reference { align-items: stretch; flex-direction: column; }
+  .manual-parameter-form { grid-template-columns: 1fr; }
+  .manual-report-context, .manual-description, .manual-common-option, .manual-empty-state, .manual-parameter-form .field-error, .manual-parameter-form .modal-actions { grid-column: auto; }
 }

@@ -102,7 +102,13 @@ export class ReportManagementPageComponent implements OnInit {
   private InitialReportFileName = '';
 
   ngOnInit(): void {
-    if (!this.isDetailPage) return;
+    const NavigationState = this.router.getCurrentNavigation()?.extras.state ?? history.state;
+    if (!this.isDetailPage) {
+      if (NavigationState?.['ManagementTab'] === 'common-parameters') {
+        this.ManagementTab = 'common-parameters';
+      }
+      return;
+    }
     const ReportKey = this.route.snapshot.paramMap.get('reportKey') as MockReportKey | null;
     if (!ReportKey || !this.LoadReportDetail(ReportKey)) {
       void this.router.navigate(['/report-management']);
@@ -403,6 +409,12 @@ export class ReportManagementPageComponent implements OnInit {
 
   SetManagementTab(Tab: string): void {
     if (Tab === 'reports' || Tab === 'common-parameters') this.ManagementTab = Tab;
+  }
+
+  OpenCommonParameterManagement(): void {
+    void this.router.navigate(['/report-management'], {
+      state: { ManagementTab: 'common-parameters' },
+    });
   }
 
   HasUnsavedChanges(): boolean {

@@ -13,10 +13,6 @@ import {
   MockManagedReportParameterService,
 } from '../../services/mock-managed-report-parameter.service';
 
-type EditableParameterDraft = {
-  -readonly [Key in keyof MockManagedReportParameterDraft]: MockManagedReportParameterDraft[Key];
-};
-
 @Component({
   selector: 'app-report-parameter-management',
   standalone: true,
@@ -32,24 +28,21 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
   @Input({ required: true }) reportName = '';
   @Input() detectedParameterNames: readonly string[] = [];
   @Output() readonly detectedParametersHandled = new EventEmitter<void>();
+  @Output() readonly commonParameterManagementRequested = new EventEmitter<void>();
 
   readonly dataTypes: readonly MockManagedParameterDataType[] = ['String', 'Date', 'Number', 'Boolean'];
   readonly inputTypes: readonly MockManagedParameterInputType[] = [
     'Text', 'DatePicker', 'Number', 'Select', 'MultiSelect', 'Checkbox',
   ];
-  parameters: MockManagedReportParameter[] = [];
+  parameters: readonly MockManagedReportParameter[] = [];
   expandedParameterId: string | null = null;
-  commonSelections: Record<string, 'none' | 'add' | 'common'> = {};
   isDetectedDialogOpen = false;
-  detectedDisplayNames: Record<string, string> = {};
   isManualDialogOpen = false;
   isManualDiscardConfirmationOpen = false;
+  manualDraft = this.createManualDraft();
   manualAddToCommon = false;
   manualError = '';
-  saveError = '';
-  pendingTemplateApply: MockManagedReportParameter | null = null;
-  manualDraft = this.createManualDraft();
-  private initialManualDraft: EditableParameterDraft | null = null;
+  private initialManualDraft: MockManagedReportParameterDraft | null = null;
   private initialManualAddToCommon = false;
 
   get availableRptParameterNames(): readonly string[] {
@@ -62,9 +55,7 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['reportKey'] && !changes['reportKey'].firstChange) {
-      this.loadParameters();
-    }
+    if (changes['reportKey'] && !changes['reportKey'].firstChange) this.loadParameters();
     if (changes['detectedParameterNames']) this.openDetectedDialogIfNeeded();
   }
 
@@ -94,7 +85,6 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
   }
 
   discardManualParameterChanges(): void {
-    this.isManualDiscardConfirmationOpen = false;
     this.closeManualDialog();
   }
 
@@ -107,15 +97,6 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
     this.manualError = '';
   }
 
-  updateParameterType(parameter: MockManagedReportParameter, value: string): void {
-    parameter.DataType = value as MockManagedParameterDataType;
-    parameter.InputType = this.defaultInputType(parameter.DataType);
-  }
-
-  updateDisplayName(parameter: MockManagedReportParameter, value: string): void {
-    parameter.DisplayName = value;
-  }
-
   isParameterExpanded(parameterId: string): boolean {
     return this.expandedParameterId === parameterId;
   }
@@ -124,149 +105,57 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
     this.expandedParameterId = this.expandedParameterId === parameterId ? null : parameterId;
   }
 
-  updateManualType(value: string): void {
-    this.manualDraft.DataType = value as MockManagedParameterDataType;
-    this.manualDraft.InputType = this.defaultInputType(this.manualDraft.DataType);
+  getParameterTemplateStatus(parameter: MockManagedReportParameter): string {
+    return parameter.CommonTemplateName ?? '尚未建立共用參數';
   }
 
-  saveParameters(): void {
-    this.saveError = '';
-    this.parameters.forEach((parameter) => {
-      parameter.DisplayName = parameter.DisplayName.trim() || parameter.ParameterName;
-    });
-    for (const parameter of this.parameters) {
-      if (this.commonSelections[parameter.ParameterId] !== 'add') continue;
-      const result = this.parametersApi.AddParameterToCommon(parameter);
-      if (!result.Success) {
-        this.saveError = `「${parameter.DisplayName}」${result.Error}`;
-        continue;
-      }
-      parameter.CommonTemplateId = result.Template.TemplateId;
-      parameter.CommonTemplateName = result.Template.DisplayName;
-      this.commonSelections[parameter.ParameterId] = 'common';
-    }
-    this.parametersApi.SaveParameters(this.reportKey, this.parameters);
-    if (!this.saveError) this.notifications.ShowSuccess('參數設定已儲存。');
+  requestCommonParameterManagement(): void {
+    this.commonParameterManagementRequested.emit();
   }
 
-  saveDetectedParameters(): void {
-    const Detected = new Set(this.detectedParameterNames);
-    this.parameters.forEach((parameter) => {
-      if (!Detected.has(parameter.ParameterName)) return;
-      parameter.DisplayName = this.detectedDisplayNames[parameter.ParameterId]?.trim() || parameter.ParameterName;
-      parameter.IsConfigured = true;
-    });
-    this.parametersApi.SaveParameters(this.reportKey, this.parameters);
+  acknowledgeDetectedParameters(): void {
     this.isDetectedDialogOpen = false;
     this.detectedParametersHandled.emit();
-    this.notifications.ShowSuccess('新參數已加入目前報表，可在參數設定頁籤繼續調整。');
-  }
-
-  postponeDetectedParameters(): void {
-    this.isDetectedDialogOpen = false;
-    this.detectedParametersHandled.emit();
-    this.notifications.ShowSuccess('已保留待設定的新參數；報表將維持待設定狀態。');
   }
 
   submitManualParameter(): void {
     const Draft = this.normalizedManualDraft();
+    if (!Draft.DisplayName) {
+      this.manualError = '請輸入顯示名稱。';
+      return;
+    }
     const AddToCommon = this.manualAddToCommon;
-    const result = this.parametersApi.AddReportParameter(
-      this.reportKey,
-      Draft,
-      AddToCommon,
-    );
+    const result = this.parametersApi.AddReportParameter(this.reportKey, Draft, AddToCommon);
     if (!result.Success) {
       this.manualError = result.Error;
       return;
     }
     this.parameters = [...this.parameters, result.Parameter];
-    this.commonSelections[result.Parameter.ParameterId] = result.Parameter.CommonTemplateName ? 'common' : 'none';
     this.closeManualDialog();
     this.notifications.ShowSuccess(
       AddToCommon
         ? `已新增參數「${result.Parameter.DisplayName}」並加入共用參數。`
-        : `已新增參數「${result.Parameter.DisplayName}」。`,
+        : `已將「${result.Parameter.DisplayName}」加入目前報表。`,
     );
-  }
-
-  getCommonSelection(parameter: MockManagedReportParameter): 'none' | 'add' | 'common' {
-    return this.commonSelections[parameter.ParameterId] ?? (parameter.CommonTemplateName ? 'common' : 'none');
-  }
-
-  setCommonSelection(parameter: MockManagedReportParameter, value: string): void {
-    if (parameter.CommonTemplateName) return;
-    this.commonSelections[parameter.ParameterId] = value as 'none' | 'add';
-  }
-
-  matchingTemplateName(parameter: MockManagedReportParameter): string | null {
-    return this.parametersApi.GetMatchingTemplate(parameter.ParameterName)?.DisplayName ?? null;
-  }
-
-  requestTemplateApply(parameter: MockManagedReportParameter): void {
-    if (!this.matchingTemplateName(parameter) || parameter.CommonTemplateId) return;
-    this.pendingTemplateApply = parameter;
-  }
-
-  cancelTemplateApply(): void {
-    this.pendingTemplateApply = null;
-  }
-
-  confirmTemplateApply(): void {
-    if (!this.pendingTemplateApply) return;
-    const result = this.parametersApi.ApplyTemplate(
-      this.reportKey,
-      this.pendingTemplateApply.ParameterId,
-    );
-    if (!result.Success) {
-      this.saveError = result.Error;
-      this.pendingTemplateApply = null;
-      return;
-    }
-    this.parameters = this.parameters.map((parameter) =>
-      parameter.ParameterId === result.Parameter.ParameterId ? result.Parameter : parameter,
-    );
-    this.commonSelections[result.Parameter.ParameterId] = 'common';
-    this.pendingTemplateApply = null;
-    this.notifications.ShowSuccess('已套用共用參數範本。');
-  }
-
-  detachTemplate(parameter: MockManagedReportParameter): void {
-    if (!parameter.CommonTemplateId) return;
-    if (!this.parametersApi.DetachTemplate(this.reportKey, parameter.ParameterId)) return;
-    parameter.CommonTemplateId = null;
-    parameter.CommonTemplateName = null;
-    this.commonSelections[parameter.ParameterId] = 'none';
-    this.notifications.ShowSuccess('已解除共用參數關聯，保留目前報表設定。');
   }
 
   trackParameter(_: number, parameter: MockManagedReportParameter): string {
     return parameter.ParameterId;
   }
 
-  getDetectedParameterId(parameterName: string): string {
-    return this.parameters.find((parameter) => parameter.ParameterName === parameterName)?.ParameterId ?? '';
-  }
-
   private loadParameters(): void {
     if (!this.reportKey) return;
-    this.parameters = [...this.parametersApi.GetParameters(this.reportKey)];
-    this.commonSelections = Object.fromEntries(
-      this.parameters.map((parameter) => [
-        parameter.ParameterId,
-        parameter.CommonTemplateName ? 'common' : 'none',
-      ]),
-    );
-    this.detectedDisplayNames = Object.fromEntries(
-      this.parameters.map((parameter) => [parameter.ParameterId, parameter.DisplayName]),
-    );
-    if (!this.parameters.some((parameter) => parameter.ParameterId === this.expandedParameterId)) {
-      this.expandedParameterId = this.parameters[0]?.ParameterId ?? null;
+    this.parameters = this.parametersApi.SynchronizeParametersWithCommonTemplates(this.reportKey);
+    if (
+      this.expandedParameterId &&
+      !this.parameters.some((parameter) => parameter.ParameterId === this.expandedParameterId)
+    ) {
+      this.expandedParameterId = null;
     }
   }
 
   private openDetectedDialogIfNeeded(): void {
-    if (!this.detectedParameterNames.length || !this.parameters.length) return;
+    if (!this.detectedParameterNames.length) return;
     this.isDetectedDialogOpen = true;
   }
 
@@ -280,7 +169,12 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
     );
   }
 
-  private createManualDraft(): EditableParameterDraft {
+  updateManualType(value: string): void {
+    this.manualDraft.DataType = value as MockManagedParameterDataType;
+    this.manualDraft.InputType = this.defaultInputType(this.manualDraft.DataType);
+  }
+
+  private createManualDraft(): MockManagedReportParameterDraft {
     return {
       ParameterName: this.availableRptParameterNames[0] ?? '',
       DisplayName: '',
@@ -295,7 +189,7 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
     return {
       ...this.manualDraft,
       ParameterName: this.manualDraft.ParameterName.trim(),
-      DisplayName: this.manualDraft.DisplayName.trim() || this.manualDraft.ParameterName.trim(),
+      DisplayName: this.manualDraft.DisplayName.trim(),
       DefaultValue: this.manualDraft.DefaultValue.trim(),
       Description: this.manualDraft.Description.trim(),
     };
