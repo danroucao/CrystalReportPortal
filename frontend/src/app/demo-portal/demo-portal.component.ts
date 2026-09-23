@@ -51,6 +51,7 @@ import {
   MockNotificationCenterService,
 } from '../services/mock-notification-center.service';
 import {
+  MockDatabaseConnection,
   MockDatabaseConnectionDraft,
   MockDatabaseConnectionService,
 } from '../services/mock-database-connection.service';
@@ -766,6 +767,22 @@ export class DemoPortalComponent
     this.DatabaseConnectionFormError = '';
     this.DatabaseConnectionInitialDraft = { ...this.DatabaseConnectionDraft };
     this.IsDatabaseConnectionEditorOpen = true;
+  }
+
+  ToggleDatabaseConnectionEnabled(Connection: MockDatabaseConnection): void {
+    if (!this.Auth.HasManagementPermission('DatabaseConnection')) return;
+    const Enabled = !Connection.Enabled;
+    const IsUpdated = this.DatabaseConnections.Update(Connection.Key, {
+      ...Connection,
+      Enabled,
+      Password: '',
+    });
+    if (!IsUpdated) return;
+    this.ShowSuccessToast(`資料庫連線「${Connection.DataSourceName}」已${Enabled ? '啟用' : '停用'}。`);
+  }
+
+  TrackDatabaseConnection(_: number, Connection: MockDatabaseConnection): string {
+    return Connection.Key;
   }
 
   RequestCloseDatabaseConnectionEditor(): void {

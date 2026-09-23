@@ -41,8 +41,21 @@
         </header>
         <div class="report-editor-current-file">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM15 3v5h5M9 13h6M9 17h6" /></svg>
-          <div><strong>{{ currentFileName || '尚未選擇檔案' }}</strong><span *ngIf="currentFileName">目前使用的 RPT 報表檔案</span></div>
-          <label class="secondary-button report-editor-replace-file" [for]="IdPrefix + '-file'">更換檔案<input [id]="IdPrefix + '-file'" type="file" accept=".rpt" (change)="fileSelected.emit($event)" /></label>
+          <div><strong [id]="IdPrefix + '-current-file-name'">{{ currentFileName || '尚未選擇檔案' }}</strong><span *ngIf="currentFileName">目前使用的 RPT 報表檔案</span></div>
+          <button
+            type="button"
+            class="secondary-button report-editor-replace-file"
+            [attr.aria-describedby]="IdPrefix + '-current-file-name'"
+            (click)="replacementFileInput.click()"
+          >檔案更新</button>
+          <input
+            #replacementFileInput
+            class="visually-hidden-file-input"
+            [id]="IdPrefix + '-file'"
+            type="file"
+            accept=".rpt"
+            (change)="fileSelected.emit($event)"
+          />
         </div>
         <div *ngIf="selectedFileName && selectedFileName !== currentFileName" class="report-editor-replacement-notice" role="status">
           <span>待替換檔案：<strong>{{ selectedFileName }}</strong></span>

@@ -68,10 +68,14 @@
   text-align: center;
 }
 
-.report-editor-replace-file input {
+.visually-hidden-file-input {
   position: absolute;
   width: 1px;
   height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
   opacity: 0;
 }
 

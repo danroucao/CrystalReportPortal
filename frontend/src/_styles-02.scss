@@ -518,6 +518,8 @@ app-demo-portal .required-indicator {
   line-height: 1;
   position: relative;
   top: -0.25em;
+  vertical-align: baseline;
+  white-space: nowrap;
 }
 app-demo-portal .field-error {
   color: var(--color-danger);

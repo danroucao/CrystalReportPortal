@@ -5,6 +5,26 @@
 @use 'styles-05';
 @use 'styles-06';
 
+/* Required-field contract: the asterisk always belongs to its field title. */
+.required-field-label {
+  display: inline-flex;
+  align-items: baseline;
+  width: fit-content;
+  white-space: nowrap;
+}
+
+.required-indicator {
+  display: inline-block;
+  margin-left: 0.2rem;
+  color: var(--color-danger);
+  font-weight: 700;
+  line-height: 1;
+  position: relative;
+  top: -0.25em;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
 /* A consistent, low-contrast hover cue for every data-table row. */
 table > tbody > tr:hover > td {
   background-color: #fdf7f8 !important;

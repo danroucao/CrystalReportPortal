@@ -505,10 +505,10 @@
         <div class="database-connection-actions">
           <button
             type="button"
-            class="primary-button"
+            class="section-header-action primary-button"
             (click)="OpenCreateDatabaseConnection()"
           >
-            建立連線
+            <span aria-hidden="true">＋</span>建立連線
           </button>
         </div>
         <div class="table-scroll">
@@ -526,7 +526,10 @@
             </thead>
             <tbody>
               <tr
-                *ngFor="let Connection of DatabaseConnections.Connections"
+                *ngFor="
+                  let Connection of DatabaseConnections.Connections;
+                  trackBy: TrackDatabaseConnection
+                "
                 class="database-connection-row"
               >
                 <td>{{ Connection.DataSourceName }}</td>
@@ -538,7 +541,27 @@
                     Connection.ConnectionType === "ReadOnly" ? "唯讀" : "讀寫"
                   }}
                 </td>
-                <td>{{ Connection.Enabled ? "啟用" : "停用" }}</td>
+                <td class="account-status-column">
+                  <button
+                    type="button"
+                    class="account-status-switch"
+                    role="switch"
+                    [class.is-enabled]="Connection.Enabled"
+                    [attr.aria-checked]="Connection.Enabled"
+                    [attr.aria-label]="
+                      (Connection.Enabled ? '停用' : '啟用') +
+                      '資料庫連線 ' +
+                      Connection.DataSourceName
+                    "
+                    [title]="Connection.Enabled ? '停用連線' : '啟用連線'"
+                    (click)="ToggleDatabaseConnectionEnabled(Connection)"
+                  >
+                    <span class="account-status-switch-thumb"></span>
+                  </button>
+                  <span class="account-status-text">{{
+                    Connection.Enabled ? "啟用" : "停用"
+                  }}</span>
+                </td>
                 <td>
                   <button
                     type="button"
@@ -708,29 +731,6 @@
           (discardChanges)="DiscardDatabaseConnectionChanges()"
         />
       </section>
-      <table
-        *ngIf="
-          Page !== 'UserManagement' &&
-          Page !== 'RptManagement' &&
-          Page !== 'DatabaseConnection' &&
-          Page !== 'OperationLog'
-        "
-      >
-        <thead>
-          <tr>
-            <th>Mock 項目</th>
-            <th>狀態</th>
-            <th>說明</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>{{ PageTitle }}</td>
-            <td>可檢視</td>
-            <td>僅供後台操作紀錄版面展示，尚未串接紀錄查詢 API。</td>
-          </tr>
-        </tbody>
-      </table>
       <app-operation-log-page *ngIf="Page === 'OperationLog'" />
     </section>
   </main>

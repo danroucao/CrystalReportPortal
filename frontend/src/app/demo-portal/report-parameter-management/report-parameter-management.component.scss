@@ -12,8 +12,10 @@
 .parameter-accordion-list { display: grid; gap: 0.75rem; }
 .parameter-accordion-item { overflow: hidden; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); }
 .parameter-accordion-item.is-expanded { border-color: #d8b9c0; }
-.parameter-accordion-trigger { display: grid; width: 100%; grid-template-columns: 2.25rem minmax(11rem, 1.3fr) minmax(9rem, .8fr) 1.5rem; align-items: center; gap: 1rem; padding: 0.9rem 1rem; border: 0; border-left: 3px solid #c7c7c7; background: transparent; color: var(--color-text); cursor: pointer; font: inherit; text-align: left; }
-.parameter-accordion-item.is-expanded .parameter-accordion-trigger { border-left-color: var(--color-primary); background: #fffafb; }
+.parameter-accordion-trigger { position: relative; display: grid; box-sizing: border-box; width: 100%; grid-template-columns: 2.25rem minmax(11rem, 1.3fr) minmax(9rem, .8fr) 1.5rem; align-items: center; gap: 1rem; padding: 0.9rem 1rem; border: 0; background: transparent; color: var(--color-text); cursor: pointer; font: inherit; text-align: left; }
+.parameter-accordion-trigger::before { position: absolute; top: 0.6rem; bottom: 0.6rem; left: 0.55rem; width: 3px; border-radius: 999px; background: #c7c7c7; content: ''; }
+.parameter-accordion-item.is-expanded .parameter-accordion-trigger { background: #fffafb; }
+.parameter-accordion-item.is-expanded .parameter-accordion-trigger::before { background: var(--color-primary); }
 .parameter-accordion-trigger:hover { background: #faf9f6; }
 .parameter-sequence { display: grid; width: 1.75rem; height: 1.75rem; place-items: center; border-radius: 50%; background: #f1f0ed; font-size: .8125rem; font-weight: 700; }
 .parameter-identity { display: grid; gap: 0.15rem; }
@@ -24,6 +26,7 @@
 .parameter-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .parameter-editor-grid label, .parameter-common-settings > label, .parameter-description-field { display: grid; gap: 0.4rem; color: var(--color-muted); font-size: .8125rem; font-weight: 700; }
 .parameter-editor-grid input, .parameter-editor-grid select, .parameter-common-settings input, .parameter-common-settings select, .parameter-description-field textarea { box-sizing: border-box; width: 100%; min-height: 2.5rem; padding: 0.55rem 0.65rem; border: 1px solid #aaa69e; border-radius: 5px; background: #fff; color: var(--color-text); font: inherit; }
+.parameter-editor-grid input[aria-invalid='true'] { border-color: #be123c; outline: 2px solid rgb(190 18 60 / 14%); outline-offset: 0; }
 .parameter-description-field textarea { min-height: 5.75rem; resize: vertical; }
 .parameter-editor-options { display: flex; gap: 2rem; }
 .parameter-switch { display: inline-flex; align-items: center; gap: 0.55rem; color: var(--color-text); font-size: .875rem; font-weight: 700; }

@@ -46,6 +46,7 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
 
   parameters: MockManagedReportParameter[] = [];
   expandedParameterId: string | null = null;
+  invalidDisplayNameParameterId: string | null = null;
   commonSelections: Record<string, 'none' | 'add' | 'common'> = {};
   isDetectedDialogOpen = false;
   detectedDisplayNames: Record<string, string> = {};
@@ -125,6 +126,14 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
     parameter.InputType = this.defaultInputType(parameter.DataType);
   }
 
+  updateDisplayName(parameter: MockManagedReportParameter, value: string): void {
+    parameter.DisplayName = value;
+    if (this.invalidDisplayNameParameterId === parameter.ParameterId && value.trim()) {
+      this.invalidDisplayNameParameterId = null;
+      this.saveError = '';
+    }
+  }
+
   isParameterExpanded(parameterId: string): boolean {
     return this.expandedParameterId === parameterId;
   }
@@ -140,6 +149,14 @@ export class ReportParameterManagementComponent implements OnInit, OnChanges {
 
   saveParameters(): void {
     this.saveError = '';
+    this.invalidDisplayNameParameterId = null;
+    const ParameterMissingDisplayName = this.parameters.find((parameter) => !parameter.DisplayName.trim());
+    if (ParameterMissingDisplayName) {
+      this.invalidDisplayNameParameterId = ParameterMissingDisplayName.ParameterId;
+      this.expandedParameterId = ParameterMissingDisplayName.ParameterId;
+      this.saveError = `請輸入「${ParameterMissingDisplayName.ParameterName}」的顯示名稱。`;
+      return;
+    }
     for (const parameter of this.parameters) {
       if (this.commonSelections[parameter.ParameterId] !== 'add') continue;
       const result = this.parametersApi.AddParameterToCommon(parameter);
