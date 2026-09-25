@@ -13,6 +13,76 @@ namespace CrystalReportPortal.Api.Tests;
 
 public class AuthServiceIntegrationTests
 {
+    [Theory]
+    [InlineData(
+        "user@example.com",
+        "user123",
+        "$2a$11$rAdoYTVSALtf5TQ59yji6em4bfC7eCWRGkiwpH6iEVG/pD4niW6MG",
+        "DEV_FRONT_USER")]
+    [InlineData(
+        "admin@example.com",
+        "Test1234",
+        "$2a$11$YqylCUoTeirX/2YbK29xCe1Bc82gGWLr.hWgo5vpMOjXlYm6n/DGi",
+        "DEV_SYSTEM_ADMIN")]
+    public async Task DevelopmentSeedCredentials_CanLogIn(
+        string account,
+        string password,
+        string passwordHash,
+        string roleCode)
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        await using var db = new AppDbContext(options);
+        var role = new Role
+        {
+            RoleId = 1,
+            RoleCode = roleCode,
+            RoleName = "Development test role",
+            IsEnabled = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        var user = new User
+        {
+            UserId = 1,
+            EmployeeNo = "DEVTEST001",
+            Account = account,
+            UserName = "Development test user",
+            PasswordHash = passwordHash,
+            IsEnabled = true,
+            TokenVersion = 0,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.AddRange(role, user, new UserRole
+        {
+            UserId = user.UserId,
+            RoleId = role.RoleId,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Issuer"] = "test",
+                ["Jwt:Audience"] = "test",
+                ["Jwt:Key"] = "test-key-test-key-test-key-test-key",
+                ["Jwt:ExpireMinutes"] = "60"
+            })
+            .Build();
+
+        var result = await new AuthService(db, configuration).LoginAsync(new LoginRequest
+        {
+            Account = account,
+            Password = password
+        });
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.User);
+        Assert.Equal(account, result.User!.Account);
+        Assert.Contains(roleCode, result.User.Roles);
+    }
+
     [Fact]
     public async Task ChangePassword_UsesAuthenticatedUserId_AndInvalidatesToken()
     {
