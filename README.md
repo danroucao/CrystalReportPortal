@@ -7,6 +7,14 @@ See [project-dependencies.json](project-dependencies.json) for the versioned loc
 
 RPT upload parses the file through the local Crystal Service. Each developer who needs to upload, preview, or export an RPT must complete the following setup on Windows:
 
+Run the automated setup after installing the external Windows prerequisites:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-development.ps1
+```
+
+Use `-ValidateOnly` to check prerequisites without installing npm/NuGet packages or building projects.
+
 1. Install the SAP Crystal Reports for .NET runtime (x64) and the Crystal Reports developer components for Visual Studio/.NET Framework 4.8. The Crystal Service references the assemblies installed by these components.
 2. Build the Crystal Service before starting the API:
 
