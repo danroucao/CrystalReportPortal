@@ -1,6 +1,8 @@
 # CrystalReportPortal
 Web-based Crystal Reports query, preview, PDF export, and printing system built with Angular and ASP.NET Core.
 
+See [project-dependencies.json](project-dependencies.json) for the versioned local development dependencies and external runtime prerequisites.
+
 ## Local RPT Upload Prerequisites
 
 RPT upload parses the file through the local Crystal Service. Each developer who needs to upload, preview, or export an RPT must complete the following setup on Windows:
