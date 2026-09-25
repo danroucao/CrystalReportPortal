@@ -13,6 +13,31 @@ namespace CrystalReportPortal.Api.Tests;
 
 public class AuthServiceIntegrationTests
 {
+    [Fact]
+    public async Task DevelopmentBackOfficeSharedCredentials_CanLogIn()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        await using var db = new AppDbContext(options);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["BackOffice:Account"] = "admin",
+                ["BackOffice:PasswordHash"] = "$2a$11$oPDXdvAtuZnmmTFWMM/RQO5sSoDsl5XQy0c6gOPRgOgBN1rtGjavC"
+            })
+            .Build();
+
+        var result = await new BackOfficeAuthService(db, configuration)
+            .LoginAsync(new BackOfficeLoginRequest
+            {
+                Account = "admin",
+                Password = "admin"
+            });
+
+        Assert.True(result.Success);
+    }
+
     [Theory]
     [InlineData(
         "user@example.com",
