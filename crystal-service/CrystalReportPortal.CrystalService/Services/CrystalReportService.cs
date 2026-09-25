@@ -43,34 +43,6 @@ namespace CrystalReportPortal.CrystalService.Services
             }
         }
 
-        public List<object> GetReportObjectSummary(string rptPath)
-        {
-            using (var report = new ReportDocument())
-            {
-                report.Load(rptPath);
-                return report.ReportDefinition.Sections
-                    .Cast<Section>()
-                    .SelectMany(section => section.ReportObjects.Cast<ReportObject>()
-                        .Select(reportObject => (object)new
-                        {
-                            Section = section.Name,
-                            Kind = reportObject.Kind.ToString(),
-                            Name = reportObject.Name,
-                            DataSource = reportObject.Kind == ReportObjectKind.FieldObject
-                                ? GetPropertyValue(reportObject, "DataSource") : null,
-                            Text = GetDisplayText(reportObject)
-                        }))
-                    .ToList();
-            }
-        }
-
-        private static string GetPropertyValue(object value, string propertyName)
-        {
-            var property = value.GetType().GetProperty(propertyName);
-            var propertyValue = property == null ? null : property.GetValue(value, null);
-            return propertyValue == null ? null : propertyValue.ToString();
-        }
-
         public CrystalDatabaseTestResponse TestDatabaseConnection(CrystalDatabaseConfig database)
         {
             var stopwatch = Stopwatch.StartNew();

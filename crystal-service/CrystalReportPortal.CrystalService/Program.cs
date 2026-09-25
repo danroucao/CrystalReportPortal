@@ -81,17 +81,6 @@ namespace CrystalReportPortal.CrystalService
                     return 0;
                 }
 
-                if (command == "report-objects")
-                {
-                    if (args.Length < 2) throw new ArgumentException("請指定 RPT 路徑。");
-                    Console.WriteLine(serializer.Serialize(new
-                    {
-                        Success = true,
-                        Objects = service.GetReportObjectSummary(args[1])
-                    }));
-                    return 0;
-                }
-
                 // ============================
                 // preview
                 // ============================
