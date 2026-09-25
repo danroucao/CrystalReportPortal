@@ -336,10 +336,7 @@ public class ReportsController : ControllerBase
 
     private static string GetExecutableRptPath(string sourceRptPath)
     {
-        var localizedPath = Path.Combine(
-            Path.GetDirectoryName(sourceRptPath) ?? string.Empty,
-            Path.GetFileNameWithoutExtension(sourceRptPath) + ".localized.rpt");
-        return System.IO.File.Exists(localizedPath) ? localizedPath : sourceRptPath;
+        return sourceRptPath;
     }
 
     [HttpPatch("{reportId:long}/status")]

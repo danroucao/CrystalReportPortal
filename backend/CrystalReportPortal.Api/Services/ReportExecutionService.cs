@@ -276,29 +276,12 @@ public class ReportExecutionService : IReportExecutionService
 
     private static Dictionary<string, string> GetHeaderTextReplacements(Report report)
     {
-        try
-        {
-            var mappings = JsonSerializer.Deserialize<List<ReportColumnHeaderMappingDto>>(
-                report.ColumnHeaderMappingsJson) ?? [];
-            return mappings
-                .Where(mapping => !string.IsNullOrWhiteSpace(mapping.SourceText) &&
-                    !string.IsNullOrWhiteSpace(mapping.DisplayName))
-                .GroupBy(mapping => mapping.SourceText.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.Last().DisplayName.Trim(),
-                    StringComparer.OrdinalIgnoreCase);
-        }
-        catch (JsonException)
-        {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
     private static string GetExecutableRptPath(string sourceRptPath)
     {
-        var localizedPath = Path.Combine(
-            Path.GetDirectoryName(sourceRptPath) ?? string.Empty,
-            Path.GetFileNameWithoutExtension(sourceRptPath) + ".localized.rpt");
-        return File.Exists(localizedPath) ? localizedPath : sourceRptPath;
+        return sourceRptPath;
     }
 
     private static void ValidateParameterValues(ReportParameter parameter, List<string> values)

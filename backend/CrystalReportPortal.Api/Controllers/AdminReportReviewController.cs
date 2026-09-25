@@ -426,28 +426,12 @@ public class AdminReportReviewController : ControllerBase
 
     private static Dictionary<string, string> GetHeaderTextReplacements(Report report)
     {
-        try
-        {
-            return (JsonSerializer.Deserialize<List<ReportColumnHeaderMappingDto>>(
-                    report.ColumnHeaderMappingsJson) ?? [])
-                .Where(mapping => !string.IsNullOrWhiteSpace(mapping.SourceText) &&
-                    !string.IsNullOrWhiteSpace(mapping.DisplayName))
-                .GroupBy(mapping => mapping.SourceText.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.Last().DisplayName.Trim(),
-                    StringComparer.OrdinalIgnoreCase);
-        }
-        catch (JsonException)
-        {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
     private static string GetExecutableRptPath(string sourceRptPath)
     {
-        var localizedPath = Path.Combine(
-            Path.GetDirectoryName(sourceRptPath) ?? string.Empty,
-            Path.GetFileNameWithoutExtension(sourceRptPath) + ".localized.rpt");
-        return System.IO.File.Exists(localizedPath) ? localizedPath : sourceRptPath;
+        return sourceRptPath;
     }
 
     private async Task<bool> CanMaintainReportAsync(long userId, long reportId)
