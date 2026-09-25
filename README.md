@@ -1,6 +1,23 @@
 # CrystalReportPortal
 Web-based Crystal Reports query, preview, PDF export, and printing system built with Angular and ASP.NET Core.
 
+## Local RPT Upload Prerequisites
+
+RPT upload parses the file through the local Crystal Service. Each developer who needs to upload, preview, or export an RPT must complete the following setup on Windows:
+
+1. Install the SAP Crystal Reports for .NET runtime (x64) and the Crystal Reports developer components for Visual Studio/.NET Framework 4.8. The Crystal Service references the assemblies installed by these components.
+2. Build the Crystal Service before starting the API:
+
+   ```powershell
+   dotnet build crystal-service\CrystalReportPortal.CrystalService\CrystalReportPortal.CrystalService.csproj
+   ```
+
+3. Restore the frontend dependencies with `npm ci` in `frontend`, then restore and run the API.
+
+`backend/CrystalReportPortal.Api/appsettings.Development.json` resolves the Crystal Service executable relative to the API project, so the repository may be cloned to any local path. Developers may override `CrystalService:ExePath` through User Secrets or environment variables if their executable is stored elsewhere.
+
+The user must also have the `Report.Upload` permission. The development `admin@example.com` account receives that permission after migrations are applied.
+
 ## Requirement Governance
 
 後續需求判定與變更請使用 [Project Decision Register](docs/requirements/Project-Decisions.md)。只有其中 `Status: APPROVED` 的 Decision 能覆蓋既有需求；`PROPOSED`、`PENDING`、`REJECTED` 與 `SUPERSEDED` 不具覆蓋效力。

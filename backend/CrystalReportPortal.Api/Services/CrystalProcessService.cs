@@ -8,11 +8,14 @@ namespace CrystalReportPortal.Api.Services;
 public class CrystalProcessService : ICrystalProcessService
 {
     private readonly IConfiguration _configuration;
+    private readonly IHostEnvironment _environment;
 
     public CrystalProcessService(
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         _configuration = configuration;
+        _environment = environment;
     }
 
     public async Task<CrystalParameterParseResponse>
@@ -25,8 +28,7 @@ public class CrystalProcessService : ICrystalProcessService
                 rptPath);
         }
 
-        var exePath =
-            _configuration["CrystalService:ExePath"];
+        var exePath = GetCrystalServicePath();
 
         if (string.IsNullOrWhiteSpace(exePath))
         {
@@ -129,7 +131,7 @@ public class CrystalProcessService : ICrystalProcessService
     public async Task<IReadOnlyList<string>> GetHeaderTextsAsync(string rptPath)
     {
         if (!File.Exists(rptPath)) throw new FileNotFoundException("RPT file was not found.", rptPath);
-        var exePath = _configuration["CrystalService:ExePath"];
+        var exePath = GetCrystalServicePath();
         if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
             throw new InvalidOperationException("Crystal Service executable is not available.");
 
@@ -165,7 +167,7 @@ public class CrystalProcessService : ICrystalProcessService
         string outputRptPath,
         IReadOnlyDictionary<string, string> replacements)
     {
-        var exePath = _configuration["CrystalService:ExePath"];
+        var exePath = GetCrystalServicePath();
         if (!File.Exists(sourceRptPath) || string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
             throw new InvalidOperationException("Crystal Service or the source RPT is not available.");
 
@@ -223,8 +225,7 @@ public class CrystalProcessService : ICrystalProcessService
         // 2. 取得 Crystal Service EXE
         // ============================
 
-        var exePath =
-            _configuration["CrystalService:ExePath"];
+        var exePath = GetCrystalServicePath();
 
         if (string.IsNullOrWhiteSpace(exePath))
         {
@@ -410,8 +411,7 @@ public class CrystalProcessService : ICrystalProcessService
                 nameof(request));
         }
 
-        var exePath =
-            _configuration["CrystalService:ExePath"];
+        var exePath = GetCrystalServicePath();
 
         if (string.IsNullOrWhiteSpace(exePath))
         {
@@ -574,7 +574,7 @@ public class CrystalProcessService : ICrystalProcessService
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var exePath = _configuration["CrystalService:ExePath"];
+        var exePath = GetCrystalServicePath();
         if (string.IsNullOrWhiteSpace(exePath))
         {
             throw new InvalidOperationException(
@@ -670,5 +670,18 @@ public class CrystalProcessService : ICrystalProcessService
                 }
             }
         }
+    }
+
+    private string? GetCrystalServicePath()
+    {
+        var configuredPath = _configuration["CrystalService:ExePath"];
+        if (string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return configuredPath;
+        }
+
+        return Path.IsPathRooted(configuredPath)
+            ? configuredPath
+            : Path.GetFullPath(configuredPath, _environment.ContentRootPath);
     }
 }
