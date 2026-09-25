@@ -17,6 +17,7 @@ export interface ReportListItemResponse {
   description: string;
   createdAt: string;
   updatedAt: string | null;
+  usesSavedData: boolean;
   category: {
     categoryId: number;
     categoryName: string;

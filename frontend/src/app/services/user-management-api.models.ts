@@ -3,6 +3,7 @@ export interface ManagedUserApiModel {
   employeeNo: string;
   account: string;
   userName: string;
+  department: string | null;
   isEnabled: boolean;
   roleCodes: string[];
 }
@@ -60,6 +61,13 @@ export interface CreateRoleApiRequest {
   roleCode: string;
   roleName: string;
   description: string | null;
+  isEnabled: boolean;
+}
+
+export interface CreateRoleApiResponse {
+  roleId: number;
+  roleCode: string;
+  roleName: string;
   isEnabled: boolean;
 }
 

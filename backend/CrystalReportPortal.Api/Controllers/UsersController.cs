@@ -22,7 +22,7 @@ public class UsersController : ControllerBase
         .Select(user => new ManagedUserDto
         {
             UserId = user.UserId, EmployeeNo = user.EmployeeNo, Account = user.Account,
-            UserName = user.UserName, IsEnabled = user.IsEnabled,
+            UserName = user.UserName, Department = user.Department, IsEnabled = user.IsEnabled,
             RoleCodes = user.UserRoles.Where(userRole => userRole.Role.IsEnabled)
                 .Select(userRole => userRole.Role.RoleCode).ToList()
         }).ToListAsync());
@@ -73,7 +73,7 @@ public class UsersController : ControllerBase
         return Ok(new ManagedUserDto
         {
             UserId = user.UserId, EmployeeNo = user.EmployeeNo, Account = user.Account,
-            UserName = user.UserName, IsEnabled = user.IsEnabled,
+            UserName = user.UserName, Department = user.Department, IsEnabled = user.IsEnabled,
             RoleCodes = user.UserRoles.Where(userRole => userRole.Role.IsEnabled)
                 .Select(userRole => userRole.Role.RoleCode).ToList()
         });
@@ -82,7 +82,7 @@ public class UsersController : ControllerBase
     private static ManagedUserDto ToDto(User user, IEnumerable<Role> roles) => new()
     {
         UserId = user.UserId, EmployeeNo = user.EmployeeNo, Account = user.Account,
-        UserName = user.UserName, IsEnabled = user.IsEnabled,
+        UserName = user.UserName, Department = user.Department, IsEnabled = user.IsEnabled,
         RoleCodes = roles.Select(role => role.RoleCode).ToList()
     };
 

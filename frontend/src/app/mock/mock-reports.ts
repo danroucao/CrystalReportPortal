@@ -15,6 +15,7 @@ export interface MockReportReadModel extends MockReport {
   readonly CategoryName: string;
   readonly ReportId?: number;
   readonly ReportCode?: string;
+  readonly UsesSavedData?: boolean;
   readonly Permissions?: {
     readonly CanExecute: boolean;
     readonly CanExport: boolean;

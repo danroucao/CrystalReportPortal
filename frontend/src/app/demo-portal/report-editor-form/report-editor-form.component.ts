@@ -16,6 +16,7 @@ export class ReportEditorFormComponent {
   @Input({ required: true }) variant!: 'modal' | 'upload-page';
   @Input({ required: true }) draft!: Readonly<ReportEditorDraft>;
   @Input({ required: true }) categories!: readonly MockReportCategory[];
+  @Input() dataSources: readonly { dataSourceId: number; dataSourceName: string }[] = [];
   @Input() isEditing = false;
   @Input() showEnabled = true;
   @Input() selectedFileName = '';

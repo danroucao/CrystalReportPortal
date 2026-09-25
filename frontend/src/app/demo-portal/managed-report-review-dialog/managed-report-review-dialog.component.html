@@ -1,8 +1,8 @@
 <section class="modal-backdrop" (click)="close()">
   <section class="review-dialog" role="dialog" aria-modal="true" aria-labelledby="review-title" (click)="$event.stopPropagation()">
     <div class="modal-heading">
-      <div><h2 id="review-title">{{ isSavedDataPreview ? 'Saved Data 預覽' : '測試預覽' }}</h2><p>{{ report.reportName }}（{{ report.reportCode }}）</p></div>
-      <button type="button" class="modal-close-button" aria-label="關閉測試預覽" (click)="close()">×</button>
+      <div><h2 id="review-title">{{ isConfigurationMode ? '設定報表參數' : '測試預覽' }}</h2><p>{{ report.reportName }}（{{ report.reportCode }}）</p></div>
+      <button type="button" class="modal-close-button" [attr.aria-label]="isConfigurationMode ? '關閉參數設定' : '關閉測試預覽'" (click)="close()">×</button>
     </div>
 
     <div class="review-status">
@@ -14,17 +14,45 @@
       </details>
     </div>
 
-    <div *ngIf="!isLoading" class="review-content">
-      <form class="review-parameters" (ngSubmit)="isSavedDataPreview ? testPreview() : saveConfiguration()">
-        <h3>{{ isSavedDataPreview ? '預覽方式' : '測試條件' }}</h3>
-        <ng-container *ngIf="isSavedDataPreview; else PreviewParameters">
-          <p class="review-help">目前先使用 RPT 內嵌資料產生 PDF，暫不需要設定資料來源或參數。</p>
-          <button type="submit" class="primary-button" [disabled]="isPreviewing || isLoading">
-            {{ isPreviewing ? '產生中…' : '產生 Saved Data 預覽' }}
+    <div *ngIf="!isLoading" class="review-content" [class.is-configuration]="isConfigurationMode">
+      <form class="review-parameters" (ngSubmit)="isConfigurationMode ? saveConfiguration() : testPreview()">
+        <h3>{{ isConfigurationMode ? '參數設定' : '測試條件' }}</h3>
+        <ng-container *ngIf="isConfigurationMode; else PreviewParameters">
+          <p class="review-help">確認每個 RPT 參數的顯示名稱、輸入方式與是否必填。完成後才能進入測試預覽與啟用流程。</p>
+          <article *ngFor="let parameter of configurationParameters" class="parameter-configuration-card">
+            <div class="parameter-configuration-heading"><strong>{{ parameter.parameterName }}</strong><small>{{ parameter.dataType }}{{ parameter.allowMultipleValues ? '・可多選' : '' }}</small></div>
+            <label>顯示名稱
+              <input [name]="'display-name-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].displayName"
+                (ngModelChange)="updateDraft(parameter.parameterId, 'displayName', $event)" />
+            </label>
+            <label>值來源
+              <select [name]="'value-source-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].valueSourceType"
+                (ngModelChange)="updateDraft(parameter.parameterId, 'valueSourceType', $event)">
+                <option value="UserInput">使用者輸入</option>
+                <option value="CurrentUser">目前使用者</option>
+              </select>
+            </label>
+            <label>預設值
+              <input [name]="'default-value-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].defaultValue || ''"
+                [disabled]="parameterDrafts[parameter.parameterId].valueSourceType === 'CurrentUser'"
+                (ngModelChange)="updateDraft(parameter.parameterId, 'defaultValue', $event || null)" />
+            </label>
+            <div class="parameter-configuration-flags">
+              <label><input type="checkbox" [name]="'required-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].isRequired"
+                (ngModelChange)="updateDraft(parameter.parameterId, 'isRequired', $event)" />必填</label>
+              <label><input type="checkbox" [name]="'visible-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].isVisible"
+                [disabled]="parameterDrafts[parameter.parameterId].valueSourceType === 'CurrentUser'"
+                (ngModelChange)="updateDraft(parameter.parameterId, 'isVisible', $event)" />前台顯示</label>
+            </div>
+          </article>
+          <button type="submit" class="primary-button" [disabled]="isSavingConfiguration || isLoading">
+            {{ isSavingConfiguration ? '儲存中…' : '完成參數設定' }}
           </button>
         </ng-container>
 
         <ng-template #PreviewParameters>
+        <p *ngIf="isSavedDataReport" class="review-help">此報表未設定資料庫來源，會直接使用 RPT 內嵌的 Saved Data。一般使用者啟用後可依分類權限閱覽、匯出與列印，不會執行即時資料查詢。</p>
+        <ng-container *ngIf="!isSavedDataReport">
         <label *ngFor="let parameter of visibleParameters">
           {{ parameter.displayName }}<span *ngIf="parameter.isRequired" class="required-indicator">*</span>
 
@@ -48,6 +76,7 @@
             [ngModel]="values[parameter.parameterId][0] || ''"
             (ngModelChange)="setSingleValue(parameter.parameterId, $event)" />
         </label>
+        </ng-container>
       <button
         type="button"
         class="primary-button"
@@ -55,34 +84,23 @@
         (click)="testPreview()"
       >
         {{
-          isPreviewing
-            ? '產生中…'
-            : isSavedDataPreview
-              ? '產生 Saved Data 預覽'
-              : '產生測試預覽'
+          isPreviewing ? '產生中…' : '產生測試預覽'
         }}
       </button>
         </ng-template>
       </form>
 
-      <div class="review-preview">
+      <div *ngIf="!isConfigurationMode" class="review-preview">
         <h3>PDF 預覽</h3>
         <iframe *ngIf="previewUrl" [src]="previewUrl" title="報表測試預覽 PDF"></iframe>
         <p *ngIf="!previewUrl" class="preview-empty">點擊按鈕後產生 PDF 預覽。</p>
-        <p
-          *ngIf="isSavedDataPreview"
-          class="saved-data-preview-notice"
-        >
-          此報表的參數尚未完成設定，目前將使用 RPT
-          內儲存的資料產生預覽，不會連線查詢資料庫。
-        </p>
       </div>
     </div>
 
     <div class="modal-actions">
       <button type="button" class="tertiary-button" [disabled]="isPreviewing || isApproving || isSavingConfiguration" (click)="close()">取消</button>
       <button
-        *ngIf="!isSavedDataPreview"
+        *ngIf="!isConfigurationMode"
         type="button"
         class="primary-button"
         [disabled]="

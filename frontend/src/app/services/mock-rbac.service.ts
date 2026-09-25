@@ -53,6 +53,7 @@ export interface MockAccountSettingsDraft {
 export interface MockRoleDraft {
   DisplayName: string;
   ManagementPermissions: MockManagementPermission[];
+  ArchivePermissionCodes: string[];
   Permissions: MockCategoryPermissionEntry[];
 }
 

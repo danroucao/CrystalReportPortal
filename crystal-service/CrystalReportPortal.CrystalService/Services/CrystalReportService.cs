@@ -22,6 +22,55 @@ namespace CrystalReportPortal.CrystalService.Services
                 "true",
                 StringComparison.OrdinalIgnoreCase);
 
+        public List<string> GetHeaderTexts(string rptPath)
+        {
+            using (var report = new ReportDocument())
+            {
+                report.Load(rptPath);
+                var textCandidates = report.ReportDefinition.Sections
+                    .Cast<Section>()
+                    .SelectMany(section => section.ReportObjects.Cast<ReportObject>())
+                    .Select(GetDisplayText)
+                    .Where(text => !string.IsNullOrWhiteSpace(text))
+                    .Select(text => text.Trim())
+                    .ToList();
+                var titleFormulaCandidates = report.DataDefinition.FormulaFields
+                    .Cast<FormulaFieldDefinition>()
+                    .Where(formula => formula.Name.StartsWith("Title", StringComparison.OrdinalIgnoreCase))
+                    .Select(formula => formula.Name);
+                return textCandidates.Concat(titleFormulaCandidates)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+        }
+
+        public List<object> GetReportObjectSummary(string rptPath)
+        {
+            using (var report = new ReportDocument())
+            {
+                report.Load(rptPath);
+                return report.ReportDefinition.Sections
+                    .Cast<Section>()
+                    .SelectMany(section => section.ReportObjects.Cast<ReportObject>()
+                        .Select(reportObject => (object)new
+                        {
+                            Section = section.Name,
+                            Kind = reportObject.Kind.ToString(),
+                            Name = reportObject.Name,
+                            DataSource = reportObject.Kind == ReportObjectKind.FieldObject
+                                ? GetPropertyValue(reportObject, "DataSource") : null,
+                            Text = GetDisplayText(reportObject)
+                        }))
+                    .ToList();
+            }
+        }
+
+        private static string GetPropertyValue(object value, string propertyName)
+        {
+            var property = value.GetType().GetProperty(propertyName);
+            var propertyValue = property == null ? null : property.GetValue(value, null);
+            return propertyValue == null ? null : propertyValue.ToString();
+        }
+
         public CrystalDatabaseTestResponse TestDatabaseConnection(CrystalDatabaseConfig database)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -298,6 +347,10 @@ namespace CrystalReportPortal.CrystalService.Services
                 {
                     report.Load(request.RptPath);
 
+                    ApplyHeaderTextReplacements(
+                        report,
+                        request.HeaderTextReplacements);
+
                     Console.Error.WriteLine(
                         $"UseSavedDataOnly: {request.UseSavedDataOnly}");
 
@@ -423,12 +476,105 @@ namespace CrystalReportPortal.CrystalService.Services
             }
         }
 
+        public CrystalExportResponse CreateLocalizedTemplate(CrystalExportRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.RptPath) ||
+                    string.IsNullOrWhiteSpace(request.OutputPath))
+                    throw new ArgumentException("RPT source and output paths are required.");
+
+                using (var report = new ReportDocument())
+                {
+                    report.Load(request.RptPath);
+                    ApplyTemplateHeadingReplacements(report, request.HeaderTextReplacements);
+                    report.SaveAs(request.OutputPath);
+                }
+                return new CrystalExportResponse { Success = true, OutputPath = request.OutputPath };
+            }
+            catch (Exception ex)
+            {
+                return new CrystalExportResponse { Success = false, Message = ex.ToString() };
+            }
+        }
+
+        private static void ApplyHeaderTextReplacements(
+            ReportDocument report,
+            IDictionary<string, string> replacements)
+        {
+            if (replacements == null || replacements.Count == 0)
+            {
+                return;
+            }
+
+            foreach (Section section in report.ReportDefinition.Sections)
+            {
+                foreach (ReportObject reportObject in section.ReportObjects)
+                {
+                    var sourceText = (GetDisplayText(reportObject) ?? string.Empty).Trim();
+                    if (replacements.TryGetValue(sourceText, out var displayName) &&
+                        !string.IsNullOrWhiteSpace(displayName))
+                    {
+                        SetDisplayText(reportObject, displayName.Trim());
+                    }
+                }
+            }
+
+            foreach (FormulaFieldDefinition formula in report.DataDefinition.FormulaFields)
+            {
+                if (replacements.TryGetValue(formula.Name, out var displayName) &&
+                    !string.IsNullOrWhiteSpace(displayName))
+                {
+                    formula.Text = "\"" + displayName.Trim().Replace("\"", "\"\"") + "\"";
+                }
+            }
+        }
+
+        private static string GetDisplayText(ReportObject reportObject)
+        {
+            if (reportObject.Kind == ReportObjectKind.TextObject)
+                return ((TextObject)reportObject).Text;
+            if (reportObject.Kind == ReportObjectKind.FieldHeadingObject)
+                return ((FieldHeadingObject)reportObject).Text;
+            return null;
+        }
+
+        private static void SetDisplayText(ReportObject reportObject, string text)
+        {
+            if (reportObject.Kind == ReportObjectKind.TextObject)
+                ((TextObject)reportObject).Text = text;
+        }
+
+        private static void ApplyTemplateHeadingReplacements(
+            ReportDocument report,
+            IDictionary<string, string> replacements)
+        {
+            ApplyHeaderTextReplacements(report, replacements);
+            foreach (Section section in report.ReportDefinition.Sections)
+            {
+                foreach (ReportObject reportObject in section.ReportObjects)
+                {
+                    if (reportObject.Kind != ReportObjectKind.FieldHeadingObject)
+                        continue;
+
+                    var heading = (FieldHeadingObject)reportObject;
+                    var sourceText = (heading.Text ?? string.Empty).Trim();
+                    if (replacements.TryGetValue(sourceText, out var displayName) &&
+                        !string.IsNullOrWhiteSpace(displayName))
+                    {
+                        heading.Text = displayName.Trim();
+                    }
+                }
+            }
+        }
+
         private void ExportWithAdoNetDataSource(
             CrystalExportRequest request)
         {
             using (var report = new ReportDocument())
             {
                 report.Load(request.RptPath);
+                ApplyHeaderTextReplacements(report, request.HeaderTextReplacements);
                 SetParameters(report, request.Parameters);
 
                 var mainCommand = GetSingleCommandTable(report);

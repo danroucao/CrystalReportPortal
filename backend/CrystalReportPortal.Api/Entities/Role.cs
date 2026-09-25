@@ -24,6 +24,9 @@ public class Role
     public ICollection<RoleReportPermission> RoleReportPermissions { get; set; }
         = new List<RoleReportPermission>();
 
+    public ICollection<RoleCategoryPermission> RoleCategoryPermissions { get; set; }
+        = new List<RoleCategoryPermission>();
+
     public ICollection<RolePermission> RolePermissions { get; set; }
     = new List<RolePermission>();
 }

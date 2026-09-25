@@ -27,7 +27,7 @@
 
   <section class="management-card user-management-section" aria-labelledby="user-management-title">
     <div class="management-card-heading">
-      <div><h2 id="user-management-title">AD 使用者帳號</h2><p class="muted">使用者帳密由企業 AD 管理；此處僅設定系統啟用狀態與角色。</p></div>
+      <div><h2 id="user-management-title">使用者帳號</h2><p class="muted">使用者帳密由企業 AD 管理；此處僅設定系統啟用狀態與角色。</p></div>
     </div>
     <p *ngIf="ManagementNotice" class="mock-notice" role="status">{{ ManagementNotice }}</p>
     <div class="user-management-toolbar" role="search">
@@ -35,23 +35,52 @@
         <input [(ngModel)]="UserSearchText" (ngModelChange)="OnUserSearchChange()" placeholder="搜尋使用者帳號或名稱" />
         <svg class="user-search-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><circle cx="11" cy="11" r="5.5"></circle><path d="m15 15 4 4"></path></svg>
       </label>
+      <button *ngIf="HasActiveUserFilters" type="button" class="clear-user-filters-button ghost-button" (click)="ClearUserFilters()">清除篩選</button>
     </div>
+    <section class="department-user-filter" aria-labelledby="department-user-filter-title">
+      <div class="department-user-filter-heading">
+        <div><h3 id="department-user-filter-title">快速指派角色</h3>
+        <p>依序選擇部門與員工；只要尚未指派角色，即可直接進入設定。</p></div>
+        <span class="department-user-filter-count">待指派 {{ UnassignedUserCount }} 人</span>
+      </div>
+      <div class="department-user-filter-controls">
+        <label>
+          <span>部門</span>
+          <select [(ngModel)]="DepartmentFilter" (ngModelChange)="OnDepartmentFilterChange()">
+            <option value="">請選擇部門</option>
+            <option *ngFor="let Department of Departments" [value]="Department">{{ Department }}</option>
+          </select>
+        </label>
+        <label>
+          <span>員工</span>
+          <select [(ngModel)]="SelectedDepartmentEmployeeAccount" [disabled]="!DepartmentFilter">
+            <option value="">{{ DepartmentFilter ? '請選擇員工' : '請先選擇部門' }}</option>
+            <option *ngFor="let Employee of DepartmentEmployees" [value]="Employee.account">{{ Employee.employeeNo }}｜{{ Employee.userName }}</option>
+          </select>
+        </label>
+        <div class="department-user-selection" *ngIf="SelectedDepartmentEmployee as Employee" aria-live="polite">
+          <span *ngIf="SelectedDepartmentEmployeeHasNoRole" class="unassigned-role-status">尚未指派角色</span>
+          <span *ngIf="!SelectedDepartmentEmployeeHasNoRole" class="assigned-role-status">已指派：{{ GetRoleNames(Employee.roleCodes) }}</span>
+          <button *ngIf="SelectedDepartmentEmployeeHasNoRole" type="button" class="primary-button" (click)="AssignSelectedDepartmentEmployeeRole()">指派角色</button>
+        </div>
+      </div>
+    </section>
     <nav class="role-filter-tabs" aria-label="依角色篩選使用者">
-      <button type="button" [class.is-active]="UserRoleFilter === null" [attr.aria-pressed]="UserRoleFilter === null" (click)="SetUserRoleFilter(null)">全部 ({{ MockRbac.Users.length }})</button>
+      <button type="button" [class.is-active]="UserRoleFilter === null && !ShowUnassignedOnly" [attr.aria-pressed]="UserRoleFilter === null && !ShowUnassignedOnly" (click)="SetUserRoleFilter(null)">全部 ({{ ApiUsers.length }})</button>
+      <button type="button" class="unassigned-filter-tab" [class.is-active]="ShowUnassignedOnly" [attr.aria-pressed]="ShowUnassignedOnly" (click)="SetUnassignedUserFilter()">待指派 ({{ UnassignedUserCount }})</button>
       <button *ngFor="let Role of DisplayRoles; trackBy: TrackRoleByKey" type="button" [class.is-active]="UserRoleFilter === Role.Key" [attr.aria-pressed]="UserRoleFilter === Role.Key" (click)="SetUserRoleFilter(Role.Key)">{{ Role.DisplayName }} ({{ GetApiRoleUserCount(Role.Key) }})</button>
     </nav>
     <div class="table-scroll user-table-scroll"><div class="user-table-content-area">
       <table class="user-management-table">
-        <thead><tr><th>帳號</th><th>名稱</th><th>角色</th><th class="account-status-column">啟用狀態</th><th>建立時間</th><th>更新時間</th><th>操作</th></tr></thead>
+        <thead><tr><th>AD 帳號</th><th>員工</th><th>部門</th><th>角色</th><th class="account-status-column">啟用狀態</th><th>操作</th></tr></thead>
         <tbody>
           <tr *ngFor="let User of PagedUsers; trackBy: TrackUserByAccount" class="user-entry-row" (click)="EditUser(User.Account)">
             <td class="user-account-cell" [title]="User.Account"><div class="user-account-identity"><ngx-boring-avatar variant="beam" [name]="User.Account" [size]="40"/><span>{{ User.Account }}</span></div></td>
-            <td>{{ User.DisplayName }}</td><td>{{ GetRoleNames(User.Roles) }}</td>
+            <td class="user-name-cell"><strong>{{ GetManagedUserEmployeeNo(User.Account) }}</strong><span>{{ User.DisplayName }}</span></td><td>{{ GetManagedUserDepartment(User.Account) }}</td><td><span *ngIf="User.Roles.length; else noAssignedRole">{{ GetRoleNames(User.Roles) }}</span><ng-template #noAssignedRole><span class="unassigned-role-status">未指派</span></ng-template></td>
             <td class="account-status-column"><button type="button" class="account-status-switch" role="switch" [class.is-enabled]="User.Enabled" [attr.aria-checked]="User.Enabled" [attr.aria-label]="User.Enabled ? '停用 ' + User.Account : '啟用 ' + User.Account" (click)="SetUserEnabled(User.Account, !User.Enabled); $event.stopPropagation()"><span class="account-status-switch-thumb"></span></button><span class="account-status-text">{{ User.Enabled ? '啟用' : '停用' }}</span></td>
-            <td>{{ User.CreatedAt }}</td><td>{{ User.UpdatedAt }}</td>
-            <td><button type="button" class="tertiary-button" [attr.aria-label]="'設定 ' + User.Account" title="設定角色與啟用狀態" (click)="EditUser(User.Account); $event.stopPropagation()">設定</button></td>
+            <td class="user-action-cell"><button type="button" class="tertiary-button" [attr.aria-label]="'設定 ' + User.Account" title="設定角色與啟用狀態" (click)="EditUser(User.Account); $event.stopPropagation()">設定角色</button></td>
           </tr>
-          <tr *ngIf="!FilteredUsers.length"><td colspan="7"><div class="user-empty-state" role="status">找不到符合條件的使用者。</div></td></tr>
+          <tr *ngIf="!FilteredUsers.length"><td colspan="6"><div class="user-empty-state" role="status">找不到符合條件的使用者。</div></td></tr>
         </tbody>
       </table>
     </div></div>
@@ -113,11 +142,11 @@
 
   <section *ngIf="(IsCreateRoleDialogOpen || IsEditRoleDialogOpen) && !DeletingRole" class="modal-backdrop" (click)="IsEditRoleDialogOpen ? CloseEditRoleDialog() : CloseCreateRoleDialog()">
     <section #activeModal class="edit-user-modal create-role-modal" role="dialog" aria-modal="true" aria-labelledby="role-dialog-title" tabindex="-1" (click)="$event.stopPropagation()">
-      <div class="modal-heading role-dialog-heading"><div><p class="modal-eyebrow">權限設定</p><h2 id="role-dialog-title">{{ IsEditRoleDialogOpen ? '編輯角色' : '新增角色' }}</h2><p class="muted">設定此角色可使用的後台功能與報表分類權限。</p></div><button type="button" class="modal-close-button" [attr.aria-label]="IsEditRoleDialogOpen ? '關閉編輯角色視窗' : '關閉新增角色視窗'" (click)="IsEditRoleDialogOpen ? CloseEditRoleDialog() : CloseCreateRoleDialog()">×</button></div>
-      <div class="role-editor-fields"><label class="role-name-field"><span class="form-field-label">角色名稱<span class="required-indicator" aria-hidden="true">*</span></span><input placeholder="例如：報表檢視人員" [(ngModel)]="RoleDraft.DisplayName" [attr.aria-invalid]="RoleDraftError ? 'true' : null" [attr.aria-describedby]="RoleDraftError ? 'role-draft-error' : null" [class.is-invalid]="RoleDraftError" (ngModelChange)="ClearRoleDraftError()" /></label><button *ngIf="IsEditRoleDialogOpen" type="button" class="role-delete-button danger-button" aria-label="刪除角色" title="刪除角色" (click)="OpenDeleteRoleDialog()">刪除角色</button></div>
+      <div class="modal-heading role-dialog-heading"><div><p class="modal-eyebrow">權限設定</p><h2 id="role-dialog-title">{{ IsEditRoleDialogOpen ? '編輯角色' : '新增角色' }}</h2><p class="muted">設定此角色可使用的後台功能與實際報表權限。</p></div><button type="button" class="modal-close-button" [attr.aria-label]="IsEditRoleDialogOpen ? '關閉編輯角色視窗' : '關閉新增角色視窗'" (click)="IsEditRoleDialogOpen ? CloseEditRoleDialog() : CloseCreateRoleDialog()">×</button></div>
+      <div class="role-editor-fields"><label class="role-name-field"><span class="form-field-label">角色名稱<span class="required-indicator" aria-hidden="true">*</span></span><input placeholder="例如：報表檢視人員" [(ngModel)]="RoleDraft.DisplayName" [attr.aria-invalid]="RoleDraftError ? 'true' : null" [attr.aria-describedby]="RoleDraftError ? 'role-draft-error' : null" [class.is-invalid]="RoleDraftError" (ngModelChange)="ClearRoleDraftError()" /></label></div>
       <div class="role-permission-layout">
-        <section class="role-global-permissions role-permission-panel" role="group" aria-label="功能權限"><div class="role-panel-heading"><h3>功能權限</h3><p>選擇角色可進入的後台管理功能。</p></div><div class="management-permission-list"><label class="management-permission-option"><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('RptManagement')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('RptManagement', $event)" /><span><strong>報表管理</strong><small>上傳、維護報表與設定報表參數。</small></span></label><label class="management-permission-option"><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('DatabaseConnection')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('DatabaseConnection', $event)" /><span><strong>資料庫連線管理</strong><small>管理報表可使用的資料來源連線。</small></span></label><label class="management-permission-option"><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('OperationLog')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('OperationLog', $event)" /><span><strong>操作紀錄查詢</strong><small>檢視系統操作與報表執行紀錄。</small></span></label></div></section>
-        <section class="create-role-permissions role-permission-panel"><div class="role-panel-heading"><h3>報表分類權限</h3><p>「閱覽」是必要權限；啟用後才可設定匯出與列印。</p></div><div class="table-scroll"><table class="role-permission-table"><thead><tr><th>報表分類</th><th>閱覽</th><th>匯出</th><th>列印</th></tr></thead><tbody><tr *ngFor="let Entry of RoleDraft.Permissions; trackBy: TrackByCategoryPermissionEntry"><td>{{ Entry.CategoryName }}</td><td><input type="checkbox" [ngModel]="Entry.Permission.CanExecute" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Entry.CategoryName + '：閱覽'" (ngModelChange)="SetPermissionCanExecute(Entry, $event)" /></td><td><input type="checkbox" [(ngModel)]="Entry.Permission.CanExport" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Entry.CategoryName + '：匯出'" [disabled]="!Entry.Permission.CanExecute" /></td><td><input type="checkbox" [(ngModel)]="Entry.Permission.CanPrint" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Entry.CategoryName + '：列印'" [disabled]="!Entry.Permission.CanExecute" /></td></tr></tbody></table></div></section>
+        <section class="role-global-permissions role-permission-panel" role="group" aria-label="功能權限"><div class="role-panel-heading"><h3>功能權限</h3><p>選擇角色可進入的後台管理功能；封存資料預設不顯示，需另外授權。</p></div><div class="management-permission-list"><label class="management-permission-option"><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('RptManagement')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('RptManagement', $event)" /><span><strong>報表管理</strong><small>上傳、維護報表與設定報表參數。</small></span></label><label class="management-permission-option management-permission-suboption"><input type="checkbox" [disabled]="!RoleDraft.ManagementPermissions.includes('RptManagement')" [ngModel]="RoleDraft.ArchivePermissionCodes.includes('Report.ViewArchive')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleArchivePermission('Report.ViewArchive', $event)" /><span><strong>查看封存報表資料</strong><small>可查詢建立時間超過 180 天的報表。</small></span></label><label class="management-permission-option"><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('DatabaseConnection')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('DatabaseConnection', $event)" /><span><strong>資料庫連線管理</strong><small>管理報表可使用的資料來源連線。</small></span></label><label class="management-permission-option"><input type="checkbox" [ngModel]="RoleDraft.ManagementPermissions.includes('OperationLog')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleManagementPermission('OperationLog', $event)" /><span><strong>操作紀錄查詢</strong><small>檢視系統操作與報表執行紀錄。</small></span></label><label class="management-permission-option management-permission-suboption"><input type="checkbox" [disabled]="!RoleDraft.ManagementPermissions.includes('OperationLog')" [ngModel]="RoleDraft.ArchivePermissionCodes.includes('AuditLog.ViewArchive')" [ngModelOptions]="{ standalone: true }" (ngModelChange)="ToggleArchivePermission('AuditLog.ViewArchive', $event)" /><span><strong>查看封存操作紀錄</strong><small>可查詢操作時間超過 180 天的紀錄。</small></span></label></div></section>
+        <section class="create-role-permissions role-permission-panel"><div class="role-panel-heading role-category-heading"><div><h3>報表分類權限</h3><p>分類權限由資料庫的已啟用分類提供；新建立的同分類報表會自動繼承設定。「閱覽」是匯出與列印的必要權限。</p></div><button type="button" class="tertiary-button role-category-add-button" (click)="OpenRoleCategoryCreate()">＋ 新增分類</button></div><form *ngIf="IsAddingRoleCategory" class="role-category-create-form" (ngSubmit)="CreateRoleCategory()"><label>分類名稱<input name="newRoleCategoryName" [(ngModel)]="NewRoleCategoryName" placeholder="例如：業務" [disabled]="IsSavingRoleCategory" /></label><button type="submit" class="primary-button" [disabled]="IsSavingRoleCategory">{{ IsSavingRoleCategory ? '新增中…' : '新增並設定權限' }}</button><button type="button" class="tertiary-button" [disabled]="IsSavingRoleCategory" (click)="CancelRoleCategoryCreate()">取消</button><p *ngIf="RoleCategoryCreateError" class="field-error">{{ RoleCategoryCreateError }}</p></form><div class="table-scroll"><p *ngIf="IsRoleCategoryPermissionsLoading" class="role-permission-loading">正在載入報表分類…</p><table *ngIf="!IsRoleCategoryPermissionsLoading" class="role-permission-table"><thead><tr><th>報表分類</th><th>閱覽</th><th>匯出</th><th>列印</th></tr></thead><tbody><tr *ngFor="let Permission of ApiRoleCategoryPermissions"><td><strong>{{ Permission.categoryName }}</strong></td><td><input type="checkbox" [ngModel]="Permission.canExecute" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Permission.categoryName + '：閱覽'" (ngModelChange)="SetCategoryPermission(Permission, 'canExecute', $event)" /></td><td><input type="checkbox" [ngModel]="Permission.canExport" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Permission.categoryName + '：匯出'" [disabled]="!Permission.canExecute" (ngModelChange)="SetCategoryPermission(Permission, 'canExport', $event)" /></td><td><input type="checkbox" [ngModel]="Permission.canPrint" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="Permission.categoryName + '：列印'" [disabled]="!Permission.canExecute" (ngModelChange)="SetCategoryPermission(Permission, 'canPrint', $event)" /></td></tr><tr *ngIf="!ApiRoleCategoryPermissions.length"><td colspan="4" class="role-permission-empty">目前沒有可設定的已啟用報表分類。</td></tr></tbody></table></div></section>
       </div>
       <span *ngIf="RoleDraftError" id="role-draft-error" class="field-error" role="alert">{{ RoleDraftError }}</span><div class="modal-actions role-modal-actions"><button *ngIf="IsEditRoleDialogOpen" type="button" class="role-delete-button danger-button" (click)="OpenDeleteRoleDialog()">刪除角色</button><div class="role-modal-primary-actions"><button type="button" class="tertiary-button" (click)="IsEditRoleDialogOpen ? CloseEditRoleDialog() : CloseCreateRoleDialog()">取消</button><button type="button" class="primary-button" (click)="IsEditRoleDialogOpen ? SaveEditedRole() : SaveRole()">{{ IsEditRoleDialogOpen ? '儲存角色' : '建立角色' }}</button></div></div>
     </section>

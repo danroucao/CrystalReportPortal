@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
@@ -72,6 +73,8 @@ public class AdminReportReviewController : ControllerBase
             "PendingConfiguration",
             StringComparison.OrdinalIgnoreCase);
 
+        var isSavedDataReport = !report.DataSourceId.HasValue;
+
         if (!isPendingReview && !isPendingConfiguration)
         {
             return BadRequest(new
@@ -85,7 +88,8 @@ public class AdminReportReviewController : ControllerBase
         // 避免以不完整參數連線查詢正式資料庫。
         useSavedDataOnly =
             useSavedDataOnly ||
-            isPendingConfiguration;
+            isPendingConfiguration ||
+            isSavedDataReport;
 
         if (string.IsNullOrWhiteSpace(report.RptFilePath) ||
             !System.IO.File.Exists(report.RptFilePath))
@@ -97,7 +101,7 @@ public class AdminReportReviewController : ControllerBase
         {
             try
             {
-                var savedDataPdf = await _crystalProcess.PreviewAsync(report.RptFilePath);
+                var savedDataPdf = await _crystalProcess.PreviewAsync(GetExecutableRptPath(report.RptFilePath));
                 var now = DateTime.UtcNow;
 
                 AddAuditLog(
@@ -202,10 +206,18 @@ public class AdminReportReviewController : ControllerBase
             return NotFound(new { message = "找不到指定的報表。" });
         }
 
+        var canApproveSavedDataLegacyReport =
+            !report.DataSourceId.HasValue &&
+            string.Equals(
+                report.ConfigurationStatus,
+                "PendingConfiguration",
+                StringComparison.OrdinalIgnoreCase);
+
         if (!string.Equals(
                 report.ConfigurationStatus,
                 "PendingReview",
-                StringComparison.OrdinalIgnoreCase))
+                StringComparison.OrdinalIgnoreCase) &&
+            !canApproveSavedDataLegacyReport)
         {
             return BadRequest(new
             {
@@ -213,7 +225,7 @@ public class AdminReportReviewController : ControllerBase
             });
         }
 
-        var hasIncompleteParameter = report.ReportParameters.Any(parameter =>
+        var hasIncompleteParameter = report.DataSourceId.HasValue && report.ReportParameters.Any(parameter =>
             !parameter.IsConfigured ||
             (string.Equals(parameter.ValueSourceType, "SqlLov", StringComparison.OrdinalIgnoreCase) &&
              parameter.LovConfig == null));
@@ -286,9 +298,10 @@ public class AdminReportReviewController : ControllerBase
         {
             return new CrystalExportProcessRequest
             {
-                RptPath = report.RptFilePath,
+                RptPath = GetExecutableRptPath(report.RptFilePath),
                 UseSavedDataOnly = true,
-                Parameters = []
+                Parameters = [],
+                HeaderTextReplacements = GetHeaderTextReplacements(report)
             };
         }
 
@@ -387,7 +400,7 @@ public class AdminReportReviewController : ControllerBase
 
         return new CrystalExportProcessRequest
         {
-            RptPath = report.RptFilePath,
+            RptPath = GetExecutableRptPath(report.RptFilePath),
             UseSavedDataOnly = false,
 
             Database = new CrystalExportDatabase
@@ -406,8 +419,35 @@ public class AdminReportReviewController : ControllerBase
                 Password = password
             },
 
-            Parameters = exportParameters
+            Parameters = exportParameters,
+            HeaderTextReplacements = GetHeaderTextReplacements(report)
         };
+    }
+
+    private static Dictionary<string, string> GetHeaderTextReplacements(Report report)
+    {
+        try
+        {
+            return (JsonSerializer.Deserialize<List<ReportColumnHeaderMappingDto>>(
+                    report.ColumnHeaderMappingsJson) ?? [])
+                .Where(mapping => !string.IsNullOrWhiteSpace(mapping.SourceText) &&
+                    !string.IsNullOrWhiteSpace(mapping.DisplayName))
+                .GroupBy(mapping => mapping.SourceText.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Last().DisplayName.Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static string GetExecutableRptPath(string sourceRptPath)
+    {
+        var localizedPath = Path.Combine(
+            Path.GetDirectoryName(sourceRptPath) ?? string.Empty,
+            Path.GetFileNameWithoutExtension(sourceRptPath) + ".localized.rpt");
+        return System.IO.File.Exists(localizedPath) ? localizedPath : sourceRptPath;
     }
 
     private async Task<bool> CanMaintainReportAsync(long userId, long reportId)

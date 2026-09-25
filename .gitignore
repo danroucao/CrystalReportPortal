@@ -58,3 +58,12 @@ crystal-service/export-request.json
 # ==============================
 
 tree.txt
+
+# Local validation artifacts and Data Protection keys
+.test-output/
+.test-outputDebug/
+ValidationDeleteFinal/
+ValidationOptionalSource3/
+temp-preview/
+.crystal-export-test.*
+backend/CrystalReportPortal.Api/keys/

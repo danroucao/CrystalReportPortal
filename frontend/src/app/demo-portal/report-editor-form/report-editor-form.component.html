@@ -95,6 +95,19 @@
         (click)="quickAddRequested.emit()"
       ><span aria-hidden="true">＋</span> 新增分類</button>
     </div>
+    <label *ngIf="IsUploadPage" [for]="IdPrefix + '-data-source'" class="report-upload-data-source-field">
+      <span class="form-field-label">資料來源 <small>（選填）</small></span>
+      <select
+        [id]="IdPrefix + '-data-source'"
+        name="reportUploadDataSource"
+        [ngModel]="draft.DataSourceId"
+        (ngModelChange)="UpdateDraft('DataSourceId', $event)"
+      >
+        <option value="">不設定資料來源（使用 Saved Data）</option>
+        <option *ngFor="let dataSource of dataSources" [value]="dataSource.dataSourceId">{{ dataSource.dataSourceName }}</option>
+      </select>
+      <small>選擇資料來源後，發佈時需完成報表參數設定，並以即時資料輸出；未選擇時會使用 RPT 內嵌的 Saved Data。</small>
+    </label>
     <div *ngIf="quickAddOpen" class="report-category-quick-add" [class.report-upload-quick-add]="IsUploadPage" role="group" [attr.aria-labelledby]="QuickAddLabelId">
       <label [for]="QuickAddInputId">
         <span [id]="QuickAddLabelId" class="form-field-label">分類名稱<span class="required-indicator" aria-hidden="true">*</span></span>

@@ -31,6 +31,15 @@ var keyRingPath = builder.Configuration["DataProtection:KeyRingPath"]
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(keyRingPath))
     .SetApplicationName("CrystalReportPortal.Api");
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = ".CrystalReportPortal.AntiForgery";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+});
 // Session 使用的伺服器端儲存空間
 builder.Services.AddDistributedMemoryCache();
 
@@ -45,6 +54,12 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 
     options.Cookie.SameSite = SameSiteMode.Lax;
+
+    // Production back-office sessions must never travel over HTTP. Development
+    // keeps its current behavior so the local HTTP Angular server can test it.
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
 
     // 30 分鐘沒有使用，Session 就過期
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -186,10 +201,20 @@ builder.Services.AddCors(options =>
 // Controllers / OpenAPI
 // =========================================================
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+    options.Filters.Add<BackOfficeAntiforgeryFilter>());
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Local development should always include the data migrations used by the
+// demo portal. Production deployments keep migration execution explicit.
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate();
+}
 
 // =========================================================
 // HTTP Pipeline

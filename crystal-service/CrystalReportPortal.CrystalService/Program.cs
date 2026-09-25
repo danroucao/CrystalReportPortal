@@ -66,6 +66,32 @@ namespace CrystalReportPortal.CrystalService
                     return 0;
                 }
 
+                if (command == "header-texts")
+                {
+                    if (args.Length < 2)
+                    {
+                        throw new ArgumentException("請指定 RPT 路徑。");
+                    }
+
+                    Console.WriteLine(serializer.Serialize(new
+                    {
+                        Success = true,
+                        HeaderTexts = service.GetHeaderTexts(args[1])
+                    }));
+                    return 0;
+                }
+
+                if (command == "report-objects")
+                {
+                    if (args.Length < 2) throw new ArgumentException("請指定 RPT 路徑。");
+                    Console.WriteLine(serializer.Serialize(new
+                    {
+                        Success = true,
+                        Objects = service.GetReportObjectSummary(args[1])
+                    }));
+                    return 0;
+                }
+
                 // ============================
                 // preview
                 // ============================
@@ -152,6 +178,15 @@ namespace CrystalReportPortal.CrystalService
                     Console.WriteLine(
                         serializer.Serialize(response));
 
+                    return response.Success ? 0 : 1;
+                }
+
+                if (command == "localize-template")
+                {
+                    if (args.Length < 2) throw new ArgumentException("請指定 request.json 路徑。");
+                    var request = serializer.Deserialize<CrystalExportRequest>(File.ReadAllText(args[1]));
+                    var response = service.CreateLocalizedTemplate(request);
+                    Console.WriteLine(serializer.Serialize(response));
                     return response.Success ? 0 : 1;
                 }
 

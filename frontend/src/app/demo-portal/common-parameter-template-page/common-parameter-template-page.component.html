@@ -67,26 +67,44 @@
     </div>
 
     <form class="common-parameter-form" (ngSubmit)="saveTemplate()" novalidate>
-      <label>參數代碼<span class="required-indicator">*</span>
-        <input name="templateCode" [(ngModel)]="draft.templateCode" placeholder="例如 COMMON_START_DATE" required />
-      </label>
-      <label>顯示名稱<span class="required-indicator">*</span>
-        <input name="templateName" [(ngModel)]="draft.templateName" placeholder="例如 開始日期" required />
-      </label>
-      <label>匹配用參數名稱<span class="required-indicator">*</span>
-        <input name="normalizedParameterName" [(ngModel)]="draft.normalizedParameterName" placeholder="例如 STARTDATE 或 CT" required />
-      </label>
-      <label>資料型別
-        <select name="dataType" [(ngModel)]="draft.dataType"><option *ngFor="let value of dataTypes" [value]="value">{{ value }}</option></select>
-      </label>
-      <label>輸入元件
-        <select name="inputType" [(ngModel)]="draft.inputType"><option *ngFor="let value of inputTypes" [value]="value">{{ value }}</option></select>
-      </label>
-      <label>值來源
-        <select name="valueSourceType" [(ngModel)]="draft.valueSourceType" (ngModelChange)="onValueSourceChange()"><option *ngFor="let value of valueSourceTypes" [value]="value">{{ value }}</option></select>
-      </label>
+      <fieldset class="common-parameter-section common-parameter-wide">
+        <legend>1. 識別與自動匹配</legend>
+        <p class="common-parameter-section-hint">系統會依「匹配用參數名稱」比對上傳的 RPT 參數；代碼僅供管理與辨識。</p>
+        <div class="common-parameter-section-grid">
+          <label>參數代碼<span class="required-indicator">*</span>
+            <input name="templateCode" [(ngModel)]="draft.templateCode" placeholder="例如 COMMON_START_DATE" required />
+          </label>
+          <label>顯示名稱<span class="required-indicator">*</span>
+            <input name="templateName" [(ngModel)]="draft.templateName" placeholder="例如 開始日期" required />
+          </label>
+          <label class="common-parameter-wide">匹配用參數名稱<span class="required-indicator">*</span>
+            <input name="normalizedParameterName" [(ngModel)]="draft.normalizedParameterName" placeholder="請輸入 RPT 內的參數名稱，例如 STARTDATE 或 CT" required />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="common-parameter-section common-parameter-wide">
+        <legend>2. 輸入方式與值來源</legend>
+        <p class="common-parameter-section-hint">先選擇資料型別與輸入元件，再決定由使用者輸入、SQL 清單或登入者資訊帶入。</p>
+        <div class="common-parameter-section-grid">
+          <label>資料型別
+            <select name="dataType" [(ngModel)]="draft.dataType"><option *ngFor="let value of dataTypes" [value]="value">{{ value }}</option></select>
+          </label>
+          <label>輸入元件
+            <select name="inputType" [(ngModel)]="draft.inputType" (ngModelChange)="onInputTypeChange()"><option *ngFor="let value of inputTypes" [value]="value">{{ value }}</option></select>
+          </label>
+          <label>值來源
+            <select name="valueSourceType" [(ngModel)]="draft.valueSourceType" (ngModelChange)="onValueSourceChange()"><option *ngFor="let value of valueSourceTypes" [value]="value">{{ value }}</option></select>
+            <small class="common-parameter-control-hint">{{ valueSourceHint }}</small>
+          </label>
+        </div>
+      </fieldset>
 
       <ng-container *ngIf="isSqlLov">
+        <fieldset class="common-parameter-section common-parameter-wide common-parameter-sql-section">
+          <legend>3. SQL 清單設定</legend>
+          <p class="common-parameter-section-hint">查詢結果需包含值欄位與顯示欄位，僅允許讀取用的單一 SELECT 查詢。</p>
+          <div class="common-parameter-section-grid">
         <label>資料來源<span class="required-indicator">*</span>
           <select
             name="dataSourceId"
@@ -107,17 +125,28 @@
         </label>
         <label>值欄位<span class="required-indicator">*</span><input name="valueField" [(ngModel)]="draft.valueField" required /></label>
         <label>顯示欄位<span class="required-indicator">*</span><input name="displayField" [(ngModel)]="draft.displayField" required /></label>
+          </div>
+        </fieldset>
       </ng-container>
 
-      <label>預設值<input name="defaultValue" [(ngModel)]="draft.defaultValue" /></label>
-      <label class="common-parameter-wide">說明<textarea name="description" rows="3" [(ngModel)]="draft.description"></textarea></label>
+      <fieldset class="common-parameter-section common-parameter-wide">
+        <legend>{{ isSqlLov ? '4' : '3' }}. 預設值與行為</legend>
+        <div class="common-parameter-section-grid">
+          <label>預設值
+            <input name="defaultValue" [(ngModel)]="draft.defaultValue" placeholder="未填寫時不預先帶入" />
+          </label>
+          <label>說明
+            <textarea name="description" rows="2" [(ngModel)]="draft.description" placeholder="供管理者辨識此參數的用途"></textarea>
+          </label>
+        </div>
 
-      <fieldset class="common-parameter-flags common-parameter-wide">
-        <legend>行為設定</legend>
-        <label><input name="isRequired" type="checkbox" [(ngModel)]="draft.isRequired" /> 必填</label>
-        <label><input name="allowMultipleValues" type="checkbox" [(ngModel)]="draft.allowMultipleValues" /> 允許多值</label>
-        <label><input name="allowRangeValues" type="checkbox" [(ngModel)]="draft.allowRangeValues" /> 允許範圍</label>
-        <label><input name="isVisible" type="checkbox" [(ngModel)]="draft.isVisible" /> 顯示於執行頁</label>
+        <fieldset class="common-parameter-flags">
+          <legend>執行行為</legend>
+          <label><input name="isRequired" type="checkbox" [(ngModel)]="draft.isRequired" /> <span><strong>必填</strong><small>未填寫不可執行報表</small></span></label>
+          <label><input name="allowMultipleValues" type="checkbox" [(ngModel)]="draft.allowMultipleValues" (ngModelChange)="onAllowMultipleValuesChange()" /> <span><strong>允許多值</strong><small>可同時選擇多個項目</small></span></label>
+          <label><input name="allowRangeValues" type="checkbox" [(ngModel)]="draft.allowRangeValues" (ngModelChange)="onAllowRangeValuesChange()" /> <span><strong>允許範圍</strong><small>輸入開始與結束值</small></span></label>
+          <label><input name="isVisible" type="checkbox" [(ngModel)]="draft.isVisible" [disabled]="draft.inputType === 'Hidden' || draft.valueSourceType === 'CurrentUser'" /> <span><strong>顯示於執行頁</strong><small>關閉時由系統帶入，不讓使用者修改</small></span></label>
+        </fieldset>
       </fieldset>
 
       <p *ngIf="editorError" class="field-error common-parameter-wide" role="alert">{{ editorError }}</p>

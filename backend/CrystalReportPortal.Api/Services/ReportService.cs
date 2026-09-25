@@ -5,6 +5,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace CrystalReportPortal.Api.Services;
 
@@ -35,60 +36,7 @@ public class ReportService : IReportService
             return new ReportListResponse();
         }
 
-        var reports = await _dbContext.RoleReportPermissions
-            .AsNoTracking()
-            .Where(permission =>
-    roleCodes.Contains(permission.Role.RoleCode) &&
-    permission.Role.IsEnabled &&
-    permission.Report.IsEnabled &&
-    permission.Report.ConfigurationStatus == "Ready" &&
-    permission.Report.Category.IsEnabled)
-            .GroupBy(permission => new
-            {
-                permission.Report.ReportId,
-                permission.Report.ReportCode,
-                permission.Report.ReportName,
-                permission.Report.Description,
-                permission.Report.CreatedAt,
-                permission.Report.UpdatedAt,
-                permission.Report.Category.CategoryId,
-                permission.Report.Category.CategoryName
-            })
-.Where(group => group.Any(permission => permission.CanExecute))
-
-            .Select(group => new ReportDto
-            {
-                ReportId = group.Key.ReportId,
-                ReportCode = group.Key.ReportCode,
-                ReportName = group.Key.ReportName,
-                Description = group.Key.Description,
-                CreatedAt = group.Key.CreatedAt,
-                UpdatedAt = group.Key.UpdatedAt,
-
-                Category = new ReportCategoryDto
-                {
-                    CategoryId = group.Key.CategoryId,
-                    CategoryName = group.Key.CategoryName
-                },
-
-                Permissions = new ReportPermissionDto
-                {
-                    CanExecute = group.Any(permission => permission.CanExecute),
-                    CanExport = group.Any(permission => permission.CanExport),
-                    CanPrint = group.Any(permission => permission.CanPrint),
-                    CanUpload = group.Any(permission => permission.CanUpload),
-                    CanMaintain = group.Any(permission => permission.CanMaintain),
-                    CanSetParameters = group.Any(permission => permission.CanSetParameters),
-                    CanEnableDisable = group.Any(permission => permission.CanEnableDisable)
-                }
-            })
-            .OrderBy(
-                report =>
-                    report.Category.CategoryName)
-            .ThenBy(
-                report =>
-                    report.ReportName)
-            .ToListAsync();
+        var reports = await GetEffectiveReportsAsync(roleCodes);
 
         return new ReportListResponse
         {
@@ -100,34 +48,16 @@ public class ReportService : IReportService
         long reportId,
         List<string> roleCodes)
     {
-        return await _dbContext.RoleReportPermissions
-            .AsNoTracking()
-            .AnyAsync(permission =>
-                permission.ReportId == reportId &&
-                roleCodes.Contains(
-                    permission.Role.RoleCode) &&
-                permission.Role.IsEnabled &&
-                permission.Report.IsEnabled &&
-                permission.Report.ConfigurationStatus == "Ready" &&
-                permission.Report.Category.IsEnabled &&
-                permission.CanExecute);
+        var permission = await GetEffectiveReportPermissionAsync(reportId, roleCodes);
+        return permission?.CanExecute == true;
     }
 
     public async Task<bool> CanExportReportAsync(
     long reportId,
     List<string> roleCodes)
     {
-        return await _dbContext.RoleReportPermissions
-            .AsNoTracking()
-            .AnyAsync(permission =>
-                permission.ReportId == reportId &&
-                roleCodes.Contains(
-                    permission.Role.RoleCode) &&
-                permission.Role.IsEnabled &&
-                permission.Report.IsEnabled &&
-                permission.Report.ConfigurationStatus == "Ready" &&
-                permission.Report.Category.IsEnabled &&
-                permission.CanExport);
+        var permission = await GetEffectiveReportPermissionAsync(reportId, roleCodes);
+        return permission?.CanExport == true;
     }
 
     public async Task<bool> CanUploadReportAsync(
@@ -148,17 +78,8 @@ public class ReportService : IReportService
     long reportId,
     List<string> roleCodes)
     {
-        return await _dbContext.RoleReportPermissions
-            .AsNoTracking()
-            .AnyAsync(permission =>
-                permission.ReportId == reportId &&
-                roleCodes.Contains(
-                    permission.Role.RoleCode) &&
-                permission.Role.IsEnabled &&
-                permission.Report.IsEnabled &&
-                permission.Report.ConfigurationStatus == "Ready" &&
-                permission.Report.Category.IsEnabled &&
-                permission.CanPrint);
+        var permission = await GetEffectiveReportPermissionAsync(reportId, roleCodes);
+        return permission?.CanPrint == true;
     }
 
     public async Task<bool> CanMaintainReportAsync(
@@ -201,6 +122,111 @@ public class ReportService : IReportService
                     permission.Role.RoleCode) &&
                 permission.Role.IsEnabled &&
                 permission.CanEnableDisable);
+    }
+
+    /// <summary>
+    /// Resolves end-user access from the report category. Report-specific rows
+    /// only carry back-office management capabilities (upload, maintain,
+    /// parameter setting and enable/disable) and must not override category
+    /// execute, export or print permissions.
+    /// </summary>
+    private async Task<List<ReportDto>> GetEffectiveReportsAsync(
+        List<string> roleCodes)
+    {
+        var roleIds = await _dbContext.Roles
+            .AsNoTracking()
+            .Where(role => role.IsEnabled && roleCodes.Contains(role.RoleCode))
+            .Select(role => role.RoleId)
+            .ToListAsync();
+
+        if (roleIds.Count == 0)
+        {
+            return [];
+        }
+
+        var reports = await _dbContext.Reports
+            .AsNoTracking()
+            .Include(report => report.Category)
+            .Where(report => report.IsEnabled &&
+                report.ConfigurationStatus == "Ready" &&
+                report.Category.IsEnabled)
+            .OrderBy(report => report.Category.CategoryName)
+            .ThenBy(report => report.ReportName)
+            .ToListAsync();
+
+        var categoryPermissions = await _dbContext.RoleCategoryPermissions
+            .AsNoTracking()
+            .Where(permission => roleIds.Contains(permission.RoleId))
+            .ToDictionaryAsync(permission => (permission.RoleId, permission.CategoryId));
+
+        var reportPermissions = await _dbContext.RoleReportPermissions
+            .AsNoTracking()
+            .Where(permission => roleIds.Contains(permission.RoleId))
+            .ToDictionaryAsync(permission => (permission.RoleId, permission.ReportId));
+
+        var result = new List<ReportDto>();
+        foreach (var report in reports)
+        {
+            var permissions = roleIds.Select(roleId =>
+            {
+                categoryPermissions.TryGetValue((roleId, report.CategoryId), out var categoryPermission);
+                reportPermissions.TryGetValue((roleId, report.ReportId), out var reportPermission);
+
+                if (categoryPermission == null && reportPermission == null) return null;
+
+                return new ReportPermissionDto
+                {
+                    CanExecute = categoryPermission?.CanExecute ?? false,
+                    CanExport = categoryPermission?.CanExport ?? false,
+                    CanPrint = categoryPermission?.CanPrint ?? false,
+                    CanUpload = reportPermission?.CanUpload ?? false,
+                    CanMaintain = reportPermission?.CanMaintain ?? false,
+                    CanSetParameters = reportPermission?.CanSetParameters ?? false,
+                    CanEnableDisable = reportPermission?.CanEnableDisable ?? false
+                };
+            }).Where(permission => permission != null).Cast<ReportPermissionDto>().ToList();
+
+            if (!permissions.Any(permission => permission.CanExecute))
+            {
+                continue;
+            }
+
+            result.Add(new ReportDto
+            {
+                ReportId = report.ReportId,
+                ReportCode = report.ReportCode,
+                ReportName = report.ReportName,
+                Description = report.Description,
+                CreatedAt = report.CreatedAt,
+                UpdatedAt = report.UpdatedAt,
+                UsesSavedData = !report.DataSourceId.HasValue,
+                Category = new ReportCategoryDto
+                {
+                    CategoryId = report.Category.CategoryId,
+                    CategoryName = report.Category.CategoryName
+                },
+                Permissions = new ReportPermissionDto
+                {
+                    CanExecute = permissions.Any(permission => permission.CanExecute),
+                    CanExport = permissions.Any(permission => permission.CanExport),
+                    CanPrint = permissions.Any(permission => permission.CanPrint),
+                    CanUpload = permissions.Any(permission => permission.CanUpload),
+                    CanMaintain = permissions.Any(permission => permission.CanMaintain),
+                    CanSetParameters = permissions.Any(permission => permission.CanSetParameters),
+                    CanEnableDisable = permissions.Any(permission => permission.CanEnableDisable)
+                }
+            });
+        }
+
+        return result;
+    }
+
+    private async Task<ReportPermissionDto?> GetEffectiveReportPermissionAsync(
+        long reportId,
+        List<string> roleCodes)
+    {
+        var reports = await GetEffectiveReportsAsync(roleCodes);
+        return reports.FirstOrDefault(report => report.ReportId == reportId)?.Permissions;
     }
 
     public async Task<ReportParameterResponse> GetReportParametersAsync(
@@ -521,6 +547,29 @@ public class ReportService : IReportService
                 await _crystalProcessService
                     .GetParametersAsync(fullPath);
 
+            // Keep the source text of the report's text objects so an administrator
+            // can assign Chinese display names without modifying the original RPT.
+            // Header detection is optional: an RPT upload must still succeed if a
+            // legacy Crystal runtime cannot enumerate its layout objects.
+            try
+            {
+                var detectedHeaders = await _crystalProcessService.GetHeaderTextsAsync(fullPath);
+                var existingMappings = JsonSerializer.Deserialize<List<ReportColumnHeaderMappingDto>>(
+                    report.ColumnHeaderMappingsJson) ?? [];
+                report.ColumnHeaderMappingsJson = JsonSerializer.Serialize(detectedHeaders
+                    .Select(sourceText => new ReportColumnHeaderMappingDto
+                    {
+                        SourceText = sourceText,
+                        DisplayName = existingMappings
+                            .LastOrDefault(item => string.Equals(item.SourceText, sourceText,
+                                StringComparison.OrdinalIgnoreCase))?.DisplayName ?? string.Empty
+                    }));
+            }
+            catch
+            {
+                // The mapping page remains available for manual entries.
+            }
+
             // =====================================
             // 4. 移除舊參數
             // =====================================
@@ -693,6 +742,9 @@ public class ReportService : IReportService
             var oldFilePath =
                 report.RptFilePath;
 
+            RemoveLocalizedTemplate(oldFilePath);
+            RemoveLocalizedTemplate(fullPath);
+
             report.RptFileName =
                 safeFileName;
 
@@ -703,7 +755,9 @@ public class ReportService : IReportService
                 newParameters.All(parameter =>
                     parameter.IsConfigured);
 
-            report.ConfigurationStatus = allParametersConfigured
+            // Reports without a data source are rendered from Crystal Saved Data.
+            // They do not enter the live-data parameter configuration workflow.
+            report.ConfigurationStatus = !report.DataSourceId.HasValue || allParametersConfigured
                 ? "PendingReview"
                 : "PendingConfiguration";
 
@@ -1069,6 +1123,15 @@ public class ReportService : IReportService
         return sqlPart.StartsWith(
             "select ",
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void RemoveLocalizedTemplate(string rptPath)
+    {
+        if (string.IsNullOrWhiteSpace(rptPath)) return;
+        var localizedPath = Path.Combine(
+            Path.GetDirectoryName(rptPath) ?? string.Empty,
+            Path.GetFileNameWithoutExtension(rptPath) + ".localized.rpt");
+        if (File.Exists(localizedPath)) File.Delete(localizedPath);
     }
 
     // ==========================================

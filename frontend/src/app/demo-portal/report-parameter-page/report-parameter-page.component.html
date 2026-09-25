@@ -91,6 +91,10 @@
           </p>
         </div>
         <h2 class="parameter-section-heading">報表列表</h2>
+        <div class="report-list-heading">
+          <span class="report-result-count" aria-live="polite">共 {{ DisplayedParameterReports.length }} 份報表</span>
+          <span class="report-list-hint">選擇報表後可設定條件，Saved Data 報表可直接閱覽。</span>
+        </div>
         <div
           *ngIf="
             DisplayedParameterReports.length;
@@ -201,6 +205,9 @@
                 *ngFor="let Report of PagedParameterReports"
                 class="report-entry-row"
                 (click)="SelectReportForParameters(Report.ReportKey)"
+                tabindex="0"
+                (keydown.enter)="SelectReportForParameters(Report.ReportKey)"
+                (keydown.space)="SelectReportForParameters(Report.ReportKey); $event.preventDefault()"
               >
                 <td *ngIf="Auth.IsFrontOffice">
                   <button
@@ -245,31 +252,34 @@
                   </button>
                 </td>
                 <td class="report-name-cell" [title]="Report.ReportName">
-                  {{ Report.ReportName }}
+                  <strong>{{ Report.ReportName }}</strong>
+                  <span class="report-mode-badge" [class.is-saved-data]="Report.UsesSavedData">{{ Report.UsesSavedData ? 'Saved Data' : '即時資料' }}</span>
                 </td>
-                <td>{{ Report.CategoryName }}</td>
+                <td><span class="report-category-badge">{{ Report.CategoryName }}</span></td>
                 <td
                   class="parameter-report-description"
                   [title]="Report.Description"
                 >
-                  {{ Report.Description }}
+                  {{ Report.Description || '未提供報表說明' }}
                 </td>
-                <td class="parameter-report-timestamp">
-                  {{ Report.CreatedAt || "—" }}
+                <td class="parameter-report-timestamp" [title]="Report.CreatedAt | date:'yyyy/MM/dd HH:mm:ss'">
+                  {{ Report.CreatedAt | date:'yyyy/MM/dd HH:mm' }}
                 </td>
-                <td class="parameter-report-timestamp">
-                  {{ Report.UpdatedAt || "—" }}
+                <td class="parameter-report-timestamp" [title]="Report.UpdatedAt ? (Report.UpdatedAt | date:'yyyy/MM/dd HH:mm:ss') : '—'">
+                  {{ Report.UpdatedAt ? (Report.UpdatedAt | date:'yyyy/MM/dd HH:mm') : '—' }}
                 </td>
                 <td>
                   <button
                     type="button"
-                    class="secondary-button"
+                    class="report-open-button"
+                    [attr.aria-label]="'執行報表：' + Report.ReportName"
+                    [title]="Report.UsesSavedData ? '直接進入 Saved Data 閱覽頁面' : '進入條件設定頁面'"
                     (click)="
                       SelectReportForParameters(Report.ReportKey);
                       $event.stopPropagation()
                     "
                   >
-                    輸入條件
+                    執行
                   </button>
                 </td>
               </tr>
@@ -363,6 +373,7 @@
               {{ Auth.SelectedReport?.ReportName }} /
               {{ Auth.SelectedReport?.CategoryName }}
             </h2>
+            <p class="selected-parameter-report-code">報表代碼：{{ Auth.SelectedReport?.ReportCode || '—' }}</p>
           </div>
           <button
             type="button"
@@ -532,29 +543,37 @@
                     重試
                   </button>
                 </div>
-                <select
-                  [id]="Definition.ParameterName"
-                  [formControlName]="Definition.ParameterName"
-                  [multiple]="Definition.AllowMultipleValues"
-                  [disabled]="
-                    UsesLov(Definition) &&
-                    GetLovStatus(Definition) !== 'success'
-                  "
-                >
-                  <option
-                    *ngIf="!Definition.AllowMultipleValues"
-                    value=""
-                    [disabled]="Definition.IsRequired"
+                <ng-container *ngIf="Definition.AllowMultipleValues; else SingleSelectInput">
+                  <div class="parameter-multiselect" role="group" [attr.aria-label]="Definition.DisplayName">
+                    <div class="parameter-multiselect-actions">
+                      <span>可複選</span>
+                      <button type="button" (click)="ClearMultiSelect(Definition)" [disabled]="!(ReportParameterForm.get(Definition.ParameterName)?.value?.length)">清除</button>
+                    </div>
+                    <div class="parameter-option-chips">
+                      <button
+                        *ngFor="let Option of GetLovOptions(Definition)"
+                        type="button"
+                        class="parameter-option-chip"
+                        [class.is-selected]="IsMultiSelectOptionSelected(Definition, Option.Value)"
+                        [attr.aria-pressed]="IsMultiSelectOptionSelected(Definition, Option.Value)"
+                        (click)="ToggleMultiSelectOption(Definition, Option.Value)"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                        {{ Option.DisplayText }}
+                      </button>
+                    </div>
+                  </div>
+                </ng-container>
+                <ng-template #SingleSelectInput>
+                  <select
+                    [id]="Definition.ParameterName"
+                    [formControlName]="Definition.ParameterName"
+                    [disabled]="UsesLov(Definition) && GetLovStatus(Definition) !== 'success'"
                   >
-                    請選擇
-                  </option>
-                  <option
-                    *ngFor="let Option of GetLovOptions(Definition)"
-                    [value]="Option.Value"
-                  >
-                    {{ Option.DisplayText }}
-                  </option>
-                </select>
+                    <option value="" [disabled]="Definition.IsRequired">請選擇</option>
+                    <option *ngFor="let Option of GetLovOptions(Definition)" [value]="Option.Value">{{ Option.DisplayText }}</option>
+                  </select>
+                </ng-template>
                 <span
                   *ngIf="GetParameterError(Definition)"
                   class="parameter-field-error"
@@ -567,22 +586,22 @@
           <p *ngIf="!VisibleReportParameters.length" class="muted">
             此 Mock 報表沒有需要輸入的條件。
           </p>
-          <button
-            *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
-            type="submit"
-            class="primary-button"
-            [disabled]="!CanGenerateReport"
-          >
-            產生報表
-          </button>
-          <button
-            *ngIf="Auth.SelectedReportCategoryPermission.CanExecute"
-            type="button"
-            class="tertiary-button"
-            (click)="ResetReportParameters()"
-          >
-            重設
-          </button>
+          <div *ngIf="Auth.SelectedReportCategoryPermission.CanExecute" class="parameter-form-actions">
+            <button
+              type="submit"
+              class="primary-button"
+              [disabled]="!CanGenerateReport"
+            >
+              產生報表
+            </button>
+            <button
+              type="button"
+              class="tertiary-button"
+              (click)="ResetReportParameters()"
+            >
+              重設
+            </button>
+          </div>
           <p
             *ngIf="!Auth.SelectedReportCategoryPermission.CanExecute"
             class="mock-notice"

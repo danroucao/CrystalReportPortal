@@ -16,6 +16,8 @@ export class AuditLogService {
     fromUtc?: string;
     toUtc?: string;
     search?: string;
+    source?: 'BackOffice' | 'FrontOffice';
+    category?: 'AccountManagement' | 'PermissionChange' | 'DataSourceManagement' | 'ReportAction';
   }): Observable<AuditLogApiResponse> {
     let params = new HttpParams()
       .set('page', query.page)
@@ -23,6 +25,8 @@ export class AuditLogService {
     if (query.fromUtc) params = params.set('fromUtc', query.fromUtc);
     if (query.toUtc) params = params.set('toUtc', query.toUtc);
     if (query.search) params = params.set('search', query.search);
+    if (query.source) params = params.set('source', query.source);
+    if (query.category) params = params.set('category', query.category);
     return this.http.get<AuditLogApiResponse>(this.endpoint, { params });
   }
 }

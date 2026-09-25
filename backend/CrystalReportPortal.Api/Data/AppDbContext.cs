@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
     public DbSet<ReportCategory> ReportCategories => Set<ReportCategory>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<RoleReportPermission> RoleReportPermissions => Set<RoleReportPermission>();
+    public DbSet<RoleCategoryPermission> RoleCategoryPermissions => Set<RoleCategoryPermission>();
 
     public DbSet<ReportDataSource> ReportDataSources => Set<ReportDataSource>();
     public DbSet<DataSourceCredential> DataSourceCredentials => Set<DataSourceCredential>();
@@ -114,6 +115,7 @@ public class AppDbContext : DbContext
 
         ConfigureReports(modelBuilder);
         ConfigureRoleReportPermissions(modelBuilder);
+        ConfigureRoleCategoryPermissions(modelBuilder);
 
         ConfigureReportParameters(modelBuilder);
         ConfigureCommonParameterTemplates(modelBuilder);
@@ -153,6 +155,11 @@ public class AppDbContext : DbContext
             entity.Property(x => x.UserName)
                 .HasMaxLength(100)
                 .IsRequired();
+
+            entity.Property(x => x.Department)
+                .HasMaxLength(100);
+
+            entity.HasIndex(x => x.Department);
 
             entity.Property(x => x.PasswordHash)
                 .HasMaxLength(255)
@@ -431,6 +438,11 @@ public class AppDbContext : DbContext
                 .HasDefaultValue("Draft", "DF_Reports_ConfigurationStatus")
                 .IsRequired();
 
+            entity.Property(x => x.ColumnHeaderMappingsJson)
+                .HasColumnType("nvarchar(max)")
+                .HasDefaultValue("[]")
+                .IsRequired();
+
             entity.Property(x => x.IsEnabled)
                 .HasDefaultValue(
                     true,
@@ -513,6 +525,42 @@ public class AppDbContext : DbContext
             entity.HasOne(x => x.Report)
                 .WithMany(x => x.RoleReportPermissions)
                 .HasForeignKey(x => x.ReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    // =========================================================
+    // RoleCategoryPermissions
+    // =========================================================
+
+    private static void ConfigureRoleCategoryPermissions(
+        ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<RoleCategoryPermission>(entity =>
+        {
+            entity.ToTable("RoleCategoryPermissions");
+
+            entity.HasKey(x => new { x.RoleId, x.CategoryId });
+
+            entity.Property(x => x.CanExecute).IsRequired();
+            entity.Property(x => x.CanExport).IsRequired();
+            entity.Property(x => x.CanPrint).IsRequired();
+
+            entity.Property(x => x.CreatedAt)
+                .HasColumnType("datetime2")
+                .HasDefaultValueSql("(sysdatetime())", "DF_RoleCategoryPermissions_CreatedAt")
+                .IsRequired();
+
+            entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+
+            entity.HasOne(x => x.Role)
+                .WithMany(x => x.RoleCategoryPermissions)
+                .HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Category)
+                .WithMany(x => x.RoleCategoryPermissions)
+                .HasForeignKey(x => x.CategoryId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

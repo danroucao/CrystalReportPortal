@@ -12,6 +12,8 @@ export interface AuditLogApiItem {
   details: string | null;
   errorMessage: string | null;
   ipAddress: string | null;
+  source: 'BackOffice' | 'FrontOffice';
+  category: 'AccountManagement' | 'PermissionChange' | 'DataSourceManagement' | 'ReportAction';
   createdAt: string;
 }
 

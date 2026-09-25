@@ -47,11 +47,16 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
   private previewObjectUrl: string | null = null;
   previewSucceeded = false;
 
-  get isSavedDataPreview(): boolean {
+  get isConfigurationMode(): boolean {
     return (
+      this.report.dataSourceId !== null &&
       this.report.configurationStatus ===
       'PendingConfiguration'
     );
+  }
+
+  get isSavedDataReport(): boolean {
+    return this.report.dataSourceId === null;
   }
 
   get visibleParameters(): readonly ManagedReportParameter[] {
@@ -90,23 +95,19 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
   }
 
   testPreview(): void {
-    if (!this.isSavedDataPreview) {
-      const validationError = this.validate();
-
-      if (validationError) {
-        this.errorMessage = validationError;
-        return;
-      }
+    const validationError = this.validate();
+    if (validationError) {
+      this.errorMessage = validationError;
+      return;
     }
 
     const request: ReportTestPreviewRequest = {
-      parameters: this.isSavedDataPreview
-        ? []
-        : this.visibleParameters.map((parameter) => ({
-            parameterId: parameter.parameterId,
-            values:
-              this.values[parameter.parameterId] ?? [],
-          })),
+      // Saved Data is already embedded in the RPT. Supplying RPT parameters
+      // would incorrectly make this confirmation screen behave like a live query.
+      parameters: (this.isSavedDataReport ? [] : this.visibleParameters).map((parameter) => ({
+        parameterId: parameter.parameterId,
+        values: this.values[parameter.parameterId] ?? [],
+      })),
     };
 
     this.isPreviewing = true;
@@ -118,7 +119,7 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
       .TestPreviewManagedReport(
         this.report.reportId,
         request,
-        this.isSavedDataPreview,
+        this.isSavedDataReport,
       )
       .pipe(
         finalize(() => (this.isPreviewing = false)),
@@ -196,7 +197,7 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
 
   approve(): void {
     if (
-      this.isSavedDataPreview ||
+      this.isConfigurationMode ||
       !this.previewSucceeded
     ) {
       return;
@@ -239,6 +240,9 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
             ? [parameter.defaultValue]
             : [];
         }
+        // Saved Data preview never queries a data source, so SQL LOV options are
+        // irrelevant and must not be requested during dialog initialization.
+        if (this.isSavedDataReport) return of([]);
         const lovParameters = response.parameters.filter(
           (parameter) => parameter.isVisible && parameter.valueSourceType === 'SqlLov',
         );
@@ -289,6 +293,8 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
   }
 
   private validate(): string {
+    if (this.isSavedDataReport) return '';
+
     for (const parameter of this.visibleParameters) {
       if (parameter.isRequired && !(this.values[parameter.parameterId]?.length)) {
         return `請填寫「${parameter.displayName}」。`;

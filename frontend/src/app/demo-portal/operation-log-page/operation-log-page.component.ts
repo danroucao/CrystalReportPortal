@@ -40,12 +40,14 @@ export class OperationLogPageComponent implements OnInit {
     Record<OperationLogSourceFilter, readonly OperationLogCategoryOption[]>
   > = {
     ALL: [
+      { Value: 'DataSourceManagement', Label: '資料來源管理' },
       { Value: 'ALL', Label: '全部' },
       { Value: 'PermissionChange', Label: '權限異動' },
       { Value: 'ReportAction', Label: '報表操作' },
       { Value: 'AccountManagement', Label: '帳號管理' },
     ],
     BackOffice: [
+      { Value: 'DataSourceManagement', Label: '資料來源管理' },
       { Value: 'ALL', Label: '全部' },
       { Value: 'PermissionChange', Label: '權限異動' },
       { Value: 'AccountManagement', Label: '帳號管理' },
@@ -81,9 +83,15 @@ export class OperationLogPageComponent implements OnInit {
     this.AuditLogApi.getLogs({
       page: this.OperationLogCurrentPage,
       pageSize: this.PaginationPageSize,
-      fromUtc: this.OperationLogStartDate ? `${this.OperationLogStartDate}T00:00:00Z` : undefined,
-      toUtc: this.OperationLogEndDate ? `${this.OperationLogEndDate}T23:59:59.999Z` : undefined,
+      fromUtc: this.OperationLogStartDate
+        ? this.ToTaipeiBoundaryUtc(this.OperationLogStartDate, false)
+        : undefined,
+      toUtc: this.OperationLogEndDate
+        ? this.ToTaipeiBoundaryUtc(this.OperationLogEndDate, true)
+        : undefined,
       search: this.OperationLogSearchText.trim() || undefined,
+      source: this.OperationLogSourceFilter === 'ALL' ? undefined : this.OperationLogSourceFilter,
+      category: this.OperationLogCategoryFilter === 'ALL' ? undefined : this.OperationLogCategoryFilter,
     }).subscribe({
       next: (response) => {
         this.ApiLogs = response.items.map((item) => this.MapApiLog(item));
@@ -119,7 +127,7 @@ export class OperationLogPageComponent implements OnInit {
 
   get FilteredOperationLogs(): readonly MockAuditLogEntry[] {
     const FilteredLogs = this.ApiLogs.filter((Entry) => {
-      const OccurredDate = Entry.OccurredAt.slice(0, 10);
+      const OccurredDate = this.ToTaipeiDateInput(Entry.OccurredAt);
       const MatchesDate =
         (!this.OperationLogStartDate || OccurredDate >= this.OperationLogStartDate) &&
         (!this.OperationLogEndDate || OccurredDate <= this.OperationLogEndDate);
@@ -136,8 +144,8 @@ export class OperationLogPageComponent implements OnInit {
     return [...FilteredLogs].sort((Left, Right) => {
       if (this.OperationLogSortField === 'OccurredAt') {
         return (
-          (new Date(Left.OccurredAt).getTime() -
-            new Date(Right.OccurredAt).getTime()) *
+          (new Date(this.NormalizeUtcTimestamp(Left.OccurredAt)).getTime() -
+            new Date(this.NormalizeUtcTimestamp(Right.OccurredAt)).getTime()) *
           Direction
         );
       }
@@ -242,6 +250,7 @@ export class OperationLogPageComponent implements OnInit {
   }
 
   OperationLogCategoryLabel(Category: MockAuditLogCategory): string {
+    if (Category === 'DataSourceManagement') return '資料來源管理';
     return {
       PermissionChange: '權限異動',
       ReportAction: '報表操作',
@@ -280,7 +289,8 @@ export class OperationLogPageComponent implements OnInit {
   }
 
   FormatOperationLogTime(OccurredAt: string): string {
-    return new Date(OccurredAt).toLocaleString('zh-TW', {
+    return new Date(this.NormalizeUtcTimestamp(OccurredAt)).toLocaleString('zh-TW', {
+      timeZone: 'Asia/Taipei',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -301,6 +311,31 @@ export class OperationLogPageComponent implements OnInit {
     const Month = String(DateValue.getMonth() + 1).padStart(2, '0');
     const Day = String(DateValue.getDate()).padStart(2, '0');
     return `${Year}-${Month}-${Day}`;
+  }
+
+  /**
+   * Audit timestamps are persisted as UTC in SQL Server.  datetime2 has no
+   * offset, so older API responses can arrive without a trailing Z; append it
+   * before Date parses the value to prevent it being treated as local time.
+   */
+  private NormalizeUtcTimestamp(value: string): string {
+    return /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`;
+  }
+
+  private ToTaipeiBoundaryUtc(date: string, endOfDay: boolean): string {
+    const time = endOfDay ? '23:59:59.999' : '00:00:00.000';
+    return new Date(`${date}T${time}+08:00`).toISOString();
+  }
+
+  private ToTaipeiDateInput(value: string): string {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date(this.NormalizeUtcTimestamp(value)));
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values['year']}-${values['month']}-${values['day']}`;
   }
 
   private GetTotalPages(ItemCount: number): number {
@@ -324,26 +359,12 @@ export class OperationLogPageComponent implements OnInit {
   }
 
   private MapApiLog(item: AuditLogApiItem): MockAuditLogEntry {
-    const source: MockAuditLogSource = item.action.startsWith('BACKOFFICE') || item.userId !== null && item.reportId === null
-      ? 'BackOffice'
-      : 'FrontOffice';
-    const isAccountAction = item.action.includes('USER') ||
-      item.action.includes('ACCOUNT') ||
-      item.action.includes('LOGIN') ||
-      item.action.includes('LOGOUT') ||
-      item.action.includes('OPERATOR') ||
-      item.action.includes('BACKOFFICE');
-    const category: MockAuditLogCategory = item.action.includes('ROLE') || item.action.includes('PERMISSION')
-      ? 'PermissionChange'
-      : isAccountAction
-        ? 'AccountManagement'
-        : 'ReportAction';
     return {
       Id: item.auditLogId,
-      OccurredAt: item.createdAt,
+      OccurredAt: this.NormalizeUtcTimestamp(item.createdAt),
       UserId: item.userName ?? item.userAccount ?? String(item.userId ?? ''),
-      Source: source,
-      Category: category,
+      Source: item.source,
+      Category: item.category,
       Action: item.action,
       Summary: item.details ?? item.errorMessage ?? item.result,
       TargetId: item.reportCode ?? (item.reportId ? String(item.reportId) : ''),

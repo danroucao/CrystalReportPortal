@@ -13,6 +13,27 @@ namespace CrystalReportPortal.Api.Controllers;
 public class AuditLogsController : ControllerBase
 {
     private const int MaximumPageSize = 100;
+    private static readonly string[] FrontOfficeActions =
+    [
+        "EXECUTE_REPORT", "REPORT_DOWNLOAD", "REPORT_PREVIEW",
+        "REPORT_EXPORT", "REPORT_PRINT"
+    ];
+    private static readonly string[] AccountManagementActions =
+    [
+        "LOGIN", "LOGOUT", "CHANGE_PASSWORD", "UPDATE_PROFILE",
+        "BACKOFFICE_SHARED_LOGIN", "BACKOFFICE_OPERATOR_VERIFY",
+        "BACKOFFICE_LOGOUT", "BACKOFFICE_BINDING",
+        "CREATE_USER", "CREATE_FRONT_OFFICE_USER", "UPDATE_USER",
+        "UPDATE_USER_ROLES", "UPDATE_USER_STATUS", "DISABLE_USER"
+    ];
+    private static readonly string[] PermissionChangeActions =
+    [
+        "GRANT_ROLE", "REVOKE_ROLE", "CREATE_ROLE", "UPDATE_ROLE",
+        "DELETE_ROLE", "UPDATE_ROLE_PERMISSION", "UPDATE_REPORT_PERMISSION",
+        "UPDATE_CATEGORY_PERMISSION", "INITIALIZE_PERMISSIONS"
+    ];
+    private static readonly string[] DataSourceManagementActions =
+    ["CREATE_DATA_SOURCE", "UPDATE_DATA_SOURCE", "UPDATE_DATA_SOURCE_CREDENTIAL"];
 
     private readonly AppDbContext _dbContext;
 
@@ -130,6 +151,31 @@ public class AuditLogsController : ControllerBase
                 (log.IpAddress != null && log.IpAddress.Contains(search)));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.Source))
+        {
+            query = request.Source.Trim() switch
+            {
+                "FrontOffice" => query.Where(log => FrontOfficeActions.Contains(log.Action)),
+                "BackOffice" => query.Where(log => !FrontOfficeActions.Contains(log.Action)),
+                _ => query
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Category))
+        {
+            query = request.Category.Trim() switch
+            {
+                "AccountManagement" => query.Where(log => AccountManagementActions.Contains(log.Action)),
+                "PermissionChange" => query.Where(log => PermissionChangeActions.Contains(log.Action)),
+                "DataSourceManagement" => query.Where(log => DataSourceManagementActions.Contains(log.Action)),
+                "ReportAction" => query.Where(log =>
+                    !AccountManagementActions.Contains(log.Action) &&
+                    !PermissionChangeActions.Contains(log.Action) &&
+                    !DataSourceManagementActions.Contains(log.Action)),
+                _ => query
+            };
+        }
+
         if (request.FromUtc.HasValue)
         {
             var fromUtc =
@@ -144,7 +190,7 @@ public class AuditLogsController : ControllerBase
             query = query.Where(log =>
                 log.CreatedAt >= fromUtc);
         }
-        else if (!canViewArchive)
+        else
         {
             query = query.Where(log =>
                 log.CreatedAt >= archiveBoundary);
@@ -236,6 +282,18 @@ public class AuditLogsController : ControllerBase
                         IpAddress =
                             log.IpAddress,
 
+                        Source = FrontOfficeActions.Contains(log.Action)
+                            ? "FrontOffice"
+                            : "BackOffice",
+
+                        Category = AccountManagementActions.Contains(log.Action)
+                            ? "AccountManagement"
+                            : PermissionChangeActions.Contains(log.Action)
+                                ? "PermissionChange"
+                                : DataSourceManagementActions.Contains(log.Action)
+                                    ? "DataSourceManagement"
+                                    : "ReportAction",
+
                         CreatedAt =
                             log.CreatedAt
                     })
@@ -247,6 +305,16 @@ public class AuditLogsController : ControllerBase
                 : (int)Math.Ceiling(
                     totalCount /
                     (double)request.PageSize);
+
+        // SQL Server datetime2 does not preserve DateTime.Kind.  Audit entries
+        // are stored as UTC, so restore that contract before JSON serializes it
+        // (and emits the trailing Z for API consumers).
+        foreach (var item in items)
+        {
+            item.CreatedAt = DateTime.SpecifyKind(
+                item.CreatedAt,
+                DateTimeKind.Utc);
+        }
 
         return Ok(
             new AuditLogListResponse

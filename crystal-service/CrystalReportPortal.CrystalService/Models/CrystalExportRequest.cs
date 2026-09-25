@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace CrystalReportPortal.CrystalService.Models
@@ -14,5 +15,8 @@ namespace CrystalReportPortal.CrystalService.Models
             = new List<CrystalExportParameter>();
 
         public bool UseSavedDataOnly { get; set; }
+
+        public Dictionary<string, string> HeaderTextReplacements { get; set; }
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 }

@@ -32,9 +32,11 @@ import { NotificationService } from '../../services/notification.service';
 import { BoringAvatarComponent } from '../../shared/boring-avatar.component';
 import { PortalPaginationComponent } from '../../shared/portal-pagination.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, finalize, switchMap } from 'rxjs';
+import { forkJoin, finalize, of, switchMap } from 'rxjs';
 import { UserManagementService } from '../../services/user-management.service';
 import { ManagedRoleApiModel, ManagedUserApiModel } from '../../services/user-management-api.models';
+import { ReportService } from '../../services/report.service';
+import { ManagedReportCategoryOption, RoleCategoryPermission } from '../../services/managed-report-api.models';
 
 type CreateUserField = 'Account' | 'DisplayName' | 'Roles';
 type CreateUserValidationErrors = Partial<Record<CreateUserField, string>>;
@@ -64,6 +66,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
   readonly NotificationCenter = inject(MockNotificationCenterService);
   readonly AuditLog = inject(MockAuditLogService);
   private readonly UserManagementApi = inject(UserManagementService);
+  private readonly ReportApi = inject(ReportService);
 
   ApiUsers: ManagedUserApiModel[] = [];
   ApiRoles: ManagedRoleApiModel[] = [];
@@ -74,8 +77,11 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
 
   ManagementNotice = '';
   UserSearchText = '';
+  DepartmentFilter = '';
+  SelectedDepartmentEmployeeAccount = '';
   UserCurrentPage = 1;
   UserRoleFilter: MockRoleKey | null = null;
+  ShowUnassignedOnly = false;
   UserDraft: MockUserDraft = this.CreateUserDraft();
   CreateUserValidationErrors: CreateUserValidationErrors = {};
   CreatedUserCredentials: MockCreatedUserCredentials | null = null;
@@ -99,6 +105,13 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
   DeletingRole: MockRole | null = null;
   RoleDraft: MockRoleDraft = this.CreateRoleDraft();
   RoleDraftError = '';
+  ApiReportCategories: readonly ManagedReportCategoryOption[] = [];
+  ApiRoleCategoryPermissions: RoleCategoryPermission[] = [];
+  IsRoleCategoryPermissionsLoading = false;
+  IsAddingRoleCategory = false;
+  IsSavingRoleCategory = false;
+  NewRoleCategoryName = '';
+  RoleCategoryCreateError = '';
 
   @ViewChild('roleCardViewport')
   private roleCardViewport?: ElementRef<HTMLElement>;
@@ -122,10 +135,12 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     forkJoin({
       users: this.UserManagementApi.getUsers(),
       roles: this.UserManagementApi.getRoles(),
+      categories: this.ReportApi.GetRolePermissionCategories(),
     }).pipe(finalize(() => (this.IsApiLoading = false))).subscribe({
-      next: ({ users, roles }) => {
+      next: ({ users, roles, categories }) => {
         this.ApiUsers = users;
         this.ApiRoles = roles;
+        this.ApiReportCategories = categories;
       },
       error: (error: unknown) => {
         this.ApiLoadError = this.ApiErrorMessage(error);
@@ -157,6 +172,49 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     return this.ApiUsers.find((user) => user.account === account)?.userName ?? '';
   }
 
+  GetManagedUserEmployeeNo(account: string | null): string {
+    return this.ApiUsers.find((user) => user.account === account)?.employeeNo ?? '';
+  }
+
+  GetManagedUserDepartment(account: string | null): string {
+    return this.ApiUsers.find((user) => user.account === account)?.department?.trim() || '未設定部門';
+  }
+
+  get Departments(): readonly string[] {
+    const departments = [...new Set(this.ApiUsers
+      .map((user) => user.department?.trim())
+      .filter((department): department is string => Boolean(department)))]
+      .sort((left, right) => left.localeCompare(right, 'zh-Hant'));
+    return this.ApiUsers.some((user) => !user.department?.trim())
+      ? [...departments, '未設定部門']
+      : departments;
+  }
+
+  get DepartmentEmployees(): readonly ManagedUserApiModel[] {
+    if (!this.DepartmentFilter) return [];
+    return this.ApiUsers
+      .filter((user) => this.DepartmentFilter === '未設定部門'
+        ? !user.department?.trim()
+        : user.department?.trim() === this.DepartmentFilter)
+      .sort((left, right) => `${left.employeeNo} ${left.userName}`.localeCompare(`${right.employeeNo} ${right.userName}`, 'zh-Hant'));
+  }
+
+  get SelectedDepartmentEmployee(): ManagedUserApiModel | null {
+    return this.DepartmentEmployees.find((user) => user.account === this.SelectedDepartmentEmployeeAccount) ?? null;
+  }
+
+  get SelectedDepartmentEmployeeHasNoRole(): boolean {
+    return this.SelectedDepartmentEmployee?.roleCodes.length === 0;
+  }
+
+  get UnassignedUserCount(): number {
+    return this.ApiUsers.filter((user) => user.roleCodes.length === 0).length;
+  }
+
+  get HasActiveUserFilters(): boolean {
+    return Boolean(this.UserSearchText.trim() || this.DepartmentFilter || this.UserRoleFilter || this.ShowUnassignedOnly);
+  }
+
   ngAfterViewInit(): void {
     if (typeof ResizeObserver !== 'undefined' && this.roleCardViewport) {
       this.roleCardResizeObserver = new ResizeObserver(() =>
@@ -176,7 +234,9 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     const search = this.UserSearchText.trim().toLowerCase();
     return this.DisplayUsers.filter(
       (user) =>
+        (!this.DepartmentFilter || this.GetManagedUserDepartment(user.Account) === this.DepartmentFilter) &&
         (!this.UserRoleFilter || user.Roles.includes(this.UserRoleFilter)) &&
+        (!this.ShowUnassignedOnly || user.Roles.length === 0) &&
         (!search || `${user.Account} ${user.DisplayName}`.toLowerCase().includes(search)),
     );
   }
@@ -206,8 +266,35 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     this.UserCurrentPage = 1;
   }
 
+  OnDepartmentFilterChange(): void {
+    this.SelectedDepartmentEmployeeAccount = '';
+    this.UserCurrentPage = 1;
+  }
+
+  AssignSelectedDepartmentEmployeeRole(): void {
+    const user = this.SelectedDepartmentEmployee;
+    if (!user || !this.SelectedDepartmentEmployeeHasNoRole) return;
+    this.EditUser(user.account);
+  }
+
   SetUserRoleFilter(roleKey: MockRoleKey | null): void {
     this.UserRoleFilter = roleKey;
+    this.ShowUnassignedOnly = false;
+    this.UserCurrentPage = 1;
+  }
+
+  SetUnassignedUserFilter(): void {
+    this.UserRoleFilter = null;
+    this.ShowUnassignedOnly = true;
+    this.UserCurrentPage = 1;
+  }
+
+  ClearUserFilters(): void {
+    this.UserSearchText = '';
+    this.DepartmentFilter = '';
+    this.SelectedDepartmentEmployeeAccount = '';
+    this.UserRoleFilter = null;
+    this.ShowUnassignedOnly = false;
     this.UserCurrentPage = 1;
   }
 
@@ -215,11 +302,11 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     this.UserCurrentPage = this.ClampUserPage(page);
   }
 
-  GetRoleNames(roles: readonly MockRoleKey[]): string {
+  GetRoleNames(roles: readonly string[]): string {
     return roles
       .map((roleKey) =>
         this.ApiRoles.find((role) => role.roleCode === roleKey)?.roleName ??
-        this.MockRbac.GetRole(roleKey)?.DisplayName ??
+        this.MockRbac.GetRole(roleKey as MockRoleKey)?.DisplayName ??
         roleKey,
       )
       .join('、');
@@ -413,6 +500,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     this.RememberModalOpener();
     this.ReturnToCreateUserAfterRole = returnToUser;
     this.RoleDraft = this.CreateRoleDraft();
+    this.ApiRoleCategoryPermissions = this.CreateCategoryPermissionDraft();
     this.RoleDraftError = '';
     this.IsCreateRoleDialogOpen = true;
     this.IsCreateUserDialogOpen = false;
@@ -422,6 +510,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
   CloseCreateRoleDialog(): void {
     this.IsCreateRoleDialogOpen = false;
     this.RoleDraft = this.CreateRoleDraft();
+    this.ApiRoleCategoryPermissions = [];
     this.RoleDraftError = '';
     this.ReturnToCreateUserAfterRole = false;
     this.RestoreModalFocus();
@@ -436,10 +525,23 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     this.RoleDraft = {
       DisplayName: role.DisplayName,
       ManagementPermissions: [...role.ManagementPermissions],
+      ArchivePermissionCodes: (this.ApiRoles.find((entry) => entry.roleCode === role.Key)?.permissionCodes ?? [])
+        .filter((code) => code === 'Report.ViewArchive' || code === 'AuditLog.ViewArchive'),
       Permissions: this.MockRbac.GetCategoryPermissionEntries(role.Key),
     };
     this.RoleDraftError = '';
     this.IsEditRoleDialogOpen = true;
+    const apiRole = this.ApiRoles.find((entry) => entry.roleCode === role.Key);
+    if (apiRole) {
+      this.IsRoleCategoryPermissionsLoading = true;
+      this.ApiRoleCategoryPermissions = [];
+      this.ReportApi.GetRoleCategoryPermissions(apiRole.roleId)
+        .pipe(finalize(() => (this.IsRoleCategoryPermissionsLoading = false)))
+        .subscribe({
+          next: (permissions) => this.ApiRoleCategoryPermissions = permissions.map((permission) => ({ ...permission })),
+          error: (error: unknown) => this.SetRoleDraftError(this.ApiErrorMessage(error)),
+        });
+    }
     this.FocusModalSoon();
   }
 
@@ -448,6 +550,8 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     this.EditingRoleKey = null;
     this.DeletingRole = null;
     this.RoleDraft = this.CreateRoleDraft();
+    this.ApiRoleCategoryPermissions = [];
+    this.IsRoleCategoryPermissionsLoading = false;
     this.RoleDraftError = '';
     this.RestoreModalFocus();
   }
@@ -459,15 +563,19 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     if (this.DisplayRoles.some((role) => role.DisplayName === name)) {
       return this.SetRoleDraftError('角色名稱已存在，請輸入未重複的角色名稱。');
     }
-    if (!this.HasAnyRolePermission()) return this.SetRoleDraftError('請至少勾選一個權限。');
     const roleCode = `CUSTOM_${Date.now()}`;
     this.UserManagementApi.createRole({
       roleCode,
       roleName: name,
       description: this.RoleDraft.DisplayName,
       isEnabled: true,
-    }).subscribe({
-      next: (role) => {
+    }).pipe(
+      switchMap((role) => this.UserManagementApi.updateRolePermissions(
+        role.roleId,
+        { permissionCodes: this.GetApiPermissionCodes() },
+      ).pipe(switchMap(() => this.SaveCategoryPermissions(role.roleId)))),
+    ).subscribe({
+      next: () => {
         this.IsCreateRoleDialogOpen = false;
         this.AuditLog.RecordBackOfficeAction('新增角色', `建立角色 ${name}。`);
         this.LoadApiManagementData();
@@ -504,6 +612,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
         apiRole.roleId,
         { permissionCodes: this.GetApiPermissionCodes() },
       )),
+      switchMap(() => this.SaveCategoryPermissions(apiRole.roleId)),
     ).subscribe({
       next: () => {
         this.CloseEditRoleDialog();
@@ -559,6 +668,66 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     this.RoleDraft.ManagementPermissions = enabled
       ? [...new Set([...this.RoleDraft.ManagementPermissions, permission])]
       : this.RoleDraft.ManagementPermissions.filter((value) => value !== permission);
+    if (!enabled && permission === 'RptManagement') this.ToggleArchivePermission('Report.ViewArchive', false);
+    if (!enabled && permission === 'OperationLog') this.ToggleArchivePermission('AuditLog.ViewArchive', false);
+  }
+
+  ToggleArchivePermission(permission: 'Report.ViewArchive' | 'AuditLog.ViewArchive', enabled: boolean): void {
+    this.RoleDraft.ArchivePermissionCodes = enabled
+      ? [...new Set([...this.RoleDraft.ArchivePermissionCodes, permission])]
+      : this.RoleDraft.ArchivePermissionCodes.filter((value) => value !== permission);
+  }
+
+  OpenRoleCategoryCreate(): void {
+    this.IsAddingRoleCategory = true;
+    this.NewRoleCategoryName = '';
+    this.RoleCategoryCreateError = '';
+  }
+
+  CancelRoleCategoryCreate(): void {
+    if (this.IsSavingRoleCategory) return;
+    this.IsAddingRoleCategory = false;
+    this.NewRoleCategoryName = '';
+    this.RoleCategoryCreateError = '';
+  }
+
+  CreateRoleCategory(): void {
+    const categoryName = this.NewRoleCategoryName.trim();
+    if (!categoryName) {
+      this.RoleCategoryCreateError = '請輸入分類名稱。';
+      return;
+    }
+    this.IsSavingRoleCategory = true;
+    this.RoleCategoryCreateError = '';
+    this.ReportApi.CreateRolePermissionCategory({ categoryName })
+      .pipe(finalize(() => (this.IsSavingRoleCategory = false)))
+      .subscribe({
+        next: (category) => {
+          this.ApiReportCategories = [
+            ...this.ApiReportCategories,
+            { categoryId: category.categoryId, categoryName: category.categoryName },
+          ];
+          if (!this.ApiRoleCategoryPermissions.some((entry) => entry.categoryId === category.categoryId)) {
+            this.ApiRoleCategoryPermissions = [
+              ...this.ApiRoleCategoryPermissions,
+              {
+                roleId: 0,
+                roleCode: '',
+                roleName: '',
+                categoryId: category.categoryId,
+                categoryName: category.categoryName,
+                canExecute: false,
+                canExport: false,
+                canPrint: false,
+              },
+            ];
+          }
+          this.IsAddingRoleCategory = false;
+          this.NewRoleCategoryName = '';
+          this.Notifications.ShowSuccess(`已新增報表分類「${category.categoryName}」，請設定此角色的分類權限後儲存。`);
+        },
+        error: (error: unknown) => (this.RoleCategoryCreateError = this.ApiErrorMessage(error)),
+      });
   }
 
   private GetApiPermissionCodes(): string[] {
@@ -577,7 +746,15 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     if (this.RoleDraft.ManagementPermissions.includes('OperationLog')) {
       codes.push('AuditLog.View');
     }
-    return codes;
+    return [...new Set([...codes, ...this.RoleDraft.ArchivePermissionCodes])];
+  }
+
+  private SaveCategoryPermissions(roleId: number) {
+    return this.ApiRoleCategoryPermissions.length
+      ? forkJoin(this.ApiRoleCategoryPermissions.map((permission) =>
+        this.ReportApi.UpdateRoleCategoryPermission(roleId, permission.categoryId, permission),
+      ))
+      : of([]);
   }
 
   SetPermissionCanExecute(entry: MockCategoryPermissionEntry, enabled: boolean): void {
@@ -586,6 +763,19 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     if (!enabled) {
       entry.Permission.CanExport = false;
       entry.Permission.CanPrint = false;
+    }
+  }
+
+  SetCategoryPermission(
+    permission: RoleCategoryPermission,
+    field: 'canExecute' | 'canExport' | 'canPrint',
+    enabled: boolean,
+  ): void {
+    if (!this.Auth.CanOperateBackOffice) return;
+    permission[field] = enabled;
+    if (field === 'canExecute' && !enabled) {
+      permission.canExport = false;
+      permission.canPrint = false;
     }
   }
 
@@ -644,7 +834,19 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
   }
 
   private CreateUserDraft(): MockUserDraft { return { Account: '', DisplayName: '', Roles: [], Enabled: false }; }
-  private CreateRoleDraft(): MockRoleDraft { return { DisplayName: '', ManagementPermissions: [], Permissions: this.MockRbac.GetEmptyCategoryPermissionEntries() }; }
+  private CreateRoleDraft(): MockRoleDraft { return { DisplayName: '', ManagementPermissions: [], ArchivePermissionCodes: [], Permissions: this.MockRbac.GetEmptyCategoryPermissionEntries() }; }
+  private CreateCategoryPermissionDraft(): RoleCategoryPermission[] {
+    return this.ApiReportCategories.map((category) => ({
+      roleId: 0,
+      roleCode: '',
+      roleName: '',
+      categoryId: category.categoryId,
+      categoryName: category.categoryName,
+      canExecute: false,
+      canExport: false,
+      canPrint: false,
+    }));
+  }
   private ToggleUserRole(draft: MockUserDraft | MockUserEditDraft, roleKey: MockRoleKey, selected: boolean): void {
     if (!this.Auth.CanOperateBackOffice) return;
     const availableRoleKeys = new Set(this.DisplayRoles.map((role) => role.Key));
@@ -677,7 +879,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
   private GetTotalPages(count: number): number { return Math.max(1, Math.ceil(count / this.PaginationPageSize)); }
   private ClampUserPage(page: number): number { return Math.min(Math.max(1, page), this.UserTotalPages); }
   private EnsureUserPagination(): void { this.UserCurrentPage = this.ClampUserPage(this.UserCurrentPage); }
-  private HasAnyRolePermission(): boolean { return this.RoleDraft.ManagementPermissions.length > 0 || this.RoleDraft.Permissions.some((entry) => entry.Permission.CanExecute || entry.Permission.CanExport || entry.Permission.CanPrint); }
+  private HasAnyRolePermission(): boolean { return this.RoleDraft.ManagementPermissions.length > 0 || this.ApiRoleCategoryPermissions.some((entry) => entry.canExecute || entry.canExport || entry.canPrint); }
   private SetRoleDraftError(message: string): void { this.RoleDraftError = message; }
   private SetRoleNavigationState(hasOverflow: boolean, atStart: boolean, atEnd: boolean): void {
     this.RoleCardHasOverflow = hasOverflow;

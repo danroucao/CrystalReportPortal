@@ -375,6 +375,12 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("Draft", "DF_Reports_ConfigurationStatus");
 
+                    b.Property<string>("ColumnHeaderMappingsJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("[]");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -715,6 +721,38 @@ namespace CrystalReportPortal.Api.Migrations
                     b.ToTable("RolePermissions", (string)null);
                 });
 
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.RoleCategoryPermission", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("CanExecute")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanExport")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanPrint")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(sysdatetime())", "DF_RoleCategoryPermissions_CreatedAt");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RoleId", "CategoryId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("RoleCategoryPermissions", (string)null);
+                });
+
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.RoleReportPermission", b =>
                 {
                     b.Property<int>("RoleId")
@@ -777,6 +815,10 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("(sysdatetime())", "DF_Users_CreatedAt");
 
+                    b.Property<string>("Department")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("EmployeeNo")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -813,6 +855,8 @@ namespace CrystalReportPortal.Api.Migrations
 
                     b.HasIndex("EmployeeNo")
                         .IsUnique();
+
+                    b.HasIndex("Department");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -1012,6 +1056,25 @@ namespace CrystalReportPortal.Api.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("CrystalReportPortal.Api.Entities.RoleCategoryPermission", b =>
+                {
+                    b.HasOne("CrystalReportPortal.Api.Entities.ReportCategory", "Category")
+                        .WithMany("RoleCategoryPermissions")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CrystalReportPortal.Api.Entities.Role", "Role")
+                        .WithMany("RoleCategoryPermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Role");
+                });
+
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.RoleReportPermission", b =>
                 {
                     b.HasOne("CrystalReportPortal.Api.Entities.Report", "Report")
@@ -1079,6 +1142,8 @@ namespace CrystalReportPortal.Api.Migrations
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.ReportCategory", b =>
                 {
                     b.Navigation("Reports");
+
+                    b.Navigation("RoleCategoryPermissions");
                 });
 
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.ReportDataSource", b =>
@@ -1103,6 +1168,8 @@ namespace CrystalReportPortal.Api.Migrations
             modelBuilder.Entity("CrystalReportPortal.Api.Entities.Role", b =>
                 {
                     b.Navigation("RolePermissions");
+
+                    b.Navigation("RoleCategoryPermissions");
 
                     b.Navigation("RoleReportPermissions");
 

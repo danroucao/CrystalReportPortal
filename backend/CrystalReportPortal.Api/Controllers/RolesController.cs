@@ -205,6 +205,11 @@ public class RolesController : ControllerBase
             },
             new
             {
+                Code = PermissionCodes.ReportViewArchive,
+                Name = "查詢 180 天以前封存報表"
+            },
+            new
+            {
                 Code = PermissionCodes.DataSourceManage,
                 Name = "管理 MSSQL 資料來源"
             },
@@ -288,6 +293,10 @@ public class RolesController : ControllerBase
             .Select(code => code.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        // 舊資料庫可能尚未套用新增權限的 migration。先補齊系統定義的
+        // 預設權限，避免建立角色後在寫入權限時因代碼不存在而失敗。
+        await EnsureDefaultPermissionsAsync();
 
         var enabledPermissions = await _dbContext.Permissions
             .Where(permission => permission.IsEnabled)
@@ -392,6 +401,48 @@ public class RolesController : ControllerBase
         AddAudit("DELETE_ROLE", $"刪除角色：{role.RoleCode}");
         await _dbContext.SaveChangesAsync();
         return NoContent();
+    }
+
+    private async Task EnsureDefaultPermissionsAsync()
+    {
+        var defaults = new[]
+        {
+            (PermissionCodes.ReportUpload, "上傳報表"),
+            (PermissionCodes.ReportMaintain, "維護報表"),
+            (PermissionCodes.ReportSetParameters, "設定報表參數"),
+            (PermissionCodes.ReportEnableDisable, "啟用或停用報表"),
+            (PermissionCodes.ReportViewArchive, "查詢 180 天以前封存報表"),
+            (PermissionCodes.DataSourceManage, "管理 MSSQL 資料來源"),
+            (PermissionCodes.AuditLogView, "查詢操作紀錄"),
+            (PermissionCodes.AuditLogViewArchive, "查詢 180 天以前操作紀錄")
+        };
+
+        var existingCodes = await _dbContext.Permissions
+            .Select(permission => permission.PermissionCode)
+            .ToListAsync();
+        var existingSet = existingCodes.ToHashSet(
+            StringComparer.OrdinalIgnoreCase);
+        var missing = defaults
+            .Where(item => !existingSet.Contains(item.Item1))
+            .ToList();
+
+        if (missing.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var (code, name) in missing)
+        {
+            _dbContext.Permissions.Add(new Permission
+            {
+                PermissionCode = code,
+                PermissionName = name,
+                IsEnabled = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _dbContext.SaveChangesAsync();
     }
 
     private async Task InvalidateRoleUsersAsync(int roleId)

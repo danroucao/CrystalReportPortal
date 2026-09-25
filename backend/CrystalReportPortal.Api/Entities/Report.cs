@@ -24,6 +24,9 @@ public class Report
 
     public string ConfigurationStatus { get; set; } = "Draft";
 
+    // JSON array of RPT header source text and its display-name override.
+    public string ColumnHeaderMappingsJson { get; set; } = "[]";
+
     public long CreatedBy { get; set; }
 
     public DateTime CreatedAt { get; set; }

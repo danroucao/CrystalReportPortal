@@ -18,6 +18,10 @@ public class AuditLogQueryRequest
 
     public string? Search { get; set; }
 
+    public string? Source { get; set; }
+
+    public string? Category { get; set; }
+
     public DateTime? FromUtc { get; set; }
 
     public DateTime? ToUtc { get; set; }
@@ -56,6 +60,10 @@ public class AuditLogDto
     public string? ErrorMessage { get; set; }
 
     public string? IpAddress { get; set; }
+
+    public string Source { get; set; } = string.Empty;
+
+    public string Category { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
 }

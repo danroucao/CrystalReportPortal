@@ -19,6 +19,17 @@ select {
   gap: 0.5rem;
   min-height: 38px;
 }
+
+.report-upload-data-source-field {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+
+.report-upload-data-source-field small {
+  color: var(--color-muted);
+  line-height: 1.5;
+}
 .edit-status-field .form-field-label {
   display: block;
   margin-right: 0.25rem;

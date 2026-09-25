@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, catchError, map, of, switchMap, throwError } from 'rxjs';
 
@@ -7,6 +7,7 @@ import {
   CreateManagedReportRequest,
   ManagedReport,
   ManagedReportCategoryOption,
+  ManagedReportCategory,
   ManagedReportDataSourceOption,
   ManagedReportParameterOptionsResponse,
   ManagedReportParameter,
@@ -18,7 +19,10 @@ import {
   RptUploadResult,
   UpdateReportStatusResult,
   ManagedRole,
+  RoleCategoryPermission,
   RoleReportPermission,
+  SaveManagedReportCategoryRequest,
+  ReportColumnHeaderMapping,
 } from './managed-report-api.models';
 import {
   PortalReport,
@@ -47,6 +51,7 @@ export class ReportService {
           Enabled: true,
           CreatedAt: Report.createdAt,
           UpdatedAt: Report.updatedAt ?? Report.createdAt,
+          UsesSavedData: Report.usesSavedData,
           Permissions: {
             CanExecute: Report.permissions.canExecute,
             CanExport: Report.permissions.canExport,
@@ -76,8 +81,11 @@ export class ReportService {
     });
   }
 
-  GetManagedReports(): Observable<readonly ManagedReport[]> {
-    return this.Http.get<readonly ManagedReport[]>(this.managementEndpoint);
+  GetManagedReports(query?: { fromUtc?: string; toUtc?: string }): Observable<readonly ManagedReport[]> {
+    let params = new HttpParams();
+    if (query?.fromUtc) params = params.set('fromUtc', query.fromUtc);
+    if (query?.toUtc) params = params.set('toUtc', query.toUtc);
+    return this.Http.get<readonly ManagedReport[]>(this.managementEndpoint, { params });
   }
 
   GetManagedReportCategories(): Observable<readonly ManagedReportCategoryOption[]> {
@@ -224,6 +232,103 @@ export class ReportService {
         canSetParameters: false,
         canEnableDisable: false,
       },
+    );
+  }
+
+  GetManagedReportPermissions(reportId: number): Observable<readonly RoleReportPermission[]> {
+    return this.Http.get<readonly RoleReportPermission[]>(
+      `${this.managementEndpoint}/${reportId}/permissions`,
+    );
+  }
+
+  GetManagedReportColumnHeaderMappings(reportId: number): Observable<readonly ReportColumnHeaderMapping[]> {
+    return this.Http.get<readonly ReportColumnHeaderMapping[]>(
+      `${this.managementEndpoint}/${reportId}/column-header-mappings`,
+    );
+  }
+
+  SaveManagedReportColumnHeaderMappings(
+    reportId: number,
+    mappings: readonly ReportColumnHeaderMapping[],
+  ): Observable<readonly ReportColumnHeaderMapping[]> {
+    return this.Http.put<readonly ReportColumnHeaderMapping[]>(
+      `${this.managementEndpoint}/${reportId}/column-header-mappings`,
+      { mappings },
+    );
+  }
+
+  UpdateManagedReportPermission(
+    reportId: number,
+    roleId: number,
+    permission: Pick<RoleReportPermission, 'canExecute' | 'canExport' | 'canPrint'>,
+  ): Observable<RoleReportPermission> {
+    return this.Http.put<RoleReportPermission>(
+      `${this.managementEndpoint}/${reportId}/permissions/${roleId}`,
+      {
+        ...permission,
+        canUpload: false,
+        canMaintain: false,
+        canSetParameters: false,
+        canEnableDisable: false,
+      },
+    );
+  }
+
+  GetManagedReportCategoriesForManagement(): Observable<readonly ManagedReportCategory[]> {
+    return this.Http.get<readonly ManagedReportCategory[]>(
+      `${this.managementEndpoint}/categories/manage`,
+    );
+  }
+
+  CreateManagedReportCategory(
+    request: SaveManagedReportCategoryRequest,
+  ): Observable<ManagedReportCategory> {
+    return this.Http.post<ManagedReportCategory>(
+      `${this.managementEndpoint}/categories`, request,
+    );
+  }
+
+  CreateRolePermissionCategory(
+    request: SaveManagedReportCategoryRequest,
+  ): Observable<ManagedReportCategory> {
+    return this.Http.post<ManagedReportCategory>(
+      `${API_BASE_URL}/backoffice/report-permissions/categories`, request,
+    );
+  }
+
+  UpdateManagedReportCategory(
+    categoryId: number,
+    request: SaveManagedReportCategoryRequest,
+  ): Observable<ManagedReportCategory> {
+    return this.Http.put<ManagedReportCategory>(
+      `${this.managementEndpoint}/categories/${categoryId}`, request,
+    );
+  }
+
+  DeleteManagedReportCategory(categoryId: number): Observable<void> {
+    return this.Http.delete<void>(`${this.managementEndpoint}/categories/${categoryId}`);
+  }
+
+  GetRoleCategoryPermissions(roleId: number): Observable<readonly RoleCategoryPermission[]> {
+    return this.Http.get<readonly RoleCategoryPermission[]>(
+      `${API_BASE_URL}/backoffice/report-permissions/roles/${roleId}/categories`,
+    );
+  }
+
+  GetRolePermissionCategories(): Observable<readonly ManagedReportCategoryOption[]> {
+    return this.Http.get<readonly ManagedReportCategoryOption[]>(
+      `${API_BASE_URL}/backoffice/report-permissions/categories`,
+    );
+  }
+
+  UpdateRoleCategoryPermission(
+    roleId: number,
+    categoryId: number,
+    permission: Pick<RoleCategoryPermission, 'canExecute' | 'canExport' | 'canPrint'>,
+  ): Observable<RoleCategoryPermission> {
+    return this.Http.put<RoleCategoryPermission>(
+      `${API_BASE_URL}/backoffice/report-permissions/roles/${roleId}/categories/${categoryId}`,
+      permission,
     );
   }
 }

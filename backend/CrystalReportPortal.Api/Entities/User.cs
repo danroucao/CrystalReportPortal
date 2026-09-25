@@ -10,6 +10,13 @@ public class User
 
     public string UserName { get; set; } = null!;
 
+    /// <summary>
+    /// The employee's organization department supplied with the AD user record.
+    /// This is intentionally nullable so existing employee records remain valid
+    /// until their source data has been enriched.
+    /// </summary>
+    public string? Department { get; set; }
+
     public string PasswordHash { get; set; } = null!;
 
     public bool IsEnabled { get; set; }

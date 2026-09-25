@@ -191,11 +191,20 @@
       <h1>{{ PageTitle }}</h1>
       <div class="report-management-header-actions">
         <button
+          *ngIf="Auth.HasPermission('Report.Maintain')"
+          type="button"
+          class="section-header-action secondary-button"
+          (click)="OpenCategoryManagementDialog()"
+        >
+          管理分類
+        </button>
+        <button
+          *ngIf="Auth.HasPermission('Report.Upload')"
           type="button"
           class="section-header-action primary-button"
           (click)="StartReportUpload()"
         >
-          <span aria-hidden="true">＋</span>新增報表
+          <span aria-hidden="true">＋</span>上傳報表
         </button>
       </div>
     </div>
@@ -480,7 +489,7 @@
         </li>
       </ol>
 
-      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [showEnabled]="false" [canAddCategory]="false" [quickAddOpen]="false" [quickAddName]="''" [quickAddError]="''" (draftChange)="ReportEditorDraft = $event" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (fileSelected)="OnReportFileSelected($event)" />
+      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [dataSources]="ReportUploadDataSources" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [showEnabled]="false" [canAddCategory]="false" [quickAddOpen]="false" [quickAddName]="''" [quickAddError]="''" (draftChange)="ReportEditorDraft = $event" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (fileSelected)="OnReportFileSelected($event)" />
       <section
         *ngIf="ReportUploadStep === 'Confirm'"
         class="report-upload-review"
@@ -522,6 +531,10 @@
                     ReportUploadCategoryName
                   }}</span>
                 </dd>
+              </div>
+              <div>
+                <dt>資料來源</dt>
+                <dd>{{ ReportUploadDataSourceName }}</dd>
               </div>
               <div>
                 <dt>啟用狀態</dt>

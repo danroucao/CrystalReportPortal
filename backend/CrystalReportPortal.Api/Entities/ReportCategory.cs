@@ -20,4 +20,7 @@ public class ReportCategory
     // Navigation Property
     public ICollection<Report> Reports { get; set; }
         = new List<Report>();
+
+    public ICollection<RoleCategoryPermission> RoleCategoryPermissions { get; set; }
+        = new List<RoleCategoryPermission>();
 }

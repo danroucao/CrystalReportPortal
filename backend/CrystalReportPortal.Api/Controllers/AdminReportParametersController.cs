@@ -253,6 +253,25 @@ public class AdminReportParametersController : ControllerBase
             return BadRequest(new { message = "報表尚未上傳 RPT 檔案。" });
         }
 
+        // Saved Data reports do not have a live data source and therefore have
+        // no parameter configuration work to complete.
+        if (!report.DataSourceId.HasValue)
+        {
+            report.ConfigurationStatus = "PendingReview";
+            report.IsEnabled = false;
+            report.UpdatedBy = userId;
+            report.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new CompleteReportParameterConfigurationResponse
+            {
+                Success = true,
+                ReportId = reportId,
+                ConfigurationStatus = report.ConfigurationStatus,
+                Message = "Saved Data 報表不需要設定參數，已進入預覽確認流程。"
+            });
+        }
+
         var incompleteParameters = report.ReportParameters
             .Where(parameter =>
                 !parameter.IsConfigured ||

@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, catchError, tap, throwError } from 'rxjs';
+import { Observable, catchError, map, switchMap, tap, throwError } from 'rxjs';
 
 import {
   EmptyMockCategoryPermission,
@@ -52,6 +52,7 @@ export class AuthService {
   private SelectedApiReportSearchCriteria: MockReportSearchCriteria | null = null;
   private BoundBackOfficeUserAccount: string | null = null;
   private BoundBackOfficeOperator: BackOfficeOperatorResponse['operator'] | null = null;
+  private BackOfficeCsrfToken: string | null = null;
   private BackOfficeIdentityBindingFailure:
     | 'invalid-credentials'
     | 'disabled'
@@ -132,6 +133,10 @@ export class AuthService {
 
   get CanOperateBackOffice(): boolean {
     return this.IsBackOfficeIdentityBound;
+  }
+
+  get BackOfficeAntiForgeryToken(): string | null {
+    return this.BackOfficeCsrfToken;
   }
 
   get DisplayName(): string {
@@ -288,6 +293,16 @@ export class AuthService {
         this.BoundBackOfficeOperator = Response.operator;
         this.BackOfficeIdentityBindingFailure = null;
       }),
+      switchMap((Response) => this.Http.get<{ token: string }>(
+        `${API_BASE_URL}/backoffice-auth/antiforgery-token`,
+        { withCredentials: true },
+      ).pipe(
+        tap((TokenResponse) => {
+          if (!TokenResponse.token) throw new Error('無法取得後台操作驗證。');
+          this.BackOfficeCsrfToken = TokenResponse.token;
+        }),
+        map(() => Response),
+      )),
     );
   }
 
@@ -322,6 +337,7 @@ export class AuthService {
     this.SelectedApiReportSearchCriteria = null;
     this.BoundBackOfficeUserAccount = null;
     this.BoundBackOfficeOperator = null;
+    this.BackOfficeCsrfToken = null;
     this.BackOfficeIdentityBindingFailure = null;
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
     sessionStorage.removeItem(USER_STORAGE_KEY);

@@ -62,6 +62,17 @@ export class CommonParameterTemplatePageComponent implements OnInit {
     return this.draft.valueSourceType === 'SqlLov';
   }
 
+  get valueSourceHint(): string {
+    switch (this.draft.valueSourceType) {
+      case 'SqlLov':
+        return '由指定資料來源的 SQL 查詢提供可選值。';
+      case 'CurrentUser':
+        return '執行時自動帶入目前登入者，不顯示輸入欄位。';
+      default:
+        return '由使用者於執行報表前自行輸入或選擇。';
+    }
+  }
+
   ngOnInit(): void {
     this.loadDataSourceOptions();
     this.loadTemplates();
@@ -131,11 +142,36 @@ export class CommonParameterTemplatePageComponent implements OnInit {
   }
 
   onValueSourceChange(): void {
-    if (this.isSqlLov) return;
-    this.draft.dataSourceId = null;
-    this.draft.sqlQuery = null;
-    this.draft.valueField = null;
-    this.draft.displayField = null;
+    if (!this.isSqlLov) {
+      this.draft.dataSourceId = null;
+      this.draft.sqlQuery = null;
+      this.draft.valueField = null;
+      this.draft.displayField = null;
+    }
+    if (this.draft.valueSourceType === 'CurrentUser') {
+      this.draft.inputType = 'Hidden';
+      this.draft.isVisible = false;
+      this.draft.allowMultipleValues = false;
+      this.draft.allowRangeValues = false;
+    }
+  }
+
+  onInputTypeChange(): void {
+    if (this.draft.inputType === 'Hidden') {
+      this.draft.isVisible = false;
+    }
+    if (this.draft.inputType === 'Checkbox') {
+      this.draft.allowMultipleValues = false;
+      this.draft.allowRangeValues = false;
+    }
+  }
+
+  onAllowMultipleValuesChange(): void {
+    if (this.draft.allowMultipleValues) this.draft.allowRangeValues = false;
+  }
+
+  onAllowRangeValuesChange(): void {
+    if (this.draft.allowRangeValues) this.draft.allowMultipleValues = false;
   }
 
   saveTemplate(): void {

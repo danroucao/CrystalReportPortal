@@ -126,6 +126,85 @@ public class CrystalProcessService : ICrystalProcessService
         return response;
     }
 
+    public async Task<IReadOnlyList<string>> GetHeaderTextsAsync(string rptPath)
+    {
+        if (!File.Exists(rptPath)) throw new FileNotFoundException("RPT file was not found.", rptPath);
+        var exePath = _configuration["CrystalService:ExePath"];
+        if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+            throw new InvalidOperationException("Crystal Service executable is not available.");
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = exePath, UseShellExecute = false, RedirectStandardOutput = true,
+            RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8, CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("header-texts");
+        startInfo.ArgumentList.Add(rptPath);
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Could not start Crystal Service.");
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        var output = await outputTask;
+        var error = await errorTask;
+        if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output))
+            throw new InvalidOperationException($"Crystal Service header detection failed. {error}");
+
+        using var json = JsonDocument.Parse(output);
+        if (!json.RootElement.TryGetProperty("HeaderTexts", out var headerTexts)) return [];
+        return headerTexts.EnumerateArray()
+            .Select(item => item.GetString())
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .Select(text => text!.Trim())
+            .ToList();
+    }
+
+    public async Task CreateLocalizedTemplateAsync(
+        string sourceRptPath,
+        string outputRptPath,
+        IReadOnlyDictionary<string, string> replacements)
+    {
+        var exePath = _configuration["CrystalService:ExePath"];
+        if (!File.Exists(sourceRptPath) || string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+            throw new InvalidOperationException("Crystal Service or the source RPT is not available.");
+
+        var requestPath = Path.Combine(Path.GetTempPath(), $"crystal-localize-{Guid.NewGuid():N}.json");
+        try
+        {
+            await File.WriteAllTextAsync(requestPath, JsonSerializer.Serialize(new
+            {
+                RptPath = sourceRptPath,
+                OutputPath = outputRptPath,
+                HeaderTextReplacements = replacements
+            }), new UTF8Encoding(false));
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = exePath, UseShellExecute = false, RedirectStandardOutput = true,
+                RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8, CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("localize-template");
+            startInfo.ArgumentList.Add(requestPath);
+            using var process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("Could not start Crystal Service.");
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            var output = await outputTask;
+            var error = await errorTask;
+            using var response = JsonDocument.Parse(output);
+            var success = response.RootElement.TryGetProperty("Success", out var successElement) &&
+                successElement.GetBoolean();
+            if (process.ExitCode != 0 || !success)
+                throw new InvalidOperationException($"Could not generate localized RPT. {error} {output}");
+        }
+        finally
+        {
+            if (File.Exists(requestPath)) File.Delete(requestPath);
+        }
+    }
+
     public async Task<byte[]> PreviewAsync(
     string rptPath)
     {

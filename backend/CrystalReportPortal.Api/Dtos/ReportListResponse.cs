@@ -23,6 +23,9 @@ public class ReportDto
 
     public DateTime? UpdatedAt { get; set; }
 
+    /// <summary>True when this report is rendered from the RPT's embedded Saved Data.</summary>
+    public bool UsesSavedData { get; set; }
+
     public ReportCategoryDto Category { get; set; } = new();
 
     public ReportPermissionDto Permissions { get; set; } = new();

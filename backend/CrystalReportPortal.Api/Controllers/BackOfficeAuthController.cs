@@ -3,6 +3,7 @@ using CrystalReportPortal.Api.Authorization;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CrystalReportPortal.Api.Controllers;
@@ -154,6 +155,15 @@ public class BackOfficeAuthController : ControllerBase
                 HttpContext.Session);
 
         return Ok(result);
+    }
+
+    [Authorize(Policy = "BackOffice")]
+    [HttpGet("antiforgery-token")]
+    public IActionResult GetAntiforgeryToken(
+        [FromServices] IAntiforgery antiforgery)
+    {
+        var tokens = antiforgery.GetAndStoreTokens(HttpContext);
+        return Ok(new { token = tokens.RequestToken });
     }
 
     [Authorize(Policy = "BackOffice")]

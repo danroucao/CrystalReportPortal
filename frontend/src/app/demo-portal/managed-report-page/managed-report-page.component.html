@@ -1,11 +1,7 @@
-<section class="managed-reports" aria-labelledby="managed-reports-title">
-  <div class="managed-reports-heading">
-    <div><h2 id="managed-reports-title">報表管理</h2><p>建立報表草稿、上傳 RPT，並追蹤設定與啟用狀態。</p></div>
-  </div>
-
+<section class="managed-reports" aria-label="報表清單">
   <div class="report-management-toolbar">
-    <label>開始日期<input type="date" [(ngModel)]="startDate" (ngModelChange)="resetPage()" /></label>
-    <label>結束日期<input type="date" [min]="startDate || null" [(ngModel)]="endDate" (ngModelChange)="resetPage()" /></label>
+    <label>開始日期<input type="date" [(ngModel)]="startDate" [min]="ReportManagementMinimumDate" [max]="ReportManagementMaximumDate" (ngModelChange)="onReportDateChange()" /></label>
+    <label>結束日期<input type="date" [(ngModel)]="endDate" [min]="startDate || ReportManagementMinimumDate" [max]="ReportManagementMaximumDate" (ngModelChange)="onReportDateChange()" /></label>
     <label>報表分類
       <select [(ngModel)]="categoryFilter" (ngModelChange)="resetPage()">
         <option [ngValue]="0">全部</option>
@@ -17,105 +13,186 @@
     </label>
   </div>
 
-  <p *ngIf="loadError" class="field-error" role="alert">{{ loadError }} <button type="button" class="tertiary-button" (click)="loadPage()">重試</button></p>
+  <section *ngIf="loadError && !isLoading" class="managed-report-error" role="alert">
+    <div>
+      <h3>目前無法載入報表管理資料</h3>
+      <p>{{ loadError }}</p>
+      <p class="managed-report-error-hint">請確認目前帳號已指派報表管理功能與對應報表權限；若權限剛更新，請重新登入後再試。</p>
+    </div>
+    <button type="button" class="secondary-button" (click)="loadPage()">重新載入</button>
+  </section>
   <p *ngIf="isLoading" class="managed-report-state" role="status">載入報表資料中…</p>
 
-  <div *ngIf="!isLoading" class="table-scroll">
+  <div *ngIf="!isLoading && !loadError" class="table-scroll">
     <table class="report-management-table">
       <thead><tr>
+        <th class="pin-column">釘選</th>
         <th><button type="button" class="sortable-table-header" (click)="setSort('reportName')">報表名稱</button></th>
-        <th>分類</th><th>資料來源</th><th>設定狀態</th><th>啟用狀態</th>
+        <th>報表分類</th><th>資料來源</th><th>報表說明</th><th>啟用狀態</th>
         <th><button type="button" class="sortable-table-header" (click)="setSort('createdAt')">建立時間</button></th>
         <th><button type="button" class="sortable-table-header" (click)="setSort('updatedAt')">更新時間</button></th>
         <th>操作</th>
       </tr></thead>
       <tbody>
         <tr *ngFor="let report of pagedReports; trackBy: trackReport">
-          <td><strong>{{ report.reportName }}</strong><small>{{ report.reportCode }}</small><small>{{ report.description }}</small></td>
-          <td>{{ report.categoryName }}</td><td>{{ report.dataSourceName || '尚未設定' }}</td>
-          <td><span class="configuration-status" [attr.data-status]="report.configurationStatus">{{ statusLabel(report) }}</span></td>
+          <td class="pin-column">
+            <button type="button" class="table-icon-button pin-button" [class.is-pinned]="isPinned(report)"
+              [attr.aria-label]="isPinned(report) ? '取消釘選 ' + report.reportName : '釘選 ' + report.reportName"
+              [attr.title]="isPinned(report) ? '取消釘選' : '釘選至清單頂端'" [attr.aria-pressed]="isPinned(report)"
+              (click)="togglePin(report)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6zM12 14v7" /></svg>
+            </button>
+          </td>
+          <td class="report-name-cell"><strong [title]="report.reportName">{{ report.reportName }}</strong><small>{{ report.reportCode }}</small></td>
+          <td><span class="table-text-ellipsis" [title]="report.categoryName">{{ report.categoryName }}</span></td>
+          <td><span class="table-text-ellipsis" [title]="report.dataSourceId === null ? 'Saved Data（未設定資料來源）' : report.dataSourceName">{{ report.dataSourceId === null ? 'Saved Data' : report.dataSourceName }}</span></td>
+          <td class="report-description-cell" [title]="report.description || ''">{{ report.description || '—' }}</td>
           <td>
             <button type="button" class="account-status-switch" role="switch" [class.is-enabled]="report.isEnabled"
-              [disabled]="report.configurationStatus !== 'Ready'"
+              [disabled]="report.configurationStatus !== 'Ready' || !Auth.HasPermission('Report.EnableDisable')"
               [attr.aria-checked]="report.isEnabled" (click)="setEnabled(report, !report.isEnabled)">
               <span class="account-status-switch-thumb"></span>
             </button>
             <span>{{ report.isEnabled ? '啟用' : '停用' }}</span>
           </td>
-          <td>{{ report.createdAt | date:'yyyy/MM/dd HH:mm' }}</td>
-          <td>{{ report.updatedAt ? (report.updatedAt | date:'yyyy/MM/dd HH:mm') : '—' }}</td>
+          <td [title]="report.createdAt | date:'yyyy/MM/dd HH:mm:ss'">{{ report.createdAt | date:'yyyy/MM/dd HH:mm' }}</td>
+          <td [title]="report.updatedAt ? (report.updatedAt | date:'yyyy/MM/dd HH:mm:ss') : '—'">{{ report.updatedAt ? (report.updatedAt | date:'yyyy/MM/dd HH:mm') : '—' }}</td>
           <td class="managed-report-actions">
             <div class="managed-report-action-group">
             <button
-              *ngIf="!report.rptFileName?.trim()"
+              *ngIf="report.rptFileName?.trim() && report.dataSourceId !== null && report.configurationStatus === 'PendingConfiguration' && Auth.HasPermission('Report.SetParameters')"
               type="button"
-              class="primary-button"
-              [attr.title]="'替「' + report.reportName + '」補上 RPT 檔案'"
-              (click)="openDraftUpload(report)"
-            >
-              上傳 RPT
-            </button>
-
-            <button
-              *ngIf="
-                report.rptFileName?.trim() &&
-                report.configurationStatus === 'PendingConfiguration'
-              "
-              type="button"
-              class="primary-button"
+              class="table-icon-button parameter-icon-button"
+              [attr.aria-label]="'設定參數 ' + report.reportName"
+              title="設定參數"
               (click)="openReview(report)"
             >
-              測試預覽
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" /><path d="m16 18 3 3 4-5" /></svg>
             </button>
-
             <button
-              *ngIf="
-                report.rptFileName?.trim() &&
-                report.configurationStatus === 'PendingReview'
-              "
+              *ngIf="report.rptFileName?.trim() && (report.configurationStatus === 'PendingReview' || (report.dataSourceId === null && report.configurationStatus === 'PendingConfiguration')) && Auth.HasPermission('Report.Maintain')"
               type="button"
-              class="primary-button"
+              class="table-icon-button preview-icon-button"
+              [attr.aria-label]="'測試預覽 ' + report.reportName"
+              title="測試預覽"
               (click)="openReview(report)"
             >
-              測試預覽
-            </button>
-
-            <span
-              *ngIf="
-                report.rptFileName?.trim() &&
-                report.configurationStatus === 'Ready'
-              "
-              [title]="report.rptFileName"
-            >
-              已上傳
-            </span>
-            <button
-              type="button"
-              class="secondary-button"
-              (click)="openPermissions(report)"
-            >
-              設定權限
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="1.5" /><path d="m10 8 5 2.5-5 2.5zM8 21h8" /></svg>
             </button>
             <button
+              *ngIf="Auth.HasPermission('Report.Maintain')"
               type="button"
-              class="danger-button managed-report-delete-button"
-              (click)="deleteReport(report)"
+              class="table-icon-button"
+              [attr.aria-label]="'編輯 ' + report.reportName"
+              title="編輯報表、上傳 RPT 與設定權限"
+              (click)="openReportEditor(report)"
             >
-              刪除
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 9.7-9.7a2.2 2.2 0 0 0-3.1-3.1L5.1 15.9 4 20zM13.5 7.5l3 3" /></svg>
+            </button>
+            <button
+              *ngIf="Auth.HasPermission('Report.Maintain')"
+              type="button"
+              class="table-icon-button danger-icon-button"
+              [attr.aria-label]="'刪除 ' + report.reportName"
+              title="刪除報表"
+              (click)="requestDelete(report)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" /></svg>
             </button>
             </div>
           </td>
         </tr>
-        <tr *ngIf="!pagedReports.length"><td colspan="8" class="managed-report-state">目前沒有符合條件的報表。</td></tr>
+        <tr *ngIf="!pagedReports.length"><td colspan="9" class="managed-report-state">目前沒有符合條件的報表。</td></tr>
       </tbody>
     </table>
   </div>
 
-  <app-portal-pagination [CurrentPage]="currentPage" [TotalPages]="totalPages" [PageNumbers]="pageNumbers"
+  <app-portal-pagination *ngIf="!isLoading && !loadError" [CurrentPage]="currentPage" [TotalPages]="totalPages" [PageNumbers]="pageNumbers"
     AriaLabel="報表管理分頁" (PageChange)="goToPage($event)" />
 </section>
 
-<section *ngIf="permissionReport" class="modal-backdrop" (click)="closePermissions()">
+<section *ngIf="reportPendingDeletion" class="modal-backdrop" (click)="cancelDelete()">
+  <section class="edit-user-modal managed-report-delete-dialog" role="alertdialog" aria-modal="true"
+    aria-labelledby="managed-report-delete-title" (click)="$event.stopPropagation()">
+    <div class="modal-heading">
+      <h2 id="managed-report-delete-title">確認刪除報表</h2>
+      <button type="button" class="modal-close-button" aria-label="關閉" [disabled]="isDeleting" (click)="cancelDelete()">×</button>
+    </div>
+    <p>即將刪除「{{ reportPendingDeletion.reportName }}」。此操作會移除 RPT 檔案與尚未使用的報表設定。</p>
+    <p class="delete-guidance">若此報表已有執行紀錄，系統會保留稽核資料而不允許刪除；請改為停用報表。</p>
+    <p *ngIf="deleteError" class="field-error" role="alert">{{ deleteError }}</p>
+    <div class="modal-actions">
+      <button *ngIf="deleteNeedsLogin" type="button" class="secondary-button" (click)="returnToLogin()">重新登入</button>
+      <button type="button" class="tertiary-button" [disabled]="isDeleting" (click)="cancelDelete()">取消</button>
+      <button type="button" class="danger-button" [disabled]="isDeleting || deleteNeedsLogin" (click)="confirmDelete()">
+        {{ isDeleting ? '刪除中…' : '確認刪除' }}
+      </button>
+    </div>
+  </section>
+</section>
+
+<section *ngIf="isCategoryManagerOpen" class="modal-backdrop" (click)="closeCategoryManagement()">
+  <section class="edit-user-modal managed-category-dialog" role="dialog" aria-modal="true"
+    aria-labelledby="managed-category-title" (click)="$event.stopPropagation()">
+    <div class="modal-heading">
+      <div>
+        <h2 id="managed-category-title">報表分類管理</h2>
+        <p class="muted">建立與維護報表分類；已有報表使用的分類不可刪除。</p>
+      </div>
+      <button type="button" class="modal-close-button" aria-label="關閉" [disabled]="isCategorySaving" (click)="closeCategoryManagement()">×</button>
+    </div>
+
+    <form class="managed-category-create" (ngSubmit)="createCategory()">
+      <label>新增分類名稱
+        <input name="newCategoryName" [(ngModel)]="newCategoryName" maxlength="100" placeholder="例如：財務分析" [disabled]="isCategorySaving" />
+      </label>
+      <button type="submit" class="primary-button" [disabled]="isCategorySaving">新增分類</button>
+    </form>
+
+    <label class="managed-category-search">搜尋分類
+      <input name="categorySearchText" [(ngModel)]="categorySearchText" placeholder="輸入分類名稱" />
+    </label>
+    <p *ngIf="categoryError" class="field-error" role="alert">{{ categoryError }}</p>
+
+    <div class="managed-category-list" role="region" aria-label="既有報表分類">
+      <div class="managed-category-list-heading"><strong>既有分類</strong><span>{{ displayedManagedCategories.length }} 個分類</span></div>
+      <div *ngFor="let category of displayedManagedCategories" class="managed-category-row">
+        <ng-container *ngIf="editingCategoryId === category.categoryId; else categoryReadOnly">
+          <input class="managed-category-edit-input" [(ngModel)]="editingCategoryName" name="edit-category-{{ category.categoryId }}" maxlength="100" [disabled]="isCategorySaving" />
+        </ng-container>
+        <ng-template #categoryReadOnly><strong>{{ category.categoryName }}</strong></ng-template>
+        <span class="managed-category-usage">{{ category.reportCount ? (category.reportCount + ' 份報表使用中') : '尚未使用' }}</span>
+        <div class="managed-category-actions">
+          <ng-container *ngIf="editingCategoryId === category.categoryId; else categoryActions">
+            <button type="button" class="primary-button" [disabled]="isCategorySaving" (click)="saveCategory(category)">儲存</button>
+            <button type="button" class="tertiary-button" [disabled]="isCategorySaving" (click)="cancelCategoryEdit()">取消</button>
+          </ng-container>
+          <ng-template #categoryActions>
+            <button type="button" class="tertiary-button" [disabled]="isCategorySaving" (click)="startCategoryEdit(category)">編輯</button>
+            <button type="button" class="danger-button" [disabled]="isCategorySaving || category.reportCount > 0" [attr.title]="category.reportCount ? '已有報表使用，請先將報表改至其他分類' : '刪除此分類'" (click)="requestCategoryDelete(category)">刪除</button>
+          </ng-template>
+        </div>
+      </div>
+      <p *ngIf="!displayedManagedCategories.length" class="managed-report-state">沒有符合搜尋條件的分類。</p>
+    </div>
+    <div class="modal-actions"><button type="button" class="tertiary-button" [disabled]="isCategorySaving" (click)="closeCategoryManagement()">關閉</button></div>
+  </section>
+</section>
+
+<section *ngIf="categoryPendingDeletion" class="modal-backdrop" (click)="cancelCategoryDelete()">
+  <section class="edit-user-modal managed-category-delete-dialog" role="alertdialog" aria-modal="true"
+    aria-labelledby="managed-category-delete-title" (click)="$event.stopPropagation()">
+    <h2 id="managed-category-delete-title">確認刪除分類</h2>
+    <p>確定要刪除「{{ categoryPendingDeletion.categoryName }}」嗎？此分類目前沒有報表使用。</p>
+    <p *ngIf="categoryError" class="field-error" role="alert">{{ categoryError }}</p>
+    <div class="modal-actions">
+      <button type="button" class="tertiary-button" [disabled]="isCategorySaving" (click)="cancelCategoryDelete()">取消</button>
+      <button type="button" class="danger-button" [disabled]="isCategorySaving" (click)="confirmCategoryDelete()">{{ isCategorySaving ? '刪除中…' : '確認刪除' }}</button>
+    </div>
+  </section>
+</section>
+
+<section *ngIf="permissionReport && !isEditorOpen" class="modal-backdrop" (click)="closePermissions()">
   <section class="edit-user-modal managed-report-permission-modal" role="dialog" aria-modal="true"
     aria-labelledby="managed-report-permission-title" (click)="$event.stopPropagation()">
     <div class="modal-heading">
@@ -153,10 +230,16 @@
 <section *ngIf="isEditorOpen" class="modal-backdrop" (click)="closeEditor()">
   <section class="edit-user-modal managed-report-editor" role="dialog" aria-modal="true" aria-labelledby="managed-report-editor-title" (click)="$event.stopPropagation()">
     <div class="modal-heading">
-      <h2 id="managed-report-editor-title">{{ existingDraft ? '上傳 RPT' : '新增報表' }}</h2>
+      <h2 id="managed-report-editor-title">{{ existingDraft ? '編輯報表' : '新增報表' }}</h2>
       <button type="button" class="modal-close-button" aria-label="關閉報表視窗" (click)="closeEditor()">×</button>
     </div>
-    <form class="managed-report-form" (ngSubmit)="save()" novalidate>
+    <nav *ngIf="existingDraft" class="managed-report-editor-tabs" aria-label="編輯報表頁籤">
+      <button type="button" [class.is-active]="editorTab === 'basic'" (click)="selectEditorTab('basic')">基本資訊</button>
+      <button type="button" [class.is-active]="editorTab === 'permissions'" (click)="selectEditorTab('permissions')">報表權限</button>
+      <button type="button" [class.is-active]="editorTab === 'headers'" (click)="selectEditorTab('headers')">欄位中文名稱</button>
+    </nav>
+
+    <form *ngIf="editorTab === 'basic'" class="managed-report-form" (ngSubmit)="save()" novalidate>
       <label>報表代碼<span class="required-indicator">*</span><input name="reportCode" [(ngModel)]="draft.reportCode" [disabled]="existingDraft !== null" placeholder="例如 SALES_DETAIL" /></label>
       <label>報表名稱<span class="required-indicator">*</span><input name="reportName" [(ngModel)]="draft.reportName" [disabled]="existingDraft !== null" /></label>
       <label class="wide">報表說明<span class="required-indicator">*</span><textarea name="description" rows="3" [(ngModel)]="draft.description" [disabled]="existingDraft !== null"></textarea></label>
@@ -182,5 +265,50 @@
         <button type="submit" class="primary-button" [disabled]="isSaving">{{ isSaving ? '處理中…' : (existingDraft ? '上傳 RPT' : '建立並上傳') }}</button>
       </div>
     </form>
+
+    <section *ngIf="editorTab === 'permissions' && permissionReport" class="managed-report-permission-panel" aria-live="polite">
+      <div class="managed-report-permission-intro">
+        <h3>{{ permissionReport.categoryName }}分類權限</h3>
+        <p>此報表的執行、匯出與列印權限依所屬分類設定；儲存後會套用至同分類的所有報表。未勾選「可執行」時，匯出與列印會一併停用。</p>
+      </div>
+      <p *ngIf="permissionError" class="field-error" role="alert">{{ permissionError }}</p>
+      <p *ngIf="isPermissionsLoading" class="managed-report-state" role="status">正在載入角色權限…</p>
+      <div *ngIf="!isPermissionsLoading" class="table-scroll">
+        <table class="report-management-table managed-report-permission-table">
+          <thead><tr><th>角色</th><th>可執行</th><th>可匯出</th><th>可列印</th><th>操作</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let permission of permissionRows">
+              <td><strong>{{ permission.roleName }}</strong><small>{{ permission.roleCode }}</small></td>
+              <td><input type="checkbox" [(ngModel)]="permission.canExecute" (ngModelChange)="setPermissionExecution(permission)" [ngModelOptions]="{ standalone: true }" /></td>
+              <td><input type="checkbox" [(ngModel)]="permission.canExport" [disabled]="!permission.canExecute" [ngModelOptions]="{ standalone: true }" /></td>
+              <td><input type="checkbox" [(ngModel)]="permission.canPrint" [disabled]="!permission.canExecute" [ngModelOptions]="{ standalone: true }" /></td>
+              <td><button type="button" class="secondary-button" (click)="savePermission(permission)">儲存</button></td>
+            </tr>
+            <tr *ngIf="!permissionRows.length"><td colspan="5" class="managed-report-state">目前沒有可設定的啟用角色。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section *ngIf="editorTab === 'headers' && existingDraft" class="managed-report-permission-panel" aria-live="polite">
+      <div class="managed-report-permission-intro">
+        <h3>欄位中文名稱</h3>
+        <p>系統會偵測 RPT 的文字、欄位標題及 Title 公式。填入中文名稱後，使用者執行或匯出 PDF 時會自動套用；Saved Data 報表同樣支援，原始 RPT 檔不會被修改。</p>
+      </div>
+      <p *ngIf="headerMappingsError" class="field-error" role="alert">{{ headerMappingsError }}</p>
+      <p *ngIf="isHeaderMappingsLoading" class="managed-report-state" role="status">正在讀取欄位…</p>
+      <div *ngIf="!isHeaderMappingsLoading" class="header-mapping-list">
+        <div *ngFor="let mapping of headerMappings; let index = index" class="header-mapping-row">
+          <label>RPT 標題來源<input [(ngModel)]="mapping.sourceText" [ngModelOptions]="{ standalone: true }" placeholder="例如：Title_CustomerName" /></label>
+          <label>中文顯示名稱<input [(ngModel)]="mapping.displayName" [ngModelOptions]="{ standalone: true }" placeholder="例如：客戶名稱" /></label>
+          <button type="button" class="tertiary-button" (click)="removeHeaderMapping(index)">移除</button>
+        </div>
+        <p *ngIf="!headerMappings.length" class="managed-report-state">尚未偵測到可設定的文字欄位；您仍可手動新增對照。</p>
+        <div class="modal-actions">
+          <button type="button" class="tertiary-button" (click)="addHeaderMapping()">新增對照</button>
+          <button type="button" class="primary-button" [disabled]="isHeaderMappingsSaving" (click)="saveHeaderMappings()">{{ isHeaderMappingsSaving ? '儲存中…' : '儲存中文名稱' }}</button>
+        </div>
+      </div>
+    </section>
   </section>
 </section>

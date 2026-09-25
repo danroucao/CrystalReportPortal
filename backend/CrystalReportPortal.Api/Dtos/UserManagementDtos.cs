@@ -6,6 +6,7 @@ public class ManagedUserDto
     public string EmployeeNo { get; set; } = string.Empty;
     public string Account { get; set; } = string.Empty;
     public string UserName { get; set; } = string.Empty;
+    public string? Department { get; set; }
     public bool IsEnabled { get; set; }
     public List<string> RoleCodes { get; set; } = [];
 }

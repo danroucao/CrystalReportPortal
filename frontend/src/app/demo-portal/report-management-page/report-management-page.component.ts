@@ -75,6 +75,10 @@ export class ReportManagementPageComponent {
     this.managedReportPage?.openCreate();
   }
 
+  OpenManagedCategoryManagement(): void {
+    this.managedReportPage?.openCategoryManagement();
+  }
+
   ReportManagementStartDate = '';
   ReportManagementEndDate = '';
   ReportManagementDateNotice = '';

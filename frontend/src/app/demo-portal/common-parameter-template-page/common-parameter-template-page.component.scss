@@ -41,15 +41,54 @@
 .common-parameter-table td:nth-child(5) { white-space: nowrap; }
 .common-parameter-table .account-status-switch { margin-right: .5rem; }
 .common-parameter-empty, .common-parameter-state { padding: 2rem; text-align: center; color: #666; }
-.common-parameter-editor { width: min(54rem, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); overflow: auto; }
+.common-parameter-editor { width: min(62rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; }
 .common-parameter-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .common-parameter-wide { grid-column: 1 / -1; }
-.common-parameter-flags { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; border: 1px solid #ddd7d0; border-radius: 4px; }
-.common-parameter-flags label { display: inline-flex; align-items: center; gap: .4rem; }
-.common-parameter-flags input { width: auto; }
+.common-parameter-section { min-width: 0; margin: 0; padding: 1rem 1.1rem 1.1rem; border: 1px solid #ded8d1; border-radius: .5rem; background: #fffdfb; }
+.common-parameter-section > legend { padding: 0 .25rem; color: #2d2925; font-weight: 800; }
+.common-parameter-section-hint { margin: -.05rem 0 .9rem; color: #6f6962; font-size: .8125rem; line-height: 1.5; }
+.common-parameter-section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem 1rem; }
+.common-parameter-control-hint { margin-top: .05rem; color: #706b66; font-size: .75rem; font-weight: 400; line-height: 1.35; }
+.common-parameter-sql-section { border-color: #dfd2bd; background: #fffcf7; }
+.common-parameter-flags { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin: 1rem 0 0; padding: .8rem; border: 1px solid #ddd7d0; border-radius: .4rem; background: #fff; }
+.common-parameter-flags > legend { padding: 0 .2rem; color: #4e4a46; font-size: .8125rem; font-weight: 700; }
+.common-parameter-flags label { display: flex; align-items: flex-start; gap: .55rem; min-height: 3.55rem; padding: .65rem .75rem; border: 1px solid #e3ded8; border-radius: .4rem; background: #fcfbfa; cursor: pointer; }
+.common-parameter-flags label:has(input:checked) { border-color: #c57481; background: #fff5f6; }
+.common-parameter-flags label:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.common-parameter-flags input {
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  flex: 0 0 1.75rem;
+  place-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: .12rem 0 0;
+  border: 1px solid #bdb6ae;
+  border-radius: .28rem;
+  background: #fff;
+  cursor: pointer;
+}
+.common-parameter-flags input::after {
+  content: none;
+}
+.common-parameter-flags input:checked {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m5 12 4.2 4.2L19 6.5' fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3.2'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+}
+.common-parameter-flags input:focus-visible { outline: 3px solid rgb(189 23 49 / 24%); outline-offset: 2px; }
+.common-parameter-flags span { display: grid; gap: .15rem; }
+.common-parameter-flags strong { color: #393530; font-size: .875rem; }
+.common-parameter-flags small { color: #736d67; font-size: .75rem; line-height: 1.3; }
+.common-parameter-form .modal-actions { position: sticky; bottom: 0; z-index: 1; margin: 0 -1.1rem -1.1rem; padding: 1rem 1.1rem; border-top: 1px solid #e1dcd5; background: rgb(255 255 255 / 96%); }
+.common-parameter-form .field-error { margin: 0; padding: .7rem .85rem; border-radius: .35rem; background: #fff5f5; }
 
 @media (max-width: 720px) {
   .common-parameter-heading { flex-direction: column; }
-  .common-parameter-filters, .common-parameter-form { grid-template-columns: 1fr; }
+  .common-parameter-filters, .common-parameter-form, .common-parameter-section-grid, .common-parameter-flags { grid-template-columns: 1fr; }
   .common-parameter-wide { grid-column: auto; }
 }

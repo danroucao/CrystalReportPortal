@@ -7,11 +7,19 @@
 .review-error-details summary { cursor: pointer; color: #8a1d2b; font-weight: 700; }
 .review-error-details pre { max-height: 150px; overflow: auto; margin: 8px 0 0; padding: 10px; border: 1px solid #ead6d9; background: #fff8f8; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .review-content { min-height: 0; display: grid; grid-template-columns: minmax(320px, 380px) minmax(0, 1fr); gap: 0; }
+.review-content.is-configuration { grid-template-columns: minmax(0, 1fr); }
+.review-content.is-configuration .review-parameters { max-width: none; border-right: 0; }
 .review-parameters { min-height: 0; display: grid; align-content: start; gap: 16px; overflow-y: auto; padding: 24px; border-right: 1px solid #e5e1dc; }
 .review-parameters label { display: grid; gap: 6px; font-weight: 600; }
 .review-parameters input, .review-parameters select { width: 100%; min-height: 42px; }
 .review-parameters select[multiple] { min-height: 128px; }
 .review-help { margin: 0; color: #666; line-height: 1.6; }
+.parameter-configuration-card { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 16px; border: 1px solid #e5e1dc; border-radius: 6px; background: #fcfbfa; }
+.parameter-configuration-heading { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; }
+.parameter-configuration-heading small { color: #706b66; }
+.parameter-configuration-flags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 16px; }
+.parameter-configuration-flags label { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.parameter-configuration-flags input { width: auto; min-height: auto; }
 .inline-option { display: flex !important; grid-template-columns: auto 1fr; align-items: center; gap: 8px !important; font-weight: 400 !important; }
 .inline-option input { width: auto; min-height: auto; }
 .review-preview { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; padding: 24px; }
@@ -25,4 +33,5 @@
 	.review-parameters { overflow: visible; border-right: 0; border-bottom: 1px solid #e5e1dc; }
 	.review-preview { min-height: 460px; }
 	.review-preview iframe { min-height: 360px; }
+	.parameter-configuration-card { grid-template-columns: 1fr; }
 }

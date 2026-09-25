@@ -115,14 +115,25 @@ public class ReportsController : ControllerBase
                 reportId,
                 roleCodes);
 
-        var canExport =
-            await _reportService.CanExportReportAsync(
-                reportId,
-                roleCodes);
-
-        if (!allowed || !canExport)
+        // 載入 LOV 選項屬於設定查詢條件，不是匯出報表。
+        // 只要具有閱覽／執行權限即可取得選項；匯出權限會在真正
+        // 匯出檔案時另行驗證。
+        if (!allowed)
         {
-            return Forbid();
+            var reportCategory = await _dbContext.Reports
+                .AsNoTracking()
+                .Where(report => report.ReportId == reportId)
+                .Select(report => new { report.CategoryId, report.Category.CategoryName })
+                .FirstOrDefaultAsync();
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                success = false,
+                message = "目前 Token 未取得此報表分類的可執行權限。",
+                categoryId = reportCategory?.CategoryId,
+                categoryName = reportCategory?.CategoryName,
+                tokenRoleCodes = roleCodes,
+                hint = "請確認帳號已指派到上述角色之一，且該角色的此分類「閱覽」已儲存；之後請登出再登入。"
+            });
         }
 
         try
@@ -302,7 +313,7 @@ public class ReportsController : ControllerBase
             var pdfBytes =
                 await _crystalProcessService
                     .PreviewAsync(
-                        report.RptFilePath);
+                        GetExecutableRptPath(report.RptFilePath));
 
             return File(
                 pdfBytes,
@@ -321,6 +332,14 @@ public class ReportsController : ControllerBase
                         ex.Message
                 });
         }
+    }
+
+    private static string GetExecutableRptPath(string sourceRptPath)
+    {
+        var localizedPath = Path.Combine(
+            Path.GetDirectoryName(sourceRptPath) ?? string.Empty,
+            Path.GetFileNameWithoutExtension(sourceRptPath) + ".localized.rpt");
+        return System.IO.File.Exists(localizedPath) ? localizedPath : sourceRptPath;
     }
 
     [HttpPatch("{reportId:long}/status")]
@@ -394,7 +413,10 @@ public class ReportsController : ControllerBase
                 });
             }
 
-            var hasInvalidParameter =
+            // Reports without a data source are intentionally executed from
+            // their embedded Saved Data. Their RPT parameters are not live-query
+            // inputs, so they must not block activation.
+            var hasInvalidParameter = report.DataSourceId.HasValue &&
                 await _dbContext.ReportParameters
                     .AnyAsync(parameter =>
                         parameter.ReportId == reportId &&

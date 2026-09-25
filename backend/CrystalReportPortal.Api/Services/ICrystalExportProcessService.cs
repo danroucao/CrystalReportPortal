@@ -12,6 +12,7 @@ public class CrystalExportProcessRequest
     public CrystalExportDatabase Database { get; set; } = new();
     public List<CrystalExportProcessParameter> Parameters { get; set; } = [];
     public bool UseSavedDataOnly { get; set; }
+    public Dictionary<string, string> HeaderTextReplacements { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public class CrystalExportDatabase

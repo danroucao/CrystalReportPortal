@@ -52,6 +52,11 @@ interface ParameterReportSearchState {
   readonly EndDate: string;
 }
 
+interface StoredFavoriteReport {
+  readonly FavoritedAt: string;
+  readonly LastUsedAt: string | null;
+}
+
 /**
  * Report discovery and dynamic parameter entry for the front-office portal.
  * The parent shell continues to own navigation, access guards, and page chrome.
@@ -97,7 +102,7 @@ export class ReportParameterPageComponent implements OnInit {
   IsLoadingReports = false;
   IsLoadingReportParameters = false;
   ReportLoadError = '';
-  private FavoriteReportKeys = new Set<MockReportKey>();
+  private FavoriteReportStates: Record<MockReportKey, StoredFavoriteReport> = {};
 
   @ViewChild('parameterReportSearchInput')
   private parameterReportSearchInput?: ElementRef<HTMLInputElement>;
@@ -340,19 +345,22 @@ export class ReportParameterPageComponent implements OnInit {
   }
 
   IsFavoriteReport(ReportKey: MockReportKey): boolean {
-    return this.FavoriteReportKeys.has(ReportKey);
+    return this.FavoriteReportStates[ReportKey] !== undefined;
   }
 
   ToggleFavoriteReport(ReportKey: MockReportKey): void {
     const Account = this.Auth.CurrentUser?.Account;
     if (!Account || !this.Auth.IsFrontOffice) return;
-    const IsFavorite = !this.FavoriteReportKeys.has(ReportKey);
-    if (IsFavorite) this.FavoriteReportKeys.add(ReportKey);
-    else this.FavoriteReportKeys.delete(ReportKey);
-    sessionStorage.setItem(
-      this.GetFavoriteStorageKey(Account),
-      JSON.stringify([...this.FavoriteReportKeys]),
-    );
+    const IsFavorite = !this.IsFavoriteReport(ReportKey);
+    if (IsFavorite) {
+      this.FavoriteReportStates[ReportKey] = {
+        FavoritedAt: new Date().toISOString(),
+        LastUsedAt: null,
+      };
+    } else {
+      delete this.FavoriteReportStates[ReportKey];
+    }
+    this.SaveFavoriteReports(Account);
     const Report = this.Auth.AccessibleReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
@@ -408,6 +416,39 @@ export class ReportParameterPageComponent implements OnInit {
     return Definition.ValueSourceType === 'SqlLov'
       ? this.ReportParameters.GetLovOptions(ReportKey, Definition.ParameterName)
       : (Definition.Options ?? []);
+  }
+
+  IsMultiSelectOptionSelected(
+    Definition: MockReportParameterDefinition,
+    Value: string,
+  ): boolean {
+    const currentValue = this.ReportParameterForm.get(Definition.ParameterName)?.value;
+    return Array.isArray(currentValue) && currentValue.map(String).includes(Value);
+  }
+
+  ToggleMultiSelectOption(
+    Definition: MockReportParameterDefinition,
+    Value: string,
+  ): void {
+    const control = this.ReportParameterForm.get(Definition.ParameterName);
+    if (!control || control.disabled) return;
+
+    const current = Array.isArray(control.value) ? control.value.map(String) : [];
+    control.setValue(
+      current.includes(Value)
+        ? current.filter((item) => item !== Value)
+        : [...current, Value],
+    );
+    control.markAsDirty();
+    control.updateValueAndValidity();
+  }
+
+  ClearMultiSelect(Definition: MockReportParameterDefinition): void {
+    const control = this.ReportParameterForm.get(Definition.ParameterName);
+    if (!control || control.disabled) return;
+    control.setValue([]);
+    control.markAsDirty();
+    control.updateValueAndValidity();
   }
 
   RetryLov(Definition: MockReportParameterDefinition): void {
@@ -487,6 +528,10 @@ export class ReportParameterPageComponent implements OnInit {
     );
     if (!Report) return;
     this.Auth.SelectReport(ReportKey);
+    if (Report.UsesSavedData) {
+      this.SelectReportForPreview(ReportKey);
+      return;
+    }
     this.IsReportParameterMode = true;
     this.LoadReportParameterForm();
   }
@@ -498,7 +543,10 @@ export class ReportParameterPageComponent implements OnInit {
     if (!Report) return;
     this.Auth.SelectReport(ReportKey);
     const Account = this.Auth.CurrentUser?.Account;
-    if (Account) this.MockRbac.RecordReportExecution(Account, ReportKey);
+    if (Account) {
+      this.MockRbac.RecordReportExecution(Account, ReportKey);
+      this.RecordFavoriteUsage(Account, ReportKey);
+    }
     void this.router.navigate(['/reports/preview'], {
       state: {
         ReportPreviewOrigin: 'all',
@@ -533,7 +581,10 @@ export class ReportParameterPageComponent implements OnInit {
     };
     this.LastMockExecutionParameters = this.SerializeReportParameters();
     const Account = this.Auth.CurrentUser?.Account;
-    if (Account) this.MockRbac.RecordReportExecution(Account, Report.ReportKey);
+    if (Account) {
+      this.MockRbac.RecordReportExecution(Account, Report.ReportKey);
+      this.RecordFavoriteUsage(Account, Report.ReportKey);
+    }
     void this.router.navigate(['/reports/preview'], {
       state: {
         ReportExecutionRequest: ExecutionRequest,
@@ -568,14 +619,51 @@ export class ReportParameterPageComponent implements OnInit {
       const Stored = JSON.parse(
         sessionStorage.getItem(this.GetFavoriteStorageKey(Account)) ?? '[]',
       ) as unknown;
-      this.FavoriteReportKeys = new Set(
-        Array.isArray(Stored)
-          ? Stored.filter((Value): Value is string => typeof Value === 'string')
-          : [],
-      );
+      if (Array.isArray(Stored)) {
+        const FavoritedAt = new Date().toISOString();
+        this.FavoriteReportStates = Object.fromEntries(
+          Stored
+            .filter((Value): Value is string => typeof Value === 'string')
+            .map((ReportKey) => [
+              ReportKey,
+              { FavoritedAt, LastUsedAt: null },
+            ]),
+        );
+        this.SaveFavoriteReports(Account);
+      } else if (Stored && typeof Stored === 'object') {
+        this.FavoriteReportStates = Object.fromEntries(
+          Object.entries(Stored).flatMap(([ReportKey, Value]) => {
+            if (!Value || typeof Value !== 'object') return [];
+            const State = Value as Partial<StoredFavoriteReport>;
+            return typeof State.FavoritedAt === 'string'
+              ? [[ReportKey, {
+                  FavoritedAt: State.FavoritedAt,
+                  LastUsedAt: typeof State.LastUsedAt === 'string' ? State.LastUsedAt : null,
+                }]]
+              : [];
+          }),
+        );
+      }
     } catch {
-      this.FavoriteReportKeys.clear();
+      this.FavoriteReportStates = {};
     }
+  }
+
+  private RecordFavoriteUsage(Account: string, ReportKey: MockReportKey): void {
+    const Favorite = this.FavoriteReportStates[ReportKey];
+    if (!Favorite) return;
+    this.FavoriteReportStates[ReportKey] = {
+      ...Favorite,
+      LastUsedAt: new Date().toISOString(),
+    };
+    this.SaveFavoriteReports(Account);
+  }
+
+  private SaveFavoriteReports(Account: string): void {
+    sessionStorage.setItem(
+      this.GetFavoriteStorageKey(Account),
+      JSON.stringify(this.FavoriteReportStates),
+    );
   }
 
   private GetFavoriteStorageKey(Account: string): string {

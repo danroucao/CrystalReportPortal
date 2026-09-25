@@ -14,6 +14,9 @@ public static class PermissionCodes
     public const string ReportEnableDisable =
         "Report.EnableDisable";
 
+    public const string ReportViewArchive =
+        "Report.ViewArchive";
+
     public const string DataSourceManage =
         "DataSource.Manage";
 
@@ -29,6 +32,7 @@ public static class PermissionCodes
         ReportMaintain,
         ReportSetParameters,
         ReportEnableDisable,
+        ReportViewArchive,
         DataSourceManage,
         AuditLogView,
         AuditLogViewArchive

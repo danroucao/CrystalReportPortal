@@ -12,11 +12,18 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
   const Auth = inject(AuthService);
   const IsBackOfficeRequest = request.url.includes('/backoffice');
+  const IsUnsafeBackOfficeRequest = IsBackOfficeRequest &&
+    !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(request.method);
   const Token = sessionStorage.getItem(TOKEN_STORAGE_KEY);
 
   const AuthorizedRequest = request.clone({
     withCredentials: IsBackOfficeRequest,
-    setHeaders: Token ? { Authorization: `Bearer ${Token}` } : {},
+    setHeaders: {
+      ...(Token ? { Authorization: `Bearer ${Token}` } : {}),
+      ...(IsUnsafeBackOfficeRequest && Auth.BackOfficeAntiForgeryToken
+        ? { 'X-CSRF-TOKEN': Auth.BackOfficeAntiForgeryToken }
+        : {}),
+    },
   });
 
   return next(AuthorizedRequest).pipe(

@@ -48,6 +48,32 @@ export interface RoleReportPermission {
   canEnableDisable: boolean;
 }
 
+export interface ReportColumnHeaderMapping {
+  sourceText: string;
+  displayName: string;
+}
+
+export interface ManagedReportCategory {
+  readonly categoryId: number;
+  readonly categoryName: string;
+  readonly reportCount: number;
+}
+
+export interface SaveManagedReportCategoryRequest {
+  categoryName: string;
+}
+
+export interface RoleCategoryPermission {
+  readonly roleId: number;
+  readonly roleCode: string;
+  readonly roleName: string;
+  readonly categoryId: number;
+  readonly categoryName: string;
+  canExecute: boolean;
+  canExport: boolean;
+  canPrint: boolean;
+}
+
 export interface CreateManagedReportRequest {
   reportCode: string;
   reportName: string;

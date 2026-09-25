@@ -26,6 +26,15 @@ public class ReportExecutionService : IReportExecutionService
         var report = await db.Reports.Include(x => x.DataSource).ThenInclude(x => x.Credentials)
             .Include(x => x.ReportParameters).FirstOrDefaultAsync(x => x.ReportId == reportId)
             ?? throw new KeyNotFoundException("Report was not found.");
+
+        // A report without an assigned data source is intentionally rendered from
+        // the Saved Data embedded in its RPT. It must not try to resolve database
+        // credentials or accept runtime query parameters.
+        if (report.DataSource == null)
+        {
+            return await ExecuteSavedDataAsync(report, userId, request);
+        }
+
         if (report.DataSource == null || !report.DataSource.IsEnabled || !File.Exists(report.RptFilePath))
         {
             throw new InvalidOperationException("報表 RPT 或資料來源不存在、未啟用。");
@@ -127,7 +136,7 @@ public class ReportExecutionService : IReportExecutionService
                 await crystal.ExportPdfAsync(
                     new CrystalExportProcessRequest
                     {
-                        RptPath = report.RptFilePath,
+                        RptPath = GetExecutableRptPath(report.RptFilePath),
 
                         Database = new CrystalExportDatabase
                         {
@@ -149,6 +158,7 @@ public class ReportExecutionService : IReportExecutionService
                         },
 
                         Parameters = exportParameters
+                        ,HeaderTextReplacements = GetHeaderTextReplacements(report)
                     });
 
             execution.Status = "Completed";
@@ -192,6 +202,103 @@ public class ReportExecutionService : IReportExecutionService
 
             throw;
         }
+    }
+
+    private async Task<(Guid ExecutionId, byte[] Pdf)> ExecuteSavedDataAsync(
+        Report report,
+        long userId,
+        ReportExecutionRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(report.RptFilePath) || !File.Exists(report.RptFilePath))
+        {
+            throw new InvalidOperationException("The report RPT file is not available.");
+        }
+
+        var execution = new ReportExecution
+        {
+            ExecutionId = Guid.NewGuid(),
+            ReportId = report.ReportId,
+            UserId = userId,
+            ParametersJson = JsonSerializer.Serialize(request.Parameters ?? []),
+            Status = "Running",
+            StartedAt = DateTime.UtcNow
+        };
+
+        db.ReportExecutions.Add(execution);
+        await db.SaveChangesAsync();
+
+        try
+        {
+            var pdf = await crystal.ExportPdfAsync(new CrystalExportProcessRequest
+            {
+                RptPath = GetExecutableRptPath(report.RptFilePath),
+                UseSavedDataOnly = true,
+                Parameters = [],
+                HeaderTextReplacements = GetHeaderTextReplacements(report)
+            });
+
+            execution.Status = "Completed";
+            execution.CompletedAt = DateTime.UtcNow;
+            db.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                ReportId = report.ReportId,
+                ExecutionId = execution.ExecutionId,
+                Action = ExecuteReportAction,
+                Result = "SUCCESS",
+                Details = $"Executed Saved Data report {report.ReportCode} and generated PDF.",
+                CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+
+            return (execution.ExecutionId, pdf);
+        }
+        catch (Exception exception)
+        {
+            execution.Status = "Failed";
+            execution.ErrorMessage = exception.Message;
+            execution.CompletedAt = DateTime.UtcNow;
+            db.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                ReportId = report.ReportId,
+                ExecutionId = execution.ExecutionId,
+                Action = ExecuteReportAction,
+                Result = "FAILED",
+                Details = $"Saved Data execution for report {report.ReportCode} failed.",
+                ErrorMessage = exception.Message,
+                CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+            throw;
+        }
+    }
+
+    private static Dictionary<string, string> GetHeaderTextReplacements(Report report)
+    {
+        try
+        {
+            var mappings = JsonSerializer.Deserialize<List<ReportColumnHeaderMappingDto>>(
+                report.ColumnHeaderMappingsJson) ?? [];
+            return mappings
+                .Where(mapping => !string.IsNullOrWhiteSpace(mapping.SourceText) &&
+                    !string.IsNullOrWhiteSpace(mapping.DisplayName))
+                .GroupBy(mapping => mapping.SourceText.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Last().DisplayName.Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static string GetExecutableRptPath(string sourceRptPath)
+    {
+        var localizedPath = Path.Combine(
+            Path.GetDirectoryName(sourceRptPath) ?? string.Empty,
+            Path.GetFileNameWithoutExtension(sourceRptPath) + ".localized.rpt");
+        return File.Exists(localizedPath) ? localizedPath : sourceRptPath;
     }
 
     private static void ValidateParameterValues(ReportParameter parameter, List<string> values)

@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -116,13 +117,44 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
             this.PreviewObjectUrl,
           );
         },
-        error: () => {
+        error: (error: unknown) => {
           this.RevokePreviewUrl();
           this.PreviewBlob = null;
           this.PreviewUrl = null;
-          this.PreviewError = '目前無法產生報表預覽，請稍後再試。';
+          void this.SetPreviewError(error);
         },
       });
+  }
+
+  private async SetPreviewError(error: unknown): Promise<void> {
+    const fallback = '目前無法產生報表預覽，請稍後再試。';
+    if (!(error instanceof HttpErrorResponse)) {
+      this.PreviewError = fallback;
+      return;
+    }
+
+    try {
+      const body = error.error instanceof Blob
+        ? await error.error.text()
+        : JSON.stringify(error.error ?? {});
+      if (body.trim()) {
+        try {
+          const payload = JSON.parse(body) as {
+            message?: string; detail?: string; categoryName?: string; tokenRoleCodes?: string[];
+          };
+          const accessContext = payload.categoryName || payload.tokenRoleCodes?.length
+            ? ` 分類：${payload.categoryName ?? '未知'}；目前角色：${payload.tokenRoleCodes?.join(', ') || '無'}。`
+            : '';
+          this.PreviewError = (payload.detail || payload.message || `預覽失敗（HTTP ${error.status}）。`) + accessContext;
+        } catch {
+          this.PreviewError = `預覽失敗（HTTP ${error.status}）：${body.slice(0, 500)}`;
+        }
+        return;
+      }
+      this.PreviewError = `預覽失敗（HTTP ${error.status} ${error.statusText || 'Unknown'}）。`;
+    } catch {
+      this.PreviewError = `預覽失敗（HTTP ${error.status || 0}）。${fallback}`;
+    }
   }
 
   RetryPreview(): void {

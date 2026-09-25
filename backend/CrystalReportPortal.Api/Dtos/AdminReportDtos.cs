@@ -34,6 +34,18 @@ public class CategoryOptionDto
     public string CategoryName { get; set; } = string.Empty;
 }
 
+public class ManagedCategoryDto
+{
+    public int CategoryId { get; set; }
+    public string CategoryName { get; set; } = string.Empty;
+    public int ReportCount { get; set; }
+}
+
+public class SaveReportCategoryRequest
+{
+    public string CategoryName { get; set; } = string.Empty;
+}
+
 public class DataSourceOptionDto
 {
     public long? DataSourceId { get; set; }

@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 
 export type MockAuditLogCategory =
   | 'PermissionChange'
+  | 'DataSourceManagement'
   | 'ReportAction'
   | 'AccountManagement';
 export type MockAuditLogSource = 'BackOffice' | 'FrontOffice';

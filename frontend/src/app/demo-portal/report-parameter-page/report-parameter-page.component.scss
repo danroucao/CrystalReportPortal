@@ -1,1 +1,95 @@
 @import '../demo-portal.component.scss';
+
+.report-list-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin: .5rem 0 1rem; color: var(--color-muted); font-size: .875rem; }
+.report-result-count { color: #333; font-weight: 700; white-space: nowrap; }
+.parameter-report-table .report-entry-row { cursor: pointer; }
+.parameter-report-table .report-entry-row:focus-visible { outline: 3px solid rgb(33 109 157 / 38%); outline-offset: -3px; }
+.report-name-cell strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.report-mode-badge, .report-category-badge { display: inline-flex; align-items: center; width: fit-content; margin-top: .3rem; padding: .2rem .5rem; border-radius: 999px; background: #edf4fb; color: #275f86; font-size: .75rem; font-weight: 700; line-height: 1.2; }
+.report-mode-badge.is-saved-data { background: #fff2d6; color: #795400; }
+.report-category-badge { margin-top: 0; background: #f2eef8; color: #654f83; white-space: nowrap; }
+.parameter-report-description { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); }
+.parameter-report-timestamp { white-space: nowrap; font-variant-numeric: tabular-nums; color: #555; }
+.report-open-button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.35rem; padding: .35rem .6rem; border: 1px solid var(--color-primary); border-radius: .4rem; background: #fff; color: var(--color-primary); font: inherit; font-weight: 700; }
+.report-open-button:hover { background: #fff4f5; }
+
+// Live-report parameter workflow
+.selected-parameter-report {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.1rem 1.35rem;
+  border: 1px solid #e1d8cb;
+  border-left: 3px solid #a97937;
+  border-radius: .5rem;
+  background: #fffdfa;
+}
+.selected-parameter-report-label { margin: 0 0 .3rem; color: #6e675f; font-size: .8125rem; font-weight: 700; }
+.selected-parameter-report h2 { margin: 0; font-size: 1.18rem; }
+.selected-parameter-report-code { margin: .35rem 0 0; color: var(--color-muted); font-size: .8125rem; }
+.parameter-form { margin-top: 1.25rem; }
+.parameter-form-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.35rem 1.15rem;
+  padding: 1.25rem;
+  border: 1px solid #e4dfd7;
+  border-radius: .55rem;
+  background: #fff;
+}
+.parameter-form-fields .parameter-field,
+.parameter-form-fields .parameter-range-field {
+  min-width: 0;
+}
+.parameter-form-fields .parameter-range-field { grid-column: span 2; }
+.parameter-form-fields .parameter-field { grid-column: span 2; }
+.parameter-form-fields .parameter-field:has(.parameter-multiselect) { align-self: stretch; }
+.parameter-range-field { padding: .85rem; border: 1px solid #e4dfd7; border-radius: .45rem; background: #fcfbfa; }
+.parameter-range-field legend,
+.parameter-field > label,
+.parameter-field .form-field-label { font-weight: 700; }
+.parameter-field > label {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+}
+.parameter-field > label .required-indicator,
+.parameter-range-field legend .required-indicator,
+.parameter-field .form-field-label .required-indicator {
+  display: inline;
+  margin-left: 0;
+  line-height: 1;
+}
+.parameter-range-field > label { display: inline-grid; width: calc(50% - .4rem); gap: .45rem; color: var(--color-muted); font-size: .875rem; }
+.parameter-range-field > label + label { margin-left: .65rem; }
+.parameter-range-field input,
+.parameter-field input,
+.parameter-field select,
+.parameter-field textarea { width: 100%; }
+.parameter-multiselect { box-sizing: border-box; display: flex; flex-direction: column; height: 14.5rem; margin-top: .45rem; padding: .75rem; overflow: hidden; border: 1px solid #d8d2ca; border-radius: .45rem; background: #fcfbfa; }
+.parameter-multiselect-actions { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .7rem; padding-bottom: .55rem; border-bottom: 1px solid #ece7e0; color: var(--color-muted); font-size: .75rem; }
+.parameter-multiselect-actions button { border: 0; background: transparent; color: var(--color-primary); font: inherit; font-weight: 700; cursor: pointer; }
+.parameter-multiselect-actions button:disabled { color: #aaa; cursor: default; }
+.parameter-option-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.25rem, 1fr)); flex: 1; min-height: 0; align-content: start; gap: .5rem; overflow: auto; padding: .05rem .2rem .1rem 0; }
+.parameter-option-chip { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; height: 2.75rem; padding: .4rem .7rem; overflow: hidden; border: 1px solid #d2ccc4; border-radius: 999px; background: #fff; color: #403d39; font: inherit; font-size: .875rem; line-height: 1.25; text-align: center; cursor: pointer; transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease, box-shadow 120ms ease; }
+.parameter-option-chip:hover { border-color: #b61b35; background: #fff7f8; }
+.parameter-option-chip.is-selected { border-color: var(--color-primary); background: var(--color-primary); color: #fff; box-shadow: 0 2px 5px rgb(145 15 38 / 22%); }
+.parameter-option-chip svg { width: .9rem; height: .9rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.parameter-option-chip.is-selected svg { opacity: 1; }
+.parameter-form-actions { display: flex; align-items: center; gap: .75rem; margin-top: 1.4rem; padding-top: 1.25rem; border-top: 1px solid #e4dfd7; }
+.parameter-form-actions .primary-button { min-width: 8rem; }
+@media (max-width: 768px) {
+  .selected-parameter-report { align-items: stretch; flex-direction: column; }
+  .selected-parameter-report .tertiary-button { width: 100%; }
+  .parameter-form-fields { grid-template-columns: 1fr; padding: 1rem; }
+  .parameter-form-fields .parameter-range-field,
+  .parameter-form-fields .parameter-field { grid-column: span 1; }
+  .parameter-range-field > label { width: 100%; }
+  .parameter-range-field > label + label { margin-top: .85rem; margin-left: 0; }
+  .parameter-form-actions { align-items: stretch; flex-direction: column; }
+  .parameter-multiselect { height: 14.5rem; min-height: 0; }
+  .parameter-option-chips { grid-template-columns: 1fr; max-height: 13rem; }
+}
+@media (max-width: 768px) { .report-list-heading { align-items: start; flex-direction: column; } .parameter-report-description { max-width: 13rem; } }

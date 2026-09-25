@@ -206,6 +206,7 @@ export class DemoPortalComponent
   SelectedReportFileName = '';
   SelectedReportFile: File | null = null;
   ReportUploadCategories: MockReportCategory[] = [];
+  ReportUploadDataSources: { dataSourceId: number; dataSourceName: string }[] = [];
   ReportEditorError = '';
   IsReportFileInvalid = false;
   IsReportUploadPublishing = false;
@@ -252,6 +253,7 @@ export class DemoPortalComponent
       if (this.Page === 'ReportUpload') {
         this.InitializeReportUploadFlow();
         this.LoadReportUploadCategories();
+        this.LoadReportUploadDataSources();
       }
       if (this.Page === 'DatabaseConnection') this.LoadDataSources();
     const NavigationState =
@@ -515,7 +517,14 @@ export class DemoPortalComponent
 
 
   OpenCategoryManagementDialog(): void {
-    this.reportManagementPage?.OpenCategoryManagementDialog();
+    this.reportManagementPage?.OpenManagedCategoryManagement();
+  }
+
+  get ReportUploadDataSourceName(): string {
+    if (!this.ReportEditorDraft.DataSourceId) return 'Saved Data（未設定資料來源）';
+    return this.ReportUploadDataSources.find(
+      (dataSource) => String(dataSource.dataSourceId) === this.ReportEditorDraft.DataSourceId,
+    )?.dataSourceName ?? '資料來源載入中';
   }
 
 
@@ -555,7 +564,9 @@ export class DemoPortalComponent
         reportName: this.ReportEditorDraft.ReportName.trim(),
         description: this.ReportEditorDraft.Description.trim(),
         categoryId: Number(this.ReportEditorDraft.CategoryId),
-        dataSourceId: null,
+        dataSourceId: this.ReportEditorDraft.DataSourceId
+          ? Number(this.ReportEditorDraft.DataSourceId)
+          : null,
         credentialType: 'ReadOnly',
       },
       this.SelectedReportFile!,
@@ -896,6 +907,7 @@ export class DemoPortalComponent
       ReportName: '',
       Description: '',
       CategoryId: '',
+      DataSourceId: '',
       Enabled: false,
     };
   }
@@ -931,6 +943,7 @@ export class DemoPortalComponent
       InitialDraft.ReportName !== this.ReportEditorDraft.ReportName ||
       InitialDraft.Description !== this.ReportEditorDraft.Description ||
       InitialDraft.CategoryId !== this.ReportEditorDraft.CategoryId ||
+      InitialDraft.DataSourceId !== this.ReportEditorDraft.DataSourceId ||
       InitialDraft.Enabled !== this.ReportEditorDraft.Enabled ||
       this.InitialReportFileName !== this.SelectedReportFileName
     );
@@ -980,6 +993,20 @@ export class DemoPortalComponent
           CategoryId: String(category.categoryId),
           CategoryName: category.categoryName,
           IsSystemReserved: false,
+        }));
+      },
+      error: (error: unknown) => {
+        this.ReportEditorError = this.GetApiErrorMessage(error);
+      },
+    });
+  }
+
+  private LoadReportUploadDataSources(): void {
+    this.ReportsApi.GetManagedReportDataSources().subscribe({
+      next: (dataSources) => {
+        this.ReportUploadDataSources = dataSources.map((dataSource) => ({
+          dataSourceId: dataSource.dataSourceId,
+          dataSourceName: dataSource.dataSourceName,
         }));
       },
       error: (error: unknown) => {
