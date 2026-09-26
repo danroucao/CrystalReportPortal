@@ -96,3 +96,34 @@ xdescribe('portal access and user-management boundaries', () => {
     expect(header.querySelector('.role-switcher')).toBeNull();
   });
 });
+
+describe('back-office identity binding password visibility', () => {
+  ConfigureDemoPortalTestBed();
+
+  it('toggles the password type without clearing the entered value', () => {
+    const auth = TestBed.inject(AuthService);
+    expect(LoginBackOffice(auth)).toBeTrue();
+    const fixture = TestBed.createComponent(DemoPortalComponent);
+    const component = fixture.componentInstance;
+    component.BackOfficeBindingPassword = 'not-a-real-password';
+    fixture.detectChanges();
+
+    const passwordInput = fixture.nativeElement.querySelector(
+      '#backOfficeBindingPassword',
+    ) as HTMLInputElement;
+    const toggle = fixture.nativeElement.querySelector(
+      '.back-office-binding-password-toggle',
+    ) as HTMLButtonElement;
+
+    expect(passwordInput.type).toBe('password');
+    expect(passwordInput.value).toBe('not-a-real-password');
+    expect(toggle.getAttribute('aria-label')).toBe('顯示密碼');
+
+    toggle.click();
+    fixture.detectChanges();
+
+    expect(passwordInput.type).toBe('text');
+    expect(passwordInput.value).toBe('not-a-real-password');
+    expect(toggle.getAttribute('aria-label')).toBe('隱藏密碼');
+  });
+});

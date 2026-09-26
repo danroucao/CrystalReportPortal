@@ -668,8 +668,6 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     this.RoleDraft.ManagementPermissions = enabled
       ? [...new Set([...this.RoleDraft.ManagementPermissions, permission])]
       : this.RoleDraft.ManagementPermissions.filter((value) => value !== permission);
-    if (!enabled && permission === 'RptManagement') this.ToggleArchivePermission('Report.ViewArchive', false);
-    if (!enabled && permission === 'OperationLog') this.ToggleArchivePermission('AuditLog.ViewArchive', false);
   }
 
   ToggleArchivePermission(permission: 'Report.ViewArchive' | 'AuditLog.ViewArchive', enabled: boolean): void {

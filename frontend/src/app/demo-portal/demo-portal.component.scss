@@ -391,6 +391,13 @@ th.is-sorted {
   grid-template-columns: 1fr;
   margin: 1.5rem 0 0;
 }
+.back-office-binding-password-field { display: grid; gap: .4rem; }
+.back-office-binding-password-field label { color: var(--color-muted); font-size: .8125rem; font-weight: 700; }
+.back-office-binding-password-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; }
+.back-office-binding-password-row input { grid-area: 1 / 1; box-sizing: border-box; width: 100%; padding-right: 4.6rem; }
+.back-office-binding-password-toggle { grid-area: 1 / 1; position: static; z-index: 1; justify-self: end; align-self: center; min-width: 3.25rem; height: 2rem; margin-right: .4rem; padding: 0 .4rem; transform: none; border: 0; border-radius: 4px; color: var(--color-primary); background: transparent; cursor: pointer; font: inherit; font-size: .8125rem; }
+.back-office-binding-password-toggle:hover { color: var(--color-primary); background: transparent; }
+.back-office-binding-password-toggle:active { transform: none; }
 
 .operation-log-page {
   display: grid;

@@ -36,28 +36,6 @@ type ReportManagementSortDirection = 'asc' | 'desc';
   ],
   templateUrl: './report-management-page.component.html',
   styleUrl: './report-management-page.component.scss',
-  styles: [`
-    .management-tabs {
-      display: flex;
-      gap: .25rem;
-      margin-bottom: 1.25rem;
-      border-bottom: 1px solid #d8d2cb;
-    }
-    .management-tabs button {
-      padding: .75rem 1rem;
-      border: 0;
-      border-bottom: 3px solid transparent;
-      background: transparent;
-      color: #555;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .management-tabs button.is-active {
-      border-bottom-color: #bd1731;
-      color: #bd1731;
-    }
-  `],
 })
 export class ReportManagementPageComponent {
   ActiveManagementTab: 'reports' | 'common-parameters' = 'reports';

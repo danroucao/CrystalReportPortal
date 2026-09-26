@@ -5,6 +5,101 @@
 @use 'styles-05';
 @use 'styles-06';
 
+/* One flat tab treatment; transparent surfaces retain the containing panel color. */
+app-demo-portal .notification-popover-tabs,
+app-demo-portal .notification-center-tabs,
+app-demo-portal .management-tabs,
+app-demo-portal .role-filter-tabs,
+app-demo-portal .favorite-category-tabs,
+app-demo-portal .parameter-category-tabs,
+app-demo-portal .managed-report-editor-tabs {
+  align-items: flex-end;
+  display: flex;
+  gap: 0;
+  min-width: 0;
+  min-height: 3.125rem;
+  overflow-x: auto;
+  padding-bottom: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  scrollbar-width: thin;
+}
+
+app-demo-portal .notification-popover-tabs button,
+app-demo-portal .notification-center-tabs button,
+app-demo-portal .management-tabs button,
+app-demo-portal .role-filter-tabs button,
+app-demo-portal .favorite-category-tabs button,
+app-demo-portal .parameter-category-tabs button,
+app-demo-portal .managed-report-editor-tabs button {
+  align-self: stretch;
+  flex: 0 0 auto;
+  margin-bottom: -1px;
+  padding: 0 .75rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  color: var(--color-muted);
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: .9375rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+app-demo-portal .notification-popover-tabs button:hover:not(:disabled),
+app-demo-portal .notification-center-tabs button:hover:not(:disabled),
+app-demo-portal .management-tabs button:hover:not(:disabled),
+app-demo-portal .role-filter-tabs button:hover:not(:disabled),
+app-demo-portal .favorite-category-tabs button:hover:not(:disabled),
+app-demo-portal .parameter-category-tabs button:hover:not(:disabled),
+app-demo-portal .managed-report-editor-tabs button:hover:not(:disabled) {
+  color: var(--color-primary);
+  background: transparent;
+}
+
+app-demo-portal .notification-popover-tabs button.is-active,
+app-demo-portal .notification-center-tabs button.is-active,
+app-demo-portal .management-tabs button.is-active,
+app-demo-portal .role-filter-tabs button.is-active,
+app-demo-portal .favorite-category-tabs button.is-active,
+app-demo-portal .parameter-category-tabs button.is-active,
+app-demo-portal .managed-report-editor-tabs button.is-active {
+  border-bottom-color: var(--color-primary);
+  border-radius: 0;
+  color: var(--color-primary);
+  background: transparent;
+  box-shadow: none;
+}
+
+app-demo-portal .notification-popover-tabs button:focus-visible,
+app-demo-portal .notification-center-tabs button:focus-visible,
+app-demo-portal .management-tabs button:focus-visible,
+app-demo-portal .role-filter-tabs button:focus-visible,
+app-demo-portal .favorite-category-tabs button:focus-visible,
+app-demo-portal .parameter-category-tabs button:focus-visible,
+app-demo-portal .managed-report-editor-tabs button:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
+app-demo-portal .notification-popover-tabs button:disabled,
+app-demo-portal .notification-center-tabs button:disabled,
+app-demo-portal .management-tabs button:disabled,
+app-demo-portal .role-filter-tabs button:disabled,
+app-demo-portal .favorite-category-tabs button:disabled,
+app-demo-portal .parameter-category-tabs button:disabled,
+app-demo-portal .managed-report-editor-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+app-demo-portal .management-tabs {
+  margin-bottom: 1.25rem;
+}
+
 /*
  * Global button contract. Keep these classes on native buttons so every page
  * receives the same hierarchy and interaction states without a wrapper API.
@@ -183,7 +278,6 @@ app-demo-portal .department-user-filter-heading { display: flex; align-items: fl
 app-demo-portal .department-user-filter-count { display: inline-flex; flex: 0 0 auto; min-height: 27px; align-items: center; padding: 3px 10px; border-radius: 999px; color: #9d1b2c; background: #fbedef; font-size: .78rem; font-weight: 700; white-space: nowrap; }
 app-demo-portal .role-filter-tabs { margin-top: 2px; }
 app-demo-portal .role-filter-tabs .unassigned-filter-tab { color: #9d1b2c; }
-app-demo-portal .role-filter-tabs .unassigned-filter-tab.is-active { background: #fdf0f2; }
 app-demo-portal .user-table-content-area,
 app-demo-portal .user-management-table { min-width: 720px; }
 app-demo-portal .user-management-table th:nth-child(1) { width: 25%; }

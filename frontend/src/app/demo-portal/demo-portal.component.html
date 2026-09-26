@@ -926,17 +926,29 @@
             (ngModelChange)="BackOfficeBindingError = ''"
           />
         </label>
-        <label>
-          前台密碼
-          <input
-            type="password"
-            [(ngModel)]="BackOfficeBindingPassword"
-            name="backOfficeBindingPassword"
-            autocomplete="current-password"
-            (keyup.enter)="SubmitBackOfficeIdentityBinding()"
-            (ngModelChange)="BackOfficeBindingError = ''"
-          />
-        </label>
+        <div class="back-office-binding-password-field">
+          <label for="backOfficeBindingPassword">前台密碼</label>
+          <div class="back-office-binding-password-row">
+            <input
+              id="backOfficeBindingPassword"
+              [type]="BackOfficeBindingPasswordVisible ? 'text' : 'password'"
+              [(ngModel)]="BackOfficeBindingPassword"
+              name="backOfficeBindingPassword"
+              autocomplete="current-password"
+              (keyup.enter)="SubmitBackOfficeIdentityBinding()"
+              (ngModelChange)="BackOfficeBindingError = ''"
+            />
+            <button
+              type="button"
+              class="back-office-binding-password-toggle"
+              [attr.aria-label]="BackOfficeBindingPasswordVisible ? '隱藏密碼' : '顯示密碼'"
+              [attr.aria-pressed]="BackOfficeBindingPasswordVisible"
+              (click)="ToggleBackOfficeBindingPasswordVisibility()"
+            >
+              {{ BackOfficeBindingPasswordVisible ? '隱藏' : '顯示' }}
+            </button>
+          </div>
+        </div>
       </div>
       <p *ngIf="BackOfficeBindingError" class="field-error" role="alert">
         {{ BackOfficeBindingError }}

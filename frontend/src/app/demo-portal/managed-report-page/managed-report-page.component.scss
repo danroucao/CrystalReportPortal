@@ -66,25 +66,8 @@
 .managed-report-error .managed-report-error-hint { color: #706b66; font-size: .875rem; }
 .managed-report-editor { width: min(48rem, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); overflow: auto; }
 .managed-report-editor-tabs {
-  display: flex;
-  gap: 1.25rem;
   margin: 0 0 1.25rem;
-  border-bottom: 1px solid #ded8d1;
 }
-.managed-report-editor-tabs button {
-  margin-bottom: -1px;
-  padding: .65rem .15rem;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  background: transparent;
-  color: #5d5751;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.managed-report-editor-tabs button:hover,
-.managed-report-editor-tabs button:focus-visible { color: var(--color-primary); }
-.managed-report-editor-tabs button.is-active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
 .managed-report-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .managed-report-form .wide { grid-column: 1 / -1; }
 .managed-report-permission-panel { display: grid; gap: 1rem; }

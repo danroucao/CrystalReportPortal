@@ -179,6 +179,7 @@ export class DemoPortalComponent
   IsProfileMenuOpen = false;
   BackOfficeBindingAccount = '';
   BackOfficeBindingPassword = '';
+  BackOfficeBindingPasswordVisible = false;
   BackOfficeBindingError = '';
   NotificationCenterTab: 'All' | 'Unread' = 'All';
   NotificationPopoverTab: 'All' | 'Unread' = 'All';
@@ -472,6 +473,7 @@ export class DemoPortalComponent
         this.userManagementPage?.LoadApiManagementData();
         this.BackOfficeBindingAccount = '';
         this.BackOfficeBindingPassword = '';
+        this.BackOfficeBindingPasswordVisible = false;
       },
       error: (VerificationError: unknown) => {
         this.BackOfficeBindingError = VerificationError instanceof Error
@@ -483,8 +485,13 @@ export class DemoPortalComponent
 
   ReturnToLoginFromBackOfficeBinding(): void {
     if (!this.Auth.RequiresBackOfficeIdentityBinding) return;
+    this.BackOfficeBindingPasswordVisible = false;
     this.Auth.Logout();
     void this.router.navigate(['/login']);
+  }
+
+  ToggleBackOfficeBindingPasswordVisibility(): void {
+    this.BackOfficeBindingPasswordVisible = !this.BackOfficeBindingPasswordVisible;
   }
 
 
