@@ -579,6 +579,11 @@ export class ManagedReportPageComponent implements OnInit {
     this.sortDirection = 'asc';
   }
 
+  getSortAria(field: SortField): 'ascending' | 'descending' | 'none' {
+    if (this.sortField !== field) return 'none';
+    return this.sortDirection === 'asc' ? 'ascending' : 'descending';
+  }
+
   togglePin(report: ManagedReport): void {
     if (this.pinnedReportIds.has(report.reportId)) {
       this.pinnedReportIds.delete(report.reportId);

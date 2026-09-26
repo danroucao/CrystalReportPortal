@@ -27,10 +27,34 @@
     <table class="report-management-table">
       <thead><tr>
         <th class="pin-column">釘選</th>
-        <th><button type="button" class="sortable-table-header" (click)="setSort('reportName')">報表名稱</button></th>
+        <th [class.is-sorted]="sortField === 'reportName'" [attr.aria-sort]="getSortAria('reportName')">
+          <button type="button" class="sortable-table-header" (click)="setSort('reportName')">
+            報表名稱
+            <svg class="sort-indicator" [class.is-ascending]="sortField === 'reportName' && sortDirection === 'asc'" [class.is-descending]="sortField === 'reportName' && sortDirection === 'desc'" viewBox="0 0 16 24" aria-hidden="true">
+              <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+              <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+            </svg>
+          </button>
+        </th>
         <th>報表分類</th><th>資料來源</th><th>報表說明</th><th>啟用狀態</th>
-        <th><button type="button" class="sortable-table-header" (click)="setSort('createdAt')">建立時間</button></th>
-        <th><button type="button" class="sortable-table-header" (click)="setSort('updatedAt')">更新時間</button></th>
+        <th [class.is-sorted]="sortField === 'createdAt'" [attr.aria-sort]="getSortAria('createdAt')">
+          <button type="button" class="sortable-table-header" (click)="setSort('createdAt')">
+            建立時間
+            <svg class="sort-indicator" [class.is-ascending]="sortField === 'createdAt' && sortDirection === 'asc'" [class.is-descending]="sortField === 'createdAt' && sortDirection === 'desc'" viewBox="0 0 16 24" aria-hidden="true">
+              <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+              <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+            </svg>
+          </button>
+        </th>
+        <th [class.is-sorted]="sortField === 'updatedAt'" [attr.aria-sort]="getSortAria('updatedAt')">
+          <button type="button" class="sortable-table-header" (click)="setSort('updatedAt')">
+            更新時間
+            <svg class="sort-indicator" [class.is-ascending]="sortField === 'updatedAt' && sortDirection === 'asc'" [class.is-descending]="sortField === 'updatedAt' && sortDirection === 'desc'" viewBox="0 0 16 24" aria-hidden="true">
+              <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+              <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+            </svg>
+          </button>
+        </th>
         <th class="managed-report-actions">操作</th>
       </tr></thead>
       <tbody>
