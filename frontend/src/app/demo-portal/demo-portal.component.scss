@@ -64,6 +64,24 @@
   background: var(--color-surface);
   font: inherit;
 }
+
+.database-connection-actions {
+  min-width: max-content;
+  text-align: center;
+}
+
+.database-connection-action-group {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.database-connection-action-group > button {
+  flex: 0 0 auto;
+}
 button.favorite-star-button {
   padding: 0;
   color: #b9132b;

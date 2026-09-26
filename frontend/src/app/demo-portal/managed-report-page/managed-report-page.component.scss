@@ -35,6 +35,7 @@
 }
 .table-scroll { border: 1px solid #ded8d1; border-radius: 7px; overflow: auto; }
 .report-management-table { width: 100%; min-width: 76rem; border-collapse: collapse; background: #fff; }
+:host .table-scroll > .report-management-table { table-layout: auto; }
 .report-management-table th, .report-management-table td { padding: .85rem .75rem; border-bottom: 1px solid #e2ddd7; text-align: left; vertical-align: middle; }
 .report-management-table th { color: #4e4a46; font-size: .8125rem; font-weight: 700; background: #faf9f7; white-space: nowrap; }
 .report-management-table tbody tr:hover { background: #fffaf8; }
@@ -89,10 +90,24 @@
 .header-mapping-row input { min-width: 0; }
 @media (max-width: 42rem) { .header-mapping-row { grid-template-columns: 1fr; } }
 .account-status-switch:disabled { cursor: not-allowed; opacity: .5; }
-.managed-report-actions { width: 5.85rem; min-width: 5.85rem; }
-.managed-report-action-group { display: flex; align-items: center; gap: .45rem; }
+.report-management-table th.managed-report-actions,
+.report-management-table td.managed-report-actions {
+  width: 1%;
+  overflow: visible;
+  text-align: center;
+  white-space: nowrap;
+}
+.managed-report-action-group {
+  display: flex;
+  width: max-content;
+  margin-inline: auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: .45rem;
+}
 .table-icon-button {
   display: inline-grid;
+  flex: 0 0 auto;
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;

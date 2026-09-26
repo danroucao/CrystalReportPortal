@@ -1,8 +1,16 @@
 <div class="portal-shell">
   <header
     class="portal-header"
-    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? '' : null"
-    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? 'true' : null"
+    [attr.inert]="
+      Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen
+        ? ''
+        : null
+    "
+    [attr.aria-hidden]="
+      Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen
+        ? 'true'
+        : null
+    "
   >
     <button
       #mobileNavigationTrigger
@@ -13,7 +21,9 @@
       aria-label="開啟導覽選單"
       (click)="ToggleMobileNavigation()"
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </svg>
     </button>
     <a [routerLink]="Auth.HomeRoute" class="portal-brand">
       <span class="portal-brand-mark" aria-hidden="true">CR</span>
@@ -171,10 +181,20 @@
   <main
     *ngIf="CanAccessPage"
     class="portal-main"
-    [attr.inert]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? '' : null"
-    [attr.aria-hidden]="Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen ? 'true' : null"
+    [attr.inert]="
+      Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen
+        ? ''
+        : null
+    "
+    [attr.aria-hidden]="
+      Auth.RequiresBackOfficeIdentityBinding || IsMobileNavigationOpen
+        ? 'true'
+        : null
+    "
   >
-    <p *ngIf="AccessNotice" class="mock-notice" role="status">{{ AccessNotice }}</p>
+    <p *ngIf="AccessNotice" class="mock-notice" role="status">
+      {{ AccessNotice }}
+    </p>
     <div
       *ngIf="Notifications.SuccessMessage"
       class="success-toast"
@@ -294,13 +314,12 @@
         </section>
       </ng-container>
     </section>
-    <app-favorite-report-page *ngIf="Page === 'ReportList'"></app-favorite-report-page>
+    <app-favorite-report-page
+      *ngIf="Page === 'ReportList'"
+    ></app-favorite-report-page>
     <app-report-parameter-page *ngIf="Page === 'ReportParameter'" />
     <app-report-preview-page *ngIf="Page === 'ReportPreview'" />
-    <section
-      *ngIf="Page === 'AccountSettings'"
-      class="account-settings-card"
-    >
+    <section *ngIf="Page === 'AccountSettings'" class="account-settings-card">
       <section class="account-profile-summary" aria-label="目前帳號摘要">
         <ngx-boring-avatar
           *ngIf="Auth.CurrentIdentity as User"
@@ -489,7 +508,32 @@
         </li>
       </ol>
 
-      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [dataSources]="ReportUploadDataSources" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [showEnabled]="false" [canAddCategory]="Auth.HasPermission('Report.Maintain')" [quickAddOpen]="IsReportCategoryQuickAddOpen" [quickAddName]="QuickAddCategoryName" [quickAddError]="QuickAddCategoryError" (draftChange)="ReportEditorDraft = $event" (quickAddNameChange)="QuickAddCategoryName = $event; QuickAddCategoryError = ''" (quickAddRequested)="OpenReportCategoryQuickAdd()" (quickAddCancelled)="CloseReportCategoryQuickAdd()" (quickAddSubmitted)="CreateReportCategoryQuickAdd()" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (fileSelected)="OnReportFileSelected($event)" />
+      <app-report-editor-form
+        *ngIf="ReportUploadStep === 'Form'"
+        variant="upload-page"
+        [draft]="ReportEditorDraft"
+        [categories]="ReportEditorCategories"
+        [dataSources]="ReportUploadDataSources"
+        [selectedFileName]="SelectedReportFileName"
+        [error]="ReportEditorError"
+        [invalidField]="ReportUploadInvalidField"
+        [isSubmitDisabled]="IsReportUploadValidationSubmitting"
+        [showEnabled]="false"
+        [canAddCategory]="Auth.HasPermission('Report.Maintain')"
+        [quickAddOpen]="IsReportCategoryQuickAddOpen"
+        [quickAddName]="QuickAddCategoryName"
+        [quickAddError]="QuickAddCategoryError"
+        (draftChange)="OnReportUploadDraftChange($event)"
+        (quickAddNameChange)="
+          QuickAddCategoryName = $event; QuickAddCategoryError = ''
+        "
+        (quickAddRequested)="OpenReportCategoryQuickAdd()"
+        (quickAddCancelled)="CloseReportCategoryQuickAdd()"
+        (quickAddSubmitted)="CreateReportCategoryQuickAdd()"
+        (submitRequested)="ContinueReportUpload()"
+        (cancelRequested)="RequestCloseReportEditor()"
+        (fileSelected)="OnReportFileSelected($event)"
+      />
       <section
         *ngIf="ReportUploadStep === 'Confirm'"
         class="report-upload-review"
@@ -557,7 +601,7 @@
             (click)="PublishReportUpload()"
             [disabled]="IsReportUploadPublishing"
           >
-            {{ IsReportUploadPublishing ? '發佈中…' : '確認並發佈' }}
+            {{ IsReportUploadPublishing ? "發佈中…" : "確認並發佈" }}
           </button>
         </footer>
       </section>
@@ -607,11 +651,38 @@
         </footer>
       </section>
     </section>
-    <section *ngIf="IsReportDiscardConfirmationOpen" class="modal-backdrop report-discard-confirmation-backdrop" role="presentation">
-      <section class="edit-user-modal report-discard-confirmation-modal" role="alertdialog" aria-modal="true" aria-labelledby="report-discard-confirmation-title" aria-describedby="report-discard-confirmation-description">
+    <section
+      *ngIf="IsReportDiscardConfirmationOpen"
+      class="modal-backdrop report-discard-confirmation-backdrop"
+      role="presentation"
+    >
+      <section
+        class="edit-user-modal report-discard-confirmation-modal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="report-discard-confirmation-title"
+        aria-describedby="report-discard-confirmation-description"
+      >
         <h2 id="report-discard-confirmation-title">捨棄未儲存變更？</h2>
-        <p id="report-discard-confirmation-description">你已修改報表資料。離開後無法還原。</p>
-        <div class="modal-actions report-discard-confirmation-actions"><button #reportDiscardContinueButton type="button" class="secondary-button" (click)="ContinueEditingReport()">繼續編輯</button><button type="button" class="danger-button" (click)="DiscardReportEditorChanges()">捨棄變更</button></div>
+        <p id="report-discard-confirmation-description">
+          你已修改報表資料。離開後無法還原。
+        </p>
+        <div class="modal-actions report-discard-confirmation-actions">
+          <button
+            #reportDiscardContinueButton
+            type="button"
+            class="secondary-button"
+            (click)="ContinueEditingReport()"
+          >
+            繼續編輯</button
+          ><button
+            type="button"
+            class="danger-button"
+            (click)="DiscardReportEditorChanges()"
+          >
+            捨棄變更
+          </button>
+        </div>
       </section>
     </section>
     <section
@@ -643,7 +714,7 @@
             class="primary-button"
             (click)="OpenCreateDatabaseConnection()"
           >
-            建立連線
+            <span aria-hidden="true">＋</span>建立連線
           </button>
         </div>
         <div class="table-scroll">
@@ -656,7 +727,7 @@
                 <th>帳號</th>
                 <th>類型</th>
                 <th>狀態</th>
-                <th>操作</th>
+                <th class="database-connection-actions">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -669,12 +740,11 @@
                 <td>{{ Connection.databaseName }}</td>
                 <td>{{ Connection.username }}</td>
                 <td>
-                  {{
-                    "唯讀"
-                  }}
+                  {{ "唯讀" }}
                 </td>
                 <td>{{ Connection.isEnabled ? "啟用" : "停用" }}</td>
-                <td>
+                <td class="database-connection-actions">
+                  <div class="database-connection-action-group">
                   <button
                     type="button"
                     class="secondary-button"
@@ -690,10 +760,13 @@
                   <button
                     type="button"
                     class="secondary-button"
-                    (click)="OpenEditDatabaseConnection(Connection.dataSourceId + '')"
+                    (click)="
+                      OpenEditDatabaseConnection(Connection.dataSourceId + '')
+                    "
                   >
                     編輯
                   </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -703,7 +776,9 @@
           *ngIf="DataSourceTestResult || DataSourceTestError"
           class="database-connection-test-result"
           [class.is-success]="DataSourceTestResult?.connected"
-          [class.is-error]="!!DataSourceTestError || DataSourceTestResult?.connected === false"
+          [class.is-error]="
+            !!DataSourceTestError || DataSourceTestResult?.connected === false
+          "
           role="status"
           aria-live="polite"
         >
@@ -798,7 +873,9 @@
               /></label>
               <label
                 ><span class="form-field-label"
-                  >資料庫驗證方式<span class="required-indicator" aria-hidden="true"
+                  >資料庫驗證方式<span
+                    class="required-indicator"
+                    aria-hidden="true"
                     >*</span
                   ></span
                 ><select [(ngModel)]="DatabaseAuthenticationType">
@@ -941,11 +1018,13 @@
             <button
               type="button"
               class="back-office-binding-password-toggle"
-              [attr.aria-label]="BackOfficeBindingPasswordVisible ? '隱藏密碼' : '顯示密碼'"
+              [attr.aria-label]="
+                BackOfficeBindingPasswordVisible ? '隱藏密碼' : '顯示密碼'
+              "
               [attr.aria-pressed]="BackOfficeBindingPasswordVisible"
               (click)="ToggleBackOfficeBindingPasswordVisibility()"
             >
-              {{ BackOfficeBindingPasswordVisible ? '隱藏' : '顯示' }}
+              {{ BackOfficeBindingPasswordVisible ? "隱藏" : "顯示" }}
             </button>
           </div>
         </div>

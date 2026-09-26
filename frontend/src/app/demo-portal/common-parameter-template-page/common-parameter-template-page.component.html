@@ -71,13 +71,13 @@
         <legend>1. 識別與自動匹配</legend>
         <p class="common-parameter-section-hint">系統會依「匹配用參數名稱」比對上傳的 RPT 參數；代碼僅供管理與辨識。</p>
         <div class="common-parameter-section-grid">
-          <label>參數代碼<span class="required-indicator">*</span>
+          <label><span class="form-field-label">參數代碼<span class="required-indicator" aria-hidden="true">*</span></span>
             <input name="templateCode" [(ngModel)]="draft.templateCode" placeholder="例如 COMMON_START_DATE" required />
           </label>
-          <label>顯示名稱<span class="required-indicator">*</span>
+          <label><span class="form-field-label">顯示名稱<span class="required-indicator" aria-hidden="true">*</span></span>
             <input name="templateName" [(ngModel)]="draft.templateName" placeholder="例如 開始日期" required />
           </label>
-          <label class="common-parameter-wide">匹配用參數名稱<span class="required-indicator">*</span>
+          <label class="common-parameter-wide"><span class="form-field-label">匹配用參數名稱<span class="required-indicator" aria-hidden="true">*</span></span>
             <input name="normalizedParameterName" [(ngModel)]="draft.normalizedParameterName" placeholder="請輸入 RPT 內的參數名稱，例如 STARTDATE 或 CT" required />
           </label>
         </div>
@@ -105,7 +105,7 @@
           <legend>3. SQL 清單設定</legend>
           <p class="common-parameter-section-hint">查詢結果需包含值欄位與顯示欄位，僅允許讀取用的單一 SELECT 查詢。</p>
           <div class="common-parameter-section-grid">
-        <label>資料來源<span class="required-indicator">*</span>
+        <label><span class="form-field-label">資料來源<span class="required-indicator" aria-hidden="true">*</span></span>
           <select
             name="dataSourceId"
             [(ngModel)]="draft.dataSourceId"
@@ -120,11 +120,11 @@
             </option>
           </select>
         </label>
-        <label class="common-parameter-wide">查詢 SQL<span class="required-indicator">*</span>
+        <label class="common-parameter-wide"><span class="form-field-label">查詢 SQL<span class="required-indicator" aria-hidden="true">*</span></span>
           <textarea name="sqlQuery" rows="4" [(ngModel)]="draft.sqlQuery" placeholder="僅允許單一 SELECT 查詢" required></textarea>
         </label>
-        <label>值欄位<span class="required-indicator">*</span><input name="valueField" [(ngModel)]="draft.valueField" required /></label>
-        <label>顯示欄位<span class="required-indicator">*</span><input name="displayField" [(ngModel)]="draft.displayField" required /></label>
+        <label><span class="form-field-label">值欄位<span class="required-indicator" aria-hidden="true">*</span></span><input name="valueField" [(ngModel)]="draft.valueField" required /></label>
+        <label><span class="form-field-label">顯示欄位<span class="required-indicator" aria-hidden="true">*</span></span><input name="displayField" [(ngModel)]="draft.displayField" required /></label>
           </div>
         </fieldset>
       </ng-container>

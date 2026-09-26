@@ -58,9 +58,13 @@
 .parameter-field > label .required-indicator,
 .parameter-range-field legend .required-indicator,
 .parameter-field .form-field-label .required-indicator {
-  display: inline;
-  margin-left: 0;
+  display: inline-block;
+  position: relative;
+  top: -0.35em;
+  margin-left: 0.1rem;
+  font-size: 0.75em;
   line-height: 1;
+  vertical-align: baseline;
 }
 .parameter-range-field > label { display: inline-grid; width: calc(50% - .4rem); gap: .45rem; color: var(--color-muted); font-size: .875rem; }
 .parameter-range-field > label + label { margin-left: .65rem; }

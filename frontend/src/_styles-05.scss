@@ -287,6 +287,12 @@ app-demo-portal .report-upload-fields textarea:focus {
   outline: 2px solid rgb(174 22 43 / 12%);
   outline-offset: 0;
 }
+app-demo-portal .report-upload-fields input[aria-invalid="true"],
+app-demo-portal .report-upload-fields select[aria-invalid="true"],
+app-demo-portal .report-upload-fields textarea[aria-invalid="true"],
+app-demo-portal .report-upload-dropzone.is-invalid {
+  border-color: var(--color-danger);
+}
 app-demo-portal .report-upload-fields small {
   justify-self: end;
   color: var(--color-muted);
@@ -392,6 +398,23 @@ app-demo-portal .report-upload-selected-file span {
 }
 app-demo-portal .report-upload-error {
   margin: 0;
+}
+app-demo-portal .report-upload-validation-toast {
+  position: fixed;
+  z-index: 20;
+  right: 1.5rem;
+  bottom: 5rem;
+  max-width: min(24rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--color-danger);
+  border-radius: 6px;
+  color: var(--color-danger);
+  background: #fff;
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 16%);
+  pointer-events: none;
+  font-size: 0.875rem;
+  font-weight: 700;
 }
 app-demo-portal .report-upload-info {
   display: flex;
