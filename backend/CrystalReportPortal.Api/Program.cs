@@ -207,6 +207,11 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+
+// -------------------------------------------------------------
+
+// Local development should always include the data migrations used by the
+
 // Local development should always include the data migrations used by the
 // demo portal. Production deployments keep migration execution explicit.
 if (app.Environment.IsDevelopment())
