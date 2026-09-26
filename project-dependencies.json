@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "formatVersion": 1,
+  "project": "CrystalReportPortal",
+  "purpose": "版本化的本機開發依賴清單；不包含帳密、資料庫備份或本機絕對路徑。",
+  "bootstrap": {
+    "script": "scripts/setup-development.ps1",
+    "command": "powershell -ExecutionPolicy Bypass -File .\\scripts\\setup-development.ps1",
+    "validateOnlyCommand": "powershell -ExecutionPolicy Bypass -File .\\scripts\\setup-development.ps1 -ValidateOnly",
+    "notes": "The script restores npm/NuGet packages and builds Crystal Service. It validates but does not install SAP Crystal Reports, .NET Framework Developer Pack, or SQL Server."
+  },
+  "sources": {
+    "frontend": "frontend/package.json and frontend/package-lock.json",
+    "api": "backend/CrystalReportPortal.Api/CrystalReportPortal.Api.csproj",
+    "tests": "backend/CrystalReportPortal.Api.Tests/CrystalReportPortal.Api.Tests.csproj",
+    "crystalService": "crystal-service/CrystalReportPortal.CrystalService/CrystalReportPortal.CrystalService.csproj"
+  },
+  "runtimeRequirements": [
+    {
+      "component": ".NET SDK",
+      "version": "10.0.x",
+      "requiredBy": ["API", "API tests"],
+      "installation": "Install the .NET 10 SDK. The exact patch version is not pinned because no global.json is present."
+    },
+    {
+      "component": ".NET Framework Developer Pack",
+      "version": "4.8",
+      "requiredBy": ["Crystal Service build"],
+      "installation": "Required because the Crystal Service targets .NET Framework 4.8."
+    },
+    {
+      "component": "SAP Crystal Reports for .NET",
+      "assemblyVersion": "13.0.4000.0",
+      "architecture": "x64",
+      "requiredBy": ["RPT upload", "RPT parameter parsing", "preview", "PDF export"],
+      "installation": "Install the x64 runtime and Visual Studio/.NET developer components. The project references CrystalDecisions assemblies from the SAP installation."
+    },
+    {
+      "component": "Microsoft SQL Server",
+      "version": "not pinned",
+      "requiredBy": ["API"],
+      "installation": "Provide a reachable SQL Server instance and a CrystalReportPortal database. Development defaults to localhost:1433 with Windows integrated authentication."
+    },
+    {
+      "component": "Node.js",
+      "version": "not pinned",
+      "requiredBy": ["Angular frontend"],
+      "installation": "Use an Angular 17-compatible Node.js LTS release, then run npm ci in frontend."
+    }
+  ],
+  "frontend": {
+    "framework": "Angular 17.2.4",
+    "installCommand": "npm ci --prefix frontend",
+    "dependencies": {
+      "@angular/animations": "17.2.4",
+      "@angular/common": "17.2.4",
+      "@angular/compiler": "17.2.4",
+      "@angular/core": "17.2.4",
+      "@angular/forms": "17.2.4",
+      "@angular/platform-browser": "17.2.4",
+      "@angular/platform-browser-dynamic": "17.2.4",
+      "@angular/router": "17.2.4",
+      "rxjs": "~7.8.0",
+      "tslib": "^2.3.0",
+      "zone.js": "~0.14.3"
+    },
+    "devDependencies": {
+      "@angular-devkit/build-angular": "17.2.3",
+      "@angular/cli": "17.2.3",
+      "@angular/compiler-cli": "17.2.4",
+      "@types/jasmine": "~5.1.0",
+      "jasmine-core": "~5.1.0",
+      "karma": "~6.4.0",
+      "karma-chrome-launcher": "~3.2.0",
+      "karma-coverage": "~2.2.0",
+      "karma-jasmine": "~5.1.0",
+      "karma-jasmine-html-reporter": "~2.1.0",
+      "typescript": "~5.3.2"
+    }
+  },
+  "api": {
+    "sdk": "Microsoft.NET.Sdk.Web",
+    "targetFramework": "net10.0",
+    "packageReferences": {
+      "BCrypt.Net-Next": "4.2.0",
+      "Microsoft.AspNetCore.Authentication.JwtBearer": "10.0.11",
+      "Microsoft.AspNetCore.OpenApi": "10.0.11",
+      "Microsoft.EntityFrameworkCore.Design": "10.0.11",
+      "Microsoft.EntityFrameworkCore.SqlServer": "10.0.11",
+      "Microsoft.EntityFrameworkCore.Tools": "10.0.11"
+    }
+  },
+  "tests": {
+    "targetFramework": "net10.0",
+    "packageReferences": {
+      "Microsoft.EntityFrameworkCore.InMemory": "10.0.11",
+      "Microsoft.NET.Test.Sdk": "17.14.1",
+      "xunit": "2.9.3",
+      "xunit.runner.visualstudio": "3.1.4"
+    }
+  },
+  "crystalService": {
+    "targetFramework": ".NET Framework 4.8",
+    "platform": "x64",
+    "assemblyReferences": {
+      "CrystalDecisions.CrystalReports.Engine": "13.0.4000.0",
+      "CrystalDecisions.Shared": "13.0.4000.0",
+      "CrystalDecisions.ReportAppServer.ClientDoc": "13.0.4000.0",
+      "CrystalDecisions.ReportAppServer.Controllers": "13.0.4000.0",
+      "CrystalDecisions.ReportAppServer.DataDefModel": "13.0.4000.0"
+    },
+    "buildCommand": "dotnet build crystal-service\\CrystalReportPortal.CrystalService\\CrystalReportPortal.CrystalService.csproj"
+  }
+}
