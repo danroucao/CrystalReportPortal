@@ -242,12 +242,41 @@
       <label>報表代碼<span class="required-indicator">*</span><input name="reportCode" [(ngModel)]="draft.reportCode" [disabled]="existingDraft !== null" placeholder="例如 SALES_DETAIL" /></label>
       <label>報表名稱<span class="required-indicator">*</span><input name="reportName" [(ngModel)]="draft.reportName" [disabled]="existingDraft !== null" /></label>
       <label class="wide">報表說明<span class="required-indicator">*</span><textarea name="description" rows="3" [(ngModel)]="draft.description" [disabled]="existingDraft !== null"></textarea></label>
-      <label>報表分類<span class="required-indicator">*</span>
-        <select name="categoryId" [(ngModel)]="draft.categoryId" [disabled]="existingDraft !== null">
-          <option [ngValue]="0">請選擇報表分類</option>
-          <option *ngFor="let category of categories" [ngValue]="category.categoryId">{{ category.categoryName }}</option>
-        </select>
-      </label>
+      <div class="managed-report-category-field">
+        <label>報表分類<span class="required-indicator">*</span>
+          <select name="categoryId" [(ngModel)]="draft.categoryId" [disabled]="existingDraft !== null">
+            <option [ngValue]="0">請選擇報表分類</option>
+            <option *ngFor="let category of categories" [ngValue]="category.categoryId">{{ category.categoryName }}</option>
+          </select>
+        </label>
+        <button
+          *ngIf="Auth.HasPermission('Report.Maintain')"
+          type="button"
+          class="secondary-button managed-report-add-category"
+          [disabled]="isEditorCategoryQuickAddSaving"
+          [attr.aria-expanded]="isEditorCategoryQuickAddOpen"
+          aria-controls="managed-report-category-quick-add"
+          (click)="openEditorCategoryQuickAdd()"
+        >＋ 新增分類</button>
+      </div>
+      <section *ngIf="isEditorCategoryQuickAddOpen" id="managed-report-category-quick-add" class="managed-report-category-quick-add wide" aria-label="新增報表分類">
+        <label>分類名稱<span class="required-indicator">*</span>
+          <input
+            name="editorCategoryQuickAddName"
+            [(ngModel)]="editorCategoryQuickAddName"
+            (ngModelChange)="editorCategoryQuickAddError = ''"
+            maxlength="100"
+            placeholder="請輸入新分類名稱"
+            [disabled]="isEditorCategoryQuickAddSaving"
+            [attr.aria-invalid]="editorCategoryQuickAddError ? 'true' : null"
+          />
+        </label>
+        <div class="managed-report-category-quick-add-actions">
+          <button type="button" class="primary-button" [disabled]="isEditorCategoryQuickAddSaving" (click)="createEditorCategoryQuickAdd()">{{ isEditorCategoryQuickAddSaving ? '新增中…' : '新增' }}</button>
+          <button type="button" class="tertiary-button" [disabled]="isEditorCategoryQuickAddSaving" (click)="closeEditorCategoryQuickAdd()">取消</button>
+        </div>
+        <p *ngIf="editorCategoryQuickAddError" class="field-error" role="alert">{{ editorCategoryQuickAddError }}</p>
+      </section>
       <label>資料來源<span class="optional-field-label">（可稍後設定）</span>
         <select name="dataSourceId" [(ngModel)]="draft.dataSourceId" [disabled]="existingDraft !== null">
           <option [ngValue]="0">請選擇資料來源</option>

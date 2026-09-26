@@ -559,10 +559,11 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
   SaveRole(): void {
     if (!this.Auth.CanOperateBackOffice) return;
     const name = this.RoleDraft.DisplayName.trim();
-    if (!name) return this.SetRoleDraftError('請輸入角色名稱。');
+    if (!name) return this.SetRoleDraftError('請輸入角色姓名。');
     if (this.DisplayRoles.some((role) => role.DisplayName === name)) {
-      return this.SetRoleDraftError('角色名稱已存在，請輸入未重複的角色名稱。');
+      return this.SetRoleDraftError('角色姓名不得重複，請重新命名。');
     }
+    if (!this.HasAnyRolePermission()) return this.SetRoleDraftError('請至少勾選一個權限。');
     const roleCode = `CUSTOM_${Date.now()}`;
     this.UserManagementApi.createRole({
       roleCode,
@@ -600,7 +601,15 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     }
     const displayName = this.RoleDraft.DisplayName.trim();
     if (!displayName) {
-      this.SetRoleDraftError('請輸入角色名稱。');
+      this.SetRoleDraftError('請輸入角色姓名。');
+      return;
+    }
+    if (this.DisplayRoles.some((role) => role.Key !== this.EditingRoleKey && role.DisplayName === displayName)) {
+      this.SetRoleDraftError('角色姓名不得重複，請重新命名。');
+      return;
+    }
+    if (!this.HasAnyRolePermission()) {
+      this.SetRoleDraftError('請至少勾選一個權限。');
       return;
     }
     this.UserManagementApi.updateRole(apiRole.roleId, {
@@ -668,12 +677,14 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
     this.RoleDraft.ManagementPermissions = enabled
       ? [...new Set([...this.RoleDraft.ManagementPermissions, permission])]
       : this.RoleDraft.ManagementPermissions.filter((value) => value !== permission);
+    if (enabled) this.ClearRoleDraftError();
   }
 
   ToggleArchivePermission(permission: 'Report.ViewArchive' | 'AuditLog.ViewArchive', enabled: boolean): void {
     this.RoleDraft.ArchivePermissionCodes = enabled
       ? [...new Set([...this.RoleDraft.ArchivePermissionCodes, permission])]
       : this.RoleDraft.ArchivePermissionCodes.filter((value) => value !== permission);
+    if (enabled) this.ClearRoleDraftError();
   }
 
   OpenRoleCategoryCreate(): void {
@@ -775,6 +786,7 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
       permission.canExport = false;
       permission.canPrint = false;
     }
+    if (enabled) this.ClearRoleDraftError();
   }
 
   ScrollRoleCards(direction: -1 | 1): void {
@@ -877,7 +889,11 @@ export class UserManagementPageComponent implements AfterViewInit, OnDestroy, On
   private GetTotalPages(count: number): number { return Math.max(1, Math.ceil(count / this.PaginationPageSize)); }
   private ClampUserPage(page: number): number { return Math.min(Math.max(1, page), this.UserTotalPages); }
   private EnsureUserPagination(): void { this.UserCurrentPage = this.ClampUserPage(this.UserCurrentPage); }
-  private HasAnyRolePermission(): boolean { return this.RoleDraft.ManagementPermissions.length > 0 || this.ApiRoleCategoryPermissions.some((entry) => entry.canExecute || entry.canExport || entry.canPrint); }
+  private HasAnyRolePermission(): boolean {
+    return this.RoleDraft.ManagementPermissions.length > 0
+      || this.RoleDraft.ArchivePermissionCodes.length > 0
+      || this.ApiRoleCategoryPermissions.some((entry) => entry.canExecute || entry.canExport || entry.canPrint);
+  }
   private SetRoleDraftError(message: string): void { this.RoleDraftError = message; }
   private SetRoleNavigationState(hasOverflow: boolean, atStart: boolean, atEnd: boolean): void {
     this.RoleCardHasOverflow = hasOverflow;

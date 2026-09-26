@@ -70,6 +70,11 @@
 }
 .managed-report-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .managed-report-form .wide { grid-column: 1 / -1; }
+.managed-report-category-field { display: grid; gap: .5rem; align-content: start; }
+.managed-report-add-category { justify-self: start; }
+.managed-report-category-quick-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: end; padding: .85rem; border: 1px solid #ded8d1; border-radius: 7px; background: #fcfbfa; }
+.managed-report-category-quick-add-actions { display: flex; gap: .5rem; }
+.managed-report-category-quick-add .field-error { grid-column: 1 / -1; margin: 0; }
 .managed-report-permission-panel { display: grid; gap: 1rem; }
 .managed-report-permission-intro { padding: 1rem; border: 1px solid #ded8d1; border-radius: 7px; background: #fcfbfa; }
 .managed-report-permission-intro h3, .managed-report-permission-intro p { margin: 0; }
@@ -139,6 +144,7 @@
   .managed-reports-heading { flex-direction: column; }
   .managed-reports-heading-actions { justify-content: flex-start; margin-top: 0; }
   .report-management-toolbar, .managed-report-form { grid-template-columns: 1fr; }
+  .managed-report-category-quick-add { grid-template-columns: 1fr; }
   .managed-report-error { align-items: flex-start; flex-direction: column; }
   .managed-category-create, .managed-category-list-heading, .managed-category-row { grid-template-columns: 1fr; gap: .6rem; }
   .managed-category-actions { justify-content: flex-start; }

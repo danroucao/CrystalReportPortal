@@ -92,23 +92,12 @@
         *ngIf="canAddCategory"
         type="button"
         [class]="IsUploadPage ? 'secondary-button report-upload-add-category' : 'secondary-button report-category-quick-add-trigger'"
+        [attr.aria-expanded]="quickAddOpen"
+        [attr.aria-controls]="IdPrefix + '-category-quick-add'"
         (click)="quickAddRequested.emit()"
       ><span aria-hidden="true">＋</span> 新增分類</button>
     </div>
-    <label *ngIf="IsUploadPage" [for]="IdPrefix + '-data-source'" class="report-upload-data-source-field">
-      <span class="form-field-label">資料來源 <small>（選填）</small></span>
-      <select
-        [id]="IdPrefix + '-data-source'"
-        name="reportUploadDataSource"
-        [ngModel]="draft.DataSourceId"
-        (ngModelChange)="UpdateDraft('DataSourceId', $event)"
-      >
-        <option value="">不設定資料來源（使用 Saved Data）</option>
-        <option *ngFor="let dataSource of dataSources" [value]="dataSource.dataSourceId">{{ dataSource.dataSourceName }}</option>
-      </select>
-      <small>選擇資料來源後，發佈時需完成報表參數設定，並以即時資料輸出；未選擇時會使用 RPT 內嵌的 Saved Data。</small>
-    </label>
-    <div *ngIf="quickAddOpen" class="report-category-quick-add" [class.report-upload-quick-add]="IsUploadPage" role="group" [attr.aria-labelledby]="QuickAddLabelId">
+    <div *ngIf="quickAddOpen" [id]="IdPrefix + '-category-quick-add'" class="report-category-quick-add" [class.report-upload-quick-add]="IsUploadPage" role="group" [attr.aria-labelledby]="QuickAddLabelId">
       <label [for]="QuickAddInputId">
         <span [id]="QuickAddLabelId" class="form-field-label">分類名稱<span class="required-indicator" aria-hidden="true">*</span></span>
         <input
@@ -127,6 +116,19 @@
       </div>
       <p *ngIf="quickAddError" class="field-error" role="alert">{{ quickAddError }}</p>
     </div>
+    <label *ngIf="IsUploadPage" [for]="IdPrefix + '-data-source'" class="report-upload-data-source-field">
+      <span class="form-field-label">資料來源 <small>（選填）</small></span>
+      <select
+        [id]="IdPrefix + '-data-source'"
+        name="reportUploadDataSource"
+        [ngModel]="draft.DataSourceId"
+        (ngModelChange)="UpdateDraft('DataSourceId', $event)"
+      >
+        <option value="">不設定資料來源（使用 Saved Data）</option>
+        <option *ngFor="let dataSource of dataSources" [value]="dataSource.dataSourceId">{{ dataSource.dataSourceName }}</option>
+      </select>
+      <small>選擇資料來源後，發佈時需完成報表參數設定，並以即時資料輸出；未選擇時會使用 RPT 內嵌的 Saved Data。</small>
+    </label>
     <div *ngIf="showEnabled" [class]="IsUploadPage ? 'report-upload-enabled' : 'edit-status-field report-editor-enabled'">
       <span class="form-field-label">啟用狀態</span>
       <button type="button" class="account-status-switch" role="switch" [class.is-enabled]="draft.Enabled" [attr.aria-checked]="draft.Enabled" (click)="UpdateDraft('Enabled', !draft.Enabled)">

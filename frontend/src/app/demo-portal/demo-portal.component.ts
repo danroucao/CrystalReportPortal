@@ -200,6 +200,7 @@ export class DemoPortalComponent
   DataSourceTestError = '';
   IsReportDiscardConfirmationOpen = false;
   IsReportCategoryQuickAddOpen = false;
+  IsReportCategoryQuickAddSaving = false;
   QuickAddCategoryName = '';
   QuickAddCategoryError = '';
   EditingReportKey: MockReportKey | null = null;
@@ -629,16 +630,21 @@ export class DemoPortalComponent
 
   OpenReportCategoryQuickAdd(): void {
     if (
-      !this.Auth.HasManagementPermission('RptManagement') ||
+      !this.Auth.HasPermission('Report.Maintain') ||
       !this.IsReportUploadFlow
     )
       return;
+    if (this.IsReportCategoryQuickAddOpen) {
+      this.CloseReportCategoryQuickAdd();
+      return;
+    }
     this.QuickAddCategoryName = '';
     this.QuickAddCategoryError = '';
     this.IsReportCategoryQuickAddOpen = true;
   }
 
   CloseReportCategoryQuickAdd(): void {
+    if (this.IsReportCategoryQuickAddSaving) return;
     this.IsReportCategoryQuickAddOpen = false;
     this.QuickAddCategoryName = '';
     this.QuickAddCategoryError = '';
@@ -646,29 +652,44 @@ export class DemoPortalComponent
 
   CreateReportCategoryQuickAdd(): void {
     if (
-      !this.Auth.HasManagementPermission('RptManagement') ||
-      !this.IsReportCategoryQuickAddOpen
+      !this.Auth.HasPermission('Report.Maintain') ||
+      !this.IsReportCategoryQuickAddOpen ||
+      this.IsReportCategoryQuickAddSaving
     )
       return;
-    const Result = this.MockRbac.CreateCategory(this.QuickAddCategoryName);
-    const Messages: Record<Exclude<typeof Result.Status, 'created'>, string> = {
-      'invalid-name': '請輸入報表分類名稱。',
-      'duplicate-name': '此報表分類已存在。',
-      'system-reserved-name': '此名稱為系統保留分類，不可建立。',
-    };
-    if (Result.Status !== 'created') {
-      this.QuickAddCategoryError = Messages[Result.Status];
+    const CategoryName = this.QuickAddCategoryName.trim();
+    if (!CategoryName) {
+      this.QuickAddCategoryError = '請輸入報表分類名稱。';
       return;
     }
-    this.ReportEditorDraft.CategoryId = Result.Category.CategoryId;
-    this.NotificationCenter.CreateCategoryReview(
-      Result.Category,
-      this.Auth.CurrentUser?.Account ?? '前台使用者',
-    );
-    this.CloseReportCategoryQuickAdd();
-    this.ShowSuccessToast(
-      `新增報表分類「${Result.Category.CategoryName}」成功！`,
-    );
+    this.IsReportCategoryQuickAddSaving = true;
+    this.QuickAddCategoryError = '';
+    this.ReportsApi.CreateManagedReportCategory({ categoryName: CategoryName }).subscribe({
+      next: (Category) => {
+        const AddedCategory: MockReportCategory = {
+          CategoryId: String(Category.categoryId),
+          CategoryName: Category.categoryName,
+          IsSystemReserved: false,
+        };
+        this.ReportUploadCategories = [
+          ...this.ReportUploadCategories.filter(
+            (ExistingCategory) => ExistingCategory.CategoryId !== AddedCategory.CategoryId,
+          ),
+          AddedCategory,
+        ];
+        this.ReportEditorDraft = {
+          ...this.ReportEditorDraft,
+          CategoryId: AddedCategory.CategoryId,
+        };
+        this.IsReportCategoryQuickAddSaving = false;
+        this.CloseReportCategoryQuickAdd();
+        this.ShowSuccessToast(`新增報表分類「${AddedCategory.CategoryName}」成功！`);
+      },
+      error: (error: unknown) => {
+        this.IsReportCategoryQuickAddSaving = false;
+        this.QuickAddCategoryError = this.GetApiErrorMessage(error);
+      },
+    });
   }
 
   OnReportFileSelected(Event: Event): void {

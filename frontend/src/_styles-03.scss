@@ -336,6 +336,9 @@ app-demo-portal .role-global-permissions {
 app-demo-portal .create-role-modal .role-global-permissions {
   margin: 0;
 }
+app-demo-portal .create-role-modal .role-global-permissions .role-panel-heading p {
+  min-block-size: 3em;
+}
 app-demo-portal .role-global-permissions h3 {
   width: 100%;
   margin: 0;

@@ -489,7 +489,7 @@
         </li>
       </ol>
 
-      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [dataSources]="ReportUploadDataSources" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [showEnabled]="false" [canAddCategory]="false" [quickAddOpen]="false" [quickAddName]="''" [quickAddError]="''" (draftChange)="ReportEditorDraft = $event" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (fileSelected)="OnReportFileSelected($event)" />
+      <app-report-editor-form *ngIf="ReportUploadStep === 'Form'" variant="upload-page" [draft]="ReportEditorDraft" [categories]="ReportEditorCategories" [dataSources]="ReportUploadDataSources" [selectedFileName]="SelectedReportFileName" [error]="ReportEditorError" [showEnabled]="false" [canAddCategory]="Auth.HasPermission('Report.Maintain')" [quickAddOpen]="IsReportCategoryQuickAddOpen" [quickAddName]="QuickAddCategoryName" [quickAddError]="QuickAddCategoryError" (draftChange)="ReportEditorDraft = $event" (quickAddNameChange)="QuickAddCategoryName = $event; QuickAddCategoryError = ''" (quickAddRequested)="OpenReportCategoryQuickAdd()" (quickAddCancelled)="CloseReportCategoryQuickAdd()" (quickAddSubmitted)="CreateReportCategoryQuickAdd()" (submitRequested)="ContinueReportUpload()" (cancelRequested)="RequestCloseReportEditor()" (fileSelected)="OnReportFileSelected($event)" />
       <section
         *ngIf="ReportUploadStep === 'Confirm'"
         class="report-upload-review"

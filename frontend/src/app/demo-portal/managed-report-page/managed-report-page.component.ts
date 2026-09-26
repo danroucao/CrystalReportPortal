@@ -79,6 +79,10 @@ export class ManagedReportPageComponent implements OnInit {
   categoryPendingDeletion: ManagedReportCategory | null = null;
   categoryError = '';
   isCategorySaving = false;
+  isEditorCategoryQuickAddOpen = false;
+  isEditorCategoryQuickAddSaving = false;
+  editorCategoryQuickAddName = '';
+  editorCategoryQuickAddError = '';
   draft = this.createEmptyDraft();
 
   get displayedReports(): readonly ManagedReport[] {
@@ -318,6 +322,60 @@ export class ManagedReportPageComponent implements OnInit {
     this.editorTab = 'basic';
     this.selectedFile = null;
     this.editorError = '';
+    this.closeEditorCategoryQuickAdd();
+  }
+
+  openEditorCategoryQuickAdd(): void {
+    if (!this.Auth.HasPermission('Report.Maintain')) return;
+    if (this.isEditorCategoryQuickAddOpen) {
+      this.closeEditorCategoryQuickAdd();
+      return;
+    }
+    this.editorCategoryQuickAddName = '';
+    this.editorCategoryQuickAddError = '';
+    this.isEditorCategoryQuickAddOpen = true;
+  }
+
+  closeEditorCategoryQuickAdd(): void {
+    if (this.isEditorCategoryQuickAddSaving) return;
+    this.isEditorCategoryQuickAddOpen = false;
+    this.editorCategoryQuickAddName = '';
+    this.editorCategoryQuickAddError = '';
+  }
+
+  createEditorCategoryQuickAdd(): void {
+    if (
+      !this.Auth.HasPermission('Report.Maintain') ||
+      !this.isEditorCategoryQuickAddOpen ||
+      this.isEditorCategoryQuickAddSaving
+    ) return;
+    const categoryName = this.editorCategoryQuickAddName.trim();
+    if (!categoryName) {
+      this.editorCategoryQuickAddError = '請輸入分類名稱。';
+      return;
+    }
+
+    this.isEditorCategoryQuickAddSaving = true;
+    this.editorCategoryQuickAddError = '';
+    this.reportsApi.CreateManagedReportCategory({ categoryName }).pipe(
+      finalize(() => (this.isEditorCategoryQuickAddSaving = false)),
+    ).subscribe({
+      next: (category) => {
+        const categoryOption: ManagedReportCategoryOption = {
+          categoryId: category.categoryId,
+          categoryName: category.categoryName,
+        };
+        this.categories = [
+          ...this.categories.filter((existingCategory) => existingCategory.categoryId !== categoryOption.categoryId),
+          categoryOption,
+        ];
+        this.draft = { ...this.draft, categoryId: categoryOption.categoryId };
+        this.isEditorCategoryQuickAddOpen = false;
+        this.editorCategoryQuickAddName = '';
+        this.notifications.ShowSuccess(`新增報表分類「${categoryOption.categoryName}」成功！`);
+      },
+      error: (error: unknown) => (this.editorCategoryQuickAddError = this.errorMessage(error)),
+    });
   }
 
   selectFile(event: Event): void {
