@@ -506,7 +506,6 @@ app-demo-portal .user-entry-row:hover > td,
 app-demo-portal .database-connection-row:hover > td {
   background: #fdf7f8;
 }
-app-demo-portal .database-connection-actions,
 app-demo-portal .database-connection-modal-actions {
   display: flex;
   flex-wrap: wrap;
@@ -518,13 +517,84 @@ app-demo-portal .database-connection-actions {
 }
 app-demo-portal .database-connection-modal-actions {
   margin-top: 2rem;
+  justify-content: space-between;
+}
+app-demo-portal .database-connection-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+app-demo-portal .database-connection-modal .modal-heading .database-connection-description {
+  margin: 0.5rem 0 0;
+}
+app-demo-portal .form-grid.database-connection-form {
+  display: grid;
+  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+}
+app-demo-portal .database-connection-data-source-field {
+  grid-column: 1 / -1;
+}
+app-demo-portal .database-connection-form > label {
+  min-width: 0;
+}
+app-demo-portal .database-connection-form > label > input,
+app-demo-portal .database-connection-form > label > select {
+  box-sizing: border-box;
+  width: 100%;
+}
+app-demo-portal .database-connection-password-hint {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+app-demo-portal .database-connection-settings {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+app-demo-portal .database-connection-readonly-field,
+app-demo-portal .database-connection-status-field {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+app-demo-portal .database-connection-readonly-value,
+app-demo-portal .database-connection-status-field .edit-status-field {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-primary-subtle);
+}
+app-demo-portal .database-connection-status-field .edit-status-field {
+  gap: 0.5rem;
 }
 @media (max-width: 640px) {
   app-demo-portal .database-connection-actions {
     min-width: 0;
   }
-  app-demo-portal .database-connection-modal-actions > button {
+  app-demo-portal .database-connection-form,
+  app-demo-portal .database-connection-settings {
+    grid-template-columns: 1fr;
+  }
+  app-demo-portal .database-connection-modal-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  app-demo-portal .database-connection-modal-actions > button,
+  app-demo-portal .database-connection-primary-actions > button {
     flex: 1 1 auto;
+  }
+  app-demo-portal .database-connection-primary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 app-demo-portal .favorite-report-table th:nth-child(1) {

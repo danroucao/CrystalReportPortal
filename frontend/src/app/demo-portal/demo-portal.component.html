@@ -861,7 +861,9 @@
                       : "建立資料庫連線"
                   }}
                 </h2>
-                <p class="muted">密碼僅用於本次輸入，絕不回填至此表單。</p>
+                <p class="muted database-connection-description">
+                  密碼僅用於本次輸入，絕不回填至此表單。
+                </p>
               </div>
               <button
                 type="button"
@@ -880,7 +882,7 @@
               {{ DatabaseConnectionFormError }}
             </p>
             <div class="form-grid database-connection-form">
-              <label
+              <label class="database-connection-data-source-field"
                 ><span class="form-field-label"
                   >資料來源名稱<span
                     class="required-indicator"
@@ -931,7 +933,6 @@
                   ></span
                 ><input [(ngModel)]="DatabaseConnectionDraft.Username"
               /></label>
-              <div class="form-field-label">連線類型：唯讀</div>
               <label *ngIf="DatabaseAuthenticationType === 'SqlServer'"
                 ><span class="form-field-label"
                   >資料庫密碼<span
@@ -952,30 +953,41 @@
                       : '請輸入資料庫密碼'
                   "
                 />
-              </label>
-              <div class="edit-status-field">
-                <span class="form-field-label">啟用狀態</span>
-                <button
-                  type="button"
-                  class="account-status-switch"
-                  role="switch"
-                  [class.is-enabled]="DatabaseConnectionDraft.Enabled"
-                  [attr.aria-checked]="DatabaseConnectionDraft.Enabled"
-                  (click)="
-                    DatabaseConnectionDraft.Enabled =
-                      !DatabaseConnectionDraft.Enabled
-                  "
+                <small
+                  *ngIf="EditingDatabaseConnectionKey"
+                  class="database-connection-password-hint"
                 >
-                  <span class="account-status-switch-thumb"></span>
-                </button>
-                <span class="account-status-text">{{
-                  DatabaseConnectionDraft.Enabled ? "啟用" : "停用"
-                }}</span>
+                  若不修改密碼請保持空白。
+                </small>
+              </label>
+              <div class="database-connection-settings">
+                <div class="database-connection-readonly-field">
+                  <span class="form-field-label">連線類型</span>
+                  <span class="database-connection-readonly-value">唯讀</span>
+                </div>
+                <div class="database-connection-status-field">
+                  <span class="form-field-label">啟用狀態</span>
+                  <div class="edit-status-field">
+                    <button
+                      type="button"
+                      class="account-status-switch"
+                      role="switch"
+                      [class.is-enabled]="DatabaseConnectionDraft.Enabled"
+                      [attr.aria-checked]="DatabaseConnectionDraft.Enabled"
+                      (click)="
+                        DatabaseConnectionDraft.Enabled =
+                          !DatabaseConnectionDraft.Enabled
+                      "
+                    >
+                      <span class="account-status-switch-thumb"></span>
+                    </button>
+                    <span class="account-status-text">{{
+                      DatabaseConnectionDraft.Enabled ? "啟用" : "停用"
+                    }}</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <p *ngIf="EditingDatabaseConnectionKey" class="muted">
-              若不修改密碼請保持空白。
-            </p>
             <p
               *ngIf="DatabaseConnectionTestNotice"
               class="mock-notice"
@@ -992,20 +1004,22 @@
               >
                 {{ IsTestingDatabaseConnectionDraft ? "測試中…" : "測試連線" }}
               </button>
-              <button
-                type="button"
-                class="primary-button"
-                (click)="SaveDatabaseConnection()"
-              >
-                {{ EditingDatabaseConnectionKey ? "儲存變更" : "建立連線" }}
-              </button>
-              <button
-                type="button"
-                class="tertiary-button"
-                (click)="CloseDatabaseConnectionEditor()"
-              >
-                取消
-              </button>
+              <div class="database-connection-primary-actions">
+                <button
+                  type="button"
+                  class="tertiary-button"
+                  (click)="CloseDatabaseConnectionEditor()"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  class="primary-button"
+                  (click)="SaveDatabaseConnection()"
+                >
+                  {{ EditingDatabaseConnectionKey ? "儲存變更" : "建立連線" }}
+                </button>
+              </div>
             </div>
           </section>
         </section>
