@@ -3,6 +3,7 @@ using CrystalReportPortal.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
@@ -16,15 +17,21 @@ public class ReportsController : ControllerBase
 {
     private readonly IReportService _reportService;
     private readonly ICrystalProcessService _crystalProcessService;
+    private readonly ICrystalExportProcessService _crystalExportProcessService;
+    private readonly IReportPreviewImageService _previewImages;
     private readonly AppDbContext _dbContext;
 
     public ReportsController(
         IReportService reportService,
         ICrystalProcessService crystalProcessService,
+        ICrystalExportProcessService crystalExportProcessService,
+        IReportPreviewImageService previewImages,
         AppDbContext dbContext)
     {
         _reportService = reportService;
         _crystalProcessService = crystalProcessService;
+        _crystalExportProcessService = crystalExportProcessService;
+        _previewImages = previewImages;
         _dbContext = dbContext;
     }
 
@@ -256,7 +263,8 @@ public class ReportsController : ControllerBase
 
     [HttpGet("{reportId:long}/preview")]
     public async Task<IActionResult> PreviewReport(
-    long reportId)
+    long reportId,
+    [FromQuery] string? output = null)
     {
         var roleCodes = User
     .FindAll(ClaimTypes.Role)
@@ -272,6 +280,16 @@ public class ReportsController : ControllerBase
         {
             return Forbid();
         }
+
+        var isExport = string.Equals(output, "export", StringComparison.OrdinalIgnoreCase);
+        var isPrint = string.Equals(output, "print", StringComparison.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(output) && !isExport && !isPrint)
+            return BadRequest(new { message = "Unsupported report output mode." });
+        if (isExport && !await _reportService.CanExportReportAsync(reportId, roleCodes)) return Forbid();
+        if (isPrint && !await _reportService.CanPrintReportAsync(reportId, roleCodes)) return Forbid();
+
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+            return Unauthorized();
 
         var report =
             await _dbContext.Reports
@@ -310,14 +328,45 @@ public class ReportsController : ControllerBase
 
         try
         {
-            var pdfBytes =
-                await _crystalProcessService
-                    .PreviewAsync(
-                        GetExecutableRptPath(report.RptFilePath));
+            IReadOnlyList<string> detectedHeaders = [];
+            try
+            {
+                detectedHeaders = await _crystalProcessService
+                    .GetHeaderTextsAsync(report.RptFilePath);
+            }
+            catch
+            {
+                // Saved custom mappings can still be applied if Crystal cannot inspect the RPT.
+            }
 
-            return File(
-                pdfBytes,
-                "application/pdf");
+            var pdfBytes = await _crystalExportProcessService.ExportPdfAsync(
+                new CrystalExportProcessRequest
+                {
+                    RptPath = report.RptFilePath,
+                    UseSavedDataOnly = true,
+                    Parameters = [],
+                    HeaderTextReplacements = ReportHeaderLocalization.BuildReplacements(
+                        report.ColumnHeaderMappingsJson,
+                        detectedHeaders)
+                });
+
+            if (isExport || isPrint)
+            {
+                _dbContext.AuditLogs.Add(new AuditLog
+                {
+                    UserId = userId,
+                    ReportId = reportId,
+                    Action = isExport ? "EXPORT_REPORT" : "PRINT_REPORT",
+                    Result = "SUCCESS",
+                    Details = isExport ? "使用者下載 Saved Data 報表 PDF。" : "使用者開啟 Saved Data 報表列印。",
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _dbContext.SaveChangesAsync();
+                return File(pdfBytes, "application/pdf", $"report-{reportId}.pdf");
+            }
+
+            // Preview-only users receive images rather than the original PDF.
+            return Ok(await _previewImages.CreateAsync(pdfBytes, userId));
         }
         catch (Exception ex)
         {
@@ -332,11 +381,6 @@ public class ReportsController : ControllerBase
                         ex.Message
                 });
         }
-    }
-
-    private static string GetExecutableRptPath(string sourceRptPath)
-    {
-        return sourceRptPath;
     }
 
     [HttpPatch("{reportId:long}/status")]

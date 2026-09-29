@@ -72,6 +72,7 @@ builder.Services.AddScoped<ICredentialProtector, CredentialProtector>();
 builder.Services.AddScoped<ICrystalProcessService, CrystalProcessService>();
 builder.Services.AddScoped<ICrystalExportProcessService, CrystalExportProcessService>();
 builder.Services.AddScoped<IReportExecutionService, ReportExecutionService>();
+builder.Services.AddSingleton<IReportPreviewImageService, ReportPreviewImageService>();
 
 // =========================================================
 // JWT Authentication

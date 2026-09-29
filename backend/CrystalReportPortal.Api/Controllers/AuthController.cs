@@ -63,6 +63,15 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("session")]
+    public IActionResult ValidateSession()
+    {
+        // JWT 驗證（包含 TokenVersion 比對）已在驗證管線完成。
+        // 前端以此端點定期確認目前登入是否仍有效。
+        return NoContent();
+    }
+
+    [Authorize]
     [HttpPut("me")]
     public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
     {

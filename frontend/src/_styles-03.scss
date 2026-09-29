@@ -133,15 +133,9 @@ app-demo-portal .modal-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-bottom: 1.5rem;
   }
-  app-demo-portal .create-user-modal {
-    padding: 1.25rem;
-  }
 }
 @media (max-width: 460px) {
   app-demo-portal .edit-user-form {
-    grid-template-columns: 1fr;
-  }
-  app-demo-portal .create-user-identity-fields {
     grid-template-columns: 1fr;
   }
 }
@@ -505,6 +499,27 @@ app-demo-portal .report-entry-row:hover > td,
 app-demo-portal .user-entry-row:hover > td,
 app-demo-portal .database-connection-row:hover > td {
   background: #fdf7f8;
+}
+app-demo-portal .database-connection-actions,
+app-demo-portal .database-connection-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+app-demo-portal .database-connection-actions {
+  min-width: max-content;
+}
+app-demo-portal .database-connection-modal-actions {
+  margin-top: 2rem;
+}
+@media (max-width: 640px) {
+  app-demo-portal .database-connection-actions {
+    min-width: 0;
+  }
+  app-demo-portal .database-connection-modal-actions > button {
+    flex: 1 1 auto;
+  }
 }
 app-demo-portal .favorite-report-table th:nth-child(1) {
   width: 7%;

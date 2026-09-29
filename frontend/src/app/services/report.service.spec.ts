@@ -84,4 +84,37 @@ describe('ReportService managed-report upload', () => {
 
     expect(receivedError).toBeTruthy();
   });
+
+  it('reads the signed-in user\'s favorite parameter preference', () => {
+    let result: { parametersJson: string; updatedAt: string } | undefined;
+    service.GetParameterPreference(7, 'favorite').subscribe((preference) => result = preference);
+
+    const get = httpTesting.expectOne(
+      'http://localhost:5181/api/reports/7/parameter-preferences/favorite',
+    );
+    expect(get.request.method).toBe('GET');
+    get.flush({
+      parametersJson: '{"StartDate":"2026-09-01","StoreCodes":["S01"]}',
+      updatedAt: '2026-09-29T01:00:00Z',
+    });
+
+    expect(result?.parametersJson).toContain('StoreCodes');
+    expect(result?.updatedAt).toBe('2026-09-29T01:00:00Z');
+  });
+
+  it('saves recent parameter values through the preference API', () => {
+    const parametersJson = '{"StartDate":"2026-09-01","StoreCodes":["S01","S02"]}';
+    let result: { parametersJson: string; updatedAt: string } | undefined;
+    service.SaveParameterPreference(7, 'recent', parametersJson)
+      .subscribe((preference) => result = preference);
+
+    const save = httpTesting.expectOne(
+      'http://localhost:5181/api/reports/7/parameter-preferences/recent',
+    );
+    expect(save.request.method).toBe('PUT');
+    expect(save.request.body).toEqual({ parametersJson });
+    save.flush({ parametersJson, updatedAt: '2026-09-29T01:01:00Z' });
+
+    expect(result?.parametersJson).toBe(parametersJson);
+  });
 });

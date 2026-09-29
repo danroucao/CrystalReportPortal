@@ -90,6 +90,20 @@ app-demo-portal .operation-log-filters input {
   background: var(--color-surface);
   font: inherit;
 }
+app-demo-portal .operation-log-filters input[aria-invalid="true"] {
+  border-color: #b51830;
+  box-shadow: 0 0 0 2px rgb(181 24 48 / 12%);
+}
+app-demo-portal .operation-log-date-error {
+  margin: -0.65rem 0 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #e6b4bb;
+  border-radius: 6px;
+  background: #fff4f4;
+  color: #9d2436;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
 app-demo-portal .operation-log-table-frame {
   overflow-x: auto;
   border: 0;
@@ -429,8 +443,15 @@ app-demo-portal .visually-hidden {
   z-index: 30;
 }
 app-demo-portal .notification-detail-modal {
-  width: min(34rem, 100%);
+  box-sizing: border-box;
+  width: min(34rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
   padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 18px 48px rgb(32 32 31 / 25%);
 }
 app-demo-portal .notification-detail-eyebrow {
   margin: 0 0 0.35rem;
@@ -466,7 +487,28 @@ app-demo-portal .notification-detail-content {
   white-space: pre-line;
 }
 app-demo-portal .notification-detail-actions {
+  display: flex;
+  justify-content: flex-end;
   margin-top: 1.5rem;
+}
+app-demo-portal .notification-detail-modal .notification-close {
+  display: grid;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  line-height: 1;
+}
+app-demo-portal .notification-detail-modal .notification-close:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: #fdf0f2;
 }
 .notification-all-link {
   width: 100%;
@@ -477,6 +519,29 @@ app-demo-portal .notification-detail-actions {
 .work-item-actions {
   display: grid;
   gap: 1rem;
+}
+.notification-center-toolbar,
+.notification-center-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.notification-center-toolbar {
+  justify-content: space-between;
+}
+.notification-center-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@media (max-width: 640px) {
+  .notification-center-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .notification-center-actions {
+    justify-content: flex-start;
+  }
 }
 .notification-center-tabs {
   display: flex;
@@ -489,10 +554,20 @@ app-demo-portal .notification-detail-actions {
   background: transparent;
 }
 .center-item {
+  display: flex;
+  width: 100%;
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
   padding: 1rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   background: #fff;
+}
+.center-item:hover,
+.center-item:focus-visible {
+  border-color: var(--color-primary);
+  background: #fdf0f2;
 }
 .center-item.is-unread {
   border-left: 4px solid var(--color-primary);

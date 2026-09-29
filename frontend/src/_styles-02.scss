@@ -488,51 +488,6 @@ app-demo-portal .edit-user-close-button:hover {
 app-demo-portal .edit-user-close-button:hover {
   color: var(--color-muted);
 }
-app-demo-portal .create-user-modal {
-  box-sizing: border-box;
-  width: min(40rem, calc(100vw - 2rem));
-  padding: 1.75rem;
-}
-app-demo-portal .create-user-modal .modal-heading h2 {
-  font-size: 1.5rem;
-}
-app-demo-portal .create-user-modal .modal-heading .muted {
-  margin: 0.4rem 0 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-app-demo-portal .create-user-form {
-  display: grid;
-  gap: 1.1rem;
-  margin-top: 1.25rem;
-}
-app-demo-portal .create-user-identity-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-app-demo-portal .create-user-form label,
-app-demo-portal .create-user-password-field {
-  display: grid;
-  gap: 0.4rem;
-  min-width: 0;
-  color: var(--color-muted);
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-app-demo-portal .create-user-form input:not([type="checkbox"]) {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 40px;
-  padding: 0 0.65rem;
-  border: 1px solid #aaa69e;
-  border-radius: 5px;
-  color: var(--color-text);
-  background: var(--color-surface);
-}
-app-demo-portal .create-user-form input[aria-invalid="true"] {
-  border-color: var(--color-danger);
-}
 app-demo-portal .required-indicator {
   color: var(--color-danger);
   display: inline-block;
@@ -549,7 +504,6 @@ app-demo-portal .field-error {
   font-weight: 600;
   line-height: 1.4;
 }
-app-demo-portal .create-user-role-field,
 app-demo-portal .edit-user-role-field {
   display: grid;
   gap: 0.65rem;
@@ -560,20 +514,12 @@ app-demo-portal .edit-user-role-field {
   border-radius: 8px;
   background: #fdfcf9;
 }
-app-demo-portal .create-user-role-field legend {
-  padding: 0 0.25rem;
-  color: var(--color-muted);
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-app-demo-portal .create-user-role-options,
 app-demo-portal .edit-user-role-options {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem 1rem;
 }
 app-demo-portal .role-global-permissions label,
-app-demo-portal .create-user-role-option,
 app-demo-portal .edit-user-role-option {
   display: inline-flex !important;
   flex: 0 0 auto;
@@ -592,52 +538,27 @@ app-demo-portal .edit-user-role-option {
     background-color 160ms ease,
     box-shadow 160ms ease;
 }
-app-demo-portal .create-user-role-option.is-admin-role {
-  flex-basis: 100%;
-}
-app-demo-portal .create-user-role-option.is-selected,
 app-demo-portal .edit-user-role-option.is-selected {
   border-color: var(--color-primary);
   background: #fdf0f2;
 }
 app-demo-portal .role-global-permissions label:hover,
 app-demo-portal .role-global-permissions label:focus-within,
-app-demo-portal .create-user-role-option:hover:not(:has(input:disabled)),
-app-demo-portal .create-user-role-option:focus-within,
 app-demo-portal .edit-user-role-option:hover:not(:has(input:disabled)),
 app-demo-portal .edit-user-role-option:focus-within {
   border-color: var(--color-primary);
   background: #fdf0f2;
 }
 app-demo-portal .role-global-permissions label:focus-within,
-app-demo-portal .create-user-role-option:focus-within,
 app-demo-portal .edit-user-role-option:focus-within {
   box-shadow: 0 0 0 3px rgb(189 25 51 / 18%);
 }
-app-demo-portal .create-user-role-option input[type="checkbox"],
 app-demo-portal .edit-user-role-option input[type="checkbox"] {
   flex: 0 0 auto;
 }
-app-demo-portal .create-user-role-option:has(input:disabled),
 app-demo-portal .edit-user-role-option:has(input:disabled) {
   cursor: not-allowed;
   opacity: 0.55;
-}
-app-demo-portal .create-user-status-field {
-  display: grid;
-  gap: 0.45rem;
-}
-app-demo-portal .create-user-status-field > div {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-}
-app-demo-portal .create-user-status-field .muted {
-  margin: 0;
-  font-size: 0.8125rem;
-}
-app-demo-portal .create-user-actions {
-  margin-top: 0.15rem;
 }
 app-demo-portal .created-user-success-backdrop {
   z-index: 20;

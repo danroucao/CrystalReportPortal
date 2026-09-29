@@ -7,34 +7,18 @@ import {
   ConfigureDemoPortalTestBed,
   LoginBoundBackOfficeOperator,
   LoginFrontManager,
-  MockNotificationCenterService,
+  NotificationCenterService,
   TestBed,
 } from './testing/demo-portal.spec-helpers';
 
 xdescribe('portal notifications and extracted interactions', () => {
   ConfigureDemoPortalTestBed();
 
-  it('filters front-office notifications between all and unread tabs', () => {
+  it('starts with no browser-generated notifications', () => {
     const auth = TestBed.inject(AuthService);
-    const notificationCenter = TestBed.inject(MockNotificationCenterService);
-    const route = TestBed.inject(ActivatedRoute) as unknown as { snapshot: { data: { Page: string } } };
-    route.snapshot.data.Page = 'NotificationCenter';
+    const notificationCenter = TestBed.inject(NotificationCenterService);
     expect(LoginFrontManager(auth)).toBeTrue();
-    notificationCenter.NotifyRoleAssignmentChange(
-      'user@example.com',
-      notificationCenter.CaptureAccess('user@example.com'),
-    );
-
-    const fixture = TestBed.createComponent(DemoPortalComponent);
-    const component = fixture.componentInstance;
-    fixture.detectChanges();
-    const unread = component.NotificationBadgeCount;
-    component.NotificationCenterTab = 'Unread';
-    component.MarkCenterNotificationRead(component.CurrentNotifications[0].Id);
-
-    expect(component.DisplayedNotifications).toHaveSize(unread - 1);
-    component.NotificationCenterTab = 'All';
-    expect(component.DisplayedNotifications.length).toBeGreaterThanOrEqual(unread);
+    expect(notificationCenter.getAll()).toHaveSize(0);
   });
 
   it('opens user rows while the row switch does not bubble to the editor handler', () => {

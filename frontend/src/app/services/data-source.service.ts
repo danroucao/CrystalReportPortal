@@ -44,4 +44,8 @@ export class DataSourceService {
   testConnection(id: number): Observable<DataSourceConnectionTestResponse> {
     return this.http.post<DataSourceConnectionTestResponse>(`${this.endpoint}/${id}/test`, {});
   }
+
+  testDraftConnection(request: SaveManagedDataSourceRequest): Observable<DataSourceConnectionTestResponse> {
+    return this.http.post<DataSourceConnectionTestResponse>(`${this.endpoint}/test-draft`, request);
+  }
 }

@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using CrystalReportPortal.Api.Authorization;
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
 using CrystalReportPortal.Api.Services;
+using CrystalReportPortal.Api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -111,6 +113,12 @@ public class AdminReportsController : ControllerBase
             })
             .ToListAsync();
 
+        foreach (var report in reports)
+        {
+            report.CreatedAt = UtcTimestamp.Restore(report.CreatedAt);
+            report.UpdatedAt = UtcTimestamp.Restore(report.UpdatedAt);
+        }
+
         return Ok(reports);
     }
 
@@ -186,6 +194,28 @@ public class AdminReportsController : ControllerBase
             Details = $"新增報表分類：{name}",
             CreatedAt = now
         });
+
+        var maintenanceRecipients = await _dbContext.Users
+            .Where(user => user.UserId != userId && user.IsEnabled &&
+                user.UserRoles.Any(userRole =>
+                    userRole.Role.IsEnabled &&
+                    userRole.Role.RolePermissions.Any(rolePermission =>
+                        rolePermission.Permission.PermissionCode == PermissionCodes.ReportMaintain &&
+                        rolePermission.Permission.IsEnabled)))
+            .Select(user => user.UserId)
+            .ToListAsync();
+        foreach (var recipientUserId in maintenanceRecipients)
+        {
+            _dbContext.UserNotifications.Add(new UserNotification
+            {
+                RecipientUserId = recipientUserId,
+                Title = "新增報表分類待設定權限",
+                Summary = $"報表分類「{name}」已新增，請設定角色分類權限。",
+                Detail = $"新的報表分類「{name}」尚未授權給任何角色。請前往報表管理或使用者管理完成分類權限設定。",
+                TargetPath = "/report-management",
+                CreatedAt = now
+            });
+        }
         await _dbContext.SaveChangesAsync();
 
         return StatusCode(StatusCodes.Status201Created, new ManagedCategoryDto
@@ -301,12 +331,17 @@ public class AdminReportsController : ControllerBase
             {
                 var detected = await _crystalProcessService.GetHeaderTextsAsync(report.RptFilePath);
                 var current = mappings.ToDictionary(item => item.SourceText,
+                    item => item,
                     StringComparer.OrdinalIgnoreCase);
-                mappings = detected.Select(sourceText => new ReportColumnHeaderMappingDto
+                mappings = detected
+                    .Where(sourceText => !IsPunctuationOnly(sourceText))
+                    .Select(sourceText => new ReportColumnHeaderMappingDto
                     {
                         SourceText = sourceText,
-                        DisplayName = current.TryGetValue(sourceText, out var mapping)
-                            ? mapping.DisplayName : string.Empty
+                        DisplayName = current.TryGetValue(sourceText, out var mapping) &&
+                                      !string.IsNullOrWhiteSpace(mapping.DisplayName)
+                            ? mapping.DisplayName
+                            : GetDefaultHeaderTranslation(sourceText)
                     })
                     .ToList();
                 report.ColumnHeaderMappingsJson = JsonSerializer.Serialize(mappings);
@@ -319,6 +354,17 @@ public class AdminReportsController : ControllerBase
         }
 
         return Ok(mappings);
+    }
+
+    private static bool IsPunctuationOnly(string sourceText)
+    {
+        return !string.IsNullOrWhiteSpace(sourceText) &&
+               Regex.IsMatch(sourceText.Trim(), @"^[\p{P}\p{S}\s]+$");
+    }
+
+    private static string GetDefaultHeaderTranslation(string sourceText)
+    {
+        return ReportHeaderLocalization.GetDefaultTranslation(sourceText);
     }
 
     [HttpPut("{reportId:long}/column-header-mappings")]
@@ -343,30 +389,6 @@ public class AdminReportsController : ControllerBase
             .Select(group => group.Last())
             .ToList();
 
-        var replacements = mappings
-            .Where(item => !string.IsNullOrWhiteSpace(item.DisplayName))
-            .ToDictionary(item => item.SourceText, item => item.DisplayName,
-                StringComparer.OrdinalIgnoreCase);
-        if (replacements.Count > 0 && System.IO.File.Exists(report.RptFilePath))
-        {
-            var localizedPath = GetLocalizedRptPath(report.RptFilePath);
-            var temporaryPath = Path.ChangeExtension(localizedPath, ".pending.rpt");
-            try
-            {
-                await _crystalProcessService.CreateLocalizedTemplateAsync(
-                    report.RptFilePath, temporaryPath, replacements);
-                System.IO.File.Move(temporaryPath, localizedPath, true);
-            }
-            finally
-            {
-                if (System.IO.File.Exists(temporaryPath)) System.IO.File.Delete(temporaryPath);
-            }
-        }
-        else if (System.IO.File.Exists(GetLocalizedRptPath(report.RptFilePath)))
-        {
-            System.IO.File.Delete(GetLocalizedRptPath(report.RptFilePath));
-        }
-
         report.ColumnHeaderMappingsJson = JsonSerializer.Serialize(mappings);
         report.UpdatedAt = DateTime.UtcNow;
         report.UpdatedBy = userId;
@@ -381,13 +403,6 @@ public class AdminReportsController : ControllerBase
         });
         await _dbContext.SaveChangesAsync();
         return Ok(mappings);
-    }
-
-    private static string GetLocalizedRptPath(string rptPath)
-    {
-        return Path.Combine(
-            Path.GetDirectoryName(rptPath) ?? string.Empty,
-            Path.GetFileNameWithoutExtension(rptPath) + ".localized.rpt");
     }
 
     [HttpGet("{reportId:long}/permissions")]
@@ -641,8 +656,8 @@ public class AdminReportsController : ControllerBase
             IsEnabled = report.IsEnabled,
             ConfigurationStatus = report.ConfigurationStatus,
             RptFileName = report.RptFileName,
-            CreatedAt = report.CreatedAt,
-            UpdatedAt = report.UpdatedAt
+            CreatedAt = UtcTimestamp.Restore(report.CreatedAt),
+            UpdatedAt = UtcTimestamp.Restore(report.UpdatedAt)
         });
     }
 

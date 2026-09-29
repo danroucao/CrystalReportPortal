@@ -29,15 +29,6 @@ export interface PermissionApiModel {
   description: string | null;
 }
 
-export interface CreateManagedUserApiRequest {
-  employeeNo: string;
-  account: string;
-  userName: string;
-  initialPassword: string;
-  roleCodes: string[];
-  isEnabled: boolean;
-}
-
 export interface UpdateManagedUserApiRequest {
   employeeNo: string;
   account: string;

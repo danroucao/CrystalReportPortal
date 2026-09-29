@@ -17,26 +17,6 @@ xdescribe('UserManagementPageComponent', () => {
     return fixture.componentInstance;
   }
 
-  it('creates, validates, and closes a user draft through the extracted page', () => {
-    const component = createPage();
-
-    component.OpenCreateUserDialog();
-    expect(component.IsCreateUserDialogOpen).toBeTrue();
-    component.SaveUser();
-    expect(component.CreateUserValidationErrors.Account).toBeTruthy();
-
-    component.UserDraft.Account = 'new-user@example.com';
-    component.UserDraft.DisplayName = 'New user';
-    component.ToggleCreateUserRole('FINANCE', true);
-    component.SaveUser();
-
-    expect(component.IsCreateUserDialogOpen).toBeFalse();
-    expect(component.CreatedUserCredentials?.Account).toBe('new-user@example.com');
-    expect(TestBed.inject(MockRbacService).GetUser('new-user@example.com')).not.toBeNull();
-    component.CloseCreatedUserSuccessModal();
-    expect(component.CreatedUserCredentials).toBeNull();
-  });
-
   it('keeps user edits isolated until confirmation and records role checkbox changes', () => {
     const component = createPage();
     const rbac = TestBed.inject(MockRbacService);

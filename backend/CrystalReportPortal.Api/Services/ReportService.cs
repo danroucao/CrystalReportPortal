@@ -1,6 +1,7 @@
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
+using CrystalReportPortal.Api.Utilities;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -197,8 +198,8 @@ public class ReportService : IReportService
                 ReportCode = report.ReportCode,
                 ReportName = report.ReportName,
                 Description = report.Description,
-                CreatedAt = report.CreatedAt,
-                UpdatedAt = report.UpdatedAt,
+                CreatedAt = UtcTimestamp.Restore(report.CreatedAt),
+                UpdatedAt = UtcTimestamp.Restore(report.UpdatedAt),
                 UsesSavedData = !report.DataSourceId.HasValue,
                 Category = new ReportCategoryDto
                 {
@@ -286,6 +287,9 @@ public class ReportService : IReportService
 
                         Visible =
                             parameter.IsVisible,
+
+                        DefaultValue =
+                            parameter.DefaultValue,
 
                         DisplayOrder =
                             parameter.DisplayOrder

@@ -27,19 +27,48 @@ namespace CrystalReportPortal.CrystalService.Services
             using (var report = new ReportDocument())
             {
                 report.Load(rptPath);
-                var textCandidates = report.ReportDefinition.Sections
-                    .Cast<Section>()
-                    .SelectMany(section => section.ReportObjects.Cast<ReportObject>())
-                    .Select(GetDisplayText)
-                    .Where(text => !string.IsNullOrWhiteSpace(text))
-                    .Select(text => text.Trim())
+                var candidates = new List<string>();
+                CollectHeaderTexts(report, candidates);
+                foreach (ReportDocument subreport in report.Subreports)
+                {
+                    CollectHeaderTextsInDocument(subreport, candidates);
+                }
+
+                return candidates
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                var titleFormulaCandidates = report.DataDefinition.FormulaFields
-                    .Cast<FormulaFieldDefinition>()
-                    .Where(formula => formula.Name.StartsWith("Title", StringComparison.OrdinalIgnoreCase))
-                    .Select(formula => formula.Name);
-                return textCandidates.Concat(titleFormulaCandidates)
-                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+        }
+
+        private static void CollectHeaderTexts(
+            ReportDocument report,
+            ICollection<string> candidates)
+        {
+            CollectHeaderTextsInDocument(report, candidates);
+        }
+
+        private static void CollectHeaderTextsInDocument(
+            ReportDocument report,
+            ICollection<string> candidates)
+        {
+            var textCandidates = report.ReportDefinition.Sections
+                .Cast<Section>()
+                .SelectMany(section => section.ReportObjects.Cast<ReportObject>())
+                .Select(GetDisplayText)
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .Select(text => text.Trim());
+            foreach (var text in textCandidates)
+            {
+                candidates.Add(text);
+            }
+
+            var titleFormulaCandidates = report.DataDefinition.FormulaFields
+                .Cast<FormulaFieldDefinition>()
+                .Where(formula => formula.Name.StartsWith("Title", StringComparison.OrdinalIgnoreCase))
+                .Select(formula => formula.Name);
+            foreach (var formulaName in titleFormulaCandidates)
+            {
+                candidates.Add(formulaName);
             }
         }
 
@@ -319,9 +348,13 @@ namespace CrystalReportPortal.CrystalService.Services
                 {
                     report.Load(request.RptPath);
 
+                    // Saved Data still uses the configured column-heading mappings.
+                    // Its Title formula is part of the authored report content, however,
+                    // and must not be replaced with a generic localized heading.
                     ApplyHeaderTextReplacements(
                         report,
-                        request.HeaderTextReplacements);
+                        request.HeaderTextReplacements,
+                        preserveReportTitleFormula: request.UseSavedDataOnly);
 
                     Console.Error.WriteLine(
                         $"UseSavedDataOnly: {request.UseSavedDataOnly}");
@@ -346,6 +379,16 @@ namespace CrystalReportPortal.CrystalService.Services
 
                         Console.Error.WriteLine(
                             "Exporting PDF from RPT Saved Data.");
+
+                        // Saved Data reports often contain text and field objects that were
+                        // authored with legacy non-Unicode fonts. They are not necessarily
+                        // part of a header replacement, so apply a CJK-capable font to every
+                        // object before Crystal renders the embedded data to PDF.
+                        ApplyChineseFontToAllReportObjects(report);
+                        foreach (ReportDocument subreport in report.Subreports)
+                        {
+                            ApplyChineseFontToAllReportObjects(subreport);
+                        }
                     }
                     else
                     {
@@ -472,13 +515,32 @@ namespace CrystalReportPortal.CrystalService.Services
 
         private static void ApplyHeaderTextReplacements(
             ReportDocument report,
-            IDictionary<string, string> replacements)
+            IDictionary<string, string> replacements,
+            bool preserveReportTitleFormula = false)
         {
             if (replacements == null || replacements.Count == 0)
             {
                 return;
             }
 
+            ApplyHeaderTextReplacementsInDocument(
+                report,
+                replacements,
+                preserveReportTitleFormula);
+            foreach (ReportDocument subreport in report.Subreports)
+            {
+                ApplyHeaderTextReplacementsInDocument(
+                    subreport,
+                    replacements,
+                    preserveReportTitleFormula);
+            }
+        }
+
+        private static void ApplyHeaderTextReplacementsInDocument(
+            ReportDocument report,
+            IDictionary<string, string> replacements,
+            bool preserveReportTitleFormula)
+        {
             foreach (Section section in report.ReportDefinition.Sections)
             {
                 foreach (ReportObject reportObject in section.ReportObjects)
@@ -488,18 +550,175 @@ namespace CrystalReportPortal.CrystalService.Services
                         !string.IsNullOrWhiteSpace(displayName))
                     {
                         SetDisplayText(reportObject, displayName.Trim());
+                        ApplyChineseFont(reportObject);
                     }
                 }
             }
 
             foreach (FormulaFieldDefinition formula in report.DataDefinition.FormulaFields)
             {
+                if (preserveReportTitleFormula &&
+                    string.Equals(formula.Name, "Title", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 if (replacements.TryGetValue(formula.Name, out var displayName) &&
                     !string.IsNullOrWhiteSpace(displayName))
                 {
                     formula.Text = "\"" + displayName.Trim().Replace("\"", "\"\"") + "\"";
+                    ApplyChineseFontToFormulaObjects(report, formula.Name);
                 }
             }
+        }
+
+        private static void ApplyChineseFontToFormulaObjects(
+            ReportDocument report,
+            string formulaName)
+        {
+            foreach (Section section in report.ReportDefinition.Sections)
+            {
+                foreach (ReportObject reportObject in section.ReportObjects)
+                {
+                    var dataSourceName = reportObject.GetType()
+                        .GetProperty("DataSourceName")?
+                        .GetValue(reportObject, null) as string;
+
+                    if (!string.IsNullOrWhiteSpace(dataSourceName) &&
+                        dataSourceName.IndexOf(formulaName, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        ApplyChineseFont(reportObject);
+                    }
+                }
+            }
+        }
+
+        private static void ApplyChineseFontToAllReportObjects(
+            ReportDocument report)
+        {
+            foreach (Section section in report.ReportDefinition.Sections)
+            {
+                foreach (ReportObject reportObject in section.ReportObjects)
+                {
+                    ApplyChineseFont(reportObject);
+                }
+            }
+        }
+
+        private static void ApplyChineseFont(ReportObject reportObject)
+        {
+            var objectType = reportObject.GetType();
+            var fontProperty = objectType.GetProperty("Font");
+            var sourceFont = fontProperty?.GetValue(reportObject, null);
+            var applyFontMethod = objectType.GetMethods()
+                .FirstOrDefault(method =>
+                {
+                    var parameters = method.GetParameters();
+                    return method.Name == "ApplyFont" && parameters.Length == 1 &&
+                           (sourceFont == null || parameters[0].ParameterType.IsInstanceOfType(sourceFont) ||
+                            parameters[0].ParameterType == typeof(System.Drawing.Font));
+                });
+
+            if (applyFontMethod == null)
+            {
+                if (DiagnosticsEnabled)
+                {
+                    Console.Error.WriteLine(
+                        $"Could not locate a compatible ApplyFont overload for {objectType.FullName}.");
+                }
+                return;
+            }
+
+            var fontType = applyFontMethod.GetParameters()[0].ParameterType;
+            object chineseFont = null;
+            var sourceDrawingFont = sourceFont as System.Drawing.Font;
+            if (fontType == typeof(System.Drawing.Font))
+            {
+                chineseFont = new System.Drawing.Font(
+                    "Microsoft JhengHei",
+                    sourceDrawingFont?.Size ?? 9f,
+                    sourceDrawingFont?.Style ?? System.Drawing.FontStyle.Regular,
+                    sourceDrawingFont?.Unit ?? System.Drawing.GraphicsUnit.Point,
+                    136);
+            }
+            else
+            {
+                chineseFont = CreateCrystalFont(fontType, sourceFont);
+            }
+
+            if (chineseFont == null)
+            {
+                if (DiagnosticsEnabled)
+                {
+                    Console.Error.WriteLine(
+                        $"Could not create CJK font of type {fontType.FullName} for {objectType.FullName}.");
+                }
+                return;
+            }
+
+            try
+            {
+                applyFontMethod.Invoke(reportObject, new[] { chineseFont });
+            }
+            finally
+            {
+                (chineseFont as IDisposable)?.Dispose();
+            }
+        }
+
+        private static object CreateCrystalFont(Type fontType, object sourceFont)
+        {
+            var clone = Activator.CreateInstance(fontType);
+            if (clone == null)
+            {
+                return null;
+            }
+
+            foreach (var property in fontType.GetProperties())
+            {
+                if (!property.CanRead || !property.CanWrite ||
+                    property.GetIndexParameters().Length != 0 ||
+                    string.Equals(property.Name, "Name", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (sourceFont == null || !fontType.IsInstanceOfType(sourceFont))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    property.SetValue(clone, property.GetValue(sourceFont, null), null);
+                }
+                catch
+                {
+                    // Preserve the remaining font attributes if one property is not writable.
+                }
+            }
+
+            var nameProperty = fontType.GetProperty("Name");
+            if (nameProperty != null && nameProperty.CanWrite)
+            {
+                nameProperty.SetValue(clone, "Microsoft JhengHei", null);
+            }
+
+            foreach (var charsetName in new[] { "GdiCharSet", "CharSet", "Charset" })
+            {
+                var charsetProperty = fontType.GetProperty(charsetName);
+                if (charsetProperty != null && charsetProperty.CanWrite)
+                {
+                    charsetProperty.SetValue(
+                        clone,
+                        charsetProperty.PropertyType.IsEnum
+                            ? Enum.ToObject(charsetProperty.PropertyType, 136)
+                            : Convert.ChangeType(136, charsetProperty.PropertyType),
+                        null);
+                }
+            }
+
+            return clone;
         }
 
         private static string GetDisplayText(ReportObject reportObject)
@@ -515,6 +734,8 @@ namespace CrystalReportPortal.CrystalService.Services
         {
             if (reportObject.Kind == ReportObjectKind.TextObject)
                 ((TextObject)reportObject).Text = text;
+            else if (reportObject.Kind == ReportObjectKind.FieldHeadingObject)
+                ((FieldHeadingObject)reportObject).Text = text;
         }
 
         private static void ApplyTemplateHeadingReplacements(

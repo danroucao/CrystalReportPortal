@@ -190,6 +190,9 @@ public class AuditLogsController : ControllerBase
             query = query.Where(log =>
                 log.CreatedAt >= fromUtc);
         }
+        // Keep the default list lightweight and predictable for every role.
+        // Archived records are only included after an authorized user supplies
+        // an explicit historical FromUtc condition.
         else
         {
             query = query.Where(log =>

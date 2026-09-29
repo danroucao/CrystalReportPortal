@@ -133,6 +133,7 @@ describe('MockRbacService', () => {
     const Draft: MockRoleDraft = {
       DisplayName: '業務人員',
       ManagementPermissions: [],
+      ArchivePermissionCodes: [],
       Permissions,
     };
 
@@ -147,6 +148,7 @@ describe('MockRbacService', () => {
     const CreatedRole = Service.CreateRole({
       DisplayName: 'admin123',
       ManagementPermissions: [],
+      ArchivePermissionCodes: [],
       Permissions: Service.GetEmptyCategoryPermissionEntries(),
     })!;
 

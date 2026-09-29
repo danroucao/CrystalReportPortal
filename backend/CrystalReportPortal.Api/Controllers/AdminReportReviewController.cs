@@ -54,7 +54,7 @@ public class AdminReportReviewController : ControllerBase
         var report = await _dbContext.Reports
             .AsNoTracking()
             .Include(candidate => candidate.DataSource)
-                .ThenInclude(dataSource => dataSource.Credentials)
+                .ThenInclude(dataSource => dataSource!.Credentials)
             .Include(candidate => candidate.ReportParameters)
             .SingleOrDefaultAsync(candidate => candidate.ReportId == reportId);
 
@@ -101,7 +101,15 @@ public class AdminReportReviewController : ControllerBase
         {
             try
             {
-                var savedDataPdf = await _crystalProcess.PreviewAsync(GetExecutableRptPath(report.RptFilePath));
+                var headerReplacements = await GetHeaderTextReplacementsAsync(report);
+                var savedDataPdf = await _crystalExport.ExportPdfAsync(
+                    new CrystalExportProcessRequest
+                    {
+                        RptPath = report.RptFilePath,
+                        UseSavedDataOnly = true,
+                        Parameters = [],
+                        HeaderTextReplacements = headerReplacements
+                    });
                 var now = DateTime.UtcNow;
 
                 AddAuditLog(
@@ -296,12 +304,13 @@ public class AdminReportReviewController : ControllerBase
     {
         if (useSavedDataOnly)
         {
+            var headerReplacements = await GetHeaderTextReplacementsAsync(report);
             return new CrystalExportProcessRequest
             {
-                RptPath = GetExecutableRptPath(report.RptFilePath),
+                RptPath = report.RptFilePath,
                 UseSavedDataOnly = true,
                 Parameters = [],
-                HeaderTextReplacements = GetHeaderTextReplacements(report)
+                HeaderTextReplacements = headerReplacements
             };
         }
 
@@ -356,7 +365,11 @@ public class AdminReportReviewController : ControllerBase
             }
         }
 
-        var credential = report.DataSource.Credentials
+        var dataSource = report.DataSource
+            ?? throw new InvalidOperationException(
+                "即時資料報表缺少可用的資料來源。");
+
+        var credential = dataSource.Credentials
             .FirstOrDefault(candidate =>
                 string.Equals(
                     candidate.CredentialType,
@@ -398,9 +411,10 @@ public class AdminReportReviewController : ControllerBase
                 $"不支援的資料庫驗證方式：{credential.AuthenticationType}");
         }
 
+        var resolvedHeaderReplacements = await GetHeaderTextReplacementsAsync(report);
         return new CrystalExportProcessRequest
         {
-            RptPath = GetExecutableRptPath(report.RptFilePath),
+            RptPath = report.RptFilePath,
             UseSavedDataOnly = false,
 
             Database = new CrystalExportDatabase
@@ -420,18 +434,25 @@ public class AdminReportReviewController : ControllerBase
             },
 
             Parameters = exportParameters,
-            HeaderTextReplacements = GetHeaderTextReplacements(report)
+            HeaderTextReplacements = resolvedHeaderReplacements
         };
     }
 
-    private static Dictionary<string, string> GetHeaderTextReplacements(Report report)
+    private async Task<Dictionary<string, string>> GetHeaderTextReplacementsAsync(Report report)
     {
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    }
+        IReadOnlyList<string> detectedHeaders = [];
+        try
+        {
+            detectedHeaders = await _crystalProcess.GetHeaderTextsAsync(report.RptFilePath);
+        }
+        catch
+        {
+            // Saved custom mappings can still be applied if Crystal cannot inspect the RPT.
+        }
 
-    private static string GetExecutableRptPath(string sourceRptPath)
-    {
-        return sourceRptPath;
+        return ReportHeaderLocalization.BuildReplacements(
+            report.ColumnHeaderMappingsJson,
+            detectedHeaders);
     }
 
     private async Task<bool> CanMaintainReportAsync(long userId, long reportId)

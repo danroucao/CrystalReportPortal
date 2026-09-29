@@ -134,6 +134,7 @@
         <div class="common-parameter-section-grid">
           <label>預設值
             <input name="defaultValue" [(ngModel)]="draft.defaultValue" placeholder="未填寫時不預先帶入" />
+            <small class="common-parameter-control-hint">{{ defaultValueHint }}</small>
           </label>
           <label>說明
             <textarea name="description" rows="2" [(ngModel)]="draft.description" placeholder="供管理者辨識此參數的用途"></textarea>

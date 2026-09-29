@@ -189,6 +189,7 @@ public class CommonParameterTemplatesController : ControllerBase
 
         var now = DateTime.UtcNow;
         ApplyRequest(template, request);
+        await SynchronizeBoundReportParametersAsync(template, now);
         template.UpdatedBy = operatorId;
         template.UpdatedAt = now;
 
@@ -297,6 +298,12 @@ public class CommonParameterTemplatesController : ControllerBase
             return BadRequest(new { message = "參數不可同時設定為多值與範圍值。" });
         }
 
+        if (string.Equals(request.InputType, "MultiSelect", StringComparison.OrdinalIgnoreCase) !=
+            request.AllowMultipleValues)
+        {
+            return BadRequest(new { message = "MultiSelect 必須搭配允許多值設定。" });
+        }
+
         if (request.DataSourceId.HasValue &&
             !await _dbContext.ReportDataSources.AnyAsync(source =>
                 source.DataSourceId == request.DataSourceId.Value && source.IsEnabled))
@@ -373,6 +380,44 @@ public class CommonParameterTemplatesController : ControllerBase
             template.SqlQuery = null;
             template.ValueField = null;
             template.DisplayField = null;
+        }
+    }
+
+    private async Task SynchronizeBoundReportParametersAsync(
+        CommonParameterTemplate template,
+        DateTime now)
+    {
+        var parameters = await _dbContext.ReportParameters
+            .Include(parameter => parameter.LovConfig)
+            .Where(parameter => parameter.CommonTemplateId == template.TemplateId)
+            .ToListAsync();
+
+        foreach (var parameter in parameters)
+        {
+            parameter.DisplayName = template.TemplateName;
+            parameter.DataType = template.DataType;
+            parameter.InputType = template.InputType;
+            parameter.ValueSourceType = template.ValueSourceType;
+            parameter.IsRequired = template.IsRequired;
+            parameter.AllowMultipleValues = template.AllowMultipleValues;
+            parameter.AllowRangeValues = template.AllowRangeValues;
+            parameter.IsVisible = template.IsVisible;
+            parameter.DefaultValue = template.DefaultValue;
+            parameter.Description = template.Description;
+            parameter.UpdatedAt = now;
+
+            if (!string.Equals(template.ValueSourceType, "SqlLov", StringComparison.OrdinalIgnoreCase))
+            {
+                parameter.LovConfig = null;
+                continue;
+            }
+
+            parameter.LovConfig ??= new ParameterLovConfig { CreatedAt = now };
+            parameter.LovConfig.DataSourceId = template.DataSourceId!.Value;
+            parameter.LovConfig.SqlQuery = template.SqlQuery!.Trim();
+            parameter.LovConfig.ValueField = template.ValueField!.Trim();
+            parameter.LovConfig.DisplayField = template.DisplayField!.Trim();
+            parameter.LovConfig.UpdatedAt = now;
         }
     }
 

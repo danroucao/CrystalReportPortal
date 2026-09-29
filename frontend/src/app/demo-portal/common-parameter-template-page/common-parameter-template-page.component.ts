@@ -164,10 +164,28 @@ export class CommonParameterTemplatePageComponent implements OnInit {
       this.draft.allowMultipleValues = false;
       this.draft.allowRangeValues = false;
     }
+    if (this.draft.inputType === 'MultiSelect') {
+      this.draft.allowMultipleValues = true;
+      this.draft.allowRangeValues = false;
+    } else if (this.draft.allowMultipleValues) {
+      this.draft.allowMultipleValues = false;
+    }
+  }
+
+  get defaultValueHint(): string {
+    if (this.draft.allowMultipleValues) return '多值請以逗號或分號分隔，例如：PM01,PM02。';
+    if (this.draft.allowRangeValues) return '範圍請以逗號分隔起訖值，例如：2026-01-01,2026-01-31。';
+    if (this.draft.dataType === 'Boolean') return '布林值請填 true 或 false。';
+    return '未填寫時不預先帶入。';
   }
 
   onAllowMultipleValuesChange(): void {
-    if (this.draft.allowMultipleValues) this.draft.allowRangeValues = false;
+    if (this.draft.allowMultipleValues) {
+      this.draft.allowRangeValues = false;
+      this.draft.inputType = 'MultiSelect';
+    } else if (this.draft.inputType === 'MultiSelect') {
+      this.draft.inputType = 'Select';
+    }
   }
 
   onAllowRangeValuesChange(): void {

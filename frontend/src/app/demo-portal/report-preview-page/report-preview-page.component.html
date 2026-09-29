@@ -4,130 +4,53 @@
       <p class="selected-parameter-report-label">目前預覽報表</p>
       <h2>{{ Report.ReportName }}</h2>
     </div>
-    <dl>
-      <div>
-        <dt>報表分類</dt>
-        <dd>{{ Report.CategoryName }}</dd>
-      </div>
-    </dl>
+    <dl><div><dt>報表分類</dt><dd>{{ Report.CategoryName }}</dd></div></dl>
   </div>
 
-  <div class="preview-placeholder" *ngIf="IsPreviewLoading" role="status">
-    正在產生報表預覽…
-  </div>
+  <div *ngIf="IsPreviewLoading" class="preview-placeholder" role="status">正在產生報表預覽… {{ PreviewProgressLabel }}</div>
+
   <div *ngIf="PreviewError" class="preview-error" role="alert">
     <p>{{ PreviewError }}</p>
-    <button
-      type="button"
-      class="secondary-button"
-      [disabled]="IsPreviewLoading"
-      (click)="RetryPreview()"
-    >
-      重新產生預覽
-    </button>
+    <button type="button" class="secondary-button" [disabled]="IsPreviewLoading" (click)="RetryPreview()">重新產生預覽</button>
   </div>
-  <section *ngIf="PreviewUrl && !IsPreviewLoading" class="pdf-preview-card" aria-label="PDF 預覽狀態">
-    <div class="pdf-preview-card__icon" aria-hidden="true">PDF</div>
-    <div class="pdf-preview-card__content">
-      <strong>PDF 已成功產生</strong>
-      <p>目前瀏覽器的內嵌 PDF 預覽無法顯示，請開啟新視窗或下載檔案查看。</p>
+
+  <section *ngIf="HasPreview && !IsPreviewLoading" class="report-image-preview" aria-label="報表影像預覽">
+    <p class="report-image-preview__notice">預覽僅提供檢視；下載與列印須分別具備對應權限。</p>
+    <div class="report-image-preview__toolbar">
+      <div class="report-image-preview__pagination">
+        <button type="button" class="secondary-button" (click)="GoToPreviousPreviewPage()" [disabled]="CurrentPreviewPageIndex === 0">上一頁</button>
+        <span>第 {{ CurrentPreviewPageIndex + 1 }} / {{ PreviewPageUrls.length }} 頁</span>
+        <button type="button" class="secondary-button" (click)="GoToNextPreviewPage()" [disabled]="CurrentPreviewPageIndex === PreviewPageUrls.length - 1">下一頁</button>
+      </div>
+      <div class="report-image-preview__zoom">
+        <button type="button" class="secondary-button" (click)="ZoomPreview(-10)" [disabled]="PreviewZoom <= 60">−</button>
+        <button type="button" class="secondary-button" (click)="ResetPreviewZoom()">{{ PreviewZoom }}%</button>
+        <button type="button" class="secondary-button" (click)="ZoomPreview(10)" [disabled]="PreviewZoom >= 175">＋</button>
+      </div>
     </div>
-    <button type="button" class="secondary-button" (click)="OpenPdfPreview()">
-      開啟預覽
-    </button>
+    <figure *ngIf="CurrentPreviewPageUrl" class="report-image-preview__page" [style.width.%]="PreviewZoom">
+      <img [src]="CurrentPreviewPageUrl" [alt]="Report.ReportName + ' 第 ' + (CurrentPreviewPageIndex + 1) + ' 頁'" />
+      <figcaption>第 {{ CurrentPreviewPageIndex + 1 }} 頁</figcaption>
+    </figure>
   </section>
-  <div *ngIf="PreviewUrl && !IsPreviewLoading && Auth.SelectedReportCategoryPermission.CanExport" class="preview-download-fallback">
-    <span>PDF 已產生；若預覽區未顯示，可直接下載檔案。</span>
-    <button type="button" class="secondary-button" (click)="DownloadPdf()">
-      下載 PDF
-    </button>
-  </div>
 
   <div class="preview-output-bar">
-    <div *ngIf="PreviewUrl && !IsPreviewLoading" class="output-actions">
-      <div *ngIf="Auth.SelectedReportCategoryPermission.CanExport" class="export-dropdown">
-        <button
-          type="button"
-          class="export-trigger secondary-button"
-          aria-haspopup="menu"
-          [attr.aria-expanded]="IsExportMenuOpen"
-          (click)="ToggleExportMenu()"
-        >
-          <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
-          </svg>
-          匯出
-          <svg class="export-chevron" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m7 10 5 5 5-5" />
-          </svg>
-        </button>
-        <div
-          *ngIf="IsExportMenuOpen"
-          class="export-menu"
-          role="menu"
-          aria-label="報表匯出格式"
-        >
-          <button
-            *ngFor="let Option of ExportOptions"
-            type="button"
-            role="menuitem"
-            [disabled]="!Option.Enabled"
-            (click)="SelectExportOption(Option)"
-          >
-            <svg class="export-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
-            </svg>
-            {{ Option.Label }}
-          </button>
+    <div *ngIf="HasPreview && !IsPreviewLoading" class="output-actions">
+      <details *ngIf="Auth.SelectedReportCategoryPermission.CanExport" class="preview-output-menu">
+        <summary>匯出<span aria-hidden="true">⌄</span></summary>
+        <div class="preview-output-menu__items">
+          <button type="button" (click)="DownloadPdf()">下載 PDF</button>
         </div>
-      </div>
-
-      <div
-        *ngIf="Auth.SelectedReportCategoryPermission.CanPrint"
-        class="print-dropdown"
-      >
-        <button
-          type="button"
-          class="print-trigger secondary-button"
-          aria-haspopup="menu"
-          [attr.aria-expanded]="IsPrintMenuOpen"
-          (click)="TogglePrintMenu()"
-        >
-          <svg class="print-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M7 9V3h10v6M7 17H5V9h14v8h-2M7 14h10v7H7z" />
-          </svg>
-          列印
-          <svg class="print-chevron" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m7 10 5 5 5-5" />
-          </svg>
-        </button>
-        <div
-          *ngIf="IsPrintMenuOpen"
-          class="print-menu"
-          role="menu"
-          aria-label="報表列印方式"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            (click)="SelectOutputAction('BrowserPrint')"
-          >
-            瀏覽器列印
-          </button>
+      </details>
+      <details *ngIf="Auth.SelectedReportCategoryPermission.CanPrint" class="preview-output-menu">
+        <summary>列印<span aria-hidden="true">⌄</span></summary>
+        <div class="preview-output-menu__items">
+          <button type="button" (click)="PrintPdf()">開啟列印視窗</button>
         </div>
-      </div>
+      </details>
     </div>
-
-    <button
-      type="button"
-      class="secondary-button preview-return-button"
-      (click)="ReturnToReportList()"
-    >
-      {{ ReportPreviewReturnLabel }}
-    </button>
+    <button type="button" class="secondary-button preview-return-button" (click)="ReturnToReportList()">{{ ReportPreviewReturnLabel }}</button>
   </div>
 
-  <p *ngIf="PreviewNotice" class="mock-notice" role="status" aria-live="polite">
-    {{ PreviewNotice }}
-  </p>
+  <p *ngIf="PreviewNotice" class="mock-notice" role="status" aria-live="polite">{{ PreviewNotice }}</p>
 </section>

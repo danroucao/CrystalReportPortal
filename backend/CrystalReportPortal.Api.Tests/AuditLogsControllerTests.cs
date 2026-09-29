@@ -50,7 +50,7 @@ public class AuditLogsControllerTests
     }
 
     [Fact]
-    public async Task GetAuditLogs_IncludesArchiveRecordsWithArchivePermission()
+    public async Task GetAuditLogs_DefaultQueryKeepsArchiveRecordsHiddenEvenWithArchivePermission()
     {
         await using var db = CreateDbContext();
         var now = DateTime.UtcNow;
@@ -61,6 +61,25 @@ public class AuditLogsControllerTests
 
         var controller = CreateController(db, canViewArchive: true);
         var result = await controller.GetAuditLogs(new AuditLogQueryRequest());
+
+        Assert.Equal(1, GetResponse(result).TotalCount);
+    }
+
+    [Fact]
+    public async Task GetAuditLogs_IncludesArchiveRecordsWhenAuthorizedUserSelectsHistoricalDate()
+    {
+        await using var db = CreateDbContext();
+        var now = DateTime.UtcNow;
+        db.AuditLogs.AddRange(
+            CreateAuditLog(1, now.AddDays(-181)),
+            CreateAuditLog(2, now.AddDays(-179)));
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, canViewArchive: true);
+        var result = await controller.GetAuditLogs(new AuditLogQueryRequest
+        {
+            FromUtc = now.AddDays(-182)
+        });
 
         Assert.Equal(2, GetResponse(result).TotalCount);
     }

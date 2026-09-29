@@ -3,12 +3,8 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { MockReportKey } from '../../mock/mock-reports';
+import { MockReportKey, MockReportReadModel } from '../../mock/mock-reports';
 import { AuthService } from '../../services/auth.service';
-import {
-  MockFavoriteReport,
-  MockRbacService,
-} from '../../services/mock-rbac.service';
 import { NotificationService } from '../../services/notification.service';
 import { ReportService } from '../../services/report.service';
 
@@ -30,10 +26,10 @@ interface StoredFavoriteReport {
 export class FavoriteReportPageComponent implements OnInit {
   readonly AllCategoryFilterValue = 'ALL';
   readonly Auth = inject(AuthService);
-  private readonly MockRbac = inject(MockRbacService);
   private readonly Notifications = inject(NotificationService);
   private readonly Reports = inject(ReportService);
   private readonly router = inject(Router);
+  private FavoriteReportStates: Record<MockReportKey, StoredFavoriteReport> = {};
 
   SelectedFavoriteCategoryId = this.AllCategoryFilterValue;
   FavoriteSearchText = '';
@@ -45,32 +41,22 @@ export class FavoriteReportPageComponent implements OnInit {
     // A browser refresh clears AuthService's in-memory report cache. Reloading
     // here ensures persisted favorite keys can be resolved back to reports.
     this.Reports.GetReports().subscribe({
-      next: (Reports) => this.Auth.SetAccessibleReports(Reports),
-      error: () => {
-        // Keep the existing in-memory/mock list as a graceful fallback.
+      next: (Reports) => {
+        this.Auth.SetAccessibleReports(Reports);
+        this.LoadFavoriteReports();
       },
     });
   }
 
-  get FavoriteReports(): readonly MockFavoriteReport[] {
-    const Account = this.Auth.CurrentUser?.Account;
-    if (!Account || !this.Auth.IsFrontOffice) return [];
-
-    // Reports loaded from the API have numeric report keys, so they are not
-    // part of the legacy mock RBAC favorite store. Prefer the same per-user
-    // session store used by the all-reports page whenever it exists.
-    const StoredFavorites = this.GetStoredFavoriteReports(Account);
-    if (StoredFavorites !== null) {
-      return this.Auth.AccessibleReports
-        .filter((Report) => StoredFavorites[Report.ReportKey] !== undefined)
-        .map((Report) => ({
-          Report,
-          FavoritedAt: StoredFavorites[Report.ReportKey].FavoritedAt,
-          LastUsedAt: StoredFavorites[Report.ReportKey].LastUsedAt,
-        }));
-    }
-
-    return this.MockRbac.GetFavoriteReports(Account);
+  get FavoriteReports(): readonly { Report: MockReportReadModel; FavoritedAt: string; LastUsedAt: string | null }[] {
+    if (!this.Auth.IsFrontOffice) return [];
+    return this.Auth.AccessibleReports
+      .filter((Report) => this.FavoriteReportStates[Report.ReportKey] !== undefined)
+      .map((Report) => ({
+        Report,
+        FavoritedAt: this.FavoriteReportStates[Report.ReportKey].FavoritedAt,
+        LastUsedAt: this.FavoriteReportStates[Report.ReportKey].LastUsedAt,
+      }));
   }
 
   get FavoriteReportCategories() {
@@ -82,7 +68,7 @@ export class FavoriteReportPageComponent implements OnInit {
     ).values()];
   }
 
-  get DisplayedFavoriteReports(): readonly MockFavoriteReport[] {
+  get DisplayedFavoriteReports(): readonly { Report: MockReportReadModel; FavoritedAt: string; LastUsedAt: string | null }[] {
     const Direction = this.FavoriteReportSortDirection === 'asc' ? 1 : -1;
     const SearchText =
       this.FavoriteSearchText.trim().toLocaleLowerCase('zh-Hant');
@@ -183,20 +169,16 @@ export class FavoriteReportPageComponent implements OnInit {
     return this.FormatFavoriteLastUsedAt(FavoritedAt);
   }
 
-  RemoveFavoriteReport(Favorite: MockFavoriteReport): void {
-    const Account = this.Auth.CurrentUser?.Account;
-    if (!Account || !this.Auth.IsFrontOffice) return;
-
-    const StoredFavorites = this.GetStoredFavoriteReports(Account);
-    if (StoredFavorites !== null) {
-      delete StoredFavorites[Favorite.Report.ReportKey];
-      sessionStorage.setItem(
-        this.GetFavoriteStorageKey(Account),
-        JSON.stringify(StoredFavorites),
-      );
-    } else if (!this.MockRbac.RemoveFavoriteReport(Account, Favorite.Report.ReportKey)) {
-      return;
-    }
+  RemoveFavoriteReport(Favorite: { Report: MockReportReadModel; FavoritedAt: string; LastUsedAt: string | null }): void {
+    const reportId = Number(Favorite.Report.ReportKey);
+    if (!this.Auth.IsFrontOffice || !Number.isFinite(reportId)) return;
+    delete this.FavoriteReportStates[Favorite.Report.ReportKey];
+    this.Reports.RemoveFavoriteReport(reportId).subscribe({
+      error: () => {
+        this.LoadFavoriteReports();
+        this.Notifications.ShowSuccess('無法取消收藏，請稍後再試。');
+      },
+    });
     if (
       this.SelectedFavoriteCategoryId !== this.AllCategoryFilterValue &&
       !this.FavoriteReportCategories.some(
@@ -214,11 +196,7 @@ export class FavoriteReportPageComponent implements OnInit {
     );
     if (!Report?.Enabled) return;
     this.Auth.SelectReport(ReportKey);
-    const Account = this.Auth.CurrentUser?.Account;
-    if (Account) {
-      this.MockRbac.RecordReportExecution(Account, ReportKey);
-      this.RecordFavoriteUsage(Account, ReportKey);
-    }
+    this.RecordFavoriteUsage(ReportKey);
     void this.router.navigate(['/reports/preview'], {
       state: { ReportPreviewOrigin: 'favorites' },
     });
@@ -240,51 +218,21 @@ export class FavoriteReportPageComponent implements OnInit {
     this.IsFavoriteReportSortActive = true;
   }
 
-  private GetStoredFavoriteReports(
-    Account: string,
-  ): Record<MockReportKey, StoredFavoriteReport> | null {
-    const Serialized = sessionStorage.getItem(this.GetFavoriteStorageKey(Account));
-    if (Serialized === null) return null;
-
-    try {
-      const Parsed = JSON.parse(Serialized) as unknown;
-      if (Array.isArray(Parsed)) {
-        const FavoritedAt = new Date().toISOString();
-        const Migrated = Object.fromEntries(
-          Parsed
-            .filter((Value): Value is string => typeof Value === 'string')
-            .map((ReportKey) => [ReportKey, { FavoritedAt, LastUsedAt: null }]),
-        ) as Record<MockReportKey, StoredFavoriteReport>;
-        sessionStorage.setItem(this.GetFavoriteStorageKey(Account), JSON.stringify(Migrated));
-        return Migrated;
-      }
-      if (!Parsed || typeof Parsed !== 'object') return {};
-      return Object.fromEntries(
-        Object.entries(Parsed).flatMap(([ReportKey, Value]) => {
-          if (!Value || typeof Value !== 'object') return [];
-          const State = Value as Partial<StoredFavoriteReport>;
-          return typeof State.FavoritedAt === 'string'
-            ? [[ReportKey, {
-                FavoritedAt: State.FavoritedAt,
-                LastUsedAt: typeof State.LastUsedAt === 'string' ? State.LastUsedAt : null,
-              }]]
-            : [];
-        }),
-      ) as Record<MockReportKey, StoredFavoriteReport>;
-    } catch {
-      return {};
-    }
+  private LoadFavoriteReports(): void {
+    this.Reports.GetFavoriteReports().subscribe({
+      next: (favorites) => this.FavoriteReportStates = Object.fromEntries(favorites.map((favorite) => [
+        String(favorite.reportId), { FavoritedAt: favorite.favoritedAt, LastUsedAt: favorite.lastUsedAt },
+      ])),
+      error: () => this.FavoriteReportStates = {},
+    });
   }
 
-  private RecordFavoriteUsage(Account: string, ReportKey: MockReportKey): void {
-    const Favorites = this.GetStoredFavoriteReports(Account);
-    const Favorite = Favorites?.[ReportKey];
-    if (!Favorites || !Favorite) return;
-    Favorites[ReportKey] = { ...Favorite, LastUsedAt: new Date().toISOString() };
-    sessionStorage.setItem(this.GetFavoriteStorageKey(Account), JSON.stringify(Favorites));
-  }
-
-  private GetFavoriteStorageKey(Account: string): string {
-    return `crystal-report-favorites:${Account}`;
+  private RecordFavoriteUsage(ReportKey: MockReportKey): void {
+    const reportId = Number(ReportKey);
+    if (!this.FavoriteReportStates[ReportKey] || !Number.isFinite(reportId)) return;
+    this.FavoriteReportStates[ReportKey] = {
+      ...this.FavoriteReportStates[ReportKey], LastUsedAt: new Date().toISOString(),
+    };
+    this.Reports.RecordFavoriteReportUsage(reportId).subscribe();
   }
 }

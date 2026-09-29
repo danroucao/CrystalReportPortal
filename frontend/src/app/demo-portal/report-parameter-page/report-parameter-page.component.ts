@@ -57,6 +57,11 @@ interface StoredFavoriteReport {
   readonly LastUsedAt: string | null;
 }
 
+interface StoredParameterValues {
+  readonly Values: Record<string, MockParameterFormValue>;
+  readonly SavedAt: string;
+}
+
 /**
  * Report discovery and dynamic parameter entry for the front-office portal.
  * The parent shell continues to own navigation, access guards, and page chrome.
@@ -88,6 +93,8 @@ export class ReportParameterPageComponent implements OnInit {
   ParameterReportEndDate = '';
   ParameterReportDateNotice = '';
   ParameterReportSelectionNotice = '';
+  MultiSelectSearchTerms: Record<string, string> = {};
+  private DatabaseParameterPreferences: Partial<Record<'favorite' | 'recent', StoredParameterValues>> = {};
   ParameterReportSearchText = '';
   ParameterReportSortField: ParameterReportSortField | null = null;
   ParameterReportSortDirection: ParameterReportSortDirection = 'asc';
@@ -349,8 +356,9 @@ export class ReportParameterPageComponent implements OnInit {
   }
 
   ToggleFavoriteReport(ReportKey: MockReportKey): void {
-    const Account = this.Auth.CurrentUser?.Account;
-    if (!Account || !this.Auth.IsFrontOffice) return;
+    if (!this.Auth.IsFrontOffice) return;
+    const ReportId = Number(ReportKey);
+    if (!Number.isFinite(ReportId)) return;
     const IsFavorite = !this.IsFavoriteReport(ReportKey);
     if (IsFavorite) {
       this.FavoriteReportStates[ReportKey] = {
@@ -360,16 +368,22 @@ export class ReportParameterPageComponent implements OnInit {
     } else {
       delete this.FavoriteReportStates[ReportKey];
     }
-    this.SaveFavoriteReports(Account);
     const Report = this.Auth.AccessibleReports.find(
       (Entry) => Entry.ReportKey === ReportKey,
     );
     if (!Report) return;
-    this.Notifications.ShowSuccess(
-      IsFavorite
-        ? `已收藏「${Report.ReportName}」。`
-        : `已取消收藏「${Report.ReportName}」。`,
-    );
+    const request = IsFavorite
+      ? this.Reports.AddFavoriteReport(ReportId)
+      : this.Reports.RemoveFavoriteReport(ReportId);
+    request.subscribe({
+      next: () => this.Notifications.ShowSuccess(
+        IsFavorite ? `已收藏「${Report.ReportName}」。` : `已取消收藏「${Report.ReportName}」。`),
+      error: () => {
+        if (IsFavorite) delete this.FavoriteReportStates[ReportKey];
+        else this.LoadFavoriteReports();
+        this.ParameterReportSelectionNotice = '無法更新收藏報表，請稍後再試。';
+      },
+    });
   }
 
   GetControlKind(
@@ -447,6 +461,73 @@ export class ReportParameterPageComponent implements OnInit {
     const control = this.ReportParameterForm.get(Definition.ParameterName);
     if (!control || control.disabled) return;
     control.setValue([]);
+    control.markAsDirty();
+    control.updateValueAndValidity();
+  }
+
+  GetFilteredLovOptions(Definition: MockReportParameterDefinition) {
+    const searchTerm = (this.MultiSelectSearchTerms[Definition.ParameterName] ?? '').trim().toLocaleLowerCase();
+    if (!searchTerm) return this.GetLovOptions(Definition);
+    return this.GetLovOptions(Definition).filter((option) =>
+      `${option.Value} ${option.DisplayText}`.toLocaleLowerCase().includes(searchTerm));
+  }
+
+  ClearMultiSelectSearch(Definition: MockReportParameterDefinition): void {
+    delete this.MultiSelectSearchTerms[Definition.ParameterName];
+  }
+
+  HasStoredParameterValues(kind: 'favorite' | 'recent'): boolean {
+    return this.DatabaseParameterPreferences[kind] !== undefined;
+  }
+
+  SaveFavoriteParameterValues(): void {
+    this.SaveParameterPreference('favorite', true);
+  }
+
+  ApplyStoredParameterValues(kind: 'favorite' | 'recent'): void {
+    const stored = this.DatabaseParameterPreferences[kind];
+    if (!stored) return;
+    const applicableValues = Object.fromEntries(
+      this.VisibleReportParameters
+        .filter((definition) => Object.prototype.hasOwnProperty.call(stored.Values, definition.ParameterName))
+        .map((definition) => [definition.ParameterName, stored.Values[definition.ParameterName]]),
+    );
+    this.ReportParameterForm.patchValue(applicableValues);
+    this.ReportParameterForm.markAsDirty();
+    this.ReportParameterForm.updateValueAndValidity();
+    this.Notifications.ShowSuccess(kind === 'favorite' ? '已套用常用報表條件。' : '已套用最近使用條件。');
+  }
+
+  AreAllMultiSelectOptionsSelected(Definition: MockReportParameterDefinition): boolean {
+    const options = this.GetLovOptions(Definition);
+    return options.length > 0 && options.every((option) =>
+      this.IsMultiSelectOptionSelected(Definition, option.Value));
+  }
+
+  GetMultiSelectSelectionSummary(Definition: MockReportParameterDefinition): string {
+    const optionValues = new Set(this.GetLovOptions(Definition).map((option) => option.Value));
+    const currentValue = this.ReportParameterForm.get(Definition.ParameterName)?.value;
+    const selectedCount = Array.isArray(currentValue)
+      ? currentValue.map(String).filter((value) => optionValues.has(value)).length
+      : 0;
+    return `已選 ${selectedCount} / ${optionValues.size}`;
+  }
+
+  SelectAllMultiSelect(Definition: MockReportParameterDefinition): void {
+    const control = this.ReportParameterForm.get(Definition.ParameterName);
+    if (!control || control.disabled) return;
+
+    control.setValue(this.GetLovOptions(Definition).map((option) => option.Value));
+    control.markAsDirty();
+    control.updateValueAndValidity();
+  }
+
+  SelectFilteredMultiSelect(Definition: MockReportParameterDefinition): void {
+    const control = this.ReportParameterForm.get(Definition.ParameterName);
+    if (!control || control.disabled) return;
+    const current = Array.isArray(control.value) ? control.value.map(String) : [];
+    const values = new Set([...current, ...this.GetFilteredLovOptions(Definition).map((option) => option.Value)]);
+    control.setValue([...values]);
     control.markAsDirty();
     control.updateValueAndValidity();
   }
@@ -542,11 +623,7 @@ export class ReportParameterPageComponent implements OnInit {
     );
     if (!Report) return;
     this.Auth.SelectReport(ReportKey);
-    const Account = this.Auth.CurrentUser?.Account;
-    if (Account) {
-      this.MockRbac.RecordReportExecution(Account, ReportKey);
-      this.RecordFavoriteUsage(Account, ReportKey);
-    }
+    this.RecordFavoriteUsage(ReportKey);
     void this.router.navigate(['/reports/preview'], {
       state: {
         ReportPreviewOrigin: 'all',
@@ -580,11 +657,8 @@ export class ReportParameterPageComponent implements OnInit {
         })),
     };
     this.LastMockExecutionParameters = this.SerializeReportParameters();
-    const Account = this.Auth.CurrentUser?.Account;
-    if (Account) {
-      this.MockRbac.RecordReportExecution(Account, Report.ReportKey);
-      this.RecordFavoriteUsage(Account, Report.ReportKey);
-    }
+    this.SaveParameterPreference('recent', false);
+    this.RecordFavoriteUsage(Report.ReportKey);
     void this.router.navigate(['/reports/preview'], {
       state: {
         ReportExecutionRequest: ExecutionRequest,
@@ -612,62 +686,41 @@ export class ReportParameterPageComponent implements OnInit {
   }
 
   private LoadFavoriteReports(): void {
-    const Account = this.Auth.CurrentUser?.Account;
-    if (!Account) return;
-
-    try {
-      const Stored = JSON.parse(
-        sessionStorage.getItem(this.GetFavoriteStorageKey(Account)) ?? '[]',
-      ) as unknown;
-      if (Array.isArray(Stored)) {
-        const FavoritedAt = new Date().toISOString();
-        this.FavoriteReportStates = Object.fromEntries(
-          Stored
-            .filter((Value): Value is string => typeof Value === 'string')
-            .map((ReportKey) => [
-              ReportKey,
-              { FavoritedAt, LastUsedAt: null },
-            ]),
-        );
-        this.SaveFavoriteReports(Account);
-      } else if (Stored && typeof Stored === 'object') {
-        this.FavoriteReportStates = Object.fromEntries(
-          Object.entries(Stored).flatMap(([ReportKey, Value]) => {
-            if (!Value || typeof Value !== 'object') return [];
-            const State = Value as Partial<StoredFavoriteReport>;
-            return typeof State.FavoritedAt === 'string'
-              ? [[ReportKey, {
-                  FavoritedAt: State.FavoritedAt,
-                  LastUsedAt: typeof State.LastUsedAt === 'string' ? State.LastUsedAt : null,
-                }]]
-              : [];
-          }),
-        );
-      }
-    } catch {
-      this.FavoriteReportStates = {};
-    }
+    if (!this.Auth.IsFrontOffice) return;
+    this.Reports.GetFavoriteReports().subscribe({
+      next: (favorites) => this.FavoriteReportStates = Object.fromEntries(favorites.map((favorite) => [
+        String(favorite.reportId), { FavoritedAt: favorite.favoritedAt, LastUsedAt: favorite.lastUsedAt },
+      ])),
+      error: () => this.FavoriteReportStates = {},
+    });
   }
 
-  private RecordFavoriteUsage(Account: string, ReportKey: MockReportKey): void {
-    const Favorite = this.FavoriteReportStates[ReportKey];
-    if (!Favorite) return;
+  private RecordFavoriteUsage(ReportKey: MockReportKey): void {
+    const ReportId = Number(ReportKey);
+    if (!this.FavoriteReportStates[ReportKey] || !Number.isFinite(ReportId)) return;
     this.FavoriteReportStates[ReportKey] = {
-      ...Favorite,
-      LastUsedAt: new Date().toISOString(),
+      ...this.FavoriteReportStates[ReportKey], LastUsedAt: new Date().toISOString(),
     };
-    this.SaveFavoriteReports(Account);
+    this.Reports.RecordFavoriteReportUsage(ReportId).subscribe();
   }
 
-  private SaveFavoriteReports(Account: string): void {
-    sessionStorage.setItem(
-      this.GetFavoriteStorageKey(Account),
-      JSON.stringify(this.FavoriteReportStates),
-    );
+  private CloneParameterValue(Value: unknown): MockParameterFormValue {
+    return JSON.parse(JSON.stringify(Value ?? null)) as MockParameterFormValue;
   }
 
-  private GetFavoriteStorageKey(Account: string): string {
-    return `crystal-report-favorites:${Account}`;
+  private SaveParameterPreference(kind: 'favorite' | 'recent', showSuccess: boolean): void {
+    const reportId = this.Auth.SelectedReport?.ReportId;
+    if (!reportId) return;
+    const values = Object.fromEntries(this.VisibleReportParameters.map((definition) => [
+      definition.ParameterName, this.CloneParameterValue(this.ReportParameterForm.get(definition.ParameterName)?.value),
+    ]));
+    this.Reports.SaveParameterPreference(reportId, kind, JSON.stringify(values)).subscribe({
+      next: (preference) => {
+        this.DatabaseParameterPreferences[kind] = { Values: values, SavedAt: preference.updatedAt };
+        if (showSuccess) this.Notifications.ShowSuccess('已儲存為常用報表條件。');
+      },
+      error: () => this.ParameterReportSelectionNotice = '無法儲存報表條件，請稍後再試。',
+    });
   }
 
   private LoadReportParameterForm(): void {
@@ -683,6 +736,7 @@ export class ReportParameterPageComponent implements OnInit {
       next: (Definitions) => {
         this.ReportParameterDefinitions = Definitions;
         this.ReportParameterForm = this.BuildParameterForm(this.VisibleReportParameters);
+        this.LoadParameterPreferences();
         this.IsLoadingReportParameters = false;
       },
       error: () => {
@@ -696,6 +750,17 @@ export class ReportParameterPageComponent implements OnInit {
       (Key) => delete this.ParameterRangeErrors[Key],
     );
     this.LastMockExecutionParameters = null;
+  }
+
+  private LoadParameterPreferences(): void {
+    const reportId = this.Auth.SelectedReport?.ReportId;
+    if (!reportId) return;
+    (['favorite', 'recent'] as const).forEach((type) => this.Reports.GetParameterPreference(reportId, type).subscribe({
+      next: (preference) => {
+        try { this.DatabaseParameterPreferences[type] = { Values: JSON.parse(preference.parametersJson), SavedAt: preference.updatedAt }; }
+        catch { /* Ignore invalid stored data. */ }
+      },
+    }));
   }
 
   private BuildParameterForm(

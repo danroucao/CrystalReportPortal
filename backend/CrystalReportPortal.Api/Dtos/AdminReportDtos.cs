@@ -19,7 +19,7 @@ public class AdminReportDto
     public int CategoryId { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public long? DataSourceId { get; set; }
-    public string DataSourceName { get; set; } = string.Empty;
+    public string? DataSourceName { get; set; }
     public string CredentialType { get; set; } = string.Empty;
     public bool IsEnabled { get; set; }
     public string ConfigurationStatus { get; set; } = "Draft";

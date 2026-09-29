@@ -80,7 +80,7 @@
             *ngFor="let Item of RecentCenterItems"
             type="button"
             class="notification-preview"
-            (click)="OpenNotificationCenter(NotificationPopoverTab)"
+            (click)="OpenNotificationDetail(Item)"
           >
             <strong>{{ Item.Title }}</strong
             ><span>{{ Item.Summary }}</span>
@@ -220,29 +220,49 @@
       *ngIf="Page === 'NotificationCenter'"
       class="content-card notification-center-page"
     >
-      <div
-        class="notification-center-tabs"
-        role="tablist"
-        aria-label="通知中心頁籤"
-      >
-        <button
-          type="button"
-          [class.is-active]="NotificationCenterTab === 'All'"
-          (click)="NotificationCenterTab = 'All'"
+      <div class="notification-center-toolbar">
+        <div
+          class="notification-center-tabs"
+          role="tablist"
+          aria-label="通知中心頁籤"
         >
-          全部（{{ CurrentNotifications.length }}）
-        </button>
-        <button
-          type="button"
-          [class.is-active]="NotificationCenterTab === 'Unread'"
-          (click)="NotificationCenterTab = 'Unread'"
-        >
-          未讀（{{
-            NotificationCenter.GetUnreadNotificationCount(
-              CurrentNotificationAccount
-            )
-          }}）
-        </button>
+          <button
+            type="button"
+            [class.is-active]="NotificationCenterTab === 'All'"
+            (click)="NotificationCenterTab = 'All'"
+          >
+            全部（{{ CurrentNotifications.length }}）
+          </button>
+          <button
+            type="button"
+            [class.is-active]="NotificationCenterTab === 'Unread'"
+            (click)="NotificationCenterTab = 'Unread'"
+          >
+            未讀（{{
+              NotificationCenter.GetUnreadNotificationCount(
+                CurrentNotificationAccount
+              )
+            }}）
+          </button>
+        </div>
+        <div class="notification-center-actions">
+          <button
+            type="button"
+            class="tertiary-button"
+            [disabled]="!NotificationBadgeCount"
+            (click)="MarkAllCenterNotificationsRead()"
+          >
+            全部標示為已讀
+          </button>
+          <button
+            type="button"
+            class="tertiary-button"
+            [disabled]="!HasReadCenterNotifications"
+            (click)="ClearReadCenterNotifications()"
+          >
+            清除已讀
+          </button>
+        </div>
       </div>
 
       <ng-container
@@ -250,11 +270,12 @@
           NotificationCenterTab === 'All' || NotificationCenterTab === 'Unread'
         "
       >
-        <article
+        <button
           *ngFor="let Item of DisplayedNotifications"
+          type="button"
           class="center-item"
           [class.is-unread]="!Item.ReadAt"
-          (click)="MarkCenterNotificationRead(Item.Id)"
+          (click)="OpenNotificationDetail(Item)"
         >
           <div>
             <h2>{{ Item.Title }}</h2>
@@ -262,7 +283,7 @@
             <p class="muted">{{ Item.Detail }}</p>
           </div>
           <time>{{ Item.CreatedAt | date: "short" }}</time>
-        </article>
+        </button>
         <section
           *ngIf="!DisplayedNotifications.length"
           class="notification-empty-state"
@@ -675,25 +696,27 @@
                 </td>
                 <td>{{ Connection.isEnabled ? "啟用" : "停用" }}</td>
                 <td>
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    [disabled]="TestingDataSourceId !== null"
-                    (click)="TestDataSourceConnection(Connection.dataSourceId)"
-                  >
-                    {{
-                      TestingDataSourceId === Connection.dataSourceId
-                        ? "測試中…"
-                        : "測試連線"
-                    }}
-                  </button>
-                  <button
-                    type="button"
-                    class="secondary-button"
-                    (click)="OpenEditDatabaseConnection(Connection.dataSourceId + '')"
-                  >
-                    編輯
-                  </button>
+                  <div class="database-connection-actions">
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      [disabled]="TestingDataSourceId !== null"
+                      (click)="TestDataSourceConnection(Connection.dataSourceId)"
+                    >
+                      {{
+                        TestingDataSourceId === Connection.dataSourceId
+                          ? "測試中…"
+                          : "測試連線"
+                      }}
+                    </button>
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      (click)="OpenEditDatabaseConnection(Connection.dataSourceId + '')"
+                    >
+                      編輯
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -715,13 +738,9 @@
             }}
           </strong>
           <span *ngIf="DataSourceTestResult as Result">
-            {{ Result.server }} / {{ Result.database }}
-            <ng-container *ngIf="Result.elapsedMilliseconds >= 0">
-              （{{ Result.elapsedMilliseconds }} ms）
-            </ng-container>
-            <span *ngIf="Result.message">：{{ Result.message }}</span>
+            <ng-container *ngIf="Result.elapsedMilliseconds >= 0">（{{ Result.elapsedMilliseconds }} ms）</ng-container>
           </span>
-          <span *ngIf="DataSourceTestError">{{ DataSourceTestError }}</span>
+          <span *ngIf="DataSourceTestError">請檢查連線設定、帳號密碼與 SQL Server 狀態後再試。</span>
         </div>
         <section
           *ngIf="IsDatabaseConnectionEditorOpen"
@@ -858,7 +877,11 @@
             <p *ngIf="EditingDatabaseConnectionKey" class="muted">
               若不修改密碼請保持空白。
             </p>
-            <div class="modal-actions">
+            <p *ngIf="DatabaseConnectionTestNotice" class="mock-notice" role="status">{{ DatabaseConnectionTestNotice }}</p>
+            <div class="modal-actions database-connection-modal-actions">
+              <button type="button" class="secondary-button" [disabled]="IsTestingDatabaseConnectionDraft" (click)="TestDatabaseConnectionDraft()">
+                {{ IsTestingDatabaseConnectionDraft ? '測試中…' : '測試連線' }}
+              </button>
               <button
                 type="button"
                 class="primary-button"
@@ -903,6 +926,43 @@
       <app-operation-log-page *ngIf="Page === 'OperationLog'" />
     </section>
   </main>
+  <section
+    *ngIf="SelectedCenterNotification as Notification"
+    class="modal-backdrop notification-detail-backdrop"
+    role="presentation"
+    (click)="CloseNotificationDetail()"
+  >
+    <section
+      #notificationDetailDialog
+      class="notification-detail-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="notification-detail-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="notification-popover-heading">
+        <p class="notification-detail-eyebrow">通知詳情</p>
+        <button
+          #notificationDetailCloseButton
+          type="button"
+          class="notification-close"
+          aria-label="關閉通知詳情"
+          (click)="CloseNotificationDetail()"
+        >
+          ×
+        </button>
+      </div>
+      <h2 id="notification-detail-title">{{ Notification.Title }}</h2>
+      <p class="notification-detail-summary">{{ Notification.Summary }}</p>
+      <time class="notification-detail-time">{{ Notification.CreatedAt | date: "yyyy/MM/dd HH:mm" }}</time>
+      <p class="notification-detail-content">{{ Notification.Detail }}</p>
+      <div class="notification-detail-actions">
+        <button type="button" class="primary-button" (click)="CloseNotificationDetail()">
+          關閉
+        </button>
+      </div>
+    </section>
+  </section>
   <section
     *ngIf="Auth.RequiresBackOfficeIdentityBinding"
     class="modal-backdrop back-office-binding-backdrop"

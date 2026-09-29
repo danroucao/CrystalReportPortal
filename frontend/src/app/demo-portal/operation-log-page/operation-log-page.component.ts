@@ -70,6 +70,7 @@ export class OperationLogPageComponent implements OnInit {
   ApiLogs: MockAuditLogEntry[] = [];
   ApiTotalCount = 0;
   ApiLoadError = '';
+  OperationLogDateError = '';
   IsApiLoading = false;
 
   ngOnInit(): void {
@@ -78,6 +79,11 @@ export class OperationLogPageComponent implements OnInit {
 
   LoadOperationLogs(): void {
     if (!this.CanAccessOperationLog) return;
+    this.OperationLogDateError = this.ValidateOperationLogDates();
+    if (this.OperationLogDateError) {
+      this.IsApiLoading = false;
+      return;
+    }
     this.IsApiLoading = true;
     this.ApiLoadError = '';
     this.AuditLogApi.getLogs({
@@ -123,6 +129,20 @@ export class OperationLogPageComponent implements OnInit {
 
   get OperationLogMaximumDate(): string {
     return this.ToDateInputValue(new Date());
+  }
+
+  get OperationLogStartMaximumDate(): string {
+    return this.OperationLogEndDate && this.OperationLogEndDate < this.OperationLogMaximumDate
+      ? this.OperationLogEndDate
+      : this.OperationLogMaximumDate;
+  }
+
+  get OperationLogEndMinimumDate(): string | null {
+    const minimumDate = this.OperationLogMinimumDate;
+    return this.OperationLogStartDate &&
+      (!minimumDate || this.OperationLogStartDate > minimumDate)
+      ? this.OperationLogStartDate
+      : minimumDate;
   }
 
   get FilteredOperationLogs(): readonly MockAuditLogEntry[] {
@@ -214,20 +234,8 @@ export class OperationLogPageComponent implements OnInit {
 
   OnOperationLogDateChange(): void {
     if (!this.CanAccessOperationLog) return;
-    const minimumDate = this.OperationLogMinimumDate;
-    if (minimumDate && this.OperationLogStartDate < minimumDate) {
-      this.OperationLogStartDate = minimumDate;
-    }
-    if (this.OperationLogEndDate > this.OperationLogMaximumDate) {
-      this.OperationLogEndDate = this.OperationLogMaximumDate;
-    }
-    if (
-      this.OperationLogStartDate &&
-      this.OperationLogEndDate &&
-      this.OperationLogEndDate < this.OperationLogStartDate
-    ) {
-      this.OperationLogEndDate = this.OperationLogStartDate;
-    }
+    this.OperationLogDateError = this.ValidateOperationLogDates();
+    if (this.OperationLogDateError) return;
     this.OnOperationLogFilterChange();
   }
 
@@ -336,6 +344,24 @@ export class OperationLogPageComponent implements OnInit {
     }).formatToParts(new Date(this.NormalizeUtcTimestamp(value)));
     const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
     return `${values['year']}-${values['month']}-${values['day']}`;
+  }
+
+  private ValidateOperationLogDates(): string {
+    const minimumDate = this.OperationLogMinimumDate;
+    if (minimumDate &&
+      ((this.OperationLogStartDate && this.OperationLogStartDate < minimumDate) ||
+        (this.OperationLogEndDate && this.OperationLogEndDate < minimumDate))) {
+      return '你沒有查看 180 天前封存操作紀錄的權限。';
+    }
+    if (this.OperationLogStartDate > this.OperationLogMaximumDate ||
+      this.OperationLogEndDate > this.OperationLogMaximumDate) {
+      return '日期不得晚於今天。';
+    }
+    if (this.OperationLogStartDate && this.OperationLogEndDate &&
+      this.OperationLogStartDate > this.OperationLogEndDate) {
+      return '開始日期不得晚於結束日期。';
+    }
+    return '';
   }
 
   private GetTotalPages(ItemCount: number): number {

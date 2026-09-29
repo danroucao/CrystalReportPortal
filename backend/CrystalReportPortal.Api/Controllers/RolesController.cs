@@ -365,6 +365,23 @@ public class RolesController : ControllerBase
 
             await InvalidateRoleUsersAsync(roleId);
 
+            var recipientUserIds = await _dbContext.Users
+                .Where(user => user.IsEnabled && user.UserRoles.Any(item => item.RoleId == roleId))
+                .Select(user => user.UserId)
+                .ToListAsync();
+            foreach (var recipientUserId in recipientUserIds)
+            {
+                _dbContext.UserNotifications.Add(new UserNotification
+                {
+                    RecipientUserId = recipientUserId,
+                    Title = "角色權限定義已更新",
+                    Summary = $"角色「{role.RoleName}」的系統權限已調整。",
+                    Detail = "你的角色所包含的功能權限已更新。請重新登入，以取得最新的系統功能與報表存取權限。",
+                    TargetPath = "/reports/parameters",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
             await _dbContext.SaveChangesAsync();
         }
 

@@ -39,12 +39,12 @@ xdescribe('portal workflows after page extraction', () => {
 
     component.ToggleExportMenu();
     expect(component.IsExportMenuOpen).toBeTrue();
-    component.CloseMenuOnEscape();
+    component.CloseMenus();
     expect(component.IsExportMenuOpen).toBeFalse();
     component.TogglePrintMenu();
-    component.SelectOutputAction('BrowserPrint');
+    expect(component.IsPrintMenuOpen).toBeTrue();
+    component.CloseMenus();
     expect(component.IsPrintMenuOpen).toBeFalse();
-    expect(component.PreviewNotice).toBeTruthy();
   });
 
   it('does not prefill a database password when an administrator edits a connection', () => {

@@ -1,5 +1,6 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 
 import { API_BASE_URL } from './api.config';
@@ -11,6 +12,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   if (!request.url.startsWith(API_BASE_URL)) return next(request);
 
   const Auth = inject(AuthService);
+  const RouterService = inject(Router);
   const IsBackOfficeRequest = request.url.includes('/backoffice');
   const IsUnsafeBackOfficeRequest = IsBackOfficeRequest &&
     !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(request.method);
@@ -39,6 +41,10 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         !IsLoginRequest
       ) {
         Auth.ClearSession();
+        void RouterService.navigate(['/login'], {
+          queryParams: { state: 'session-expired' },
+          replaceUrl: true,
+        });
       }
 
       return throwError(() => Error);

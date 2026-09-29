@@ -2,12 +2,11 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin, tap } from 'rxjs';
 
 import { AuthService } from '../../services/auth.service';
 import { ReportExecutionRequest } from '../../services/report-api.models';
-import { ReportService } from '../../services/report.service';
+import { ReportPreviewManifest, ReportService } from '../../services/report.service';
 
 export type ReportPreviewOrigin = 'all' | 'favorites';
 
@@ -20,258 +19,106 @@ export interface ParameterReportSearchState {
   readonly EndDate: string;
 }
 
-interface ExportOption {
-  readonly Label: string;
-  readonly FormatKey: string;
-  readonly Enabled: boolean;
-}
-
-type OutputAction = 'BrowserPrint';
-
-/**
- * The report-preview content extracted from DemoPortalComponent.
- *
- * The containing portal still owns the route guard, page heading, navigation,
- * and global toast rendering. This component owns only preview-specific state.
- */
 @Component({
-  selector: 'app-report-preview-page',
-  standalone: true,
-  imports: [CommonModule],
-  templateUrl: './report-preview-page.component.html',
-  styleUrl: './report-preview-page.component.scss',
+  selector: 'app-report-preview-page', standalone: true, imports: [CommonModule],
+  templateUrl: './report-preview-page.component.html', styleUrl: './report-preview-page.component.scss',
 })
 export class ReportPreviewPageComponent implements OnInit, OnDestroy {
   readonly Auth = inject(AuthService);
   private readonly reports = inject(ReportService);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly router = inject(Router);
-
   IsExportMenuOpen = false;
   IsPrintMenuOpen = false;
   PreviewNotice = '';
-  PreviewUrl: SafeResourceUrl | null = null;
+  PreviewPageUrls: string[] = [];
+  PreviewPageCount = 0;
+  LoadedPreviewPageCount = 0;
+  CurrentPreviewPageIndex = 0;
+  PreviewZoom = 100;
   IsPreviewLoading = false;
   PreviewError = '';
-  private PreviewObjectUrl: string | null = null;
-  private PreviewBlob: Blob | null = null;
   private CurrentExecutionRequest: ReportExecutionRequest | null = null;
+  private ReturnToParameterSearchState: ParameterReportSearchState | null = null;
   ReportPreviewOrigin: ReportPreviewOrigin = 'all';
-  private ReturnToParameterSearchState: ParameterReportSearchState | null =
-    null;
 
-  readonly ExportOptions: readonly ExportOption[] = [
-    { Label: 'PDF', FormatKey: 'Pdf', Enabled: true },
-  ];
-
+  get HasPreview(): boolean { return this.PreviewPageUrls.length > 0; }
+  get CurrentPreviewPageUrl(): string | null { return this.PreviewPageUrls[this.CurrentPreviewPageIndex] ?? null; }
+  get PreviewProgressLabel(): string { return `${this.LoadedPreviewPageCount} / ${this.PreviewPageCount} 頁`; }
   get ReportPreviewReturnLabel(): string {
-    return this.ReportPreviewOrigin === 'favorites'
-      ? '返回我的收藏'
-      : '返回所有報表';
+    return this.ReportPreviewOrigin === 'favorites' ? '返回我的常用報表' : '返回所有報表';
   }
 
   ngOnInit(): void {
     if (!this.Auth.SelectedReport) {
-      void this.router.navigate(['/reports/parameters'], {
-        state: { ReportSelectionRequired: true },
-      });
+      void this.router.navigate(['/reports/parameters'], { state: { ReportSelectionRequired: true } });
       return;
     }
-
-    const NavigationState =
-      this.router.getCurrentNavigation()?.extras.state ?? history.state;
-    this.ReportPreviewOrigin = this.ToReportPreviewOrigin(
-      NavigationState?.['ReportPreviewOrigin'],
-    );
-    this.ReturnToParameterSearchState = this.ToParameterSearchState(
-      NavigationState?.['ParameterSearchState'],
-    );
-    const ExecutionRequest = this.ToExecutionRequest(
-      NavigationState?.['ReportExecutionRequest'],
-    );
-    this.CurrentExecutionRequest = ExecutionRequest;
-    this.LoadPreview(ExecutionRequest);
+    const state = this.router.getCurrentNavigation()?.extras.state ?? history.state;
+    this.ReportPreviewOrigin = state?.['ReportPreviewOrigin'] === 'favorites' ? 'favorites' : 'all';
+    this.ReturnToParameterSearchState = this.ToParameterSearchState(state?.['ParameterSearchState']);
+    this.CurrentExecutionRequest = this.ToExecutionRequest(state?.['ReportExecutionRequest']);
+    this.LoadPreview();
   }
 
-  ngOnDestroy(): void {
-    this.RevokePreviewUrl();
-  }
-
-  private LoadPreview(ExecutionRequest: ReportExecutionRequest | null): void {
-    const Report = this.Auth.SelectedReport;
-    if (!Report?.ReportId) return;
-
-    this.IsPreviewLoading = true;
-    this.PreviewError = '';
-    const PreviewRequest = ExecutionRequest
-      ? this.reports.ExecuteReport(Report.ReportId, ExecutionRequest)
-      : this.reports.GetReportPreview(Report.ReportId);
-    PreviewRequest
-      .pipe(finalize(() => (this.IsPreviewLoading = false)))
-      .subscribe({
-        next: (Pdf) => {
-          this.RevokePreviewUrl();
-          this.PreviewBlob = Pdf;
-          this.PreviewObjectUrl = URL.createObjectURL(Pdf);
-          this.PreviewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-            this.PreviewObjectUrl,
-          );
-        },
-        error: (error: unknown) => {
-          this.RevokePreviewUrl();
-          this.PreviewBlob = null;
-          this.PreviewUrl = null;
-          void this.SetPreviewError(error);
-        },
-      });
-  }
-
-  private async SetPreviewError(error: unknown): Promise<void> {
-    const fallback = '目前無法產生報表預覽，請稍後再試。';
-    if (!(error instanceof HttpErrorResponse)) {
-      this.PreviewError = fallback;
-      return;
-    }
-
-    try {
-      const body = error.error instanceof Blob
-        ? await error.error.text()
-        : JSON.stringify(error.error ?? {});
-      if (body.trim()) {
-        try {
-          const payload = JSON.parse(body) as {
-            message?: string; detail?: string; categoryName?: string; tokenRoleCodes?: string[];
-          };
-          const accessContext = payload.categoryName || payload.tokenRoleCodes?.length
-            ? ` 分類：${payload.categoryName ?? '未知'}；目前角色：${payload.tokenRoleCodes?.join(', ') || '無'}。`
-            : '';
-          this.PreviewError = (payload.detail || payload.message || `預覽失敗（HTTP ${error.status}）。`) + accessContext;
-        } catch {
-          this.PreviewError = `預覽失敗（HTTP ${error.status}）：${body.slice(0, 500)}`;
-        }
-        return;
-      }
-      this.PreviewError = `預覽失敗（HTTP ${error.status} ${error.statusText || 'Unknown'}）。`;
-    } catch {
-      this.PreviewError = `預覽失敗（HTTP ${error.status || 0}）。${fallback}`;
-    }
-  }
-
-  RetryPreview(): void {
-    if (this.IsPreviewLoading) return;
-    this.LoadPreview(this.CurrentExecutionRequest);
-  }
-
-  private ToExecutionRequest(State: unknown): ReportExecutionRequest | null {
-    if (!State || typeof State !== 'object') return null;
-    const Value = State as Partial<ReportExecutionRequest>;
-    if (!Array.isArray(Value.parameters)) return null;
-    const Parameters = Value.parameters.filter(
-      (Parameter): Parameter is { parameterId: number; values: readonly string[] } =>
-        typeof Parameter?.parameterId === 'number' &&
-        Array.isArray(Parameter.values),
-    );
-    return Parameters.length === Value.parameters.length
-      ? { parameters: Parameters }
-      : null;
-  }
-
-  private RevokePreviewUrl(): void {
-    if (this.PreviewObjectUrl) URL.revokeObjectURL(this.PreviewObjectUrl);
-    this.PreviewObjectUrl = null;
-    this.PreviewBlob = null;
-  }
+  ngOnDestroy(): void { this.ClearPreviewPages(); }
+  RetryPreview(): void { if (!this.IsPreviewLoading) this.LoadPreview(); }
 
   ToggleExportMenu(): void {
-    if (!this.Auth.SelectedReportCategoryPermission.CanExport) {
-      this.ShowPermissionNotice('匯出');
-      return;
-    }
+    if (!this.Auth.SelectedReportCategoryPermission.CanExport) return;
     this.IsPrintMenuOpen = false;
     this.IsExportMenuOpen = !this.IsExportMenuOpen;
   }
 
-  SelectExportOption(Option: ExportOption): void {
-    if (
-      !this.Auth.SelectedReportCategoryPermission.CanExport ||
-      !Option.Enabled ||
-      !this.ExportOptions.includes(Option)
-    ) {
-      this.ShowPermissionNotice('匯出');
-      return;
-    }
-    this.IsExportMenuOpen = false;
-    if (Option.FormatKey !== 'Pdf' || !this.PreviewBlob) {
-      this.PreviewNotice = `${Option.Label} 匯出目前尚未支援。`;
-      return;
-    }
-
-    const DownloadUrl = URL.createObjectURL(this.PreviewBlob);
-    const Link = document.createElement('a');
-    Link.href = DownloadUrl;
-    Link.download = `${this.Auth.SelectedReport?.ReportName ?? 'report'}.pdf`;
-    Link.click();
-    URL.revokeObjectURL(DownloadUrl);
-    this.PreviewNotice = 'PDF 已開始下載。';
-  }
-
-  DownloadPdf(): void {
-    if (!this.PreviewBlob) {
-      this.PreviewNotice = '目前沒有可下載的 PDF。';
-      return;
-    }
-
-    const downloadUrl = URL.createObjectURL(this.PreviewBlob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `${this.Auth.SelectedReport?.ReportName ?? 'report'}.pdf`;
-    link.click();
-    URL.revokeObjectURL(downloadUrl);
-    this.PreviewNotice = 'PDF 已開始下載。';
-  }
-
-  OpenPdfPreview(): void {
-    if (!this.PreviewObjectUrl) {
-      this.PreviewNotice = '目前沒有可開啟的 PDF。';
-      return;
-    }
-
-    const previewWindow = window.open(this.PreviewObjectUrl, '_blank');
-    this.PreviewNotice = previewWindow
-      ? '已在新視窗開啟 PDF 預覽。'
-      : '瀏覽器封鎖了新視窗，請改用下載 PDF。';
-  }
-
   TogglePrintMenu(): void {
-    if (!this.Auth.SelectedReportCategoryPermission.CanPrint) {
-      this.ShowPermissionNotice('列印');
-      return;
-    }
+    if (!this.Auth.SelectedReportCategoryPermission.CanPrint) return;
     this.IsExportMenuOpen = false;
     this.IsPrintMenuOpen = !this.IsPrintMenuOpen;
   }
 
-  SelectOutputAction(ActionName: OutputAction): void {
-    if (!this.Auth.SelectedReportCategoryPermission.CanPrint) {
-      this.ShowPermissionNotice('列印');
-      return;
-    }
-    this.IsPrintMenuOpen = false;
-    if (!this.PreviewObjectUrl) {
-      this.PreviewNotice = '目前沒有可列印的 PDF 預覽。';
-      return;
-    }
+  OnExportSelection(value: string): void {
+    if (value === 'pdf') this.DownloadPdf();
+  }
 
-    const PrintWindow = window.open(this.PreviewObjectUrl, '_blank');
-    if (!PrintWindow) {
-      this.PreviewNotice = '瀏覽器封鎖了列印視窗，請允許彈出視窗後再試。';
-      return;
-    }
+  OnPrintSelection(value: string): void {
+    if (value === 'print') this.PrintPdf();
+  }
 
-    PrintWindow.addEventListener('load', () => PrintWindow.print(), {
-      once: true,
+  DownloadPdf(): void {
+    if (!this.Auth.SelectedReportCategoryPermission.CanExport) return;
+    this.IsExportMenuOpen = false;
+    this.GetOutputPdf().subscribe({
+      next: (pdf) => {
+        const url = URL.createObjectURL(pdf);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${this.Auth.SelectedReport?.ReportName ?? 'report'}.pdf`;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.PreviewNotice = 'PDF 已開始下載。';
+      },
+      error: (error: unknown) => void this.SetPreviewError(error),
     });
-    this.PreviewNotice = '已開啟列印視窗。';
+  }
+
+  PrintPdf(): void {
+    if (!this.Auth.SelectedReportCategoryPermission.CanPrint) return;
+    this.IsPrintMenuOpen = false;
+    this.GetPrintPdf().subscribe({
+      next: (pdf) => {
+        const url = URL.createObjectURL(pdf);
+        const printWindow = window.open(url, '_blank');
+        if (!printWindow) {
+          URL.revokeObjectURL(url);
+          this.PreviewNotice = '無法開啟列印視窗，請允許瀏覽器彈出式視窗後再試。';
+          return;
+        }
+        printWindow.addEventListener('load', () => {
+          printWindow.print();
+          window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+        }, { once: true });
+      },
+      error: (error: unknown) => void this.SetPreviewError(error),
+    });
   }
 
   ReturnToReportList(): void {
@@ -280,65 +127,106 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
       return;
     }
     void this.router.navigate(['/reports/parameters'], {
-      state: this.ReturnToParameterSearchState
-        ? { ParameterSearchState: this.ReturnToParameterSearchState }
-        : undefined,
+      state: this.ReturnToParameterSearchState ? { ParameterSearchState: this.ReturnToParameterSearchState } : undefined,
     });
   }
 
   @HostListener('document:keydown.escape')
-  CloseMenuOnEscape(): void {
-    if (this.IsExportMenuOpen) this.IsExportMenuOpen = false;
-    else if (this.IsPrintMenuOpen) this.IsPrintMenuOpen = false;
+  CloseMenus(): void { this.IsExportMenuOpen = false; this.IsPrintMenuOpen = false; }
+
+  GoToPreviousPreviewPage(): void {
+    this.CurrentPreviewPageIndex = Math.max(0, this.CurrentPreviewPageIndex - 1);
   }
 
-  @HostListener('document:click', ['$event'])
-  CloseMenuOnOutsideClick(Event: MouseEvent): void {
-    const Target = Event.target;
-    if (!(Target instanceof Element)) return;
-    if (this.IsExportMenuOpen && !Target.closest('.export-dropdown')) {
-      this.IsExportMenuOpen = false;
-    }
-    if (this.IsPrintMenuOpen && !Target.closest('.print-dropdown')) {
-      this.IsPrintMenuOpen = false;
-    }
+  GoToNextPreviewPage(): void {
+    this.CurrentPreviewPageIndex = Math.min(this.PreviewPageUrls.length - 1, this.CurrentPreviewPageIndex + 1);
   }
 
-  private ShowPermissionNotice(ActionName: string): void {
-    this.IsExportMenuOpen = false;
-    this.IsPrintMenuOpen = false;
-    this.PreviewNotice = `目前角色沒有${ActionName}權限。`;
+  ZoomPreview(change: number): void {
+    this.PreviewZoom = Math.min(175, Math.max(60, this.PreviewZoom + change));
   }
 
-  private ToReportPreviewOrigin(State: unknown): ReportPreviewOrigin {
-    return State === 'favorites' ? 'favorites' : 'all';
+  ResetPreviewZoom(): void { this.PreviewZoom = 100; }
+
+  private LoadPreview(): void {
+    const report = this.Auth.SelectedReport;
+    if (!report?.ReportId) return;
+    this.ClearPreviewPages();
+    this.PreviewError = '';
+    this.PreviewNotice = '';
+    this.IsPreviewLoading = true;
+    const request = this.CurrentExecutionRequest
+      ? this.reports.ExecuteReport(report.ReportId, this.CurrentExecutionRequest)
+      : this.reports.GetReportPreview(report.ReportId);
+    request.subscribe({
+      next: (manifest) => this.LoadPreviewPages(manifest),
+      error: (error: unknown) => { this.IsPreviewLoading = false; void this.SetPreviewError(error); },
+    });
   }
 
-  private ToParameterSearchState(
-    State: unknown,
-  ): ParameterReportSearchState | null {
-    if (!State || typeof State !== 'object') return null;
-    const Value = State as Partial<ParameterReportSearchState>;
-    if (
-      typeof Value.CategoryId !== 'string' ||
-      typeof Value.SearchText !== 'string' ||
-      (Value.SortField !== null &&
-        Value.SortField !== 'ReportName' &&
-        Value.SortField !== 'CreatedAt' &&
-        Value.SortField !== 'UpdatedAt') ||
-      (Value.SortDirection !== 'asc' && Value.SortDirection !== 'desc') ||
-      typeof Value.StartDate !== 'string' ||
-      typeof Value.EndDate !== 'string'
-    ) {
-      return null;
-    }
-    return {
-      CategoryId: Value.CategoryId,
-      SearchText: Value.SearchText,
-      SortField: Value.SortField,
-      SortDirection: Value.SortDirection,
-      StartDate: Value.StartDate,
-      EndDate: Value.EndDate,
-    };
+  private LoadPreviewPages(manifest: ReportPreviewManifest): void {
+    this.PreviewPageCount = manifest.pageCount;
+    this.LoadedPreviewPageCount = 0;
+    this.CurrentPreviewPageIndex = 0;
+    const pages = Array.from({ length: manifest.pageCount }, (_, index) =>
+      this.reports.GetPreviewPage(manifest.previewId, index + 1).pipe(
+        tap(() => this.LoadedPreviewPageCount += 1),
+      ));
+    forkJoin(pages).pipe(finalize(() => (this.IsPreviewLoading = false))).subscribe({
+      next: (images) => this.PreviewPageUrls = images.map((image) => URL.createObjectURL(image)),
+      error: (error: unknown) => void this.SetPreviewError(error),
+    });
+  }
+
+  private GetOutputPdf() {
+    const report = this.Auth.SelectedReport;
+    if (!report?.ReportId) throw new Error('No report is selected.');
+    return this.CurrentExecutionRequest
+      ? this.reports.ExportExecutedReport(report.ReportId, this.CurrentExecutionRequest)
+      : this.reports.ExportSavedDataReport(report.ReportId);
+  }
+
+  private GetPrintPdf() {
+    const report = this.Auth.SelectedReport;
+    if (!report?.ReportId) throw new Error('No report is selected.');
+    return this.CurrentExecutionRequest
+      ? this.reports.PrintExecutedReport(report.ReportId, this.CurrentExecutionRequest)
+      : this.reports.PrintSavedDataReport(report.ReportId);
+  }
+
+  private ClearPreviewPages(): void {
+    this.PreviewPageUrls.forEach((url) => URL.revokeObjectURL(url));
+    this.PreviewPageUrls = [];
+    this.PreviewPageCount = 0;
+    this.LoadedPreviewPageCount = 0;
+    this.CurrentPreviewPageIndex = 0;
+  }
+
+  private async SetPreviewError(error: unknown): Promise<void> {
+    const fallback = '目前無法產生報表預覽，請稍後再試。';
+    if (!(error instanceof HttpErrorResponse)) { this.PreviewError = fallback; return; }
+    try {
+      const body = error.error instanceof Blob ? await error.error.text() : JSON.stringify(error.error ?? {});
+      const payload = JSON.parse(body) as { message?: string; detail?: string };
+      this.PreviewError = payload.detail || payload.message || `${fallback}（HTTP ${error.status}）`;
+    } catch { this.PreviewError = `${fallback}（HTTP ${error.status}）`; }
+  }
+
+  private ToExecutionRequest(value: unknown): ReportExecutionRequest | null {
+    if (!value || typeof value !== 'object') return null;
+    const request = value as Partial<ReportExecutionRequest>;
+    if (!Array.isArray(request.parameters)) return null;
+    return request.parameters.every((item) => typeof item?.parameterId === 'number' && Array.isArray(item.values))
+      ? { parameters: request.parameters } : null;
+  }
+
+  private ToParameterSearchState(value: unknown): ParameterReportSearchState | null {
+    if (!value || typeof value !== 'object') return null;
+    const state = value as Partial<ParameterReportSearchState>;
+    return typeof state.CategoryId === 'string' && typeof state.SearchText === 'string' &&
+      typeof state.StartDate === 'string' && typeof state.EndDate === 'string' &&
+      (state.SortField === null || state.SortField === 'ReportName' || state.SortField === 'CreatedAt' || state.SortField === 'UpdatedAt') &&
+      (state.SortDirection === 'asc' || state.SortDirection === 'desc')
+      ? state as ParameterReportSearchState : null;
   }
 }

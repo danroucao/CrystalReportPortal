@@ -13,6 +13,8 @@ Run the automated setup after installing the external Windows prerequisites:
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-development.ps1
 ```
 
+The setup check also requires **Poppler** (`pdftoppm`). It is used to render a report preview as page images, so users with preview-only permission never receive the original PDF. Install Poppler for Windows and add the folder containing `pdftoppm.exe` to `PATH`; alternatively set `PdfPreview:RendererPath` to its full path in the API configuration.
+
 Use `-ValidateOnly` to check prerequisites without installing npm/NuGet packages or building projects.
 
 1. Install the SAP Crystal Reports for .NET runtime (x64) and the Crystal Reports developer components for Visual Studio/.NET Framework 4.8. The Crystal Service references the assemblies installed by these components.

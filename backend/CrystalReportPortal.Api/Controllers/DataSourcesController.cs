@@ -447,6 +447,43 @@ public class DataSourcesController : ControllerBase
         });
     }
 
+    [HttpPost("test-draft")]
+    public async Task<ActionResult<CrystalDatabaseTestResponse>> TestDraftConnection(
+        SaveManagedDataSourceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ServerHost) || request.Port is < 1 or > 65535 ||
+            string.IsNullOrWhiteSpace(request.DatabaseName))
+        {
+            return BadRequest(new CrystalDatabaseTestResponse { Success = false, Connected = false, Message = "請完整輸入連線設定。" });
+        }
+
+        var integratedSecurity = string.Equals(request.AuthenticationType, "Windows", StringComparison.OrdinalIgnoreCase);
+        if (!integratedSecurity && (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password)))
+        {
+            return BadRequest(new CrystalDatabaseTestResponse { Success = false, Connected = false, Message = "請輸入資料庫帳號與密碼。" });
+        }
+
+        var testRequest = new CrystalDatabaseTestRequest
+        {
+            Server = $"{request.ServerHost.Trim()},{request.Port}",
+            Database = request.DatabaseName.Trim(),
+            IntegratedSecurity = integratedSecurity,
+            Username = integratedSecurity ? string.Empty : request.Username!.Trim(),
+            Password = integratedSecurity ? string.Empty : request.Password!
+        };
+        try
+        {
+            var response = await _crystalProcessService.TestDatabaseConnectionAsync(testRequest);
+            return response.Success && response.Connected ? Ok(response) : BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "測試未儲存的資料來源連線時發生錯誤。");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new CrystalDatabaseTestResponse { Success = false, Connected = false, Message = "執行資料庫連線測試時發生錯誤。" });
+        }
+    }
+
     [HttpPost("{dataSourceId:long}/test")]
     public async Task<ActionResult<CrystalDatabaseTestResponse>>
         TestConnection(long dataSourceId)

@@ -51,6 +51,7 @@ if ($env:OS -ne 'Windows_NT') {
 Write-Status "Repository: $repositoryRoot"
 Require-Command 'dotnet'
 Require-Command 'npm.cmd'
+Require-Command 'pdftoppm'
 
 $dotnetSdks = & dotnet --list-sdks
 if (-not ($dotnetSdks | Where-Object { $_ -match '^10\.' })) {
@@ -64,7 +65,7 @@ if ($missingCrystalAssemblies.Count -gt 0) {
     throw "Missing SAP Crystal Reports x64 developer components: $($missingCrystalAssemblies -join ', '). Install the SAP runtime and Visual Studio/.NET Framework 4.8 developer components."
 }
 
-Write-Status '.NET 10, npm, and SAP Crystal Reports x64 checks passed.'
+Write-Status '.NET 10, npm, Poppler, and SAP Crystal Reports x64 checks passed.'
 
 $sqlServerAvailable = Test-NetConnection -ComputerName 'localhost' -Port 1433 -InformationLevel Quiet -WarningAction SilentlyContinue
 if ($sqlServerAvailable) {

@@ -42,6 +42,9 @@ public class AppDbContext : DbContext
     public DbSet<Printer> Printers => Set<Printer>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<UserReportParameterPreference> UserReportParameterPreferences => Set<UserReportParameterPreference>();
+    public DbSet<UserFavoriteReport> UserFavoriteReports => Set<UserFavoriteReport>();
 
     // =========================
     // Model Configuration
@@ -124,6 +127,9 @@ public class AppDbContext : DbContext
         ConfigureReportExecutions(modelBuilder);
         ConfigurePrinters(modelBuilder);
         ConfigureAuditLogs(modelBuilder);
+        ConfigureUserNotifications(modelBuilder);
+        ConfigureUserReportParameterPreferences(modelBuilder);
+        ConfigureUserFavoriteReports(modelBuilder);
     }
 
     // =========================================================
@@ -874,6 +880,56 @@ public class AppDbContext : DbContext
                 .WithMany(x => x.AuditLogs)
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureUserNotifications(
+        ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserNotification>(entity =>
+        {
+            entity.ToTable("UserNotifications");
+            entity.HasKey(x => x.NotificationId);
+            entity.HasIndex(x => new { x.RecipientUserId, x.ReadAt, x.CreatedAt });
+            entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Summary).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.Detail).HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(x => x.TargetPath).HasMaxLength(500);
+            entity.Property(x => x.CreatedAt).HasColumnType("datetime2").IsRequired();
+            entity.Property(x => x.ReadAt).HasColumnType("datetime2");
+            entity.HasOne(x => x.Recipient)
+                .WithMany()
+                .HasForeignKey(x => x.RecipientUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureUserReportParameterPreferences(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserReportParameterPreference>(entity =>
+        {
+            entity.ToTable("UserReportParameterPreferences");
+            entity.HasKey(x => x.PreferenceId);
+            entity.HasIndex(x => new { x.UserId, x.ReportId, x.PreferenceType }).IsUnique();
+            entity.Property(x => x.PreferenceType).HasMaxLength(20).IsRequired();
+            entity.Property(x => x.ParametersJson).HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(x => x.UpdatedAt).HasColumnType("datetime2").IsRequired();
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Report).WithMany().HasForeignKey(x => x.ReportId).OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureUserFavoriteReports(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<UserFavoriteReport>(entity =>
+        {
+            entity.ToTable("UserFavoriteReports");
+            entity.HasKey(x => x.UserFavoriteReportId);
+            entity.HasIndex(x => new { x.UserId, x.ReportId }).IsUnique();
+            entity.Property(x => x.FavoritedAt).HasColumnType("datetime2").IsRequired();
+            entity.Property(x => x.LastUsedAt).HasColumnType("datetime2");
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Report).WithMany().HasForeignKey(x => x.ReportId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 

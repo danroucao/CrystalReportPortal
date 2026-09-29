@@ -29,5 +29,7 @@ public class ReportParameterDto
 
     public bool Visible { get; set; }
 
+    public string? DefaultValue { get; set; }
+
     public int DisplayOrder { get; set; }
 }

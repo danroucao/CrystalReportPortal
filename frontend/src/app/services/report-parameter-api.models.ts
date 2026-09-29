@@ -9,6 +9,7 @@ export interface ReportParameterResponse {
   range: boolean;
   valueSource: string;
   visible: boolean;
+  defaultValue: string | null;
   displayOrder: number;
 }
 

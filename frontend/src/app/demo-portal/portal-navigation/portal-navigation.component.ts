@@ -12,7 +12,7 @@ import {
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
-import { MockNotificationCenterService } from '../../services/mock-notification-center.service';
+import { NotificationCenterService } from '../../services/notification-center.service';
 import { BoringAvatarComponent } from '../../shared/boring-avatar.component';
 
 @Component({
@@ -24,7 +24,7 @@ import { BoringAvatarComponent } from '../../shared/boring-avatar.component';
 })
 export class PortalNavigationComponent implements AfterViewChecked {
   readonly Auth = inject(AuthService);
-  readonly NotificationCenter = inject(MockNotificationCenterService);
+  readonly NotificationCenter = inject(NotificationCenterService);
 
   @Input() IsCompactLayout = false;
   @Input() IsDrawerOpen = false;

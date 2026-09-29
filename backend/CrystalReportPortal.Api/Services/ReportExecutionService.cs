@@ -15,15 +15,22 @@ public class ReportExecutionService : IReportExecutionService
     private readonly IReportService reports;
     private readonly ICredentialProtector credentials;
     private readonly ICrystalExportProcessService crystal;
+    private readonly ICrystalProcessService crystalMetadata;
 
-    public ReportExecutionService(AppDbContext db, IReportService reports, ICredentialProtector credentials, ICrystalExportProcessService crystal)
-        => (this.db, this.reports, this.credentials, this.crystal) = (db, reports, credentials, crystal);
+    public ReportExecutionService(
+        AppDbContext db,
+        IReportService reports,
+        ICredentialProtector credentials,
+        ICrystalExportProcessService crystal,
+        ICrystalProcessService crystalMetadata)
+        => (this.db, this.reports, this.credentials, this.crystal, this.crystalMetadata) =
+            (db, reports, credentials, crystal, crystalMetadata);
 
     public async Task<(Guid ExecutionId, byte[] Pdf)> ExecuteAsync(long reportId, long userId, List<string> roleCodes, ReportExecutionRequest request)
     {
         if (!await reports.CanExecuteReportAsync(reportId, roleCodes)) throw new UnauthorizedAccessException("You do not have permission to execute this report.");
 
-        var report = await db.Reports.Include(x => x.DataSource).ThenInclude(x => x.Credentials)
+        var report = await db.Reports.Include(x => x.DataSource).ThenInclude(x => x!.Credentials)
             .Include(x => x.ReportParameters).FirstOrDefaultAsync(x => x.ReportId == reportId)
             ?? throw new KeyNotFoundException("Report was not found.");
 
@@ -132,11 +139,12 @@ public class ReportExecutionService : IReportExecutionService
 
         try
         {
+            var headerReplacements = await GetHeaderTextReplacementsAsync(report);
             var pdf =
                 await crystal.ExportPdfAsync(
                     new CrystalExportProcessRequest
                     {
-                        RptPath = GetExecutableRptPath(report.RptFilePath),
+                        RptPath = report.RptFilePath,
 
                         Database = new CrystalExportDatabase
                         {
@@ -157,8 +165,8 @@ public class ReportExecutionService : IReportExecutionService
                                 password
                         },
 
-                        Parameters = exportParameters
-                        ,HeaderTextReplacements = GetHeaderTextReplacements(report)
+                        Parameters = exportParameters,
+                        HeaderTextReplacements = headerReplacements
                     });
 
             execution.Status = "Completed";
@@ -229,12 +237,13 @@ public class ReportExecutionService : IReportExecutionService
 
         try
         {
+            var headerReplacements = await GetHeaderTextReplacementsAsync(report);
             var pdf = await crystal.ExportPdfAsync(new CrystalExportProcessRequest
             {
-                RptPath = GetExecutableRptPath(report.RptFilePath),
+                RptPath = report.RptFilePath,
                 UseSavedDataOnly = true,
                 Parameters = [],
-                HeaderTextReplacements = GetHeaderTextReplacements(report)
+                HeaderTextReplacements = headerReplacements
             });
 
             execution.Status = "Completed";
@@ -274,14 +283,21 @@ public class ReportExecutionService : IReportExecutionService
         }
     }
 
-    private static Dictionary<string, string> GetHeaderTextReplacements(Report report)
+    private async Task<Dictionary<string, string>> GetHeaderTextReplacementsAsync(Report report)
     {
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    }
+        IReadOnlyList<string> detectedHeaders = [];
+        try
+        {
+            detectedHeaders = await crystalMetadata.GetHeaderTextsAsync(report.RptFilePath);
+        }
+        catch
+        {
+            // Saved custom mappings can still be applied if Crystal cannot inspect the RPT.
+        }
 
-    private static string GetExecutableRptPath(string sourceRptPath)
-    {
-        return sourceRptPath;
+        return ReportHeaderLocalization.BuildReplacements(
+            report.ColumnHeaderMappingsJson,
+            detectedHeaders);
     }
 
     private static void ValidateParameterValues(ReportParameter parameter, List<string> values)

@@ -11,7 +11,6 @@ import {
   ManagedReportCategoryOption,
   ManagedReportCategory,
   ManagedReportDataSourceOption,
-  RoleReportPermission,
   ReportColumnHeaderMapping,
 } from '../../services/managed-report-api.models';
 import { ReportService } from '../../services/report.service';
@@ -56,16 +55,12 @@ export class ManagedReportPageComponent implements OnInit {
   editorError = '';
   selectedFile: File | null = null;
   existingDraft: ManagedReport | null = null;
-  editorTab: 'basic' | 'permissions' | 'headers' = 'basic';
+  editorTab: 'basic' | 'headers' = 'basic';
   headerMappings: ReportColumnHeaderMapping[] = [];
   isHeaderMappingsLoading = false;
   isHeaderMappingsSaving = false;
   headerMappingsError = '';
   reviewReport: ManagedReport | null = null;
-  permissionReport: ManagedReport | null = null;
-  permissionRows: RoleReportPermission[] = [];
-  isPermissionsLoading = false;
-  permissionError = '';
   reportPendingDeletion: ManagedReport | null = null;
   deleteError = '';
   deleteNeedsLogin = false;
@@ -268,9 +263,6 @@ export class ManagedReportPageComponent implements OnInit {
 
   openCreate(): void {
     this.existingDraft = null;
-    this.permissionReport = null;
-    this.permissionRows = [];
-    this.permissionError = '';
     this.headerMappings = [];
     this.headerMappingsError = '';
     this.editorTab = 'basic';
@@ -282,9 +274,6 @@ export class ManagedReportPageComponent implements OnInit {
 
   openReportEditor(report: ManagedReport): void {
     this.existingDraft = report;
-    this.permissionReport = report;
-    this.permissionRows = [];
-    this.permissionError = '';
     this.headerMappings = [];
     this.headerMappingsError = '';
     this.editorTab = 'basic';
@@ -299,7 +288,6 @@ export class ManagedReportPageComponent implements OnInit {
     this.selectedFile = null;
     this.editorError = '';
     this.isEditorOpen = true;
-    this.loadReportPermissions(report);
   }
 
   openDraftUpload(report: ManagedReport): void {
@@ -310,9 +298,6 @@ export class ManagedReportPageComponent implements OnInit {
     if (this.isSaving) return;
     this.isEditorOpen = false;
     this.existingDraft = null;
-    this.permissionReport = null;
-    this.permissionRows = [];
-    this.permissionError = '';
     this.headerMappings = [];
     this.headerMappingsError = '';
     this.editorTab = 'basic';
@@ -426,8 +411,7 @@ export class ManagedReportPageComponent implements OnInit {
     this.reviewReport = null;
   }
 
-  selectEditorTab(tab: 'basic' | 'permissions' | 'headers'): void {
-    if (tab === 'permissions' && !this.existingDraft) return;
+  selectEditorTab(tab: 'basic' | 'headers'): void {
     this.editorTab = tab;
     if (tab === 'headers' && this.existingDraft) this.loadHeaderMappings(this.existingDraft);
   }
@@ -464,45 +448,6 @@ export class ManagedReportPageComponent implements OnInit {
     ).subscribe({
       next: (mappings) => (this.headerMappings = mappings.map((mapping) => ({ ...mapping }))),
       error: (error: unknown) => (this.headerMappingsError = this.errorMessage(error)),
-    });
-  }
-
-  private loadReportPermissions(report: ManagedReport): void {
-    this.permissionRows = [];
-    this.permissionError = '';
-    this.isPermissionsLoading = true;
-    this.reportsApi.GetManagedReportPermissions(report.reportId).pipe(
-      finalize(() => (this.isPermissionsLoading = false)),
-    ).subscribe({
-      next: (permissions) => {
-        this.permissionRows = permissions.map((permission) => ({ ...permission }));
-      },
-      error: (error: unknown) => (this.permissionError = this.errorMessage(error)),
-    });
-  }
-
-  closePermissions(): void {
-    if (!this.isPermissionsLoading) this.permissionReport = null;
-  }
-
-  setPermissionExecution(permission: RoleReportPermission): void {
-    if (!permission.canExecute) {
-      permission.canExport = false;
-      permission.canPrint = false;
-    }
-  }
-
-  savePermission(permission: RoleReportPermission): void {
-    this.reportsApi.UpdateManagedReportPermission(
-      permission.reportId,
-      permission.roleId,
-      permission,
-    ).subscribe({
-      next: (updated) => {
-        Object.assign(permission, updated);
-        this.notifications.ShowSuccess(`角色「${permission.roleName}」的報表權限已更新。`);
-      },
-      error: (error: unknown) => (this.permissionError = this.errorMessage(error)),
     });
   }
 

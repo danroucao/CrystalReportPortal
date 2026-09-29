@@ -395,6 +395,12 @@
           (ngSubmit)="ExecuteReport()"
           novalidate
         >
+          <div class="parameter-preset-actions">
+            <span>常用條件</span>
+            <button type="button" class="secondary-button" (click)="ApplyStoredParameterValues('favorite')" [disabled]="!HasStoredParameterValues('favorite')">套用常用</button>
+            <button type="button" class="secondary-button" (click)="ApplyStoredParameterValues('recent')" [disabled]="!HasStoredParameterValues('recent')">套用最近使用</button>
+            <button type="button" class="secondary-button" (click)="SaveFavoriteParameterValues()">儲存目前條件</button>
+          </div>
           <div class="form-grid parameter-form-fields">
             <ng-container *ngFor="let Definition of VisibleReportParameters">
               <fieldset
@@ -546,21 +552,45 @@
                 <ng-container *ngIf="Definition.AllowMultipleValues; else SingleSelectInput">
                   <div class="parameter-multiselect" role="group" [attr.aria-label]="Definition.DisplayName">
                     <div class="parameter-multiselect-actions">
-                      <span>可複選</span>
-                      <button type="button" (click)="ClearMultiSelect(Definition)" [disabled]="!(ReportParameterForm.get(Definition.ParameterName)?.value?.length)">清除</button>
+                      <span>可複選 · {{ GetMultiSelectSelectionSummary(Definition) }}</span>
+                      <div class="parameter-multiselect-action-buttons">
+                        <button type="button" (click)="SelectAllMultiSelect(Definition)" [disabled]="AreAllMultiSelectOptionsSelected(Definition)">全選</button>
+                        <button *ngIf="MultiSelectSearchTerms[Definition.ParameterName]" type="button" (click)="SelectFilteredMultiSelect(Definition)">全選搜尋結果</button>
+                        <button type="button" (click)="ClearMultiSelect(Definition)" [disabled]="!(ReportParameterForm.get(Definition.ParameterName)?.value?.length)">清除</button>
+                      </div>
                     </div>
-                    <div class="parameter-option-chips">
+                    <div class="parameter-option-search-row">
+                      <input
+                        type="search"
+                        class="parameter-option-search"
+                        [attr.aria-label]="'搜尋' + Definition.DisplayName + '選項'"
+                        [placeholder]="'搜尋' + Definition.DisplayName"
+                        [(ngModel)]="MultiSelectSearchTerms[Definition.ParameterName]"
+                        [ngModelOptions]="{ standalone: true }"
+                      />
                       <button
-                        *ngFor="let Option of GetLovOptions(Definition)"
+                        *ngIf="MultiSelectSearchTerms[Definition.ParameterName]"
                         type="button"
-                        class="parameter-option-chip"
+                        class="parameter-option-search-clear"
+                        (click)="ClearMultiSelectSearch(Definition)"
+                        [attr.aria-label]="'清除' + Definition.DisplayName + '搜尋條件'"
+                      >×</button>
+                    </div>
+                    <div class="parameter-option-list">
+                      <label
+                        *ngFor="let Option of GetFilteredLovOptions(Definition)"
+                        class="parameter-option-row"
                         [class.is-selected]="IsMultiSelectOptionSelected(Definition, Option.Value)"
-                        [attr.aria-pressed]="IsMultiSelectOptionSelected(Definition, Option.Value)"
-                        (click)="ToggleMultiSelectOption(Definition, Option.Value)"
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
-                        {{ Option.DisplayText }}
-                      </button>
+                        <input
+                          type="checkbox"
+                          [checked]="IsMultiSelectOptionSelected(Definition, Option.Value)"
+                          [disabled]="ReportParameterForm.get(Definition.ParameterName)?.disabled"
+                          (change)="ToggleMultiSelectOption(Definition, Option.Value)"
+                        />
+                        <span>{{ Option.DisplayText }}</span>
+                      </label>
+                      <p *ngIf="!GetFilteredLovOptions(Definition).length" class="parameter-option-empty">找不到符合的選項。</p>
                     </div>
                   </div>
                 </ng-container>

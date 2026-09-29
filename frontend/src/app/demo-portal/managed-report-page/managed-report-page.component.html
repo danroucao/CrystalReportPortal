@@ -60,7 +60,7 @@
           <td class="managed-report-actions">
             <div class="managed-report-action-group">
             <button
-              *ngIf="report.rptFileName?.trim() && report.dataSourceId !== null && report.configurationStatus === 'PendingConfiguration' && Auth.HasPermission('Report.SetParameters')"
+              *ngIf="report.rptFileName.trim() && report.dataSourceId !== null && report.configurationStatus === 'PendingConfiguration' && Auth.HasPermission('Report.SetParameters')"
               type="button"
               class="table-icon-button parameter-icon-button"
               [attr.aria-label]="'設定參數 ' + report.reportName"
@@ -70,7 +70,7 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" /><path d="m16 18 3 3 4-5" /></svg>
             </button>
             <button
-              *ngIf="report.rptFileName?.trim() && (report.configurationStatus === 'PendingReview' || (report.dataSourceId === null && report.configurationStatus === 'PendingConfiguration')) && Auth.HasPermission('Report.Maintain')"
+              *ngIf="report.rptFileName.trim() && (report.configurationStatus === 'PendingReview' || (report.dataSourceId === null && report.configurationStatus === 'PendingConfiguration')) && Auth.HasPermission('Report.Maintain')"
               type="button"
               class="table-icon-button preview-icon-button"
               [attr.aria-label]="'測試預覽 ' + report.reportName"
@@ -192,34 +192,6 @@
   </section>
 </section>
 
-<section *ngIf="permissionReport && !isEditorOpen" class="modal-backdrop" (click)="closePermissions()">
-  <section class="edit-user-modal managed-report-permission-modal" role="dialog" aria-modal="true"
-    aria-labelledby="managed-report-permission-title" (click)="$event.stopPropagation()">
-    <div class="modal-heading">
-      <h2 id="managed-report-permission-title">設定報表權限：{{ permissionReport.reportName }}</h2>
-      <button type="button" class="modal-close-button" aria-label="關閉報表權限視窗" (click)="closePermissions()">×</button>
-    </div>
-    <p class="muted">只有同時具備「可執行」與「可匯出」的角色，才能產生 PDF。</p>
-    <p *ngIf="permissionError" class="field-error" role="alert">{{ permissionError }}</p>
-    <p *ngIf="isPermissionsLoading" class="managed-report-state" role="status">載入角色權限中…</p>
-    <div *ngIf="!isPermissionsLoading" class="table-scroll">
-      <table class="report-management-table">
-        <thead><tr><th>角色</th><th>可執行</th><th>可匯出</th><th>可列印</th><th>操作</th></tr></thead>
-        <tbody>
-          <tr *ngFor="let permission of permissionRows">
-            <td><strong>{{ permission.roleName }}</strong><small>{{ permission.roleCode }}</small></td>
-            <td><input type="checkbox" [(ngModel)]="permission.canExecute" /></td>
-            <td><input type="checkbox" [(ngModel)]="permission.canExport" /></td>
-            <td><input type="checkbox" [(ngModel)]="permission.canPrint" /></td>
-            <td><button type="button" class="primary-button" (click)="savePermission(permission)">保存</button></td>
-          </tr>
-          <tr *ngIf="!permissionRows.length"><td colspan="5" class="managed-report-state">目前沒有可設定的啟用角色。</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-</section>
-
 <app-managed-report-review-dialog
   *ngIf="reviewReport"
   [report]="reviewReport"
@@ -235,7 +207,7 @@
     </div>
     <nav *ngIf="existingDraft" class="managed-report-editor-tabs" aria-label="編輯報表頁籤">
       <button type="button" [class.is-active]="editorTab === 'basic'" (click)="selectEditorTab('basic')">基本資訊</button>
-      <button type="button" [class.is-active]="editorTab === 'permissions'" (click)="selectEditorTab('permissions')">報表權限</button>
+      <button type="button" [class.is-active]="editorTab === 'headers'" (click)="selectEditorTab('headers')">欄位中文名稱</button>
     </nav>
 
     <form *ngIf="editorTab === 'basic'" class="managed-report-form" (ngSubmit)="save()" novalidate>
@@ -265,34 +237,10 @@
       </div>
     </form>
 
-    <section *ngIf="editorTab === 'permissions' && permissionReport" class="managed-report-permission-panel" aria-live="polite">
-      <div class="managed-report-permission-intro">
-        <h3>{{ permissionReport.categoryName }}分類權限</h3>
-        <p>此報表的執行、匯出與列印權限依所屬分類設定；儲存後會套用至同分類的所有報表。未勾選「可執行」時，匯出與列印會一併停用。</p>
-      </div>
-      <p *ngIf="permissionError" class="field-error" role="alert">{{ permissionError }}</p>
-      <p *ngIf="isPermissionsLoading" class="managed-report-state" role="status">正在載入角色權限…</p>
-      <div *ngIf="!isPermissionsLoading" class="table-scroll">
-        <table class="report-management-table managed-report-permission-table">
-          <thead><tr><th>角色</th><th>可執行</th><th>可匯出</th><th>可列印</th><th>操作</th></tr></thead>
-          <tbody>
-            <tr *ngFor="let permission of permissionRows">
-              <td><strong>{{ permission.roleName }}</strong><small>{{ permission.roleCode }}</small></td>
-              <td><input type="checkbox" [(ngModel)]="permission.canExecute" (ngModelChange)="setPermissionExecution(permission)" [ngModelOptions]="{ standalone: true }" /></td>
-              <td><input type="checkbox" [(ngModel)]="permission.canExport" [disabled]="!permission.canExecute" [ngModelOptions]="{ standalone: true }" /></td>
-              <td><input type="checkbox" [(ngModel)]="permission.canPrint" [disabled]="!permission.canExecute" [ngModelOptions]="{ standalone: true }" /></td>
-              <td><button type="button" class="secondary-button" (click)="savePermission(permission)">儲存</button></td>
-            </tr>
-            <tr *ngIf="!permissionRows.length"><td colspan="5" class="managed-report-state">目前沒有可設定的啟用角色。</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
     <section *ngIf="editorTab === 'headers' && existingDraft" class="managed-report-permission-panel" aria-live="polite">
       <div class="managed-report-permission-intro">
         <h3>欄位中文名稱</h3>
-        <p>系統會偵測 RPT 的文字、欄位標題及 Title 公式。填入中文名稱後，使用者執行或匯出 PDF 時會自動套用；Saved Data 報表同樣支援，原始 RPT 檔不會被修改。</p>
+        <p>系統會偵測 RPT 的文字、欄位標題及 Title 公式，並先帶入常見欄位的繁體中文建議。可直接儲存，或依報表用語修改；使用者執行或匯出 PDF 時會自動套用，原始 RPT 檔不會被修改。</p>
       </div>
       <p *ngIf="headerMappingsError" class="field-error" role="alert">{{ headerMappingsError }}</p>
       <p *ngIf="isHeaderMappingsLoading" class="managed-report-state" role="status">正在讀取欄位…</p>

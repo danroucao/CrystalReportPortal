@@ -115,6 +115,17 @@ public class RoleReportPermissionsController : ControllerBase
                         candidate.ReportId == reportId);
 
         var now = DateTime.UtcNow;
+        var permissionChanged = permission == null
+            ? request.CanExecute || request.CanExport || request.CanPrint ||
+              request.CanUpload || request.CanMaintain ||
+              request.CanSetParameters || request.CanEnableDisable
+            : permission.CanExecute != request.CanExecute ||
+              permission.CanExport != request.CanExport ||
+              permission.CanPrint != request.CanPrint ||
+              permission.CanUpload != request.CanUpload ||
+              permission.CanMaintain != request.CanMaintain ||
+              permission.CanSetParameters != request.CanSetParameters ||
+              permission.CanEnableDisable != request.CanEnableDisable;
 
         if (permission == null)
         {
@@ -175,6 +186,11 @@ public class RoleReportPermissionsController : ControllerBase
                     $"角色 {role.RoleCode} 的報表權限已更新",
                 CreatedAt = now
             });
+
+        if (permissionChanged)
+        {
+            await InvalidateRoleUsersAsync(roleId);
+        }
 
         await _dbContext.SaveChangesAsync();
 
@@ -333,6 +349,13 @@ public class RoleReportPermissionsController : ControllerBase
             .SingleOrDefaultAsync(candidate =>
                 candidate.RoleId == roleId && candidate.CategoryId == categoryId);
         var now = DateTime.UtcNow;
+        var canExport = request.CanExecute && request.CanExport;
+        var canPrint = request.CanExecute && request.CanPrint;
+        var permissionChanged = permission == null
+            ? request.CanExecute || canExport || canPrint
+            : permission.CanExecute != request.CanExecute ||
+              permission.CanExport != canExport ||
+              permission.CanPrint != canPrint;
 
         if (permission == null)
         {
@@ -346,8 +369,8 @@ public class RoleReportPermissionsController : ControllerBase
         }
 
         permission.CanExecute = request.CanExecute;
-        permission.CanExport = request.CanExecute && request.CanExport;
-        permission.CanPrint = request.CanExecute && request.CanPrint;
+        permission.CanExport = canExport;
+        permission.CanPrint = canPrint;
         permission.UpdatedAt = now;
 
         var operatorIdText = HttpContext.Session.GetString("BackOffice.OperatorUserId")
@@ -366,6 +389,11 @@ public class RoleReportPermissionsController : ControllerBase
             CreatedAt = now
         });
 
+        if (permissionChanged)
+        {
+            await InvalidateRoleUsersAsync(roleId);
+        }
+
         await _dbContext.SaveChangesAsync();
 
         return Ok(new RoleCategoryPermissionDto
@@ -379,5 +407,17 @@ public class RoleReportPermissionsController : ControllerBase
             CanExport = permission.CanExport,
             CanPrint = permission.CanPrint
         });
+    }
+
+    private async Task InvalidateRoleUsersAsync(int roleId)
+    {
+        var users = await _dbContext.Users
+            .Where(user => user.UserRoles.Any(item => item.RoleId == roleId))
+            .ToListAsync();
+
+        foreach (var user in users)
+        {
+            user.TokenVersion += 1;
+        }
     }
 }

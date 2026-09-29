@@ -4,7 +4,6 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from './api.config';
 import {
-  CreateManagedUserApiRequest,
   CreateRoleApiResponse,
   CreateRoleApiRequest,
   ManagedRoleApiModel,
@@ -40,15 +39,6 @@ export class UserManagementService {
   getRoleOptions(): Observable<RoleOptionApiModel[]> {
     return this.http.get<RoleOptionApiModel[]>(
       `${this.usersUrl}/roles`,
-    );
-  }
-
-  createUser(
-    request: CreateManagedUserApiRequest,
-  ): Observable<ManagedUserApiModel> {
-    return this.http.post<ManagedUserApiModel>(
-      this.usersUrl,
-      request,
     );
   }
 

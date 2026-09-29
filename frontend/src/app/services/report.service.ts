@@ -30,6 +30,22 @@ import {
   ReportListResponse,
 } from './report-api.models';
 
+export interface ReportPreviewManifest {
+  previewId: string;
+  pageCount: number;
+}
+
+export interface ReportParameterPreference {
+  parametersJson: string;
+  updatedAt: string;
+}
+
+export interface FavoriteReport {
+  reportId: number;
+  favoritedAt: string;
+  lastUsedAt: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReportService {
   private readonly managementEndpoint = `${API_BASE_URL}/backoffice/reports`;
@@ -69,16 +85,77 @@ export class ReportService {
   ExecuteReport(
     reportId: number,
     request: ReportExecutionRequest,
-  ): Observable<Blob> {
+  ): Observable<ReportPreviewManifest> {
+    return this.Http.post<ReportPreviewManifest>(
+      `${API_BASE_URL}/reports/${reportId}/execute`, request,
+    );
+  }
+
+  ExportExecutedReport(reportId: number, request: ReportExecutionRequest): Observable<Blob> {
     return this.Http.post(`${API_BASE_URL}/reports/${reportId}/execute`, request, {
+      params: new HttpParams().set('output', 'export'),
       responseType: 'blob',
     });
   }
 
-  GetReportPreview(reportId: number): Observable<Blob> {
-    return this.Http.get(`${API_BASE_URL}/Reports/${reportId}/preview`, {
+  PrintExecutedReport(reportId: number, request: ReportExecutionRequest): Observable<Blob> {
+    return this.Http.post(`${API_BASE_URL}/reports/${reportId}/execute`, request, {
+      params: new HttpParams().set('output', 'print'),
       responseType: 'blob',
     });
+  }
+
+  GetReportPreview(reportId: number): Observable<ReportPreviewManifest> {
+    return this.Http.get<ReportPreviewManifest>(`${API_BASE_URL}/Reports/${reportId}/preview`);
+  }
+
+  ExportSavedDataReport(reportId: number): Observable<Blob> {
+    return this.Http.get(`${API_BASE_URL}/Reports/${reportId}/preview`, {
+      params: new HttpParams().set('output', 'export'),
+      responseType: 'blob',
+    });
+  }
+
+  PrintSavedDataReport(reportId: number): Observable<Blob> {
+    return this.Http.get(`${API_BASE_URL}/Reports/${reportId}/preview`, {
+      params: new HttpParams().set('output', 'print'),
+      responseType: 'blob',
+    });
+  }
+
+  GetPreviewPage(previewId: string, pageNumber: number): Observable<Blob> {
+    return this.Http.get(`${API_BASE_URL}/report-previews/${previewId}/pages/${pageNumber}`, {
+      responseType: 'blob',
+    });
+  }
+
+  GetFavoriteReports(): Observable<readonly FavoriteReport[]> {
+    return this.Http.get<readonly FavoriteReport[]>(`${API_BASE_URL}/reports/favorites`);
+  }
+
+  AddFavoriteReport(reportId: number): Observable<void> {
+    return this.Http.put<void>(`${API_BASE_URL}/reports/favorites/${reportId}`, {});
+  }
+
+  RemoveFavoriteReport(reportId: number): Observable<void> {
+    return this.Http.delete<void>(`${API_BASE_URL}/reports/favorites/${reportId}`);
+  }
+
+  RecordFavoriteReportUsage(reportId: number): Observable<void> {
+    return this.Http.put<void>(`${API_BASE_URL}/reports/favorites/${reportId}/last-used`, {});
+  }
+
+  GetParameterPreference(reportId: number, preferenceType: 'favorite' | 'recent'): Observable<ReportParameterPreference> {
+    return this.Http.get<ReportParameterPreference>(
+      `${API_BASE_URL}/reports/${reportId}/parameter-preferences/${preferenceType}`,
+    );
+  }
+
+  SaveParameterPreference(reportId: number, preferenceType: 'favorite' | 'recent', parametersJson: string): Observable<ReportParameterPreference> {
+    return this.Http.put<ReportParameterPreference>(
+      `${API_BASE_URL}/reports/${reportId}/parameter-preferences/${preferenceType}`,
+      { parametersJson },
+    );
   }
 
   GetManagedReports(query?: { fromUtc?: string; toUtc?: string }): Observable<readonly ManagedReport[]> {

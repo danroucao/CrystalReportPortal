@@ -90,15 +90,58 @@ export class ReportParameterService {
       DataType: this.MapDataType(Item.dataType), InputType: this.MapInputType(Item.inputType),
       ValueSourceType: Item.valueSource === 'SqlLov' ? 'SqlLov' : 'None', IsRequired: Item.required,
       AllowMultipleValues: Item.multiple, AllowRangeValues: Item.range, IsVisible: Item.visible,
-      DefaultValue: Item.multiple ? [] : Item.dataType === 'Boolean' ? false : '', DisplayOrder: Item.displayOrder,
+      DefaultValue: this.MapDefaultValue(Item), DisplayOrder: Item.displayOrder,
       Options: [], InitialLovStatus: Item.valueSource === 'SqlLov' ? 'loading' : 'success' };
   }
   private MapDataType(Value: string): MockParameterDataType {
-    const Allowed: MockParameterDataType[] = ['Date', 'DateTime', 'Text', 'Integer', 'Float', 'Boolean'];
-    return Allowed.includes(Value as MockParameterDataType) ? Value as MockParameterDataType : 'Text';
+    const mapped: Record<string, MockParameterDataType> = {
+      String: 'Text', Text: 'Text', Date: 'Date', DateTime: 'DateTime',
+      Number: 'Float', Integer: 'Integer', Float: 'Float', Boolean: 'Boolean',
+    };
+    return mapped[Value] ?? 'Text';
   }
   private MapInputType(Value: string): MockParameterInputType {
     return ({ DatePicker: 'Date', DateTimePicker: 'DateTime', Text: 'Text', TextArea: 'LongText', Number: 'Number', Checkbox: 'Checkbox', SingleSelect: 'SingleSelect', MultiSelect: 'MultiSelect' } as Record<string, MockParameterInputType>)[Value] ?? 'Text';
+  }
+
+  private MapDefaultValue(Item: ReportParameterResponse): MockReportParameterDefinition['DefaultValue'] {
+    const raw = Item.defaultValue?.trim();
+    if (!raw) return Item.multiple ? [] : Item.dataType === 'Boolean' ? false : '';
+
+    if (Item.multiple) {
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.every((value) => typeof value === 'string')) return parsed;
+      } catch {
+        // Support legacy comma- or semicolon-separated default values.
+      }
+      return raw.split(/[;,]/).map((value) => value.trim()).filter(Boolean);
+    }
+
+    if (Item.range) {
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+          'Start' in parsed && 'End' in parsed) {
+          const range = parsed as { Start: unknown; End: unknown };
+          if ((typeof range.Start === 'string' || typeof range.Start === 'number' || range.Start === null) &&
+            (typeof range.End === 'string' || typeof range.End === 'number' || range.End === null)) {
+            return { Start: range.Start, End: range.End };
+          }
+        }
+      } catch {
+        // Support the concise start,end form in existing templates.
+      }
+      const [start = null, end = null] = raw.split(',', 2).map((value) => value.trim() || null);
+      return { Start: start, End: end };
+    }
+
+    if (Item.dataType === 'Boolean') return raw.toLowerCase() === 'true';
+    if (Item.dataType === 'Number') {
+      const value = Number(raw);
+      return Number.isFinite(value) ? value : '';
+    }
+    return raw;
   }
   private Key(ReportKey: MockReportKey, ParameterName: string): string { return `${ReportKey}:${ParameterName}`; }
 }

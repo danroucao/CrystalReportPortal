@@ -233,6 +233,10 @@ export class AuthService {
     );
   }
 
+  ValidateSession(): Observable<void> {
+    return this.Http.get<void>(`${API_BASE_URL}/auth/session`);
+  }
+
   LoginUnified(
     Account: string,
     Password: string,

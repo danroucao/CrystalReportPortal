@@ -54,6 +54,15 @@ public class UsersController : ControllerBase
         user.TokenVersion += 1;
         user.UpdatedAt = DateTime.UtcNow;
         AddAudit("UPDATE_USER_ROLES", $"Updated AD user roles: {user.Account} => [{string.Join(", ", roles.Select(role => role.RoleCode).OrderBy(code => code))}]");
+        db.UserNotifications.Add(new UserNotification
+        {
+            RecipientUserId = user.UserId,
+            Title = "角色權限已更新",
+            Summary = "你的系統角色已由管理員調整。",
+            Detail = "系統已更新你的角色與報表存取權限。若預期可使用的功能或報表沒有顯示，請重新登入後再確認。",
+            TargetPath = "/reports/parameters",
+            CreatedAt = DateTime.UtcNow
+        });
         await db.SaveChangesAsync();
         return Ok(ToDto(user, roles));
     }

@@ -46,6 +46,12 @@
       "version": "not pinned",
       "requiredBy": ["Angular frontend"],
       "installation": "Use an Angular 17-compatible Node.js LTS release, then run npm ci in frontend."
+    },
+    {
+      "component": "Poppler (pdftoppm)",
+      "version": "not pinned",
+      "requiredBy": ["Secure in-page PDF preview"],
+      "installation": "Install Poppler for Windows and add its Library\\bin folder (containing pdftoppm.exe) to PATH. Alternatively set PdfPreview:RendererPath to the full pdftoppm.exe path in the API configuration."
     }
   ],
   "frontend": {

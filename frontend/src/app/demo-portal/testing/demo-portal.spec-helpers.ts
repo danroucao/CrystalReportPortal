@@ -12,7 +12,7 @@ import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 
 import { AuthenticatedUser } from '../../services/auth-api.models';
 import { AuthService } from '../../services/auth.service';
-import { MockNotificationCenterService } from '../../services/mock-notification-center.service';
+import { NotificationCenterService } from '../../services/notification-center.service';
 import { NotificationService } from '../../services/notification.service';
 import { ReportParameterService } from '../../services/mock-report-parameter.service';
 import { MockRbacService } from '../../services/mock-rbac.service';
@@ -31,7 +31,7 @@ export {
   flushMicrotasks,
   FormControl,
   FormGroup,
-  MockNotificationCenterService,
+  NotificationCenterService,
   MockRbacService,
   ReportParameterService,
   NgZone,
@@ -96,6 +96,7 @@ export function LoginFrontManager(
     ManagementPermissions: IncludeManagement
       ? ['RptManagement', 'DatabaseConnection', 'OperationLog']
       : [],
+    ArchivePermissionCodes: [],
     Permissions,
   });
 

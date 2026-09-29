@@ -51,9 +51,9 @@ import {
 } from '../mock/mock-report-parameters';
 import { NotificationService } from '../services/notification.service';
 import {
-  MockCenterNotification,
-  MockNotificationCenterService,
-} from '../services/mock-notification-center.service';
+  CenterNotification,
+  NotificationCenterService,
+} from '../services/notification-center.service';
 import {
   MockDatabaseConnectionDraft,
   MockDatabaseConnectionService,
@@ -166,7 +166,7 @@ export class DemoPortalComponent
   ApiDataSources: DataSourceManagementModel[] = [];
   IsDataSourcesLoading = false;
   readonly Notifications = inject(NotificationService);
-  readonly NotificationCenter = inject(MockNotificationCenterService);
+  readonly NotificationCenter = inject(NotificationCenterService);
   readonly AuditLog = inject(MockAuditLogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -175,7 +175,7 @@ export class DemoPortalComponent
   IsNotificationPanelOpen = false;
   IsMobileNavigationOpen = false;
   IsCompactNavigation = false;
-  SelectedCenterNotification: MockCenterNotification | null = null;
+  SelectedCenterNotification: CenterNotification | null = null;
   IsProfileMenuOpen = false;
   BackOfficeBindingAccount = '';
   BackOfficeBindingPassword = '';
@@ -197,6 +197,8 @@ export class DemoPortalComponent
   TestingDataSourceId: number | null = null;
   DataSourceTestResult: DataSourceConnectionTestResponse | null = null;
   DataSourceTestError = '';
+  IsTestingDatabaseConnectionDraft = false;
+  DatabaseConnectionTestNotice = '';
   IsReportDiscardConfirmationOpen = false;
   IsReportCategoryQuickAddOpen = false;
   QuickAddCategoryName = '';
@@ -250,6 +252,9 @@ export class DemoPortalComponent
 
   ngOnInit(): void {
     this.UpdateCompactNavigationState();
+    if (this.Auth.IsFrontOffice && this.CurrentNotificationAccount) {
+      this.NotificationCenter.RefreshFromApi(this.CurrentNotificationAccount);
+    }
       if (this.Page === 'ReportUpload') {
         this.InitializeReportUploadFlow();
         this.LoadReportUploadCategories();
@@ -325,7 +330,7 @@ export class DemoPortalComponent
   get ProfileAccount(): string {
     return this.Auth.CurrentIdentity?.Account ?? '';
   }
-  get RecentCenterItems(): readonly MockCenterNotification[] {
+  get RecentCenterItems(): readonly CenterNotification[] {
     const Notifications = this.CurrentNotifications;
     return (this.NotificationPopoverTab === 'Unread'
       ? Notifications.filter((Item) => !Item.ReadAt)
@@ -347,6 +352,10 @@ export class DemoPortalComponent
     return this.NotificationCenterTab === 'Unread'
       ? this.CurrentNotifications.filter((Item) => !Item.ReadAt)
       : this.CurrentNotifications;
+  }
+
+  get HasReadCenterNotifications(): boolean {
+    return this.CurrentNotifications.some((Item) => !!Item.ReadAt);
   }
 
 
@@ -386,6 +395,10 @@ export class DemoPortalComponent
 
   @HostListener('document:keydown.escape')
   OnEscapeKey(): void {
+    if (this.SelectedCenterNotification) {
+      this.CloseNotificationDetail();
+      return;
+    }
     if (this.IsMobileNavigationOpen) {
       this.CloseMobileNavigation();
       return;
@@ -440,9 +453,22 @@ export class DemoPortalComponent
     if (Account) this.NotificationCenter.MarkNotificationRead(Id, Account);
   }
 
-  OpenNotificationDetail(Notification: MockCenterNotification): void {
+  MarkAllCenterNotificationsRead(): void {
+    if (this.Auth.RequiresBackOfficeIdentityBinding) return;
+    const Account = this.CurrentNotificationAccount;
+    if (Account) this.NotificationCenter.MarkAllNotificationsRead(Account);
+  }
+
+  ClearReadCenterNotifications(): void {
+    if (this.Auth.RequiresBackOfficeIdentityBinding) return;
+    const Account = this.CurrentNotificationAccount;
+    if (Account) this.NotificationCenter.ClearReadNotifications(Account);
+  }
+
+  OpenNotificationDetail(Notification: CenterNotification): void {
     if (this.Auth.RequiresBackOfficeIdentityBinding) return;
     this.NotificationDetailOpener = this.GetActiveHTMLElement();
+    this.IsNotificationPanelOpen = false;
     this.SelectedCenterNotification = Notification;
     this.MarkCenterNotificationRead(Notification.Id);
     this.ShouldFocusNotificationDetailClose = true;
@@ -654,10 +680,6 @@ export class DemoPortalComponent
       return;
     }
     this.ReportEditorDraft.CategoryId = Result.Category.CategoryId;
-    this.NotificationCenter.CreateCategoryReview(
-      Result.Category,
-      this.Auth.CurrentUser?.Account ?? '前台使用者',
-    );
     this.CloseReportCategoryQuickAdd();
     this.ShowSuccessToast(
       `新增報表分類「${Result.Category.CategoryName}」成功！`,
@@ -759,6 +781,38 @@ export class DemoPortalComponent
     this.DatabaseConnectionDraft = this.CreateDatabaseConnectionDraft();
     this.DatabaseAuthenticationType = 'SqlServer';
     this.DatabaseConnectionFormError = '';
+    this.DatabaseConnectionTestNotice = '';
+    this.IsTestingDatabaseConnectionDraft = false;
+  }
+
+  TestDatabaseConnectionDraft(): void {
+    const draft = this.DatabaseConnectionDraft;
+    const requiresSqlCredentials = this.DatabaseAuthenticationType === 'SqlServer';
+    if (!draft.ServerHost.trim() || !draft.DatabaseName.trim() || !draft.Port ||
+      (requiresSqlCredentials && (!draft.Username.trim() || !draft.Password))) {
+      this.DatabaseConnectionTestNotice = '請先完整輸入本次要測試的連線設定。';
+      return;
+    }
+    this.IsTestingDatabaseConnectionDraft = true;
+    this.DatabaseConnectionTestNotice = '';
+    this.DataSourcesApi.testDraftConnection({
+      dataSourceName: draft.DataSourceName.trim() || 'draft', serverHost: draft.ServerHost.trim(),
+      port: Number(draft.Port), databaseName: draft.DatabaseName.trim(), isEnabled: draft.Enabled,
+      authenticationType: this.DatabaseAuthenticationType,
+      username: requiresSqlCredentials ? draft.Username.trim() : undefined,
+      password: requiresSqlCredentials ? draft.Password : undefined,
+    }).subscribe({
+      next: (result) => {
+        this.IsTestingDatabaseConnectionDraft = false;
+        this.DatabaseConnectionTestNotice = result.connected
+          ? `連線測試成功${result.elapsedMilliseconds >= 0 ? `（${result.elapsedMilliseconds} ms）` : ''}。`
+          : '連線測試失敗，請檢查設定後再試。';
+      },
+      error: () => {
+        this.IsTestingDatabaseConnectionDraft = false;
+        this.DatabaseConnectionTestNotice = '連線測試失敗，請檢查設定、帳號密碼與 SQL Server 狀態後再試。';
+      },
+    });
   }
 
   SaveDatabaseConnection(): void {

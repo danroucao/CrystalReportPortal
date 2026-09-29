@@ -4,7 +4,7 @@ import { ActivatedRoute, provideRouter } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
 import { MockRbacService } from '../../services/mock-rbac.service';
-import { MockNotificationCenterService } from '../../services/mock-notification-center.service';
+import { NotificationCenterService } from '../../services/notification-center.service';
 import { DemoPortalComponent } from '../demo-portal.component';
 import { LoginFrontManager } from '../testing/demo-portal.spec-helpers';
 
@@ -40,7 +40,12 @@ xdescribe('Report editor form integration', () => {
     }).compileComponents();
     Rbac = TestBed.inject(MockRbacService);
     const Permissions = Rbac.GetCategoryPermissionEntries('FINANCE');
-    Rbac.UpdateRole('FINANCE', { DisplayName: '財務人員', ManagementPermissions: ['RptManagement'], Permissions });
+    Rbac.UpdateRole('FINANCE', {
+      DisplayName: '財務人員',
+      ManagementPermissions: ['RptManagement'],
+      ArchivePermissionCodes: [],
+      Permissions,
+    });
     expect(LoginFrontManager(TestBed.inject(AuthService))).toBeTrue();
     Zone = TestBed.inject(NgZone);
     fixture = TestBed.createComponent(DemoPortalComponent);
@@ -160,8 +165,8 @@ xdescribe('Report editor form integration', () => {
       expect(Element(Prefix + '-file')).toBe(FileInput);
       expect(FileInput.files?.item(0)?.name).toBe('stable.rpt');
       expect(Element(Prefix + '-category option[value="FINANCE"]')).toBe(Option);
-      expect(TestBed.inject(MockNotificationCenterService).GetNotifications('admin@example.com')
-        .some(Item => Item.Summary.includes(Category.CategoryName))).toBeTrue();
+      expect(TestBed.inject(NotificationCenterService).GetNotifications('admin@example.com'))
+        .toHaveSize(0);
       for (let Round = 0; Round < 2; Round++) {
         await Click(Trigger);
         await Fill(QuickInput, 'Cancelled category');

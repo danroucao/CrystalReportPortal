@@ -68,7 +68,7 @@ export class LoginComponent implements OnInit {
       case 'service-error':
         return '目前無法完成登入，請稍後再試。';
       case 'session-expired':
-        return '登入已逾時，請重新登入。';
+        return '登入已失效或權限已更新，請重新登入。';
       case 'password-expired':
         return '密碼已過期，請先修改密碼。';
       default:

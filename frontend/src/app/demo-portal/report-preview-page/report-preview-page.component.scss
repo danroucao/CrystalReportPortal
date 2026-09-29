@@ -114,6 +114,9 @@ dd {
   align-items: start;
   justify-content: space-between;
   gap: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e5dfda;
 }
 
 .output-actions {
@@ -122,66 +125,84 @@ dd {
   gap: 1rem;
 }
 
-.export-dropdown,
-.print-dropdown {
+.preview-output-menu {
   position: relative;
+  z-index: 3;
 }
 
-.export-trigger,
-.print-trigger,
-.export-menu button,
-.print-menu button {
-  display: inline-flex;
+.preview-output-menu summary {
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: space-between;
   min-height: 38px;
-  border: 1px solid var(--color-border);
+  min-width: 9.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid #cfc7bf;
   border-radius: 5px;
-  color: inherit;
+  color: #302c28;
   background: var(--color-surface);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.preview-output-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.preview-output-menu summary span {
+  display: inline-grid;
+  width: 1rem;
+  height: 1rem;
+  margin-left: 1rem;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 160ms ease;
+  transform: translateY(-1px);
+}
+
+.preview-output-menu[open] summary {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgb(181 24 48 / 14%);
+}
+
+.preview-output-menu[open] summary span {
+  transform: translateY(1px) rotate(180deg);
+}
+
+.preview-output-menu__items {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  display: grid;
+  min-width: 100%;
+  padding: 0.35rem;
+  border: 1px solid #cfc7bf;
+  border-radius: 5px;
+  background: var(--color-surface);
+  box-shadow: 0 6px 18px rgb(32 32 31 / 14%);
+}
+
+.preview-output-menu__items button {
+  min-height: 36px;
+  padding: 0.4rem 0.55rem;
+  border: 0;
+  border-radius: 3px;
+  color: #302c28;
+  background: transparent;
   font: inherit;
+  font-weight: 700;
+  text-align: left;
   cursor: pointer;
 }
 
-.export-trigger,
-.print-trigger {
-  padding: 0 0.75rem;
-}
-
-.export-icon,
-.print-icon,
-.export-chevron,
-.print-chevron {
-  width: 1rem;
-  height: 1rem;
-  fill: none;
-  stroke: currentcolor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.75;
-}
-
-.export-menu,
-.print-menu {
-  position: absolute;
-  z-index: 2;
-  top: calc(100% + 0.35rem);
-  left: 0;
-  display: grid;
-  min-width: max-content;
-  padding: 0.35rem;
-  border: 1px solid var(--color-border);
-  border-radius: 5px;
-  background: var(--color-surface);
-  box-shadow: 0 6px 18px rgb(32 32 31 / 12%);
-}
-
-.export-menu button,
-.print-menu button {
-  justify-content: start;
-  border: 0;
-  border-radius: 3px;
-  padding: 0.45rem 0.6rem;
+.preview-output-menu__items button:hover,
+.preview-output-menu__items button:focus-visible {
+  color: var(--color-primary);
+  background: #fdf0f2;
 }
 
 .mock-notice {
@@ -200,4 +221,44 @@ dd {
   .preview-return-button {
     width: 100%;
   }
+}
+.report-image-preview {
+  display: grid;
+  gap: 1.25rem;
+  max-height: 72vh;
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid #ded8d3;
+  background: #f5f3f1;
+}
+
+.report-image-preview__notice {
+  margin: 0;
+  color: #615d59;
+  font-size: .9rem;
+}
+
+.report-image-preview__toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.report-image-preview__pagination, .report-image-preview__zoom { display: flex; align-items: center; gap: .45rem; color: #615d59; font-size: .85rem; }
+.report-image-preview__toolbar .secondary-button { min-height: 2rem; padding: .25rem .55rem; font-size: .8rem; }
+
+.report-image-preview__page {
+  min-width: min(100%, 360px);
+  max-width: none;
+  margin: 0 auto;
+}
+
+.report-image-preview__page img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+  box-shadow: 0 3px 14px rgb(41 35 31 / 16%);
+}
+
+.report-image-preview__page figcaption {
+  margin-top: .4rem;
+  color: #706b66;
+  font-size: .82rem;
+  text-align: center;
 }

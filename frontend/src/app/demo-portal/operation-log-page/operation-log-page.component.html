@@ -35,7 +35,8 @@
         type="date"
         [(ngModel)]="OperationLogStartDate"
         [min]="OperationLogMinimumDate"
-        [max]="OperationLogMaximumDate"
+        [max]="OperationLogStartMaximumDate"
+        [attr.aria-invalid]="OperationLogDateError ? 'true' : null"
         (ngModelChange)="OnOperationLogDateChange()"
       />
     </label>
@@ -44,8 +45,9 @@
       <input
         type="date"
         [(ngModel)]="OperationLogEndDate"
-        [min]="OperationLogMinimumDate"
+        [min]="OperationLogEndMinimumDate"
         [max]="OperationLogMaximumDate"
+        [attr.aria-invalid]="OperationLogDateError ? 'true' : null"
         (ngModelChange)="OnOperationLogDateChange()"
       />
     </label>
@@ -64,7 +66,11 @@
     </label>
   </div>
 
-  <div class="operation-log-results-bar">
+  <p *ngIf="OperationLogDateError" class="operation-log-date-error" role="alert">
+    {{ OperationLogDateError }}
+  </p>
+
+  <div *ngIf="!OperationLogDateError" class="operation-log-results-bar">
     <p>共 <strong>{{ ApiTotalCount }}</strong> 筆紀錄</p>
     <p>每頁顯示 10 筆</p>
   </div>
@@ -75,7 +81,7 @@
     <button type="button" class="tertiary-button" (click)="LoadOperationLogs()">重新載入</button>
   </p>
 
-  <div *ngIf="!IsApiLoading && !ApiLoadError" class="operation-log-table-frame">
+  <div *ngIf="!OperationLogDateError && !IsApiLoading && !ApiLoadError" class="operation-log-table-frame">
     <table class="operation-log-table">
       <thead>
         <tr>
