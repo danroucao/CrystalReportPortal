@@ -80,7 +80,7 @@ app-demo-portal .parameter-search-clear-button {
 app-demo-portal .parameter-search-clear-button:hover:not(:disabled),
 app-demo-portal .parameter-search-clear-button:focus-visible {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .parameter-search-clear-button svg {
   width: 1.1rem;
@@ -238,7 +238,7 @@ app-demo-portal .list-pagination .list-pagination-next {
 app-demo-portal .list-pagination button:hover:not(:disabled):not(.is-active) {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .list-pagination button.is-active {
   border-color: var(--color-primary);
@@ -297,7 +297,7 @@ app-demo-portal .sortable-table-header {
 app-demo-portal .sortable-table-header:hover,
 app-demo-portal .sortable-table-header:focus-visible {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .parameter-report-empty-panel {
   display: grid;
@@ -714,7 +714,7 @@ app-demo-portal .report-management-pin-button:hover {
   background: transparent !important;
 }
 app-demo-portal .report-management-pin-button:focus-visible {
-  outline: 2px solid #0b8f45;
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
   background: transparent !important;
 }
@@ -723,13 +723,19 @@ app-demo-portal .report-management-pin-icon {
   // 調整釘選icon大小
   width: 1.725rem;
   height: 1.725rem;
-  background-image: url("/assets/icons/report-pin-icons.png");
-  background-position: left center;
-  background-repeat: no-repeat;
-  background-size: 200% 100%;
+  background-color: var(--color-primary);
+  -webkit-mask-image: url("/assets/icons/report-pin-icons.png");
+  -webkit-mask-position: left center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 200% 100%;
+  mask-image: url("/assets/icons/report-pin-icons.png");
+  mask-position: left center;
+  mask-repeat: no-repeat;
+  mask-size: 200% 100%;
 }
 app-demo-portal
   .report-management-pin-button.is-pinned
   .report-management-pin-icon {
-  background-position: right center;
+  -webkit-mask-position: right center;
+  mask-position: right center;
 }

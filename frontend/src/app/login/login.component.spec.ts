@@ -79,14 +79,14 @@ describe('LoginComponent', () => {
     expect(component.password.value).toBe('not-a-real-password');
   });
 
-  it('shows a credential error in the existing modal', () => {
+  it('shows a login notice in the existing modal', () => {
     const fixture = TestBed.createComponent(LoginComponent);
     const component = fixture.componentInstance;
     component.notice = 'credential-error';
     fixture.detectChanges();
 
     const modal = fixture.nativeElement.querySelector(
-      '.notification-modal--error',
+      '.notification-modal--notice',
     ) as HTMLElement | null;
 
     expect(modal).not.toBeNull();

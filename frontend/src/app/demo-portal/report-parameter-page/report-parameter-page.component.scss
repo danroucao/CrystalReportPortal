@@ -11,7 +11,7 @@
 .parameter-report-description { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-muted); }
 .parameter-report-timestamp { white-space: nowrap; font-variant-numeric: tabular-nums; color: #555; }
 .report-open-button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.35rem; padding: .35rem .6rem; border: 1px solid var(--color-primary); border-radius: .4rem; background: #fff; color: var(--color-primary); font: inherit; font-weight: 700; }
-.report-open-button:hover { background: #fff4f5; }
+.report-open-button:hover { background: var(--color-primary-subtle); }
 
 // Live-report parameter workflow
 .selected-parameter-report {
@@ -82,13 +82,13 @@
 .parameter-multiselect-actions button:disabled { color: #aaa; cursor: default; }
 .parameter-option-search-row { position: relative; margin: 0 0 .55rem; }
 .parameter-field .parameter-option-search { box-sizing: border-box; width: 100%; min-height: 2.1rem; padding: .4rem 2rem .4rem .6rem; border: 1px solid #d8d2ca; border-radius: .3rem; font: inherit; font-size: .8rem; }
-.parameter-option-search:focus { border-color: var(--color-primary); outline: 2px solid rgb(181 24 48 / 15%); outline-offset: 1px; }
+.parameter-option-search:focus { border-color: var(--color-primary); outline: 2px solid var(--color-primary-focus-ring); outline-offset: 1px; }
 .parameter-option-search-clear { position: absolute; top: 50%; right: .35rem; width: 1.45rem; height: 1.45rem; padding: 0; transform: translateY(-50%); border: 0; border-radius: 50%; background: transparent; color: var(--color-muted); font-size: 1.2rem; line-height: 1; cursor: pointer; }
 .parameter-option-search-clear:hover { background: #eee8e3; color: var(--color-primary); }
 .parameter-option-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1; min-height: 0; align-content: start; gap: .45rem .75rem; overflow: auto; padding: .05rem .2rem .1rem 0; }
 .parameter-field label.parameter-option-row { display: flex !important; flex-direction: row !important; align-items: center !important; min-width: 0; gap: .55rem; padding: .52rem .6rem; border: 1px solid transparent; border-radius: .35rem; color: #403d39; font-size: .875rem; line-height: 1.35; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease; }
-.parameter-option-row:hover { border-color: #e2b9c1; background: #fff7f8; }
-.parameter-option-row.is-selected { border-color: #e5c3c9; background: #fff4f5; }
+.parameter-option-row:hover { border-color: var(--color-primary); background: var(--color-primary-subtle); }
+.parameter-option-row.is-selected { border-color: var(--color-primary); background: var(--color-primary-subtle); }
 .parameter-field .parameter-option-row input[type='checkbox'] { box-sizing: border-box; display: inline-grid; flex: 0 0 1.05rem; width: 1.05rem !important; min-width: 1.05rem; max-width: 1.05rem; height: 1.05rem !important; min-height: 1.05rem; max-height: 1.05rem; margin: 0; padding: 0; accent-color: var(--color-primary); }
 .parameter-option-row span { overflow-wrap: anywhere; }
 .parameter-form-actions { display: flex; align-items: center; gap: .75rem; margin-top: 1.4rem; padding-top: 1.25rem; border-top: 1px solid #e4dfd7; }

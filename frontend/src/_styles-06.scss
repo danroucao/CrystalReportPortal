@@ -304,7 +304,7 @@ app-demo-portal .account-settings-notice {
   padding: 0.65rem 0.75rem;
   border-radius: 5px;
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
   font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.5;
@@ -437,7 +437,7 @@ app-demo-portal
 .notification-popover-tabs button.is-active,
 .notification-popover-tabs button:hover {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 .profile-menu {
   position: relative;
@@ -454,7 +454,7 @@ app-demo-portal
 .profile-trigger:hover,
 .profile-trigger[aria-expanded="true"] {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 .profile-trigger-name {
   max-width: 10rem;
@@ -524,7 +524,7 @@ app-demo-portal
 .profile-popover-links button:hover,
 .profile-logout:hover {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 .profile-logout {
   width: 100%;
@@ -570,7 +570,7 @@ app-demo-portal .portal-header .notification-bell {
 app-demo-portal .portal-header .notification-bell:hover:not(:disabled),
 app-demo-portal .portal-header .notification-bell[aria-expanded="true"] {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .portal-header .profile-menu {
   position: relative;

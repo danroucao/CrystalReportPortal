@@ -84,12 +84,12 @@
 }
 button.favorite-star-button {
   padding: 0;
-  color: #b9132b;
+  color: var(--color-primary);
   background: transparent;
 }
 button.favorite-star-button:hover,
 button.favorite-star-button:focus-visible {
-  color: #8f0f22;
+  color: var(--color-primary-hover);
   background: transparent;
 }
 .header-icon {
@@ -269,7 +269,7 @@ th.is-sorted {
   background: #e8f5eb;
 }
 .request-status.is-rejected {
-  color: var(--color-primary-hover);
+  color: var(--color-danger);
   background: #fdf0f2;
 }
 .permission-action-area {
@@ -352,7 +352,7 @@ th.is-sorted {
 .mobile-navigation-trigger:hover,
 .mobile-navigation-trigger:focus-visible {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 @media (max-width: 768px) {
   .portal-shell {

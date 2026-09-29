@@ -1,6 +1,12 @@
 :root {
-  --color-primary: #ae162b;
-  --color-primary-hover: #8f1024;
+  /* Login and front-office default theme. */
+  --color-primary: #0f80bd;
+  --color-primary-hover: #0b6eaa;
+  --color-primary-active: #095f92;
+  --color-primary-subtle: #e0f1ff;
+  --color-primary-subtle-active: #c7e6fb;
+  --color-primary-focus-ring: rgb(15 128 189 / 24%);
+  --color-primary-shadow: rgb(15 128 189 / 22%);
   --color-secondary: #967540;
   --color-background: #f8f8f7;
   --color-surface: #fff;
@@ -8,10 +14,22 @@
   --color-muted: #66645f;
   --color-border: #dedad4;
   --color-danger: #b42336;
-  --color-focus: #356fa8;
+  --color-focus: #0f80bd;
   font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
   color: var(--color-text);
   background: var(--color-background);
+}
+
+/* The portal switches these inherited tokens after authentication. */
+[data-ui-theme='back-office'] {
+  --color-primary: #0b5a84;
+  --color-primary-hover: #084666;
+  --color-primary-active: #063a57;
+  --color-primary-subtle: #e2e8f0;
+  --color-primary-subtle-active: #cbd5e1;
+  --color-primary-focus-ring: rgb(11 90 132 / 24%);
+  --color-primary-shadow: rgb(11 90 132 / 22%);
+  --color-focus: #0b5a84;
 }
 * {
   box-sizing: border-box;
@@ -429,7 +447,7 @@ app-demo-portal .visually-hidden {
 .notification-center-tabs button:hover,
 .notification-center-tabs button.is-active {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 .notification-preview span {
   overflow: hidden;
@@ -508,7 +526,7 @@ app-demo-portal .notification-detail-modal .notification-close {
 app-demo-portal .notification-detail-modal .notification-close:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 .notification-all-link {
   width: 100%;
@@ -577,7 +595,7 @@ app-demo-portal .notification-detail-modal .notification-close:hover:not(:disabl
 .center-item:hover,
 .center-item:focus-visible {
   border-color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 .center-item.is-unread {
   border-left: 4px solid var(--color-primary);
@@ -737,38 +755,38 @@ app-demo-portal button:disabled {
   box-shadow: none;
 }
 app-demo-portal button.primary-button {
-  border-color: #a81c28;
+  border-color: var(--color-primary);
   color: #fff;
-  background: #a81c28;
-  box-shadow: 0 1px 2px rgb(87 16 24 / 22%);
+  background: var(--color-primary);
+  box-shadow: 0 1px 2px var(--color-primary-shadow);
 }
 app-demo-portal button.primary-button:hover:not(:disabled) {
-  border-color: #8b141e;
+  border-color: var(--color-primary-hover);
   color: #fff;
-  background: #8b141e;
-  box-shadow: 0 3px 8px rgb(87 16 24 / 24%);
+  background: var(--color-primary-hover);
+  box-shadow: 0 3px 8px var(--color-primary-shadow);
 }
 app-demo-portal button.primary-button:active:not(:disabled) {
-  border-color: #751019;
+  border-color: var(--color-primary-active);
   color: #fff;
-  background: #751019;
+  background: var(--color-primary-active);
   box-shadow: inset 0 1px 2px rgb(0 0 0 / 18%);
 }
 app-demo-portal button.secondary-button {
-  border-color: #a81c28;
-  color: #a81c28;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   background: var(--color-surface);
   box-shadow: none;
 }
 app-demo-portal button.secondary-button:hover:not(:disabled) {
-  border-color: #a81c28;
-  color: #8b141e;
-  background: #fdf2f2;
+  border-color: var(--color-primary);
+  color: var(--color-primary-hover);
+  background: var(--color-primary-subtle);
 }
 app-demo-portal button.secondary-button:active:not(:disabled) {
-  border-color: #8b141e;
-  color: #8b141e;
-  background: #f8dfdf;
+  border-color: var(--color-primary-hover);
+  color: var(--color-primary-hover);
+  background: var(--color-primary-subtle-active);
 }
 app-demo-portal button.tertiary-button {
   border-color: #d9d9d9;
@@ -840,11 +858,11 @@ app-demo-portal .notification-center-tabs button {
 app-demo-portal .notification-popover-tabs button.is-active,
 app-demo-portal .notification-center-tabs button.is-active {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal button.profile-trigger[aria-expanded="true"] {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal button.notification-bell:hover:not(:disabled),
 app-demo-portal button.notification-preview:hover:not(:disabled),
@@ -854,7 +872,7 @@ app-demo-portal button.profile-trigger:hover:not(:disabled),
 app-demo-portal .profile-popover-links button:hover:not(:disabled) {
   border-color: transparent;
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal button.notification-close:hover:not(:disabled) {
   border-color: transparent;
@@ -864,7 +882,7 @@ app-demo-portal button.notification-close:hover:not(:disabled) {
 app-demo-portal button.profile-logout:hover:not(:disabled) {
   border-color: transparent;
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 
 app-demo-portal .parameter-form > label,

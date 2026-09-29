@@ -42,7 +42,7 @@ app-demo-portal .created-user-copy-button {
 app-demo-portal .created-user-copy-button:hover,
 app-demo-portal .created-user-copy-button:focus-visible {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .created-user-copy-button svg {
   display: block;
@@ -488,7 +488,7 @@ app-demo-portal .favorite-category-tabs button:focus-visible,
 app-demo-portal .parameter-category-tabs button:hover,
 app-demo-portal .parameter-category-tabs button:focus-visible {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .favorite-category-tabs button.is-active,
 app-demo-portal .parameter-category-tabs button.is-active {
@@ -560,7 +560,7 @@ app-demo-portal .favorite-star-button {
   min-width: 2rem;
   min-height: 2rem;
   place-items: center;
-  color: #b9132b;
+  color: var(--color-primary);
   line-height: 1;
   background: transparent !important;
   box-shadow: none;
@@ -576,17 +576,17 @@ app-demo-portal .favorite-star-button svg {
   stroke-width: 2.1;
 }
 app-demo-portal .parameter-favorite-button {
-  color: #b9132b;
+  color: var(--color-primary);
 }
 app-demo-portal .parameter-favorite-button.is-favorite {
-  color: #b9132b;
+  color: var(--color-primary);
 }
 app-demo-portal .favorite-star-button.is-favorite svg {
   fill: currentColor;
 }
 app-demo-portal .favorite-star-button:hover,
 app-demo-portal .favorite-star-button:focus-visible {
-  color: #8f0f22;
+  color: var(--color-primary-hover);
   background: transparent;
   transform: scale(1.08);
 }

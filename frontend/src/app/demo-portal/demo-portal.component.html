@@ -1,4 +1,7 @@
-<div class="portal-shell">
+<div
+  class="portal-shell"
+  [attr.data-ui-theme]="Auth.IsBackOffice ? 'back-office' : null"
+>
   <header
     class="portal-header"
     [attr.inert]="
@@ -234,7 +237,10 @@
     </div>
     <ng-template #DefaultPageTitle>
       <ng-container *ngIf="Page !== 'ReportUpload'">
-        <div *ngIf="Page === 'NotificationCenter'" class="notification-center-page-header">
+        <div
+          *ngIf="Page === 'NotificationCenter'"
+          class="notification-center-page-header"
+        >
           <h1>{{ PageTitle }}</h1>
           <div class="notification-center-header-actions">
             <button
@@ -257,7 +263,10 @@
         </div>
         <ng-container *ngIf="Page !== 'NotificationCenter'">
           <h1>{{ PageTitle }}</h1>
-          <p *ngIf="Page === 'OperationLog'" class="operation-log-page-subtitle">
+          <p
+            *ngIf="Page === 'OperationLog'"
+            class="operation-log-page-subtitle"
+          >
             集中檢視權限變動、報表操作與帳號管理事件。
           </p>
         </ng-container>
@@ -331,7 +340,7 @@
             {{
               NotificationCenterTab === "Unread"
                 ? "目前沒有未讀通知"
-                : "目前沒有通知"
+                : "目前沒有任何通知"
             }}
           </h2>
           <p>
@@ -779,7 +788,9 @@
                       type="button"
                       class="secondary-button"
                       [disabled]="TestingDataSourceId !== null"
-                      (click)="TestDataSourceConnection(Connection.dataSourceId)"
+                      (click)="
+                        TestDataSourceConnection(Connection.dataSourceId)
+                      "
                     >
                       {{
                         TestingDataSourceId === Connection.dataSourceId
@@ -790,7 +801,9 @@
                     <button
                       type="button"
                       class="secondary-button"
-                      (click)="OpenEditDatabaseConnection(Connection.dataSourceId + '')"
+                      (click)="
+                        OpenEditDatabaseConnection(Connection.dataSourceId + '')
+                      "
                     >
                       編輯
                     </button>
@@ -818,9 +831,13 @@
             }}
           </strong>
           <span *ngIf="DataSourceTestResult as Result">
-            <ng-container *ngIf="Result.elapsedMilliseconds >= 0">（{{ Result.elapsedMilliseconds }} ms）</ng-container>
+            <ng-container *ngIf="Result.elapsedMilliseconds >= 0"
+              >（{{ Result.elapsedMilliseconds }} ms）</ng-container
+            >
           </span>
-          <span *ngIf="DataSourceTestError">請檢查連線設定、帳號密碼與 SQL Server 狀態後再試。</span>
+          <span *ngIf="DataSourceTestError"
+            >請檢查連線設定、帳號密碼與 SQL Server 狀態後再試。</span
+          >
         </div>
         <section
           *ngIf="IsDatabaseConnectionEditorOpen"
@@ -959,10 +976,21 @@
             <p *ngIf="EditingDatabaseConnectionKey" class="muted">
               若不修改密碼請保持空白。
             </p>
-            <p *ngIf="DatabaseConnectionTestNotice" class="mock-notice" role="status">{{ DatabaseConnectionTestNotice }}</p>
+            <p
+              *ngIf="DatabaseConnectionTestNotice"
+              class="mock-notice"
+              role="status"
+            >
+              {{ DatabaseConnectionTestNotice }}
+            </p>
             <div class="modal-actions database-connection-modal-actions">
-              <button type="button" class="secondary-button" [disabled]="IsTestingDatabaseConnectionDraft" (click)="TestDatabaseConnectionDraft()">
-                {{ IsTestingDatabaseConnectionDraft ? '測試中…' : '測試連線' }}
+              <button
+                type="button"
+                class="secondary-button"
+                [disabled]="IsTestingDatabaseConnectionDraft"
+                (click)="TestDatabaseConnectionDraft()"
+              >
+                {{ IsTestingDatabaseConnectionDraft ? "測試中…" : "測試連線" }}
               </button>
               <button
                 type="button"
@@ -1036,10 +1064,16 @@
       </div>
       <h2 id="notification-detail-title">{{ Notification.Title }}</h2>
       <p class="notification-detail-summary">{{ Notification.Summary }}</p>
-      <time class="notification-detail-time">{{ Notification.CreatedAt | date: "yyyy/MM/dd HH:mm" }}</time>
+      <time class="notification-detail-time">{{
+        Notification.CreatedAt | date: "yyyy/MM/dd HH:mm"
+      }}</time>
       <p class="notification-detail-content">{{ Notification.Detail }}</p>
       <div class="notification-detail-actions">
-        <button type="button" class="primary-button" (click)="CloseNotificationDetail()">
+        <button
+          type="button"
+          class="primary-button"
+          (click)="CloseNotificationDetail()"
+        >
           關閉
         </button>
       </div>

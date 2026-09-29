@@ -30,7 +30,7 @@
 }
 .report-management-toolbar input:focus, .report-management-toolbar select:focus,
 .managed-report-form input:focus, .managed-report-form select:focus, .managed-report-form textarea:focus {
-  outline: 2px solid rgb(189 23 49 / 22%);
+  outline: 2px solid var(--color-primary-focus-ring);
   border-color: var(--color-primary);
 }
 .table-scroll { border: 1px solid #ded8d1; border-radius: 7px; overflow: auto; }
@@ -118,15 +118,15 @@
   color: #3f3a35;
   cursor: pointer;
 }
-.table-icon-button:hover { border-color: #bd1731; background: #fff7f8; color: #a81129; }
-.table-icon-button:focus-visible { outline: 2px solid rgb(189 23 49 / 32%); outline-offset: 2px; }
+.table-icon-button:hover { border-color: var(--color-primary); background: var(--color-primary-subtle); color: var(--color-primary); }
+.table-icon-button:focus-visible { outline: 2px solid var(--color-primary-focus-ring); outline-offset: 2px; }
 .table-icon-button:disabled { cursor: not-allowed; opacity: .45; }
 .table-icon-button svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .pin-button,
 .pin-button:hover {
   border-color: transparent;
   background: transparent;
-  color: #bd1731;
+  color: var(--color-primary);
 }
 .danger-icon-button { color: #6b625d; }
 .danger-icon-button:hover { border-color: #bd1731; color: #bd1731; }

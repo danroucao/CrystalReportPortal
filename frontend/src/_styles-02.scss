@@ -12,7 +12,7 @@ app-demo-portal .export-menu button:hover:not(:disabled),
 app-demo-portal .print-menu button:hover:not(:disabled) {
   border-color: transparent;
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .export-menu button:disabled,
 app-demo-portal .print-menu button:disabled {
@@ -97,11 +97,11 @@ app-demo-portal .status-option {
   font-weight: 400 !important;
 }
 app-demo-portal .status-option:hover {
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .status-option.is-selected {
   color: var(--color-primary) !important;
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
   font-weight: 700 !important;
 }
 app-demo-portal .status-option input {
@@ -300,7 +300,7 @@ app-demo-portal .role-filter-tabs button {
 }
 app-demo-portal .role-filter-tabs button:hover {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .role-filter-tabs button.is-active {
   border-bottom-color: var(--color-primary);
@@ -383,8 +383,8 @@ app-demo-portal .create-role-permissions td:not(:first-child) {
   color: var(--color-muted);
   line-height: 1.6;
 }
-.notification-modal--error {
-  border-top: 4px solid var(--color-danger);
+.notification-modal--notice {
+  border-top: 4px solid var(--color-primary);
 }
 .notification-modal__button {
   display: block;
@@ -400,7 +400,7 @@ app-demo-portal .create-role-permissions td:not(:first-child) {
   cursor: pointer;
 }
 .notification-modal__button:focus-visible {
-  outline: 3px solid rgb(189 25 51 / 30%);
+  outline: 3px solid var(--color-primary-focus-ring);
   outline-offset: 2px;
 }
 .success-toast {
@@ -544,18 +544,18 @@ app-demo-portal .edit-user-role-option {
 }
 app-demo-portal .edit-user-role-option.is-selected {
   border-color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .role-global-permissions label:hover,
 app-demo-portal .role-global-permissions label:focus-within,
 app-demo-portal .edit-user-role-option:hover:not(:has(input:disabled)),
 app-demo-portal .edit-user-role-option:focus-within {
   border-color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 app-demo-portal .role-global-permissions label:focus-within,
 app-demo-portal .edit-user-role-option:focus-within {
-  box-shadow: 0 0 0 3px rgb(189 25 51 / 18%);
+  box-shadow: 0 0 0 3px var(--color-primary-focus-ring);
 }
 app-demo-portal .edit-user-role-option input[type="checkbox"] {
   flex: 0 0 auto;

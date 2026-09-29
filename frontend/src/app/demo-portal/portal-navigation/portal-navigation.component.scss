@@ -20,7 +20,7 @@
   text-decoration: none;
 }
 
-.portal-nav a:hover { color: var(--color-primary); background: #fdf0f2; }
+.portal-nav a:hover { color: var(--color-primary); background: var(--color-primary-subtle); }
 .portal-nav a.active { color: #fff; background: var(--color-primary); }
 
 .nav-icon {
@@ -105,7 +105,7 @@
   }
 
   .mobile-navigation-close:hover,
-  .mobile-navigation-close:focus-visible { color: var(--color-primary); background: #fdf0f2; }
+  .mobile-navigation-close:focus-visible { color: var(--color-primary); background: var(--color-primary-subtle); }
 
   .mobile-navigation-badge {
     display: inline-block;
@@ -133,5 +133,5 @@
   }
 
   .mobile-navigation-logout:hover,
-  .mobile-navigation-logout:focus-visible { background: #fdf0f2; }
+  .mobile-navigation-logout:focus-visible { background: var(--color-primary-subtle); }
 }

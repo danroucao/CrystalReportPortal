@@ -27,7 +27,7 @@
 }
 .common-parameter-filters input:focus, .common-parameter-filters select:focus,
 .common-parameter-form input:focus, .common-parameter-form select:focus, .common-parameter-form textarea:focus {
-  outline: 2px solid rgb(189 23 49 / 22%);
+  outline: 2px solid var(--color-primary-focus-ring);
   border-color: var(--color-primary);
 }
 .table-scroll { border: 1px solid #ded8d1; border-radius: 7px; overflow: auto; }
@@ -54,7 +54,7 @@
 .common-parameter-flags { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin: 1rem 0 0; padding: .8rem; border: 1px solid #ddd7d0; border-radius: .4rem; background: #fff; }
 .common-parameter-flags > legend { padding: 0 .2rem; color: #4e4a46; font-size: .8125rem; font-weight: 700; }
 .common-parameter-flags label { display: flex; align-items: flex-start; gap: .55rem; min-height: 3.55rem; padding: .65rem .75rem; border: 1px solid #e3ded8; border-radius: .4rem; background: #fcfbfa; cursor: pointer; }
-.common-parameter-flags label:has(input:checked) { border-color: #c57481; background: #fff5f6; }
+.common-parameter-flags label:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-subtle); }
 .common-parameter-flags label:has(input:disabled) { opacity: .55; cursor: not-allowed; }
 .common-parameter-flags input {
   appearance: none;
@@ -81,7 +81,7 @@
   background-repeat: no-repeat;
   background-size: 1.25rem;
 }
-.common-parameter-flags input:focus-visible { outline: 3px solid rgb(189 23 49 / 24%); outline-offset: 2px; }
+.common-parameter-flags input:focus-visible { outline: 3px solid var(--color-primary-focus-ring); outline-offset: 2px; }
 .common-parameter-flags span { display: grid; gap: .15rem; }
 .common-parameter-flags strong { color: #393530; font-size: .875rem; }
 .common-parameter-flags small { color: #736d67; font-size: .75rem; line-height: 1.3; }

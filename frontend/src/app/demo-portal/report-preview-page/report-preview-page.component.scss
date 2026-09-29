@@ -165,7 +165,7 @@ dd {
 
 .preview-output-menu[open] summary {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgb(181 24 48 / 14%);
+  box-shadow: 0 0 0 2px var(--color-primary-focus-ring);
 }
 
 .preview-output-menu[open] summary span {
@@ -202,7 +202,7 @@ dd {
 .preview-output-menu__items button:hover,
 .preview-output-menu__items button:focus-visible {
   color: var(--color-primary);
-  background: #fdf0f2;
+  background: var(--color-primary-subtle);
 }
 
 .mock-notice {
