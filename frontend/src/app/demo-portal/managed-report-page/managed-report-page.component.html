@@ -148,7 +148,7 @@
     <div class="modal-actions">
       <button *ngIf="deleteNeedsLogin" type="button" class="secondary-button" (click)="returnToLogin()">重新登入</button>
       <button type="button" class="tertiary-button" [disabled]="isDeleting" (click)="cancelDelete()">取消</button>
-      <button type="button" class="danger-button" [disabled]="isDeleting || deleteNeedsLogin" (click)="confirmDelete()">
+      <button type="button" class="primary-button" [disabled]="isDeleting || deleteNeedsLogin" (click)="confirmDelete()">
         {{ isDeleting ? '刪除中…' : '確認刪除' }}
       </button>
     </div>
@@ -224,7 +224,7 @@
   (approved)="completeReview()" />
 
 <section *ngIf="isEditorOpen" class="modal-backdrop" (click)="closeEditor()">
-  <section class="edit-user-modal managed-report-editor" role="dialog" aria-modal="true" aria-labelledby="managed-report-editor-title" (click)="$event.stopPropagation()">
+  <section class="edit-user-modal managed-report-editor" [class.is-header-mapping-editor]="editorTab === 'headers'" role="dialog" aria-modal="true" aria-labelledby="managed-report-editor-title" (click)="$event.stopPropagation()">
     <div class="modal-heading">
       <h2 id="managed-report-editor-title">{{ existingDraft ? '編輯報表' : '新增報表' }}</h2>
       <button type="button" class="modal-close-button" aria-label="關閉報表視窗" (click)="closeEditor()">×</button>
@@ -300,15 +300,15 @@
       <div *ngIf="!isHeaderMappingsLoading" class="header-mapping-list">
         <div *ngFor="let mapping of headerMappings; let index = index" class="header-mapping-row">
           <label>RPT 標題來源<input [(ngModel)]="mapping.sourceText" [ngModelOptions]="{ standalone: true }" placeholder="例如：Title_CustomerName" /></label>
-          <label>中文顯示名稱<input [(ngModel)]="mapping.displayName" [ngModelOptions]="{ standalone: true }" placeholder="例如：客戶名稱" /></label>
+          <label><span class="header-mapping-display-name-label">中文顯示名稱 <span *ngIf="isSystemSuggestedHeaderMapping(mapping)" class="header-mapping-suggestion">系統建議</span></span><input [(ngModel)]="mapping.displayName" [ngModelOptions]="{ standalone: true }" placeholder="例如：客戶名稱" /></label>
           <button type="button" class="tertiary-button" (click)="removeHeaderMapping(index)">移除</button>
         </div>
         <p *ngIf="!headerMappings.length" class="managed-report-state">尚未偵測到可設定的文字欄位；您仍可手動新增對照。</p>
-        <div class="modal-actions">
-          <button type="button" class="tertiary-button" (click)="addHeaderMapping()">新增對照</button>
-          <button type="button" class="primary-button" [disabled]="isHeaderMappingsSaving" (click)="saveHeaderMappings()">{{ isHeaderMappingsSaving ? '儲存中…' : '儲存中文名稱' }}</button>
-        </div>
       </div>
+      <footer *ngIf="!isHeaderMappingsLoading" class="modal-actions header-mapping-actions">
+        <button type="button" class="tertiary-button" (click)="addHeaderMapping()">新增對照</button>
+        <button type="button" class="primary-button" [disabled]="isHeaderMappingsSaving" (click)="saveHeaderMappings()">{{ isHeaderMappingsSaving ? '儲存中…' : '儲存中文名稱' }}</button>
+      </footer>
     </section>
   </section>
 </section>

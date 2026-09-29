@@ -482,6 +482,11 @@ export class ManagedReportPageComponent implements OnInit {
     this.headerMappings = this.headerMappings.filter((_, itemIndex) => itemIndex !== index);
   }
 
+  isSystemSuggestedHeaderMapping(mapping: ReportColumnHeaderMapping): boolean {
+    return !!mapping.suggestedDisplayName &&
+      mapping.displayName.trim() === mapping.suggestedDisplayName;
+  }
+
   saveHeaderMappings(): void {
     if (!this.existingDraft) return;
     this.isHeaderMappingsSaving = true;

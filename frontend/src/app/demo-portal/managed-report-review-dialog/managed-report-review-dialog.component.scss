@@ -1,5 +1,6 @@
-.review-dialog { width: min(1220px, calc(100vw - 32px)); height: min(820px, calc(100vh - 32px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; background: #fff; border-radius: 8px; }
-.review-dialog .modal-heading { margin: 0; padding: 20px 24px 16px; border-bottom: 1px solid #e5e1dc; }
+.review-dialog { position: relative; width: min(1220px, calc(100vw - 32px)); height: min(820px, calc(100dvh - 32px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; background: #fff; border-radius: 8px; }
+.review-dialog .modal-heading { margin: 0; padding: 20px 4rem 16px 24px; border-bottom: 1px solid #e5e1dc; }
+.review-dialog .modal-close-button { right: 1.5rem; }
 .review-status { min-height: 0; margin: 0 24px; }
 .review-status > p { margin: 10px 0; }
 .review-status > .field-error { max-height: 72px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -61,7 +62,7 @@
 .preview-empty { display: grid; min-height: 360px; place-items: center; border: 1px dashed #bbb; color: #666; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin: 0; padding: 16px 24px; border-top: 1px solid #e5e1dc; background: #fff; }
 @media (max-width: 800px) {
-	.review-dialog { width: min(680px, calc(100vw - 20px)); height: calc(100vh - 20px); }
+	.review-dialog { width: min(680px, calc(100vw - 20px)); height: calc(100dvh - 20px); }
 	.review-content { grid-template-columns: 1fr; overflow-y: auto; }
 	.review-parameters { overflow: visible; border-right: 0; border-bottom: 1px solid #e5e1dc; }
 	.review-preview { min-height: 460px; }

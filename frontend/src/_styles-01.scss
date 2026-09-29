@@ -40,6 +40,16 @@ body {
   min-height: 100%;
   margin: 0;
 }
+html {
+  scrollbar-gutter: stable;
+}
+html:has(app-demo-portal .modal-backdrop),
+html:has(.notification-modal-backdrop),
+body:has(app-demo-portal .modal-backdrop),
+body:has(.notification-modal-backdrop) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 body {
   min-height: 100vh;
 }
@@ -462,9 +472,12 @@ app-demo-portal .visually-hidden {
 }
 app-demo-portal .notification-detail-modal {
   box-sizing: border-box;
+  position: relative;
   width: min(34rem, calc(100vw - 3rem));
-  max-height: calc(100vh - 3rem);
+  max-height: calc(100dvh - 3rem);
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 1.5rem;
   border: 1px solid var(--color-border);
   border-radius: 10px;
@@ -510,6 +523,10 @@ app-demo-portal .notification-detail-actions {
   margin-top: 1.5rem;
 }
 app-demo-portal .notification-detail-modal .notification-close {
+  position: absolute;
+  z-index: 1;
+  top: 1.5rem;
+  right: 1.5rem;
   display: grid;
   width: 2.25rem;
   min-width: 2.25rem;
@@ -522,6 +539,12 @@ app-demo-portal .notification-detail-modal .notification-close {
   color: var(--color-text);
   background: var(--color-surface);
   line-height: 1;
+}
+app-demo-portal .notification-detail-modal .notification-popover-heading {
+  padding-right: 4rem;
+}
+app-demo-portal .notification-detail-modal .notification-close {
+  right: 6px;
 }
 app-demo-portal .notification-detail-modal .notification-close:hover:not(:disabled) {
   border-color: var(--color-primary);

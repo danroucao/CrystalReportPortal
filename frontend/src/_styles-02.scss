@@ -154,12 +154,25 @@ app-demo-portal .modal-backdrop {
   display: grid;
   place-items: center;
   padding: 1.5rem;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: rgb(32 32 31 / 45%);
 }
+/* Backdrops never scroll. A dialog owns overflow when its content exceeds
+   the viewport, so the page behind it cannot acquire a competing scrollbar. */
+app-demo-portal .modal-backdrop > [role="dialog"],
+app-demo-portal .modal-backdrop > [role="alertdialog"] {
+  min-width: 0;
+  min-height: 0;
+}
 app-demo-portal .edit-user-modal {
+  box-sizing: border-box;
+  position: relative;
   width: min(856px, 100%);
-  max-height: calc(100vh - 3rem);
+  max-height: calc(100dvh - 3rem);
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 2.25rem 1.75rem 2rem;
   border: 1px solid var(--color-border);
   border-radius: 10px;
@@ -364,10 +377,18 @@ app-demo-portal .create-role-permissions td:not(:first-child) {
   display: grid;
   place-items: center;
   padding: 1rem;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: rgb(22 22 22 / 42%);
 }
 .notification-modal {
+  box-sizing: border-box;
+  min-height: 0;
   width: min(100%, 360px);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 1.5rem;
   border-radius: 10px;
   background: #fff;
@@ -447,6 +468,7 @@ app-demo-portal .modal-heading {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  padding-right: 4rem;
 }
 app-demo-portal .modal-heading h2 {
   margin: 0;
@@ -458,6 +480,10 @@ app-demo-portal .modal-heading .muted {
   font-size: 1rem;
 }
 app-demo-portal .modal-close-button {
+  position: absolute;
+  z-index: 1;
+  top: 1.5rem;
+  right: 1.5rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -477,6 +503,17 @@ app-demo-portal .modal-close-button {
 app-demo-portal .modal-close-button:hover {
   color: var(--color-muted);
   background: transparent;
+}
+app-demo-portal .modal-close-button:focus-visible {
+  outline: 2px solid var(--color-primary-focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* The stable scrollbar gutter occupies roughly 18px on the right edge of
+   editable modals. Offset the control inside that content edge so its
+   visible edge remains 24px from the outer modal border. */
+app-demo-portal .edit-user-modal .modal-close-button {
+  right: 6px;
 }
 app-demo-portal .edit-user-close-button,
 app-demo-portal .edit-user-close-button:hover {
@@ -568,7 +605,12 @@ app-demo-portal .created-user-success-backdrop {
   z-index: 20;
 }
 app-demo-portal .created-user-success-modal {
+  box-sizing: border-box;
   width: min(31rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 3rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 2rem;
   border: 1px solid var(--color-border);
   border-radius: 8px;

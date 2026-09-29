@@ -42,8 +42,26 @@
 .common-parameter-table td:nth-child(5) { white-space: nowrap; }
 .common-parameter-table .account-status-switch { margin-right: .5rem; }
 .common-parameter-empty, .common-parameter-state { padding: 2rem; text-align: center; color: #666; }
-.common-parameter-editor { width: min(62rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; }
-.common-parameter-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.common-parameter-editor {
+  width: min(62rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.common-parameter-form {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: .5rem;
+}
 .common-parameter-wide { grid-column: 1 / -1; }
 .common-parameter-section { min-width: 0; margin: 0; padding: 1rem 1.1rem 1.1rem; border: 1px solid #ded8d1; border-radius: .5rem; background: #fffdfb; }
 .common-parameter-section > legend { padding: 0 .25rem; color: #2d2925; font-weight: 800; }

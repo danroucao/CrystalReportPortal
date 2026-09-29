@@ -51,6 +51,7 @@ export interface RoleReportPermission {
 export interface ReportColumnHeaderMapping {
   sourceText: string;
   displayName: string;
+  suggestedDisplayName?: string;
 }
 
 export interface ManagedReportCategory {

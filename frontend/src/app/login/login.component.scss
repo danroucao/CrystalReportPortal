@@ -60,6 +60,9 @@ input:disabled { cursor: wait; background: #f4f1ec; }
 }
 .login-header {
   flex: 0 0 auto;
+  position: sticky;
+  z-index: 5;
+  top: 0;
   min-height: 68px;
   background: #fff;
 }
