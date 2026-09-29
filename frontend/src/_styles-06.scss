@@ -358,6 +358,10 @@ app-demo-portal .sort-indicator {
 app-demo-portal th.is-sorted .sort-indicator {
   stroke: #6d6b66;
 }
+app-demo-portal th.is-sorted .sortable-table-header,
+app-demo-portal th.is-sorted .favorite-sort-button {
+  color: var(--color-primary);
+}
 app-demo-portal th.is-sorted .sort-indicator.is-ascending .sort-indicator-up,
 app-demo-portal
   th.is-sorted
@@ -686,4 +690,3 @@ app-demo-portal .portal-header .profile-trigger-chevron svg {
   stroke-linejoin: round;
   stroke-width: 2.1;
 }
-

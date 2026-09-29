@@ -27,11 +27,35 @@
     <table class="report-management-table">
       <thead><tr>
         <th class="pin-column">釘選</th>
-        <th><button type="button" class="sortable-table-header" (click)="setSort('reportName')">報表名稱</button></th>
+        <th [class.is-sorted]="sortField === 'reportName'" [attr.aria-sort]="getSortAria('reportName')">
+          <button type="button" class="sortable-table-header" (click)="setSort('reportName')">
+            報表名稱
+            <svg class="sort-indicator" [class.is-ascending]="sortField === 'reportName' && sortDirection === 'asc'" [class.is-descending]="sortField === 'reportName' && sortDirection === 'desc'" viewBox="0 0 16 24" aria-hidden="true">
+              <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+              <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+            </svg>
+          </button>
+        </th>
         <th>報表分類</th><th>資料來源</th><th>報表說明</th><th>啟用狀態</th>
-        <th><button type="button" class="sortable-table-header" (click)="setSort('createdAt')">建立時間</button></th>
-        <th><button type="button" class="sortable-table-header" (click)="setSort('updatedAt')">更新時間</button></th>
-        <th>操作</th>
+        <th [class.is-sorted]="sortField === 'createdAt'" [attr.aria-sort]="getSortAria('createdAt')">
+          <button type="button" class="sortable-table-header" (click)="setSort('createdAt')">
+            建立時間
+            <svg class="sort-indicator" [class.is-ascending]="sortField === 'createdAt' && sortDirection === 'asc'" [class.is-descending]="sortField === 'createdAt' && sortDirection === 'desc'" viewBox="0 0 16 24" aria-hidden="true">
+              <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+              <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+            </svg>
+          </button>
+        </th>
+        <th [class.is-sorted]="sortField === 'updatedAt'" [attr.aria-sort]="getSortAria('updatedAt')">
+          <button type="button" class="sortable-table-header" (click)="setSort('updatedAt')">
+            更新時間
+            <svg class="sort-indicator" [class.is-ascending]="sortField === 'updatedAt' && sortDirection === 'asc'" [class.is-descending]="sortField === 'updatedAt' && sortDirection === 'desc'" viewBox="0 0 16 24" aria-hidden="true">
+              <path class="sort-indicator-up" d="m3 8 5-5 5 5"></path>
+              <path class="sort-indicator-down" d="m3 16 5 5 5-5"></path>
+            </svg>
+          </button>
+        </th>
+        <th class="managed-report-actions">操作</th>
       </tr></thead>
       <tbody>
         <tr *ngFor="let report of pagedReports; trackBy: trackReport">
@@ -211,22 +235,51 @@
     </nav>
 
     <form *ngIf="editorTab === 'basic'" class="managed-report-form" (ngSubmit)="save()" novalidate>
-      <label>報表代碼<span class="required-indicator">*</span><input name="reportCode" [(ngModel)]="draft.reportCode" [disabled]="existingDraft !== null" placeholder="例如 SALES_DETAIL" /></label>
-      <label>報表名稱<span class="required-indicator">*</span><input name="reportName" [(ngModel)]="draft.reportName" [disabled]="existingDraft !== null" /></label>
-      <label class="wide">報表說明<span class="required-indicator">*</span><textarea name="description" rows="3" [(ngModel)]="draft.description" [disabled]="existingDraft !== null"></textarea></label>
-      <label>報表分類<span class="required-indicator">*</span>
-        <select name="categoryId" [(ngModel)]="draft.categoryId" [disabled]="existingDraft !== null">
-          <option [ngValue]="0">請選擇報表分類</option>
-          <option *ngFor="let category of categories" [ngValue]="category.categoryId">{{ category.categoryName }}</option>
-        </select>
-      </label>
+      <label><span class="form-field-label">報表代碼<span class="required-indicator" aria-hidden="true">*</span></span><input name="reportCode" [(ngModel)]="draft.reportCode" [disabled]="existingDraft !== null" placeholder="例如 SALES_DETAIL" /></label>
+      <label><span class="form-field-label">報表名稱<span class="required-indicator" aria-hidden="true">*</span></span><input name="reportName" [(ngModel)]="draft.reportName" [disabled]="existingDraft !== null" /></label>
+      <label class="wide"><span class="form-field-label">報表說明<span class="required-indicator" aria-hidden="true">*</span></span><textarea name="description" rows="3" [(ngModel)]="draft.description" [disabled]="existingDraft !== null"></textarea></label>
+      <div class="managed-report-category-field">
+        <label><span class="form-field-label">報表分類<span class="required-indicator" aria-hidden="true">*</span></span>
+          <select name="categoryId" [(ngModel)]="draft.categoryId" [disabled]="existingDraft !== null">
+            <option [ngValue]="0">請選擇報表分類</option>
+            <option *ngFor="let category of categories" [ngValue]="category.categoryId">{{ category.categoryName }}</option>
+          </select>
+        </label>
+        <button
+          *ngIf="Auth.HasPermission('Report.Maintain')"
+          type="button"
+          class="secondary-button managed-report-add-category"
+          [disabled]="isEditorCategoryQuickAddSaving"
+          [attr.aria-expanded]="isEditorCategoryQuickAddOpen"
+          aria-controls="managed-report-category-quick-add"
+          (click)="openEditorCategoryQuickAdd()"
+        >＋ 新增分類</button>
+      </div>
+      <section *ngIf="isEditorCategoryQuickAddOpen" id="managed-report-category-quick-add" class="managed-report-category-quick-add wide" aria-label="新增報表分類">
+        <label><span class="form-field-label">分類名稱<span class="required-indicator" aria-hidden="true">*</span></span>
+          <input
+            name="editorCategoryQuickAddName"
+            [(ngModel)]="editorCategoryQuickAddName"
+            (ngModelChange)="editorCategoryQuickAddError = ''"
+            maxlength="100"
+            placeholder="請輸入新分類名稱"
+            [disabled]="isEditorCategoryQuickAddSaving"
+            [attr.aria-invalid]="editorCategoryQuickAddError ? 'true' : null"
+          />
+        </label>
+        <div class="managed-report-category-quick-add-actions">
+          <button type="button" class="primary-button" [disabled]="isEditorCategoryQuickAddSaving" (click)="createEditorCategoryQuickAdd()">{{ isEditorCategoryQuickAddSaving ? '新增中…' : '新增' }}</button>
+          <button type="button" class="tertiary-button" [disabled]="isEditorCategoryQuickAddSaving" (click)="closeEditorCategoryQuickAdd()">取消</button>
+        </div>
+        <p *ngIf="editorCategoryQuickAddError" class="field-error" role="alert">{{ editorCategoryQuickAddError }}</p>
+      </section>
       <label>資料來源<span class="optional-field-label">（可稍後設定）</span>
         <select name="dataSourceId" [(ngModel)]="draft.dataSourceId" [disabled]="existingDraft !== null">
           <option [ngValue]="0">請選擇資料來源</option>
           <option *ngFor="let dataSource of dataSources" [ngValue]="dataSource.dataSourceId">{{ dataSource.dataSourceName }}</option>
         </select>
       </label>
-      <label class="wide">RPT 檔案<span class="required-indicator">*</span>
+      <label class="wide"><span class="form-field-label">RPT 檔案<span class="required-indicator" aria-hidden="true">*</span></span>
         <input name="rptFile" type="file" accept=".rpt" (change)="selectFile($event)" />
         <small *ngIf="selectedFile">已選擇：{{ selectedFile.name }}</small>
       </label>

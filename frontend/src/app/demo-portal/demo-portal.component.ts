@@ -116,6 +116,17 @@ interface ParameterReportSearchState {
 }
 
 type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
+type ReportUploadValidationField =
+  | 'reportCode'
+  | 'reportName'
+  | 'description'
+  | 'category'
+  | 'file';
+
+interface ReportUploadValidation {
+  readonly field: ReportUploadValidationField | null;
+  readonly message: string;
+}
 
 interface PublishedUploadSummary {
   readonly ReportName: string;
@@ -179,6 +190,7 @@ export class DemoPortalComponent
   IsProfileMenuOpen = false;
   BackOfficeBindingAccount = '';
   BackOfficeBindingPassword = '';
+  BackOfficeBindingPasswordVisible = false;
   BackOfficeBindingError = '';
   NotificationCenterTab: 'All' | 'Unread' = 'All';
   NotificationPopoverTab: 'All' | 'Unread' = 'All';
@@ -201,6 +213,7 @@ export class DemoPortalComponent
   DatabaseConnectionTestNotice = '';
   IsReportDiscardConfirmationOpen = false;
   IsReportCategoryQuickAddOpen = false;
+  IsReportCategoryQuickAddSaving = false;
   QuickAddCategoryName = '';
   QuickAddCategoryError = '';
   EditingReportKey: MockReportKey | null = null;
@@ -210,7 +223,11 @@ export class DemoPortalComponent
   ReportUploadCategories: MockReportCategory[] = [];
   ReportUploadDataSources: { dataSourceId: number; dataSourceName: string }[] = [];
   ReportEditorError = '';
+  ReportUploadInvalidField: ReportUploadValidationField | null = null;
   IsReportFileInvalid = false;
+  IsReportUploadCodeCheckPending = false;
+  IsReportUploadCodeCheckFailed = false;
+  IsReportUploadValidationSubmitting = false;
   IsReportUploadPublishing = false;
   ReportUploadStep: ReportUploadStep = 'Form';
   PublishedUploadedReport: PublishedUploadSummary | null = null;
@@ -259,6 +276,7 @@ export class DemoPortalComponent
         this.InitializeReportUploadFlow();
         this.LoadReportUploadCategories();
         this.LoadReportUploadDataSources();
+        this.LoadExistingReportUploadCodes();
       }
       if (this.Page === 'DatabaseConnection') this.LoadDataSources();
     const NavigationState =
@@ -498,6 +516,7 @@ export class DemoPortalComponent
         this.userManagementPage?.LoadApiManagementData();
         this.BackOfficeBindingAccount = '';
         this.BackOfficeBindingPassword = '';
+        this.BackOfficeBindingPasswordVisible = false;
       },
       error: (VerificationError: unknown) => {
         this.BackOfficeBindingError = VerificationError instanceof Error
@@ -509,8 +528,13 @@ export class DemoPortalComponent
 
   ReturnToLoginFromBackOfficeBinding(): void {
     if (!this.Auth.RequiresBackOfficeIdentityBinding) return;
+    this.BackOfficeBindingPasswordVisible = false;
     this.Auth.Logout();
     void this.router.navigate(['/login']);
+  }
+
+  ToggleBackOfficeBindingPasswordVisibility(): void {
+    this.BackOfficeBindingPasswordVisible = !this.BackOfficeBindingPasswordVisible;
   }
 
 
@@ -561,13 +585,19 @@ export class DemoPortalComponent
 
   ContinueReportUpload(): void {
     if (!this.IsReportUploadFlow) return;
-    const Error = this.GetReportEditorValidationError();
-    if (Error) {
-      this.ReportEditorError = Error;
+    const Validation = this.GetReportUploadValidation();
+    if (
+      this.IsReportUploadCodeCheckPending ||
+      this.IsReportUploadCodeCheckFailed
+    ) {
+      this.LoadExistingReportUploadCodes(true);
       return;
     }
-    this.ReportEditorError = '';
-    this.ReportUploadStep = 'Confirm';
+    if (Validation.message) {
+      this.ApplyReportUploadValidation(Validation);
+      return;
+    }
+    this.LoadExistingReportUploadCodes(true);
   }
 
   ReturnToReportUploadForm(): void {
@@ -577,9 +607,9 @@ export class DemoPortalComponent
 
   PublishReportUpload(): void {
     if (!this.IsReportUploadFlow || this.ReportUploadStep !== 'Confirm') return;
-    const Error = this.GetReportEditorValidationError();
-    if (Error) {
-      this.ReportEditorError = Error;
+    const Validation = this.GetReportUploadValidation();
+    if (Validation.message) {
+      this.ApplyReportUploadValidation(Validation);
       this.ReportUploadStep = 'Form';
       return;
     }
@@ -648,16 +678,21 @@ export class DemoPortalComponent
 
   OpenReportCategoryQuickAdd(): void {
     if (
-      !this.Auth.HasManagementPermission('RptManagement') ||
+      !this.Auth.HasPermission('Report.Maintain') ||
       !this.IsReportUploadFlow
     )
       return;
+    if (this.IsReportCategoryQuickAddOpen) {
+      this.CloseReportCategoryQuickAdd();
+      return;
+    }
     this.QuickAddCategoryName = '';
     this.QuickAddCategoryError = '';
     this.IsReportCategoryQuickAddOpen = true;
   }
 
   CloseReportCategoryQuickAdd(): void {
+    if (this.IsReportCategoryQuickAddSaving) return;
     this.IsReportCategoryQuickAddOpen = false;
     this.QuickAddCategoryName = '';
     this.QuickAddCategoryError = '';
@@ -665,25 +700,45 @@ export class DemoPortalComponent
 
   CreateReportCategoryQuickAdd(): void {
     if (
-      !this.Auth.HasManagementPermission('RptManagement') ||
-      !this.IsReportCategoryQuickAddOpen
+      !this.Auth.HasPermission('Report.Maintain') ||
+      !this.IsReportCategoryQuickAddOpen ||
+      this.IsReportCategoryQuickAddSaving
     )
       return;
-    const Result = this.MockRbac.CreateCategory(this.QuickAddCategoryName);
-    const Messages: Record<Exclude<typeof Result.Status, 'created'>, string> = {
-      'invalid-name': '請輸入報表分類名稱。',
-      'duplicate-name': '此報表分類已存在。',
-      'system-reserved-name': '此名稱為系統保留分類，不可建立。',
-    };
-    if (Result.Status !== 'created') {
-      this.QuickAddCategoryError = Messages[Result.Status];
+    const CategoryName = this.QuickAddCategoryName.trim();
+    if (!CategoryName) {
+      this.QuickAddCategoryError = '請輸入報表分類名稱。';
       return;
     }
-    this.ReportEditorDraft.CategoryId = Result.Category.CategoryId;
-    this.CloseReportCategoryQuickAdd();
-    this.ShowSuccessToast(
-      `新增報表分類「${Result.Category.CategoryName}」成功！`,
-    );
+    this.IsReportCategoryQuickAddSaving = true;
+    this.QuickAddCategoryError = '';
+    this.ReportsApi.CreateManagedReportCategory({ categoryName: CategoryName }).subscribe({
+      next: (Category) => {
+        const AddedCategory: MockReportCategory = {
+          CategoryId: String(Category.categoryId),
+          CategoryName: Category.categoryName,
+          IsSystemReserved: false,
+        };
+        this.ReportUploadCategories = [
+          ...this.ReportUploadCategories.filter(
+            (ExistingCategory) => ExistingCategory.CategoryId !== AddedCategory.CategoryId,
+          ),
+          AddedCategory,
+        ];
+        this.ReportEditorDraft = {
+          ...this.ReportEditorDraft,
+          CategoryId: AddedCategory.CategoryId,
+        };
+        this.ClearReportUploadValidation();
+        this.IsReportCategoryQuickAddSaving = false;
+        this.CloseReportCategoryQuickAdd();
+        this.ShowSuccessToast(`新增報表分類「${AddedCategory.CategoryName}」成功！`);
+      },
+      error: (error: unknown) => {
+        this.IsReportCategoryQuickAddSaving = false;
+        this.QuickAddCategoryError = this.GetApiErrorMessage(error);
+      },
+    });
   }
 
   OnReportFileSelected(Event: Event): void {
@@ -694,15 +749,20 @@ export class DemoPortalComponent
     if (!File.name.toLocaleLowerCase().endsWith('.rpt')) {
       this.SelectedReportFileName = '';
       this.SelectedReportFile = null;
-      this.ReportEditorError = '僅允許上傳 .rpt 報表檔案。';
       this.IsReportFileInvalid = true;
       Input.value = '';
+      this.ClearReportUploadValidation();
       return;
     }
     this.SelectedReportFileName = File.name;
     this.SelectedReportFile = File;
-    this.ReportEditorError = '';
     this.IsReportFileInvalid = false;
+    this.ClearReportUploadValidation();
+  }
+
+  OnReportUploadDraftChange(Draft: ReportEditorDraft): void {
+    this.ReportEditorDraft = Draft;
+    this.ClearReportUploadValidation();
   }
 
 
@@ -972,7 +1032,11 @@ export class DemoPortalComponent
     this.SelectedReportFileName = '';
     this.SelectedReportFile = null;
     this.ReportEditorError = '';
+    this.ReportUploadInvalidField = null;
     this.IsReportFileInvalid = false;
+    this.IsReportUploadCodeCheckPending = false;
+    this.IsReportUploadCodeCheckFailed = false;
+    this.IsReportUploadValidationSubmitting = false;
     this.IsReportUploadPublishing = false;
     this.ReportUploadStep = 'Form';
     this.PublishedUploadedReport = null;
@@ -994,6 +1058,7 @@ export class DemoPortalComponent
     const InitialDraft = this.ReportEditorInitialDraft;
     if (!InitialDraft) return false;
     return (
+      InitialDraft.ReportCode !== this.ReportEditorDraft.ReportCode ||
       InitialDraft.ReportName !== this.ReportEditorDraft.ReportName ||
       InitialDraft.Description !== this.ReportEditorDraft.Description ||
       InitialDraft.CategoryId !== this.ReportEditorDraft.CategoryId ||
@@ -1012,32 +1077,84 @@ export class DemoPortalComponent
     this.PendingReportEditorFocus = Target;
   }
 
-  private GetReportEditorValidationError(): string {
-    if (this.IsReportFileInvalid) {
-      return '僅允許上傳 .rpt 報表檔案。';
+  private GetReportUploadValidation(): ReportUploadValidation {
+    const ReportCode = this.ReportEditorDraft.ReportCode?.trim() ?? '';
+    if (!ReportCode) {
+      return { field: 'reportCode', message: '請輸入報表代碼。' };
     }
-    if (this.IsReportUploadFlow && !this.ReportEditorDraft.ReportCode?.trim()) {
-      return '請輸入報表代碼。';
+    if (this.IsReportUploadCodeCheckPending) {
+      return { field: 'reportCode', message: '正在檢查報表代碼，請稍候。' };
+    }
+    if (this.IsReportUploadCodeCheckFailed) {
+      return { field: 'reportCode', message: '無法檢查報表代碼是否重複，請稍後再試。' };
+    }
+    if (this.ExistingReportCodes.has(ReportCode.toLocaleUpperCase())) {
+      return { field: 'reportCode', message: '報表代碼重複，請使用其他代碼。' };
     }
     if (!this.ReportEditorDraft.ReportName.trim()) {
-      return '請輸入報表名稱。';
+      return { field: 'reportName', message: '請輸入報表名稱。' };
     }
     if (!this.ReportEditorDraft.Description.trim()) {
-      return '請輸入報表說明。';
+      return { field: 'description', message: '請輸入報表說明。' };
     }
     if (!this.ReportEditorDraft.CategoryId) {
-      return '請選擇報表分類。';
+      return { field: 'category', message: '請選擇報表分類。' };
     }
-    if (!this.EditingReportKey && !this.SelectedReportFile) {
-      return '請選擇 RPT 報表檔案。';
-    }
-    if (
+    if (this.IsReportFileInvalid || (
       this.SelectedReportFileName &&
       !this.SelectedReportFileName.toLocaleLowerCase().endsWith('.rpt')
-    ) {
-      return '僅允許上傳 .rpt 報表檔案。';
+    )) {
+      return { field: 'file', message: '僅允許上傳 .rpt 報表檔案。' };
     }
-    return '';
+    if (!this.SelectedReportFile) {
+      return { field: 'file', message: '請選擇 RPT 報表檔案。' };
+    }
+    return { field: null, message: '' };
+  }
+
+  private ExistingReportCodes = new Set<string>();
+
+  private ApplyReportUploadValidation(Validation: ReportUploadValidation): void {
+    this.ReportEditorError = Validation.message;
+    this.ReportUploadInvalidField = Validation.field;
+  }
+
+  private ClearReportUploadValidation(): void {
+    this.ReportEditorError = '';
+    this.ReportUploadInvalidField = null;
+  }
+
+  private LoadExistingReportUploadCodes(ContinueWhenValid = false): void {
+    if (!this.IsReportUploadFlow) return;
+    if (ContinueWhenValid) this.IsReportUploadValidationSubmitting = true;
+    this.IsReportUploadCodeCheckPending = true;
+    this.IsReportUploadCodeCheckFailed = false;
+    this.ReportsApi.GetManagedReports().subscribe({
+      next: (reports) => {
+        this.ExistingReportCodes = new Set(
+          reports.map((report) => report.reportCode.trim().toLocaleUpperCase()),
+        );
+        this.IsReportUploadCodeCheckPending = false;
+        const Validation = this.GetReportUploadValidation();
+        if (ContinueWhenValid) {
+          this.IsReportUploadValidationSubmitting = false;
+          if (Validation.message) {
+            this.ApplyReportUploadValidation(Validation);
+          } else {
+            this.ClearReportUploadValidation();
+            this.ReportUploadStep = 'Confirm';
+          }
+        }
+      },
+      error: () => {
+        this.IsReportUploadCodeCheckPending = false;
+        this.IsReportUploadCodeCheckFailed = true;
+        if (ContinueWhenValid) {
+          this.IsReportUploadValidationSubmitting = false;
+          this.ApplyReportUploadValidation(this.GetReportUploadValidation());
+        }
+      },
+    });
   }
 
   private LoadReportUploadCategories(): void {

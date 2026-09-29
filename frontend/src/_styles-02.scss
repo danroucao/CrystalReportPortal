@@ -491,9 +491,13 @@ app-demo-portal .edit-user-close-button:hover {
 app-demo-portal .required-indicator {
   color: var(--color-danger);
   display: inline-block;
-  margin-left: 0.25rem;
+  position: relative;
+  top: -0.35em;
+  margin-left: 0.1rem;
+  font-size: 0.75em;
   font-weight: 700;
   line-height: 1;
+  vertical-align: baseline;
 }
 app-demo-portal .field-error {
   color: var(--color-danger);

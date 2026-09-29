@@ -21,6 +21,8 @@ export class ReportEditorFormComponent {
   @Input() showEnabled = true;
   @Input() selectedFileName = '';
   @Input() error = '';
+  @Input() invalidField: string | null = null;
+  @Input() isSubmitDisabled = false;
   @Input() canAddCategory = false;
   @Input() quickAddOpen = false;
   @Input() quickAddName = '';
@@ -53,6 +55,10 @@ export class ReportEditorFormComponent {
 
   UpdateDraft<K extends keyof ReportEditorDraft>(Field: K, Value: ReportEditorDraft[K]): void {
     this.draftChange.emit({ ...this.draft, [Field]: Value });
+  }
+
+  HasUploadError(Field: string): boolean {
+    return this.IsUploadPage && this.invalidField === Field && !!this.error;
   }
 
   OnQuickAddEnter(Event: Event): void {

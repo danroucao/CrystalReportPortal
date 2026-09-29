@@ -18,7 +18,7 @@
       <ng-container *ngTemplateOutlet="FormError"></ng-container>
       <footer class="report-upload-actions report-upload-form-actions">
         <button type="button" class="tertiary-button report-upload-secondary-action" (click)="cancelRequested.emit()">取消</button>
-        <button type="submit" class="primary-button">下一步：確認內容</button>
+        <button type="submit" class="primary-button" [disabled]="isSubmitDisabled">下一步：確認內容</button>
       </footer>
     </section>
   </ng-container>
@@ -45,7 +45,7 @@
         name="reportUploadCode"
         [ngModel]="draft.ReportCode ?? ''"
         (ngModelChange)="UpdateDraft('ReportCode', $event)"
-        [attr.aria-invalid]="error && !draft.ReportCode?.trim() ? 'true' : null"
+        [attr.aria-invalid]="HasUploadError('reportCode') ? 'true' : null"
         placeholder="例如 SALES_DETAIL"
       />
     </label>
@@ -56,7 +56,7 @@
         [name]="IsUploadPage ? 'reportUploadName' : 'reportName'"
         [ngModel]="draft.ReportName"
         (ngModelChange)="UpdateDraft('ReportName', $event)"
-        [attr.aria-invalid]="error && !draft.ReportName.trim() ? 'true' : null"
+        [attr.aria-invalid]="IsUploadPage ? (HasUploadError('reportName') ? 'true' : null) : (error && !draft.ReportName.trim() ? 'true' : null)"
         [attr.placeholder]="IsUploadPage ? '請輸入報表名稱' : null"
       />
     </label>
@@ -70,7 +70,7 @@
         [rows]="IsUploadPage ? 4 : 3"
         [maxlength]="IsUploadPage ? 500 : null"
         placeholder="請輸入報表說明"
-        [attr.aria-invalid]="!IsUploadPage && error && !draft.Description.trim() ? 'true' : null"
+        [attr.aria-invalid]="IsUploadPage ? (HasUploadError('description') ? 'true' : null) : (error && !draft.Description.trim() ? 'true' : null)"
       ></textarea>
       <small *ngIf="IsUploadPage">{{ draft.Description.length }} / 500</small>
     </label>
@@ -82,7 +82,7 @@
           [name]="IsUploadPage ? 'reportUploadCategory' : 'reportCategory'"
           [ngModel]="draft.CategoryId"
           (ngModelChange)="UpdateDraft('CategoryId', $event)"
-          [attr.aria-invalid]="error && !draft.CategoryId ? 'true' : null"
+          [attr.aria-invalid]="IsUploadPage ? (HasUploadError('category') ? 'true' : null) : (error && !draft.CategoryId ? 'true' : null)"
         >
           <option value="" disabled>{{ IsUploadPage ? '請選擇報表分類' : '選擇報表分類' }}</option>
           <option *ngFor="let Category of categories; trackBy: TrackCategoryById" [value]="Category.CategoryId">{{ Category.CategoryName }}</option>
@@ -92,23 +92,12 @@
         *ngIf="canAddCategory"
         type="button"
         [class]="IsUploadPage ? 'secondary-button report-upload-add-category' : 'secondary-button report-category-quick-add-trigger'"
+        [attr.aria-expanded]="quickAddOpen"
+        [attr.aria-controls]="IdPrefix + '-category-quick-add'"
         (click)="quickAddRequested.emit()"
       ><span aria-hidden="true">＋</span> 新增分類</button>
     </div>
-    <label *ngIf="IsUploadPage" [for]="IdPrefix + '-data-source'" class="report-upload-data-source-field">
-      <span class="form-field-label">資料來源 <small>（選填）</small></span>
-      <select
-        [id]="IdPrefix + '-data-source'"
-        name="reportUploadDataSource"
-        [ngModel]="draft.DataSourceId"
-        (ngModelChange)="UpdateDraft('DataSourceId', $event)"
-      >
-        <option value="">不設定資料來源（使用 Saved Data）</option>
-        <option *ngFor="let dataSource of dataSources" [value]="dataSource.dataSourceId">{{ dataSource.dataSourceName }}</option>
-      </select>
-      <small>選擇資料來源後，發佈時需完成報表參數設定，並以即時資料輸出；未選擇時會使用 RPT 內嵌的 Saved Data。</small>
-    </label>
-    <div *ngIf="quickAddOpen" class="report-category-quick-add" [class.report-upload-quick-add]="IsUploadPage" role="group" [attr.aria-labelledby]="QuickAddLabelId">
+    <div *ngIf="quickAddOpen" [id]="IdPrefix + '-category-quick-add'" class="report-category-quick-add" [class.report-upload-quick-add]="IsUploadPage" role="group" [attr.aria-labelledby]="QuickAddLabelId">
       <label [for]="QuickAddInputId">
         <span [id]="QuickAddLabelId" class="form-field-label">分類名稱<span class="required-indicator" aria-hidden="true">*</span></span>
         <input
@@ -127,6 +116,19 @@
       </div>
       <p *ngIf="quickAddError" class="field-error" role="alert">{{ quickAddError }}</p>
     </div>
+    <label *ngIf="IsUploadPage" [for]="IdPrefix + '-data-source'" class="report-upload-data-source-field">
+      <span class="form-field-label">資料來源 <small>（選填）</small></span>
+      <select
+        [id]="IdPrefix + '-data-source'"
+        name="reportUploadDataSource"
+        [ngModel]="draft.DataSourceId"
+        (ngModelChange)="UpdateDraft('DataSourceId', $event)"
+      >
+        <option value="">不設定資料來源（使用 Saved Data）</option>
+        <option *ngFor="let dataSource of dataSources" [value]="dataSource.dataSourceId">{{ dataSource.dataSourceName }}</option>
+      </select>
+      <small>選擇資料來源後，發佈時需完成報表參數設定，並以即時資料輸出；未選擇時會使用 RPT 內嵌的 Saved Data。</small>
+    </label>
     <div *ngIf="showEnabled" [class]="IsUploadPage ? 'report-upload-enabled' : 'edit-status-field report-editor-enabled'">
       <span class="form-field-label">啟用狀態</span>
       <button type="button" class="account-status-switch" role="switch" [class.is-enabled]="draft.Enabled" [attr.aria-checked]="draft.Enabled" (click)="UpdateDraft('Enabled', !draft.Enabled)">
@@ -137,7 +139,7 @@
   </ng-template>
 
   <ng-template #FilePicker>
-    <label [class]="IsUploadPage ? 'report-upload-dropzone' : 'report-file-picker'" [for]="IdPrefix + '-file'">
+    <label [class]="IsUploadPage ? 'report-upload-dropzone' : 'report-file-picker'" [class.is-invalid]="HasUploadError('file')" [for]="IdPrefix + '-file'">
       <ng-container *ngIf="IsUploadPage; else ModalFileLabel">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 14v5h14v-5" /></svg>
         <strong>拖曳 .rpt 檔案到此處，或選擇檔案</strong>
@@ -153,6 +155,7 @@
   </ng-template>
 
   <ng-template #FormError>
-    <p *ngIf="error" class="field-error" [class.report-upload-error]="IsUploadPage" role="alert">{{ error }}</p>
+    <p *ngIf="error && IsUploadPage" class="report-upload-validation-toast" role="alert">{{ error }}</p>
+    <p *ngIf="error && !IsUploadPage" class="field-error" role="alert">{{ error }}</p>
   </ng-template>
 </form>

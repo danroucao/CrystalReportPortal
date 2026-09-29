@@ -54,7 +54,7 @@
         <p *ngIf="isSavedDataReport" class="review-help">此報表未設定資料庫來源，會直接使用 RPT 內嵌的 Saved Data。一般使用者啟用後可依分類權限閱覽、匯出與列印，不會執行即時資料查詢。</p>
         <ng-container *ngIf="!isSavedDataReport">
         <label *ngFor="let parameter of visibleParameters">
-          {{ parameter.displayName }}<span *ngIf="parameter.isRequired" class="required-indicator">*</span>
+          <span class="form-field-label">{{ parameter.displayName }}<span *ngIf="parameter.isRequired" class="required-indicator" aria-hidden="true">*</span></span>
 
           <select *ngIf="parameter.valueSourceType === 'SqlLov' && parameter.allowMultipleValues"
             multiple [name]="'parameter-' + parameter.parameterId"
