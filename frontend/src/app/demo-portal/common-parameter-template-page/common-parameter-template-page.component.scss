@@ -87,10 +87,13 @@
 .common-parameter-flags small { color: #736d67; font-size: .75rem; line-height: 1.3; }
 .common-parameter-form .modal-actions { position: sticky; bottom: 0; z-index: 1; margin: 0 -1.1rem -1.1rem; padding: 1rem 1.1rem; border-top: 1px solid #e1dcd5; background: rgb(255 255 255 / 96%); }
 .common-parameter-form .field-error { margin: 0; padding: .7rem .85rem; border-radius: .35rem; background: #fff5f5; }
+.common-parameter-form .modal-actions .common-parameter-editor-error { flex: 1 1 auto; min-width: 0; padding: 0; background: transparent; text-align: right; }
 
 @media (max-width: 720px) {
   .common-parameter-heading { flex-direction: column; }
   .common-parameter-heading .primary-button { top: auto; }
   .common-parameter-filters, .common-parameter-form, .common-parameter-section-grid, .common-parameter-flags { grid-template-columns: 1fr; }
   .common-parameter-wide { grid-column: auto; }
+  .common-parameter-form .modal-actions { flex-wrap: wrap; }
+  .common-parameter-form .modal-actions .common-parameter-editor-error { flex-basis: 100%; margin-bottom: .5rem; text-align: left; }
 }

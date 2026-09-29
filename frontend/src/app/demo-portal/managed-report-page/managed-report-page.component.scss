@@ -69,10 +69,15 @@
 .managed-report-editor-tabs {
   margin: 0 0 1.25rem;
 }
+:host .managed-report-editor-tabs.project-tabs > button.is-active::after {
+  height: 4px;
+}
 .managed-report-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .managed-report-form .wide { grid-column: 1 / -1; }
-.managed-report-category-field { display: grid; gap: .5rem; align-content: start; }
-.managed-report-add-category { justify-self: start; }
+.managed-report-category-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: end; }
+.managed-report-category-field label { min-width: 0; }
+.managed-report-add-category { align-self: end; white-space: nowrap; }
+.managed-report-data-source-field { max-width: 100%; }
 .managed-report-category-quick-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: end; padding: .85rem; border: 1px solid #ded8d1; border-radius: 7px; background: #fcfbfa; }
 .managed-report-category-quick-add-actions { display: flex; gap: .5rem; }
 .managed-report-category-quick-add .field-error { grid-column: 1 / -1; margin: 0; }
@@ -163,4 +168,8 @@
   .managed-category-create, .managed-category-list-heading, .managed-category-row { grid-template-columns: 1fr; gap: .6rem; }
   .managed-category-actions { justify-content: flex-start; }
   .managed-report-form .wide { grid-column: auto; }
+}
+@media (max-width: 42rem) {
+  .managed-report-category-field { grid-template-columns: 1fr; }
+  .managed-report-add-category { justify-self: start; }
 }

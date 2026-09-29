@@ -150,8 +150,8 @@
         </fieldset>
       </fieldset>
 
-      <p *ngIf="editorError" class="field-error common-parameter-wide" role="alert">{{ editorError }}</p>
       <div class="modal-actions common-parameter-wide">
+        <p *ngIf="editorError" class="field-error common-parameter-editor-error" role="alert">{{ editorError }}</p>
         <button type="button" class="tertiary-button" [disabled]="isSaving" (click)="closeEditor()">取消</button>
         <button type="submit" class="primary-button" [disabled]="isSaving">{{ isSaving ? '儲存中…' : '儲存' }}</button>
       </div>

@@ -238,7 +238,7 @@
       <label><span class="form-field-label">報表代碼<span class="required-indicator" aria-hidden="true">*</span></span><input name="reportCode" [(ngModel)]="draft.reportCode" [disabled]="existingDraft !== null" placeholder="例如 SALES_DETAIL" /></label>
       <label><span class="form-field-label">報表名稱<span class="required-indicator" aria-hidden="true">*</span></span><input name="reportName" [(ngModel)]="draft.reportName" [disabled]="existingDraft !== null" /></label>
       <label class="wide"><span class="form-field-label">報表說明<span class="required-indicator" aria-hidden="true">*</span></span><textarea name="description" rows="3" [(ngModel)]="draft.description" [disabled]="existingDraft !== null"></textarea></label>
-      <div class="managed-report-category-field">
+      <div class="managed-report-category-field wide">
         <label><span class="form-field-label">報表分類<span class="required-indicator" aria-hidden="true">*</span></span>
           <select name="categoryId" [(ngModel)]="draft.categoryId" [disabled]="existingDraft !== null">
             <option [ngValue]="0">請選擇報表分類</option>
@@ -273,7 +273,7 @@
         </div>
         <p *ngIf="editorCategoryQuickAddError" class="field-error" role="alert">{{ editorCategoryQuickAddError }}</p>
       </section>
-      <label>資料來源<span class="optional-field-label">（可稍後設定）</span>
+      <label class="managed-report-data-source-field wide">資料來源<span class="optional-field-label">（可稍後設定）</span>
         <select name="dataSourceId" [(ngModel)]="draft.dataSourceId" [disabled]="existingDraft !== null">
           <option [ngValue]="0">請選擇資料來源</option>
           <option *ngFor="let dataSource of dataSources" [ngValue]="dataSource.dataSourceId">{{ dataSource.dataSourceName }}</option>

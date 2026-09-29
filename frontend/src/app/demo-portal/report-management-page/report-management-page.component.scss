@@ -1,1 +1,6 @@
 @import '../demo-portal.component.scss';
+
+/* Compensate for the parent surface's fractional pixel position at browser zoom. */
+:host .management-tabs.project-tabs > button.is-active::after {
+  height: 4px;
+}
