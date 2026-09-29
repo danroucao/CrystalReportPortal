@@ -4,6 +4,7 @@
 .common-parameter-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .common-parameter-heading h2, .common-parameter-heading p { margin: 0; }
 .common-parameter-heading p { margin-top: .4rem; color: #666; }
+.common-parameter-heading .primary-button { position: relative; top: 1.5rem; }
 .common-parameter-filters {
   display: grid;
   grid-template-columns: minmax(10rem, 14rem) minmax(16rem, 1fr);
@@ -89,6 +90,7 @@
 
 @media (max-width: 720px) {
   .common-parameter-heading { flex-direction: column; }
+  .common-parameter-heading .primary-button { top: auto; }
   .common-parameter-filters, .common-parameter-form, .common-parameter-section-grid, .common-parameter-flags { grid-template-columns: 1fr; }
   .common-parameter-wide { grid-column: auto; }
 }

@@ -65,7 +65,7 @@
         </div>
       </div>
     </section>
-    <nav class="role-filter-tabs" aria-label="依角色篩選使用者">
+    <nav class="role-filter-tabs project-tabs" aria-label="依角色篩選使用者">
       <button type="button" [class.is-active]="UserRoleFilter === null && !ShowUnassignedOnly" [attr.aria-pressed]="UserRoleFilter === null && !ShowUnassignedOnly" (click)="SetUserRoleFilter(null)">全部 ({{ ApiUsers.length }})</button>
       <button type="button" class="unassigned-filter-tab" [class.is-active]="ShowUnassignedOnly" [attr.aria-pressed]="ShowUnassignedOnly" (click)="SetUnassignedUserFilter()">待指派 ({{ UnassignedUserCount }})</button>
       <button *ngFor="let Role of DisplayRoles; trackBy: TrackRoleByKey" type="button" [class.is-active]="UserRoleFilter === Role.Key" [attr.aria-pressed]="UserRoleFilter === Role.Key" (click)="SetUserRoleFilter(Role.Key)">{{ Role.DisplayName }} ({{ GetApiRoleUserCount(Role.Key) }})</button>

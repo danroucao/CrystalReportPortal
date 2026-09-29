@@ -63,7 +63,7 @@
             </button>
           </div>
           <div
-            class="notification-popover-tabs"
+            class="notification-popover-tabs project-tabs"
             role="tablist"
             aria-label="近期項目分類"
           >
@@ -96,7 +96,11 @@
             ><span>{{ Item.Summary }}</span>
           </button>
           <p *ngIf="!RecentCenterItems.length" class="muted">
-            目前沒有未讀通知。
+            {{
+              NotificationPopoverTab === "Unread"
+                ? "目前沒有未讀通知。"
+                : "目前沒有任何通知。"
+            }}
           </p>
           <button
             type="button"
@@ -230,10 +234,33 @@
     </div>
     <ng-template #DefaultPageTitle>
       <ng-container *ngIf="Page !== 'ReportUpload'">
-        <h1>{{ PageTitle }}</h1>
-        <p *ngIf="Page === 'OperationLog'" class="operation-log-page-subtitle">
-          集中檢視權限變動、報表操作與帳號管理事件。
-        </p>
+        <div *ngIf="Page === 'NotificationCenter'" class="notification-center-page-header">
+          <h1>{{ PageTitle }}</h1>
+          <div class="notification-center-header-actions">
+            <button
+              type="button"
+              class="secondary-button"
+              [disabled]="!NotificationBadgeCount"
+              (click)="MarkAllCenterNotificationsRead()"
+            >
+              全部標示為已讀
+            </button>
+            <button
+              type="button"
+              class="secondary-button"
+              [disabled]="!HasReadCenterNotifications"
+              (click)="ClearReadCenterNotifications()"
+            >
+              清除已讀
+            </button>
+          </div>
+        </div>
+        <ng-container *ngIf="Page !== 'NotificationCenter'">
+          <h1>{{ PageTitle }}</h1>
+          <p *ngIf="Page === 'OperationLog'" class="operation-log-page-subtitle">
+            集中檢視權限變動、報表操作與帳號管理事件。
+          </p>
+        </ng-container>
       </ng-container>
     </ng-template>
     <section
@@ -242,7 +269,7 @@
     >
       <div class="notification-center-toolbar">
         <div
-          class="notification-center-tabs"
+          class="notification-center-tabs project-tabs"
           role="tablist"
           aria-label="通知中心頁籤"
         >
@@ -263,24 +290,6 @@
                 CurrentNotificationAccount
               )
             }}）
-          </button>
-        </div>
-        <div class="notification-center-actions">
-          <button
-            type="button"
-            class="tertiary-button"
-            [disabled]="!NotificationBadgeCount"
-            (click)="MarkAllCenterNotificationsRead()"
-          >
-            全部標示為已讀
-          </button>
-          <button
-            type="button"
-            class="tertiary-button"
-            [disabled]="!HasReadCenterNotifications"
-            (click)="ClearReadCenterNotifications()"
-          >
-            清除已讀
           </button>
         </div>
       </div>

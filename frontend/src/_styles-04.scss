@@ -309,15 +309,24 @@ app-demo-portal .parameter-report-empty-panel {
   text-align: center;
 }
 app-demo-portal .parameter-report-empty-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  margin-bottom: 0.75rem;
-  color: #a4a29f;
+  width: 4.35rem;
+  height: 4.35rem;
+  color: #8b8985;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.65;
+  // 此 SVG 使用 24 × 24 viewBox；依通知圖示的 80 × 80 座標比例換算線寬。
+  stroke-width: 0.54;
+}
+app-demo-portal .parameter-report-empty-illustration {
+  display: grid;
+  width: 5.5rem;
+  height: 5.5rem;
+  place-items: center;
+  margin-bottom: 0.75rem;
+  border-radius: 50%;
+  background: #f7f3ec;
 }
 app-demo-portal .parameter-report-empty-panel h3 {
   margin: 0;

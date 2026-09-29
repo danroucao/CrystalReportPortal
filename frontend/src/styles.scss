@@ -217,3 +217,62 @@ app-demo-portal .role-permission-table td:first-child small { display: block; }
 app-demo-portal .role-permission-table td:first-child small { margin-top: 3px; color: #746f6b; font-size: .76rem; }
 app-demo-portal .role-permission-loading,
 app-demo-portal .role-permission-empty { margin: 0; padding: 24px 16px; color: #746f6b; text-align: center; }
+
+/* Shared tabs inherit their parent surface and identify the active view by underline. */
+app-demo-portal .project-tabs {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+  gap: 0.2rem;
+  overflow: visible;
+  margin: 0 0 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+}
+app-demo-portal .role-filter-tabs.project-tabs {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+app-demo-portal .notification-popover-tabs.project-tabs {
+  margin: 0 -0.15rem 0.6rem;
+  padding-bottom: 0;
+}
+app-demo-portal .project-tabs > button {
+  flex: 0 0 auto;
+  align-self: stretch;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 0 0.65rem;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  position: relative;
+  white-space: nowrap;
+  transition: color 160ms ease;
+}
+app-demo-portal .project-tabs > button:hover:not(:disabled) {
+  color: var(--color-primary);
+  background: transparent;
+}
+app-demo-portal .project-tabs > button.is-active {
+  color: var(--color-primary);
+  background: transparent;
+}
+app-demo-portal .project-tabs > button.is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  background: var(--color-primary);
+  content: '';
+}
+app-demo-portal .project-tabs .unassigned-filter-tab.is-active {
+  background: transparent;
+}

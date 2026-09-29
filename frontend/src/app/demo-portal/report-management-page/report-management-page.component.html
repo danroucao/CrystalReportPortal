@@ -1,9 +1,9 @@
-<nav class="management-tabs" aria-label="報表管理功能">
+<nav class="management-tabs project-tabs" aria-label="報表管理功能">
   <button type="button" [class.is-active]="ActiveManagementTab === 'reports'"
-    [attr.aria-current]="ActiveManagementTab === 'reports' ? 'page' : null"
+    [attr.aria-pressed]="ActiveManagementTab === 'reports'"
     (click)="ActiveManagementTab = 'reports'">報表管理</button>
   <button type="button" [class.is-active]="ActiveManagementTab === 'common-parameters'"
-    [attr.aria-current]="ActiveManagementTab === 'common-parameters' ? 'page' : null"
+    [attr.aria-pressed]="ActiveManagementTab === 'common-parameters'"
     (click)="ActiveManagementTab = 'common-parameters'">常用參數</button>
 </nav>
 

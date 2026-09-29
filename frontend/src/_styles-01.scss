@@ -520,31 +520,41 @@ app-demo-portal .notification-detail-modal .notification-close:hover:not(:disabl
   display: grid;
   gap: 1rem;
 }
-.notification-center-toolbar,
-.notification-center-actions {
+.notification-center-page-header,
+.notification-center-header-actions,
+.notification-center-toolbar {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
+.notification-center-page-header,
 .notification-center-toolbar {
   justify-content: space-between;
 }
-.notification-center-actions {
+.notification-center-page-header {
+  margin-bottom: 1rem;
+}
+.notification-center-page-header h1 {
+  margin: 0;
+}
+.notification-center-header-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 @media (max-width: 640px) {
+  .notification-center-page-header,
   .notification-center-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .notification-center-actions {
+  .notification-center-header-actions {
     justify-content: flex-start;
   }
 }
 .notification-center-tabs {
   display: flex;
+  width: 100%;
   gap: 0.5rem;
   border-bottom: 1px solid var(--color-border);
 }
