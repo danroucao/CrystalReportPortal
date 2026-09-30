@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Globalization;
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
+using CrystalReportPortal.Api.Utilities;
 using CrystalReportPortal.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -148,9 +149,7 @@ public class ReportExecutionService : IReportExecutionService
 
                         Database = new CrystalExportDatabase
                         {
-                            Server =
-                                $"{report.DataSource.ServerHost}," +
-                                $"{report.DataSource.Port}",
+                            Server = SqlServerEndpoint.Format(report.DataSource.ServerHost, report.DataSource.Port),
 
                             Database =
                                 report.DataSource.DatabaseName,

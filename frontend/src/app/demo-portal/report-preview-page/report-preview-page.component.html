@@ -35,21 +35,11 @@
   </section>
 
   <div class="preview-output-bar">
-    <div *ngIf="HasPreview && !IsPreviewLoading" class="output-actions">
-      <details *ngIf="Auth.SelectedReportCategoryPermission.CanExport" class="preview-output-menu">
-        <summary>匯出<span aria-hidden="true">⌄</span></summary>
-        <div class="preview-output-menu__items">
-          <button type="button" (click)="DownloadPdf()">下載 PDF</button>
-        </div>
-      </details>
-      <details *ngIf="Auth.SelectedReportCategoryPermission.CanPrint" class="preview-output-menu">
-        <summary>列印<span aria-hidden="true">⌄</span></summary>
-        <div class="preview-output-menu__items">
-          <button type="button" (click)="PrintPdf()">開啟列印視窗</button>
-        </div>
-      </details>
-    </div>
     <button type="button" class="secondary-button preview-return-button" (click)="ReturnToReportList()">{{ ReportPreviewReturnLabel }}</button>
+    <div *ngIf="HasPreview && !IsPreviewLoading" class="output-actions">
+      <button *ngIf="Auth.SelectedReportCategoryPermission.CanExport" type="button" class="secondary-button preview-output-action" (click)="DownloadPdf()">下載 PDF</button>
+      <button *ngIf="Auth.SelectedReportCategoryPermission.CanPrint" type="button" class="secondary-button preview-output-action" (click)="PrintPdf()">列印報表</button>
+    </div>
   </div>
 
   <p *ngIf="PreviewNotice" class="mock-notice" role="status" aria-live="polite">{{ PreviewNotice }}</p>

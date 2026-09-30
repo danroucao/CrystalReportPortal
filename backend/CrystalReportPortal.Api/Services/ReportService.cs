@@ -1,7 +1,7 @@
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
-using CrystalReportPortal.Api.Entities;
 using CrystalReportPortal.Api.Utilities;
+using CrystalReportPortal.Api.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -445,7 +445,7 @@ public class ReportService : IReportService
             {
                 Database = new CrystalDatabaseTestRequest
                 {
-                    Server = $"{dataSource.ServerHost},{dataSource.Port}",
+                    Server = SqlServerEndpoint.Format(dataSource.ServerHost, dataSource.Port),
                     Database = dataSource.DatabaseName,
                     IntegratedSecurity = integratedSecurity,
                     Username = integratedSecurity ? string.Empty : credential.Username ?? string.Empty,

@@ -1,6 +1,7 @@
 using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Services;
+using CrystalReportPortal.Api.Utilities;
 using CrystalReportPortal.Api.Authorization;
 using CrystalReportPortal.Api.Entities;
 using Microsoft.AspNetCore.Authorization;
@@ -216,9 +217,9 @@ public class DataSourcesController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.DataSourceName) ||
             string.IsNullOrWhiteSpace(request.ServerHost) ||
-            string.IsNullOrWhiteSpace(request.DatabaseName) || request.Port <= 0)
+            string.IsNullOrWhiteSpace(request.DatabaseName) || request.Port is < 1 or > 65535)
         {
-            return BadRequest(new { message = "資料來源、主機、連接埠與資料庫名稱為必填。" });
+            return BadRequest(new { message = "資料來源、主機與資料庫名稱為必填；連接埠可留空以使用具名執行個體。" });
         }
         var source = new ReportDataSource
         {
@@ -465,7 +466,7 @@ public class DataSourcesController : ControllerBase
 
         var testRequest = new CrystalDatabaseTestRequest
         {
-            Server = $"{request.ServerHost.Trim()},{request.Port}",
+            Server = SqlServerEndpoint.Format(request.ServerHost, request.Port),
             Database = request.DatabaseName.Trim(),
             IntegratedSecurity = integratedSecurity,
             Username = integratedSecurity ? string.Empty : request.Username!.Trim(),
@@ -513,9 +514,7 @@ public class DataSourcesController : ControllerBase
                 {
                     Success = false,
                     Connected = false,
-                    Server =
-                        $"{dataSource.ServerHost}," +
-                        $"{dataSource.Port}",
+                    Server = SqlServerEndpoint.Format(dataSource.ServerHost, dataSource.Port),
                     Database = dataSource.DatabaseName,
                     Message = "此資料來源目前未啟用。"
                 });
@@ -536,9 +535,7 @@ public class DataSourcesController : ControllerBase
                 {
                     Success = false,
                     Connected = false,
-                    Server =
-                        $"{dataSource.ServerHost}," +
-                        $"{dataSource.Port}",
+                    Server = SqlServerEndpoint.Format(dataSource.ServerHost, dataSource.Port),
                     Database = dataSource.DatabaseName,
                     Message =
                         "此資料來源尚未設定 ReadOnly 憑證。"
@@ -572,9 +569,7 @@ public class DataSourcesController : ControllerBase
                     {
                         Success = false,
                         Connected = false,
-                        Server =
-                            $"{dataSource.ServerHost}," +
-                            $"{dataSource.Port}",
+                        Server = SqlServerEndpoint.Format(dataSource.ServerHost, dataSource.Port),
                         Database = dataSource.DatabaseName,
                         Message =
                             "SQL Server Authentication "
@@ -590,9 +585,7 @@ public class DataSourcesController : ControllerBase
                     {
                         Success = false,
                         Connected = false,
-                        Server =
-                            $"{dataSource.ServerHost}," +
-                            $"{dataSource.Port}",
+                        Server = SqlServerEndpoint.Format(dataSource.ServerHost, dataSource.Port),
                         Database = dataSource.DatabaseName,
                         Message =
                             "SQL Server Authentication "
@@ -620,9 +613,7 @@ public class DataSourcesController : ControllerBase
                     {
                         Success = false,
                         Connected = false,
-                        Server =
-                            $"{dataSource.ServerHost}," +
-                            $"{dataSource.Port}",
+                        Server = SqlServerEndpoint.Format(dataSource.ServerHost, dataSource.Port),
                         Database = dataSource.DatabaseName,
                         Message = "資料庫憑證無法解密。"
                     });
@@ -635,9 +626,7 @@ public class DataSourcesController : ControllerBase
                 {
                     Success = false,
                     Connected = false,
-                    Server =
-                        $"{dataSource.ServerHost}," +
-                        $"{dataSource.Port}",
+                    Server = SqlServerEndpoint.Format(dataSource.ServerHost, dataSource.Port),
                     Database = dataSource.DatabaseName,
                     Message =
                         $"不支援的資料庫驗證方式："
@@ -648,9 +637,7 @@ public class DataSourcesController : ControllerBase
         var request =
             new CrystalDatabaseTestRequest
             {
-                Server =
-                    $"{dataSource.ServerHost}," +
-                    $"{dataSource.Port}",
+                Server = SqlServerEndpoint.Format(dataSource.ServerHost, dataSource.Port),
 
                 Database =
                     dataSource.DatabaseName,

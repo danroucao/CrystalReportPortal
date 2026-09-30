@@ -510,7 +510,11 @@
         <h1 id="report-upload-title">
           {{
             ReportUploadStep === "Complete"
-              ? "報表已發佈"
+              ? "報表上傳完成"
+              : ReportUploadStep === "Preview"
+                ? "測試報表預覽"
+                : ReportUploadStep === "Publishing"
+                  ? "正在上傳 RPT"
               : ReportUploadStep === "Confirm"
                 ? "上傳內容確認"
                 : "上傳報表"
@@ -519,9 +523,13 @@
         <p>
           {{
             ReportUploadStep === "Complete"
-              ? "報表已成功新增至報表管理。"
+              ? "報表已完成預覽確認，可立即由報表管理啟用。"
+              : ReportUploadStep === "Preview"
+                ? "完成測試預覽並確認後，即完成上傳流程。"
+                : ReportUploadStep === "Publishing"
+                  ? "正在辨識 RPT 檔案與套用常用參數設定。"
               : ReportUploadStep === "Confirm"
-                ? "請確認內容無誤後再發佈。"
+                ? "請確認內容無誤後上傳 RPT 檔案。"
                 : "建立報表資料並上傳 RPT 檔案。"
           }}
         </p>
@@ -542,8 +550,19 @@
           <span>{{ ReportUploadStepNumber > 2 ? "✓" : "2" }}</span
           ><strong>確認內容</strong>
         </li>
-        <li [class.is-active]="ReportUploadStepNumber === 3">
-          <span>3</span><strong>發佈完成</strong>
+        <li
+          [class.is-complete]="ReportUploadStepNumber > 3"
+          [class.is-active]="ReportUploadStepNumber === 3"
+        >
+          <span>{{ ReportUploadStepNumber > 3 ? "✓" : "3" }}</span
+          ><strong>上傳 RPT</strong>
+        </li>
+        <li
+          [class.is-complete]="ReportUploadStep === 'Complete'"
+          [class.is-active]="ReportUploadStepNumber === 4 && ReportUploadStep !== 'Complete'"
+        >
+          <span>{{ ReportUploadStep === "Complete" ? "✓" : "4" }}</span
+          ><strong>測試預覽</strong>
         </li>
       </ol>
 
@@ -579,7 +598,7 @@
         aria-label="上傳內容確認"
       >
         <p class="report-upload-info">
-          <span aria-hidden="true">i</span> 發佈後可在報表管理中編輯。
+            <span aria-hidden="true">i</span> 上傳後將進入測試預覽；確認成功後即可由報表管理啟用。
         </p>
         <div class="report-upload-review-grid">
           <section class="report-upload-panel report-upload-file-summary">
@@ -640,9 +659,32 @@
             (click)="PublishReportUpload()"
             [disabled]="IsReportUploadPublishing"
           >
-            {{ IsReportUploadPublishing ? "發佈中…" : "確認並發佈" }}
+            {{ IsReportUploadPublishing ? "上傳中…" : "確認並上傳" }}
           </button>
         </footer>
+      </section>
+
+      <section
+        *ngIf="ReportUploadStep === 'Publishing'"
+        class="report-upload-progress"
+        role="status"
+      >
+        <h2>正在上傳並分析 RPT 檔案…</h2>
+        <p>請勿關閉此頁面；完成後會自動進入測試預覽。</p>
+      </section>
+
+      <section *ngIf="ReportUploadStep === 'Preview'" class="report-upload-preview-container" aria-live="polite">
+        <p *ngIf="IsReportUploadPreviewLoading" class="report-upload-progress" role="status">正在準備測試預覽…</p>
+        <p *ngIf="ReportEditorError" class="field-error" role="alert">{{ ReportEditorError }}</p>
+        <app-managed-report-review-dialog
+          *ngIf="IsReportUploadPreviewOpen && ReportUploadPreviewReport"
+          [report]="ReportUploadPreviewReport"
+          [inline]="true"
+          [uploadWorkflow]="true"
+          (closed)="CancelUploadedReportPreview()"
+          (completed)="OnUploadedReportConfigurationCompleted()"
+          (approved)="OnUploadedReportPreviewApproved()"
+        />
       </section>
 
       <section
@@ -659,7 +701,7 @@
             </svg>
           </div>
           <h2>已成功上傳</h2>
-          <p>報表已發佈至報表管理。</p>
+          <p>報表已完成測試預覽與設定確認，可由報表管理直接啟用。</p>
           <dl class="report-upload-published-summary">
             <div>
               <dt>報表名稱</dt>
@@ -689,6 +731,7 @@
           </button>
         </footer>
       </section>
+
     </section>
     <section
       *ngIf="IsReportDiscardConfirmationOpen"
@@ -775,7 +818,7 @@
                 class="database-connection-row"
               >
                 <td>{{ Connection.dataSourceName }}</td>
-                <td>{{ Connection.serverHost }}:{{ Connection.port }}</td>
+                <td>{{ Connection.serverHost }}{{ Connection.port ? ':' + Connection.port : '' }}</td>
                 <td>{{ Connection.databaseName }}</td>
                 <td>{{ Connection.username }}</td>
                 <td>
@@ -896,17 +939,16 @@
                   >主機<span class="required-indicator" aria-hidden="true"
                     >*</span
                   ></span
-                ><input [(ngModel)]="DatabaseConnectionDraft.ServerHost"
+                ><input [(ngModel)]="DatabaseConnectionDraft.ServerHost" placeholder="例如 localhost 或 localhost\SQLEXPRESS"
               /></label>
               <label
                 ><span class="form-field-label"
-                  >連接埠<span class="required-indicator" aria-hidden="true"
-                    >*</span
-                  ></span
+                  >連接埠 <small>（選填）</small></span
                 ><input
                   [(ngModel)]="DatabaseConnectionDraft.Port"
                   inputmode="numeric"
-              /></label>
+                  placeholder="具名執行個體可留空"
+              /><small>例如主機填入 <code>localhost\SQLEXPRESS</code> 時，請留空連接埠。</small></label>
               <label
                 ><span class="form-field-label"
                   >資料庫名稱<span class="required-indicator" aria-hidden="true"

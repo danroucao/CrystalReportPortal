@@ -48,6 +48,7 @@
         [attr.aria-invalid]="HasUploadError('reportCode') ? 'true' : null"
         placeholder="例如 SALES_DETAIL"
       />
+      <span *ngIf="GetUploadFieldError('reportCode')" class="report-upload-field-error" role="alert">{{ GetUploadFieldError('reportCode') }}</span>
     </label>
     <label [for]="IdPrefix + '-name'">
       <span class="form-field-label">報表名稱<span class="required-indicator" aria-hidden="true">*</span></span>
@@ -59,6 +60,7 @@
         [attr.aria-invalid]="IsUploadPage ? (HasUploadError('reportName') ? 'true' : null) : (error && !draft.ReportName.trim() ? 'true' : null)"
         [attr.placeholder]="IsUploadPage ? '請輸入報表名稱' : null"
       />
+      <span *ngIf="GetUploadFieldError('reportName')" class="report-upload-field-error" role="alert">{{ GetUploadFieldError('reportName') }}</span>
     </label>
     <label [class.report-editor-description-field]="!IsUploadPage" [for]="IdPrefix + '-description'">
       <span class="form-field-label">報表說明<span class="required-indicator" aria-hidden="true">*</span></span>
@@ -73,6 +75,7 @@
         [attr.aria-invalid]="IsUploadPage ? (HasUploadError('description') ? 'true' : null) : (error && !draft.Description.trim() ? 'true' : null)"
       ></textarea>
       <small *ngIf="IsUploadPage">{{ draft.Description.length }} / 500</small>
+      <span *ngIf="GetUploadFieldError('description')" class="report-upload-field-error" role="alert">{{ GetUploadFieldError('description') }}</span>
     </label>
     <div [class]="IsUploadPage ? 'report-upload-category-row' : 'report-editor-category-field'">
       <label [for]="IdPrefix + '-category'">
@@ -87,6 +90,7 @@
           <option value="" disabled>{{ IsUploadPage ? '請選擇報表分類' : '選擇報表分類' }}</option>
           <option *ngFor="let Category of categories; trackBy: TrackCategoryById" [value]="Category.CategoryId">{{ Category.CategoryName }}</option>
         </select>
+        <span *ngIf="GetUploadFieldError('category')" class="report-upload-field-error" role="alert">{{ GetUploadFieldError('category') }}</span>
       </label>
       <button
         *ngIf="canAddCategory"
@@ -152,10 +156,11 @@
     <p *ngIf="selectedFileName && (IsUploadPage || !isEditing)" [class]="IsUploadPage ? 'report-upload-selected-file' : 'selected-report-file'">
       <span *ngIf="IsUploadPage" aria-hidden="true">✓</span> 已選擇檔案：{{ selectedFileName }}
     </p>
+    <span *ngIf="GetUploadFieldError('file')" class="report-upload-field-error" role="alert">{{ GetUploadFieldError('file') }}</span>
   </ng-template>
 
   <ng-template #FormError>
-    <p *ngIf="error && IsUploadPage" class="report-upload-validation-toast" role="alert">{{ error }}</p>
+    <p *ngIf="error && IsUploadPage && !invalidField" class="field-error report-upload-error" role="alert">{{ error }}</p>
     <p *ngIf="error && !IsUploadPage" class="field-error" role="alert">{{ error }}</p>
   </ng-template>
 </form>

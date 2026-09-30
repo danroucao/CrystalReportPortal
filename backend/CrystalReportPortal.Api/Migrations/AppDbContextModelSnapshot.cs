@@ -514,10 +514,8 @@ namespace CrystalReportPortal.Api.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true, "DF_ReportDataSources_IsEnabled");
 
-                    b.Property<int>("Port")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1433, "DF_ReportDataSources_Port");
+                    b.Property<int?>("Port")
+                        .HasColumnType("int");
 
                     b.Property<string>("ServerHost")
                         .IsRequired()

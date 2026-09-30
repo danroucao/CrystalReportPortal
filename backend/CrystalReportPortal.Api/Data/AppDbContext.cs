@@ -324,11 +324,7 @@ public class AppDbContext : DbContext
                 .HasMaxLength(255)
                 .IsRequired();
 
-            entity.Property(x => x.Port)
-                .HasDefaultValue(
-                    1433,
-                    "DF_ReportDataSources_Port")
-                .IsRequired();
+            entity.Property(x => x.Port);
 
             entity.Property(x => x.DatabaseName)
                 .HasMaxLength(255)

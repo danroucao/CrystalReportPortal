@@ -29,7 +29,7 @@ xdescribe('portal workflows after page extraction', () => {
     expect(component.UserCurrentPage).toBe(1);
   });
 
-  it('keeps preview menus and escape handling in the report-preview child page', () => {
+  it('renders direct preview output actions in the report-preview child page', () => {
     const auth = TestBed.inject(AuthService);
     expect(LoginFrontManager(auth)).toBeTrue();
     auth.SelectReport('AccountBalance');
@@ -37,14 +37,7 @@ xdescribe('portal workflows after page extraction', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
 
-    component.ToggleExportMenu();
-    expect(component.IsExportMenuOpen).toBeTrue();
-    component.CloseMenus();
-    expect(component.IsExportMenuOpen).toBeFalse();
-    component.TogglePrintMenu();
-    expect(component.IsPrintMenuOpen).toBeTrue();
-    component.CloseMenus();
-    expect(component.IsPrintMenuOpen).toBeFalse();
+    expect(fixture.nativeElement.querySelectorAll('.preview-output-action').length).toBe(2);
   });
 
   it('does not prefill a database password when an administrator edits a connection', () => {

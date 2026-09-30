@@ -101,7 +101,7 @@ export class ReportParameterService {
     return mapped[Value] ?? 'Text';
   }
   private MapInputType(Value: string): MockParameterInputType {
-    return ({ DatePicker: 'Date', DateTimePicker: 'DateTime', Text: 'Text', TextArea: 'LongText', Number: 'Number', Checkbox: 'Checkbox', SingleSelect: 'SingleSelect', MultiSelect: 'MultiSelect' } as Record<string, MockParameterInputType>)[Value] ?? 'Text';
+    return ({ DatePicker: 'Date', DateTimePicker: 'DateTime', Text: 'Text', TextArea: 'LongText', Number: 'Number', Checkbox: 'Checkbox', Select: 'SingleSelect', SingleSelect: 'SingleSelect', MultiSelect: 'MultiSelect' } as Record<string, MockParameterInputType>)[Value] ?? 'Text';
   }
 
   private MapDefaultValue(Item: ReportParameterResponse): MockReportParameterDefinition['DefaultValue'] {

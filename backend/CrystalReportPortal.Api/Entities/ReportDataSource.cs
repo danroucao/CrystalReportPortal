@@ -8,7 +8,7 @@ public class ReportDataSource
 
     public string ServerHost { get; set; } = null!;
 
-    public int Port { get; set; }
+    public int? Port { get; set; }
 
     public string DatabaseName { get; set; } = null!;
 

@@ -187,9 +187,13 @@ public class CommonParameterTemplatesController : ControllerBase
             }
         }
 
+        // Some reports were configured before CommonTemplateId was persisted.
+        // Keep a snapshot so that legacy parameters which still exactly match
+        // the previous template can be safely rebound during this update.
+        var previousTemplate = CommonParameterTemplateSnapshot.From(template);
         var now = DateTime.UtcNow;
         ApplyRequest(template, request);
-        await SynchronizeBoundReportParametersAsync(template, now);
+        await SynchronizeBoundReportParametersAsync(template, previousTemplate, now);
         template.UpdatedBy = operatorId;
         template.UpdatedAt = now;
 
@@ -385,15 +389,25 @@ public class CommonParameterTemplatesController : ControllerBase
 
     private async Task SynchronizeBoundReportParametersAsync(
         CommonParameterTemplate template,
+        CommonParameterTemplateSnapshot previousTemplate,
         DateTime now)
     {
-        var parameters = await _dbContext.ReportParameters
+        var candidates = await _dbContext.ReportParameters
             .Include(parameter => parameter.LovConfig)
-            .Where(parameter => parameter.CommonTemplateId == template.TemplateId)
+            .Where(parameter => parameter.CommonTemplateId == template.TemplateId ||
+                                parameter.CommonTemplateId == null)
             .ToListAsync();
+
+        var parameters = candidates
+            .Where(parameter => parameter.CommonTemplateId == template.TemplateId ||
+                                MatchesLegacyTemplateBinding(parameter, previousTemplate))
+            .ToList();
 
         foreach (var parameter in parameters)
         {
+            // A legacy match is now explicitly linked, so later template
+            // changes are synchronized without relying on field comparison.
+            parameter.CommonTemplateId = template.TemplateId;
             parameter.DisplayName = template.TemplateName;
             parameter.DataType = template.DataType;
             parameter.InputType = template.InputType;
@@ -419,6 +433,40 @@ public class CommonParameterTemplatesController : ControllerBase
             parameter.LovConfig.DisplayField = template.DisplayField!.Trim();
             parameter.LovConfig.UpdatedAt = now;
         }
+    }
+
+    private static bool MatchesLegacyTemplateBinding(
+        ReportParameter parameter,
+        CommonParameterTemplateSnapshot template)
+    {
+        if (!string.Equals(
+                NormalizeReportParameterName(parameter.ParameterName),
+                template.NormalizedParameterName,
+                StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(parameter.DisplayName, template.TemplateName, StringComparison.Ordinal) ||
+            !string.Equals(parameter.DataType, template.DataType, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(parameter.InputType, template.InputType, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(parameter.ValueSourceType, template.ValueSourceType, StringComparison.OrdinalIgnoreCase) ||
+            parameter.IsRequired != template.IsRequired ||
+            parameter.AllowMultipleValues != template.AllowMultipleValues ||
+            parameter.AllowRangeValues != template.AllowRangeValues ||
+            parameter.IsVisible != template.IsVisible ||
+            !string.Equals(parameter.DefaultValue, template.DefaultValue, StringComparison.Ordinal) ||
+            !string.Equals(parameter.Description, template.Description, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.Equals(template.ValueSourceType, "SqlLov", StringComparison.OrdinalIgnoreCase))
+        {
+            return parameter.LovConfig == null;
+        }
+
+        return parameter.LovConfig != null &&
+               parameter.LovConfig.DataSourceId == template.DataSourceId &&
+               string.Equals(parameter.LovConfig.SqlQuery, template.SqlQuery, StringComparison.Ordinal) &&
+               string.Equals(parameter.LovConfig.ValueField, template.ValueField, StringComparison.Ordinal) &&
+               string.Equals(parameter.LovConfig.DisplayField, template.DisplayField, StringComparison.Ordinal);
     }
 
     private void AddAuditLog(long operatorId, string action, string templateCode, DateTime now)
@@ -489,6 +537,48 @@ public class CommonParameterTemplatesController : ControllerBase
     private static string NormalizeParameterName(string value)
     {
         return value.Trim().ToUpperInvariant();
+    }
+
+    private static string NormalizeReportParameterName(string value)
+    {
+        var name = value.Trim();
+        var atIndex = name.IndexOf('@');
+        return (atIndex > 0 ? name[..atIndex] : name).Trim().ToUpperInvariant();
+    }
+
+    private sealed record CommonParameterTemplateSnapshot(
+        string TemplateName,
+        string NormalizedParameterName,
+        string DataType,
+        string InputType,
+        string ValueSourceType,
+        bool IsRequired,
+        bool AllowMultipleValues,
+        bool AllowRangeValues,
+        bool IsVisible,
+        long? DataSourceId,
+        string? SqlQuery,
+        string? ValueField,
+        string? DisplayField,
+        string? DefaultValue,
+        string? Description)
+    {
+        public static CommonParameterTemplateSnapshot From(CommonParameterTemplate template) => new(
+            template.TemplateName,
+            template.NormalizedParameterName,
+            template.DataType,
+            template.InputType,
+            template.ValueSourceType,
+            template.IsRequired,
+            template.AllowMultipleValues,
+            template.AllowRangeValues,
+            template.IsVisible,
+            template.DataSourceId,
+            template.SqlQuery,
+            template.ValueField,
+            template.DisplayField,
+            template.DefaultValue,
+            template.Description);
     }
 
     private static string CanonicalValue(string value, IEnumerable<string> allowedValues)

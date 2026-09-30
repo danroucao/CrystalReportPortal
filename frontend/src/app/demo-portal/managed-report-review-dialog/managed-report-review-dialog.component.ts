@@ -1,9 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { concatMap, finalize, forkJoin, from, of, switchMap, toArray } from 'rxjs';
+import { concatMap, finalize, forkJoin, from, of, switchMap, tap, toArray } from 'rxjs';
 
 import {
   ManagedReport,
@@ -14,7 +13,7 @@ import {
   UpdateManagedReportParameterRequest,
 } from '../../services/managed-report-api.models';
 import { NotificationService } from '../../services/notification.service';
-import { ReportService } from '../../services/report.service';
+import { ReportPreviewManifest, ReportService } from '../../services/report.service';
 
 @Component({
   selector: 'app-managed-report-review-dialog',
@@ -26,9 +25,10 @@ import { ReportService } from '../../services/report.service';
 export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
   private readonly reportsApi = inject(ReportService);
   private readonly notifications = inject(NotificationService);
-  private readonly sanitizer = inject(DomSanitizer);
 
   @Input({ required: true }) report!: ManagedReport;
+  @Input() inline = false;
+  @Input() uploadWorkflow = false;
   @Output() readonly closed = new EventEmitter<void>();
   @Output() readonly approved = new EventEmitter<void>();
   @Output() readonly completed = new EventEmitter<void>();
@@ -43,9 +43,17 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
   isApproving = false;
   errorMessage = '';
   errorDetails = '';
-  previewUrl: SafeResourceUrl | null = null;
-  private previewObjectUrl: string | null = null;
+  PreviewPageUrls: string[] = [];
+  PreviewPageCount = 0;
+  LoadedPreviewPageCount = 0;
+  CurrentPreviewPageIndex = 0;
+  PreviewZoom = 100;
   previewSucceeded = false;
+
+  get HasPreview(): boolean { return this.PreviewPageUrls.length > 0; }
+  get CurrentPreviewPageUrl(): string | null {
+    return this.PreviewPageUrls[this.CurrentPreviewPageIndex] ?? null;
+  }
 
   get isConfigurationMode(): boolean {
     return (
@@ -57,6 +65,11 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
 
   get isSavedDataReport(): boolean {
     return this.report.dataSourceId === null;
+  }
+
+  get canApprove(): boolean {
+    return this.report.configurationStatus === 'PendingReview' ||
+      (this.isSavedDataReport && this.report.configurationStatus === 'PendingConfiguration');
   }
 
   get visibleParameters(): readonly ManagedReportParameter[] {
@@ -75,7 +88,7 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.revokePreviewUrl();
+    this.ClearPreviewPages();
   }
 
   close(): void {
@@ -116,27 +129,18 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
     this.previewSucceeded = false;
 
     this.reportsApi
-      .TestPreviewManagedReport(
+      .TestPreviewManagedReportImages(
         this.report.reportId,
         request,
         this.isSavedDataReport,
       )
       .pipe(
+        switchMap((manifest) => this.LoadPreviewPages(manifest)),
         finalize(() => (this.isPreviewing = false)),
       )
       .subscribe({
-        next: (pdf) => {
-          this.revokePreviewUrl();
-
-          this.previewObjectUrl =
-            URL.createObjectURL(pdf);
-
-          this.previewUrl =
-            this.sanitizer
-              .bypassSecurityTrustResourceUrl(
-                this.previewObjectUrl,
-              );
-
+        next: (images) => {
+          this.PreviewPageUrls = images.map((image) => URL.createObjectURL(image));
           this.previewSucceeded = true;
         },
         error: (error: unknown) => {
@@ -197,7 +201,7 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
 
   approve(): void {
     if (
-      this.isConfigurationMode ||
+      !this.canApprove ||
       !this.previewSucceeded
     ) {
       return;
@@ -305,13 +309,39 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
 
   private invalidatePreview(): void {
     this.previewSucceeded = false;
-    this.revokePreviewUrl();
+    this.ClearPreviewPages();
   }
 
-  private revokePreviewUrl(): void {
-    if (this.previewObjectUrl) URL.revokeObjectURL(this.previewObjectUrl);
-    this.previewObjectUrl = null;
-    this.previewUrl = null;
+  GoToPreviousPreviewPage(): void {
+    this.CurrentPreviewPageIndex = Math.max(0, this.CurrentPreviewPageIndex - 1);
+  }
+
+  GoToNextPreviewPage(): void {
+    this.CurrentPreviewPageIndex = Math.min(this.PreviewPageUrls.length - 1, this.CurrentPreviewPageIndex + 1);
+  }
+
+  ZoomPreview(change: number): void {
+    this.PreviewZoom = Math.min(175, Math.max(60, this.PreviewZoom + change));
+  }
+
+  ResetPreviewZoom(): void { this.PreviewZoom = 100; }
+
+  private LoadPreviewPages(manifest: ReportPreviewManifest) {
+    this.ClearPreviewPages();
+    this.PreviewPageCount = manifest.pageCount;
+    const pages = Array.from({ length: manifest.pageCount }, (_, index) =>
+      this.reportsApi.GetPreviewPage(manifest.previewId, index + 1).pipe(
+        tap(() => this.LoadedPreviewPageCount += 1),
+      ));
+    return forkJoin(pages);
+  }
+
+  private ClearPreviewPages(): void {
+    this.PreviewPageUrls.forEach((url) => URL.revokeObjectURL(url));
+    this.PreviewPageUrls = [];
+    this.PreviewPageCount = 0;
+    this.LoadedPreviewPageCount = 0;
+    this.CurrentPreviewPageIndex = 0;
   }
 
   private async setErrorMessage(error: unknown): Promise<void> {

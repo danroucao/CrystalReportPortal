@@ -94,6 +94,7 @@ export class ReportParameterPageComponent implements OnInit {
   ParameterReportDateNotice = '';
   ParameterReportSelectionNotice = '';
   MultiSelectSearchTerms: Record<string, string> = {};
+  SingleSelectSearchTerms: Record<string, string> = {};
   private DatabaseParameterPreferences: Partial<Record<'favorite' | 'recent', StoredParameterValues>> = {};
   ParameterReportSearchText = '';
   ParameterReportSortField: ParameterReportSortField | null = null;
@@ -474,6 +475,53 @@ export class ReportParameterPageComponent implements OnInit {
 
   ClearMultiSelectSearch(Definition: MockReportParameterDefinition): void {
     delete this.MultiSelectSearchTerms[Definition.ParameterName];
+  }
+
+  IsSingleSelectOptionSelected(
+    Definition: MockReportParameterDefinition,
+    Value: string,
+  ): boolean {
+    return String(this.ReportParameterForm.get(Definition.ParameterName)?.value ?? '') === Value;
+  }
+
+  SelectSingleSelectOption(
+    Definition: MockReportParameterDefinition,
+    Value: string,
+  ): void {
+    const control = this.ReportParameterForm.get(Definition.ParameterName);
+    if (!control || control.disabled) return;
+
+    control.setValue(Value);
+    control.markAsDirty();
+    control.updateValueAndValidity();
+  }
+
+  ClearSingleSelect(Definition: MockReportParameterDefinition): void {
+    const control = this.ReportParameterForm.get(Definition.ParameterName);
+    if (!control || control.disabled) return;
+
+    control.setValue('');
+    control.markAsDirty();
+    control.updateValueAndValidity();
+  }
+
+  GetFilteredSingleSelectLovOptions(Definition: MockReportParameterDefinition) {
+    const searchTerm = (this.SingleSelectSearchTerms[Definition.ParameterName] ?? '').trim().toLocaleLowerCase();
+    if (!searchTerm) return this.GetLovOptions(Definition);
+    return this.GetLovOptions(Definition).filter((option) =>
+      `${option.Value} ${option.DisplayText}`.toLocaleLowerCase().includes(searchTerm));
+  }
+
+  ClearSingleSelectSearch(Definition: MockReportParameterDefinition): void {
+    delete this.SingleSelectSearchTerms[Definition.ParameterName];
+  }
+
+  GetSingleSelectSelectionSummary(Definition: MockReportParameterDefinition): string {
+    const selectedValue = String(this.ReportParameterForm.get(Definition.ParameterName)?.value ?? '');
+    if (!selectedValue) return '尚未選擇';
+
+    return this.GetLovOptions(Definition).find((option) => option.Value === selectedValue)?.DisplayText
+      ?? '尚未選擇';
   }
 
   HasStoredParameterValues(kind: 'favorite' | 'recent'): boolean {

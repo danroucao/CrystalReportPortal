@@ -593,14 +593,53 @@
                   </div>
                 </ng-container>
                 <ng-template #SingleSelectInput>
-                  <select
-                    [id]="Definition.ParameterName"
-                    [formControlName]="Definition.ParameterName"
-                    [disabled]="UsesLov(Definition) && GetLovStatus(Definition) !== 'success'"
-                  >
-                    <option value="" [disabled]="Definition.IsRequired">請選擇</option>
-                    <option *ngFor="let Option of GetLovOptions(Definition)" [value]="Option.Value">{{ Option.DisplayText }}</option>
-                  </select>
+                  <div class="parameter-single-select" role="radiogroup" [attr.aria-label]="Definition.DisplayName">
+                    <div class="parameter-multiselect-actions">
+                      <span>單選 · {{ GetSingleSelectSelectionSummary(Definition) }}</span>
+                      <div class="parameter-multiselect-action-buttons">
+                        <button
+                          type="button"
+                          (click)="ClearSingleSelect(Definition)"
+                          [disabled]="!ReportParameterForm.get(Definition.ParameterName)?.value"
+                        >清除</button>
+                      </div>
+                    </div>
+                    <div class="parameter-option-search-row">
+                      <input
+                        type="search"
+                        class="parameter-option-search"
+                        [attr.aria-label]="'搜尋' + Definition.DisplayName + '選項'"
+                        [placeholder]="'搜尋' + Definition.DisplayName"
+                        [(ngModel)]="SingleSelectSearchTerms[Definition.ParameterName]"
+                        [ngModelOptions]="{ standalone: true }"
+                        [disabled]="ReportParameterForm.get(Definition.ParameterName)?.disabled || (UsesLov(Definition) && GetLovStatus(Definition) !== 'success')"
+                      />
+                      <button
+                        *ngIf="SingleSelectSearchTerms[Definition.ParameterName]"
+                        type="button"
+                        class="parameter-option-search-clear"
+                        (click)="ClearSingleSelectSearch(Definition)"
+                        [attr.aria-label]="'清除' + Definition.DisplayName + '搜尋條件'"
+                      >×</button>
+                    </div>
+                    <div class="parameter-option-list">
+                      <label
+                        *ngFor="let Option of GetFilteredSingleSelectLovOptions(Definition)"
+                        class="parameter-option-row"
+                        [class.is-selected]="IsSingleSelectOptionSelected(Definition, Option.Value)"
+                      >
+                        <input
+                          type="radio"
+                          [name]="'single-select-' + Definition.ParameterName"
+                          [checked]="IsSingleSelectOptionSelected(Definition, Option.Value)"
+                          [disabled]="ReportParameterForm.get(Definition.ParameterName)?.disabled || (UsesLov(Definition) && GetLovStatus(Definition) !== 'success')"
+                          (change)="SelectSingleSelectOption(Definition, Option.Value)"
+                        />
+                        <span>{{ Option.DisplayText }}</span>
+                      </label>
+                      <p *ngIf="!GetFilteredSingleSelectLovOptions(Definition).length" class="parameter-option-empty">找不到符合的選項。</p>
+                    </div>
+                  </div>
                 </ng-template>
                 <span
                   *ngIf="GetParameterError(Definition)"

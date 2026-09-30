@@ -41,7 +41,7 @@ xdescribe('portal access and user-management boundaries', () => {
     expect(component.IsCreateRoleDialogOpen).toBeTrue();
   });
 
-  it('keeps preview export and print menus closed after live permission revocation', () => {
+  it('hides preview export and print actions after live permission revocation', () => {
     const auth = TestBed.inject(AuthService);
     const rbac = TestBed.inject(MockRbacService);
     expect(LoginFrontManager(auth)).toBeTrue();
@@ -56,10 +56,8 @@ xdescribe('portal access and user-management boundaries', () => {
       CanPrint: false,
     };
     rbac.SaveCategoryPermissions('FINANCE', permissions);
-    component.ToggleExportMenu();
-    component.TogglePrintMenu();
-    expect(component.IsExportMenuOpen).toBeFalse();
-    expect(component.IsPrintMenuOpen).toBeFalse();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.preview-output-action').length).toBe(0);
   });
 
   it('logs out and queues the global success notification for the login page', () => {

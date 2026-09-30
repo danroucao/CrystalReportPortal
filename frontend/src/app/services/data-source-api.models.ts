@@ -2,7 +2,7 @@ export interface DataSourceManagementModel {
   dataSourceId: number;
   dataSourceName: string;
   serverHost: string;
-  port: number;
+  port: number | null;
   databaseName: string;
   isEnabled: boolean;
   authenticationType: 'Windows' | 'SqlServer' | string;
@@ -13,7 +13,7 @@ export interface DataSourceManagementModel {
 export interface SaveDataSourceRequest {
   dataSourceName: string;
   serverHost: string;
-  port: number;
+  port: number | null;
   databaseName: string;
   isEnabled: boolean;
 }

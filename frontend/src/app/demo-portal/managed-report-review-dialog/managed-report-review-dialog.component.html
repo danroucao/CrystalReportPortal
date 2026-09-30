@@ -1,8 +1,13 @@
-<section class="modal-backdrop" (click)="close()">
-  <section class="review-dialog" role="dialog" aria-modal="true" aria-labelledby="review-title" (click)="$event.stopPropagation()">
+<section [class.modal-backdrop]="!inline" [class.review-inline]="inline" (click)="!inline && close()">
+  <section class="review-dialog" [attr.role]="inline ? null : 'dialog'" [attr.aria-modal]="inline ? null : 'true'" aria-labelledby="review-title" (click)="$event.stopPropagation()">
     <div class="modal-heading">
-      <div><h2 id="review-title">{{ isConfigurationMode ? '設定報表參數' : '測試預覽' }}</h2><p>{{ report.reportName }}（{{ report.reportCode }}）</p></div>
-      <button type="button" class="modal-close-button" [attr.aria-label]="isConfigurationMode ? '關閉參數設定' : '關閉測試預覽'" (click)="close()">×</button>
+      <div>
+        <p *ngIf="uploadWorkflow" class="review-workflow-step">第 4 步</p>
+        <h2 id="review-title">{{ isConfigurationMode ? '設定報表參數' : (uploadWorkflow ? '測試預覽並確認報表' : '測試預覽') }}</h2>
+        <p *ngIf="uploadWorkflow" class="review-workflow-description">請使用測試條件產生預覽，確認資料與版面正確後按下「確認設定」。完成後，報表便可直接由報表管理啟用。</p>
+        <p>{{ report.reportName }}（{{ report.reportCode }}）</p>
+      </div>
+      <button *ngIf="!inline" type="button" class="modal-close-button" [attr.aria-label]="isConfigurationMode ? '關閉參數設定' : '關閉測試預覽'" (click)="close()">×</button>
     </div>
 
     <div class="review-status">
@@ -91,16 +96,33 @@
       </form>
 
       <div *ngIf="!isConfigurationMode" class="review-preview">
-        <h3>PDF 預覽</h3>
-        <iframe *ngIf="previewUrl" [src]="previewUrl" title="報表測試預覽 PDF"></iframe>
-        <p *ngIf="!previewUrl" class="preview-empty">點擊按鈕後產生 PDF 預覽。</p>
+        <h3>報表預覽</h3>
+        <section *ngIf="HasPreview" class="report-image-preview" aria-label="報表測試預覽">
+          <div class="report-image-preview__toolbar">
+            <div class="report-image-preview__pagination">
+              <button type="button" class="secondary-button" (click)="GoToPreviousPreviewPage()" [disabled]="CurrentPreviewPageIndex === 0">上一頁</button>
+              <span>第 {{ CurrentPreviewPageIndex + 1 }} / {{ PreviewPageUrls.length }} 頁</span>
+              <button type="button" class="secondary-button" (click)="GoToNextPreviewPage()" [disabled]="CurrentPreviewPageIndex === PreviewPageUrls.length - 1">下一頁</button>
+            </div>
+            <div class="report-image-preview__zoom">
+              <button type="button" class="secondary-button" (click)="ZoomPreview(-10)" [disabled]="PreviewZoom <= 60">−</button>
+              <button type="button" class="secondary-button" (click)="ResetPreviewZoom()">{{ PreviewZoom }}%</button>
+              <button type="button" class="secondary-button" (click)="ZoomPreview(10)" [disabled]="PreviewZoom >= 175">＋</button>
+            </div>
+          </div>
+          <figure *ngIf="CurrentPreviewPageUrl" class="report-image-preview__page" [style.width.%]="PreviewZoom">
+            <img [src]="CurrentPreviewPageUrl" [alt]="report.reportName + ' 第 ' + (CurrentPreviewPageIndex + 1) + ' 頁'" />
+            <figcaption>第 {{ CurrentPreviewPageIndex + 1 }} 頁</figcaption>
+          </figure>
+        </section>
+        <p *ngIf="!HasPreview" class="preview-empty">點擊按鈕後產生報表預覽。</p>
       </div>
     </div>
 
-    <div class="modal-actions">
+    <div *ngIf="!inline || canApprove" class="modal-actions">
       <button type="button" class="tertiary-button" [disabled]="isPreviewing || isApproving || isSavingConfiguration" (click)="close()">取消</button>
       <button
-        *ngIf="!isConfigurationMode"
+        *ngIf="canApprove"
         type="button"
         class="primary-button"
         [disabled]="

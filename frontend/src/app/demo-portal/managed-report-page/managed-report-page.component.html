@@ -94,11 +94,11 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" /><path d="m16 18 3 3 4-5" /></svg>
             </button>
             <button
-              *ngIf="report.rptFileName.trim() && (report.configurationStatus === 'PendingReview' || (report.dataSourceId === null && report.configurationStatus === 'PendingConfiguration')) && Auth.HasPermission('Report.Maintain')"
+              *ngIf="report.rptFileName.trim() && report.configurationStatus !== 'PendingConfiguration' && Auth.HasPermission('Report.Maintain')"
               type="button"
               class="table-icon-button preview-icon-button"
-              [attr.aria-label]="'測試預覽 ' + report.reportName"
-              title="測試預覽"
+              [attr.aria-label]="'預覽 ' + report.reportName"
+              title="預覽報表"
               (click)="openReview(report)"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="1.5" /><path d="m10 8 5 2.5-5 2.5zM8 21h8" /></svg>

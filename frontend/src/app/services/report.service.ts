@@ -276,6 +276,23 @@ export class ReportService {
     );
   }
 
+  TestPreviewManagedReportImages(
+    reportId: number,
+    request: ReportTestPreviewRequest,
+    useSavedDataOnly = false,
+  ): Observable<ReportPreviewManifest> {
+    return this.Http.post<ReportPreviewManifest>(
+      `${this.managementEndpoint}/${reportId}/test-preview`,
+      request,
+      {
+        params: {
+          ...(useSavedDataOnly ? { useSavedDataOnly: 'true' } : {}),
+          renderAsImages: 'true',
+        },
+      },
+    );
+  }
+
   ApproveManagedReportConfiguration(
     reportId: number,
   ): Observable<ApproveReportConfigurationResult> {

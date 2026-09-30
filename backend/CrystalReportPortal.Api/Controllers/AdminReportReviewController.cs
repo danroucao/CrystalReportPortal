@@ -4,6 +4,7 @@ using CrystalReportPortal.Api.Data;
 using CrystalReportPortal.Api.Dtos;
 using CrystalReportPortal.Api.Entities;
 using CrystalReportPortal.Api.Services;
+using CrystalReportPortal.Api.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,24 +23,28 @@ public class AdminReportReviewController : ControllerBase
     private readonly ICredentialProtector _credentialProtector;
     private readonly ICrystalExportProcessService _crystalExport;
     private readonly ICrystalProcessService _crystalProcess;
+    private readonly IReportPreviewImageService _previewImages;
 
     public AdminReportReviewController(
         AppDbContext dbContext,
         ICredentialProtector credentialProtector,
         ICrystalExportProcessService crystalExport,
-        ICrystalProcessService crystalProcess)
+        ICrystalProcessService crystalProcess,
+        IReportPreviewImageService previewImages)
     {
         _dbContext = dbContext;
         _credentialProtector = credentialProtector;
         _crystalExport = crystalExport;
         _crystalProcess = crystalProcess;
+        _previewImages = previewImages;
     }
 
     [HttpPost("test-preview")]
     public async Task<IActionResult> TestPreview(
         long reportId,
         ReportExecutionRequest request,
-        [FromQuery] bool useSavedDataOnly = false)
+        [FromQuery] bool useSavedDataOnly = false,
+        [FromQuery] bool renderAsImages = false)
     {
         if (!TryGetUserId(out var userId))
         {
@@ -73,14 +78,19 @@ public class AdminReportReviewController : ControllerBase
             "PendingConfiguration",
             StringComparison.OrdinalIgnoreCase);
 
+        var isReady = string.Equals(
+            report.ConfigurationStatus,
+            "Ready",
+            StringComparison.OrdinalIgnoreCase);
+
         var isSavedDataReport = !report.DataSourceId.HasValue;
 
-        if (!isPendingReview && !isPendingConfiguration)
+        if (!isPendingReview && !isPendingConfiguration && !isReady)
         {
             return BadRequest(new
             {
                 message =
-                    "只有待設定或待確認狀態的報表可以執行管理端測試預覽。"
+                    "只有待設定、待確認或已完成設定的報表可以執行管理端測試預覽。"
             });
         }
 
@@ -123,7 +133,9 @@ public class AdminReportReviewController : ControllerBase
 
                 await _dbContext.SaveChangesAsync();
 
-                return File(savedDataPdf, "application/pdf", $"report-{reportId}-saved-data-preview.pdf");
+                return renderAsImages
+                    ? Ok(await _previewImages.CreateAsync(savedDataPdf, userId))
+                    : File(savedDataPdf, "application/pdf", $"report-{reportId}-saved-data-preview.pdf");
             }
             catch (Exception exception)
             {
@@ -169,10 +181,12 @@ public class AdminReportReviewController : ControllerBase
 
             Response.Headers.Append("X-Report-Test-Preview", "true");
 
-            return File(
-                pdf,
-                "application/pdf",
-                $"report-{reportId}-test-preview.pdf");
+            return renderAsImages
+                ? Ok(await _previewImages.CreateAsync(pdf, userId))
+                : File(
+                    pdf,
+                    "application/pdf",
+                    $"report-{reportId}-test-preview.pdf");
         }
         catch (ArgumentException exception)
         {
@@ -419,9 +433,7 @@ public class AdminReportReviewController : ControllerBase
 
             Database = new CrystalExportDatabase
             {
-                Server =
-                    $"{report.DataSource.ServerHost}," +
-                    $"{report.DataSource.Port}",
+                Server = SqlServerEndpoint.Format(report.DataSource.ServerHost, report.DataSource.Port),
 
                 Database =
                     report.DataSource.DatabaseName,

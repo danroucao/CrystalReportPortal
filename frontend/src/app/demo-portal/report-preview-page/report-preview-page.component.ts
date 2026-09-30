@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { finalize, forkJoin, tap } from 'rxjs';
 
@@ -27,8 +27,6 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
   readonly Auth = inject(AuthService);
   private readonly reports = inject(ReportService);
   private readonly router = inject(Router);
-  IsExportMenuOpen = false;
-  IsPrintMenuOpen = false;
   PreviewNotice = '';
   PreviewPageUrls: string[] = [];
   PreviewPageCount = 0;
@@ -57,35 +55,14 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     this.ReportPreviewOrigin = state?.['ReportPreviewOrigin'] === 'favorites' ? 'favorites' : 'all';
     this.ReturnToParameterSearchState = this.ToParameterSearchState(state?.['ParameterSearchState']);
     this.CurrentExecutionRequest = this.ToExecutionRequest(state?.['ReportExecutionRequest']);
-    this.LoadPreview();
+    this.RefreshReportPermissions();
   }
 
   ngOnDestroy(): void { this.ClearPreviewPages(); }
-  RetryPreview(): void { if (!this.IsPreviewLoading) this.LoadPreview(); }
-
-  ToggleExportMenu(): void {
-    if (!this.Auth.SelectedReportCategoryPermission.CanExport) return;
-    this.IsPrintMenuOpen = false;
-    this.IsExportMenuOpen = !this.IsExportMenuOpen;
-  }
-
-  TogglePrintMenu(): void {
-    if (!this.Auth.SelectedReportCategoryPermission.CanPrint) return;
-    this.IsExportMenuOpen = false;
-    this.IsPrintMenuOpen = !this.IsPrintMenuOpen;
-  }
-
-  OnExportSelection(value: string): void {
-    if (value === 'pdf') this.DownloadPdf();
-  }
-
-  OnPrintSelection(value: string): void {
-    if (value === 'print') this.PrintPdf();
-  }
+  RetryPreview(): void { if (!this.IsPreviewLoading) this.RefreshReportPermissions(); }
 
   DownloadPdf(): void {
     if (!this.Auth.SelectedReportCategoryPermission.CanExport) return;
-    this.IsExportMenuOpen = false;
     this.GetOutputPdf().subscribe({
       next: (pdf) => {
         const url = URL.createObjectURL(pdf);
@@ -102,7 +79,6 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
 
   PrintPdf(): void {
     if (!this.Auth.SelectedReportCategoryPermission.CanPrint) return;
-    this.IsPrintMenuOpen = false;
     this.GetPrintPdf().subscribe({
       next: (pdf) => {
         const url = URL.createObjectURL(pdf);
@@ -131,9 +107,6 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  @HostListener('document:keydown.escape')
-  CloseMenus(): void { this.IsExportMenuOpen = false; this.IsPrintMenuOpen = false; }
-
   GoToPreviousPreviewPage(): void {
     this.CurrentPreviewPageIndex = Math.max(0, this.CurrentPreviewPageIndex - 1);
   }
@@ -161,6 +134,31 @@ export class ReportPreviewPageComponent implements OnInit, OnDestroy {
     request.subscribe({
       next: (manifest) => this.LoadPreviewPages(manifest),
       error: (error: unknown) => { this.IsPreviewLoading = false; void this.SetPreviewError(error); },
+    });
+  }
+
+  /**
+   * The preview route can stay open while an administrator changes role
+   * permissions. Refreshing the accessible-report cache here ensures the
+   * export and print controls reflect the permissions currently returned by
+   * the server, rather than those present when the user first signed in.
+   */
+  private RefreshReportPermissions(): void {
+    this.reports.GetReports().subscribe({
+      next: (reports) => {
+        this.Auth.SetAccessibleReports(reports);
+        if (!this.Auth.SelectedReport) {
+          void this.router.navigate(['/reports/parameters'], { state: { ReportSelectionRequired: true } });
+          return;
+        }
+        this.LoadPreview();
+      },
+      error: (error: unknown) => {
+        // A 401 is handled centrally by the auth interceptor, which clears
+        // the invalidated session and redirects to sign-in.
+        if (error instanceof HttpErrorResponse && error.status === 401) return;
+        this.LoadPreview();
+      },
     });
   }
 

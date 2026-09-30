@@ -70,6 +70,7 @@ import { ReportManagementPageComponent } from './report-management-page/report-m
 import { ReportParameterPageComponent } from './report-parameter-page/report-parameter-page.component';
 import { ReportPreviewPageComponent } from './report-preview-page/report-preview-page.component';
 import { UserManagementPageComponent } from './user-management-page/user-management-page.component';
+import { ManagedReportReviewDialogComponent } from './managed-report-review-dialog/managed-report-review-dialog.component';
 import { ReportEditorDraft } from './report-editor-form/report-editor-form.model';
 import { DataSourceService } from '../services/data-source.service';
 import { ReportService } from '../services/report.service';
@@ -77,6 +78,7 @@ import {
   DataSourceConnectionTestResponse,
   DataSourceManagementModel,
 } from '../services/data-source-api.models';
+import { ManagedReport } from '../services/managed-report-api.models';
 
 type DemoPortalPage =
   | 'ReportList'
@@ -115,7 +117,7 @@ interface ParameterReportSearchState {
   readonly EndDate: string;
 }
 
-type ReportUploadStep = 'Form' | 'Confirm' | 'Complete';
+type ReportUploadStep = 'Form' | 'Confirm' | 'Publishing' | 'Preview' | 'Complete';
 type ReportUploadValidationField =
   | 'reportCode'
   | 'reportName'
@@ -129,6 +131,7 @@ interface ReportUploadValidation {
 }
 
 interface PublishedUploadSummary {
+  readonly ReportId: number;
   readonly ReportName: string;
   readonly CategoryName: string;
   readonly FileName: string;
@@ -158,6 +161,7 @@ type EditUserValidationErrors = Partial<Record<'Roles' | 'Form', string>>;
     ReportManagementPageComponent,
     ReportParameterPageComponent,
     ReportPreviewPageComponent,
+    ManagedReportReviewDialogComponent,
     UserManagementPageComponent,
   ],
   templateUrl: './demo-portal.component.html',
@@ -231,6 +235,9 @@ export class DemoPortalComponent
   IsReportUploadPublishing = false;
   ReportUploadStep: ReportUploadStep = 'Form';
   PublishedUploadedReport: PublishedUploadSummary | null = null;
+  ReportUploadPreviewReport: ManagedReport | null = null;
+  IsReportUploadPreviewLoading = false;
+  IsReportUploadPreviewOpen = false;
   private ReportEditorInitialDraft: ReportEditorDraft | null = null;
   private InitialReportFileName = '';
   private ReportEditorOpener: HTMLElement | null = null;
@@ -554,7 +561,9 @@ export class DemoPortalComponent
       ? 1
       : this.ReportUploadStep === 'Confirm'
         ? 2
-        : 3;
+        : this.ReportUploadStep === 'Publishing'
+          ? 3
+          : 4;
   }
 
   get ReportUploadCategoryName(): string {
@@ -614,6 +623,7 @@ export class DemoPortalComponent
       return;
     }
     this.IsReportUploadPublishing = true;
+    this.ReportUploadStep = 'Publishing';
     this.ReportsApi.CreateManagedReportWithRpt(
       {
         reportCode: this.ReportEditorDraft.ReportCode!.trim(),
@@ -629,17 +639,19 @@ export class DemoPortalComponent
     ).subscribe({
       next: (result) => {
         this.PublishedUploadedReport = {
+          ReportId: result.data.reportId,
           ReportName: this.ReportEditorDraft.ReportName.trim(),
           CategoryName: this.ReportUploadCategoryName,
           FileName: result.data.fileName,
           CreatedAt: new Date().toISOString(),
         };
-        this.ReportUploadStep = 'Complete';
+        this.ReportUploadStep = 'Preview';
         this.RememberInitialReportEditorState();
         this.IsReportUploadPublishing = false;
+        this.LoadUploadedReportForPreview(true);
       },
       error: (error: unknown) => {
-        this.ReportEditorError = this.GetApiErrorMessage(error);
+        this.ApplyReportUploadValidation(this.GetReportUploadFailureValidation(error));
         this.ReportUploadStep = 'Form';
         this.IsReportUploadPublishing = false;
       },
@@ -648,6 +660,22 @@ export class DemoPortalComponent
 
   ReturnToReportManagement(): void {
     void this.router.navigate(['/report-management']);
+  }
+
+  CancelUploadedReportPreview(): void {
+    if (this.ReportUploadStep !== 'Preview') return;
+    this.ReturnToReportManagement();
+  }
+
+  OnUploadedReportConfigurationCompleted(): void {
+    this.IsReportUploadPreviewOpen = false;
+    this.LoadUploadedReportForPreview(true);
+  }
+
+  OnUploadedReportPreviewApproved(): void {
+    this.IsReportUploadPreviewOpen = false;
+    this.ReportUploadStep = 'Complete';
+    this.RememberInitialReportEditorState();
   }
 
 
@@ -798,7 +826,7 @@ export class DemoPortalComponent
     this.DatabaseConnectionDraft = {
       DataSourceName: Connection.dataSourceName,
       ServerHost: Connection.serverHost,
-      Port: String(Connection.port),
+      Port: Connection.port?.toString() ?? '',
       DatabaseName: Connection.databaseName,
       Username: Connection.username,
       ConnectionType: 'ReadOnly',
@@ -848,7 +876,14 @@ export class DemoPortalComponent
   TestDatabaseConnectionDraft(): void {
     const draft = this.DatabaseConnectionDraft;
     const requiresSqlCredentials = this.DatabaseAuthenticationType === 'SqlServer';
-    if (!draft.ServerHost.trim() || !draft.DatabaseName.trim() || !draft.Port ||
+    const portText = draft.Port.trim();
+    const port = portText ? Number(portText) : null;
+    const isPortValid = !portText || (port !== null && Number.isInteger(port) && port >= 1 && port <= 65535);
+    if (!isPortValid) {
+      this.DatabaseConnectionTestNotice = '連接埠請填入 1 至 65535 的整數，或留空使用具名執行個體。';
+      return;
+    }
+    if (!draft.ServerHost.trim() || !draft.DatabaseName.trim() ||
       (requiresSqlCredentials && (!draft.Username.trim() || !draft.Password))) {
       this.DatabaseConnectionTestNotice = '請先完整輸入本次要測試的連線設定。';
       return;
@@ -857,7 +892,7 @@ export class DemoPortalComponent
     this.DatabaseConnectionTestNotice = '';
     this.DataSourcesApi.testDraftConnection({
       dataSourceName: draft.DataSourceName.trim() || 'draft', serverHost: draft.ServerHost.trim(),
-      port: Number(draft.Port), databaseName: draft.DatabaseName.trim(), isEnabled: draft.Enabled,
+      port, databaseName: draft.DatabaseName.trim(), isEnabled: draft.Enabled,
       authenticationType: this.DatabaseAuthenticationType,
       username: requiresSqlCredentials ? draft.Username.trim() : undefined,
       password: requiresSqlCredentials ? draft.Password : undefined,
@@ -880,16 +915,23 @@ export class DemoPortalComponent
     this.DatabaseConnectionFormError = '';
     const Draft = this.DatabaseConnectionDraft;
     const RequiresSqlCredentials = this.DatabaseAuthenticationType === 'SqlServer';
-    if (!Draft.DataSourceName.trim() || !Draft.ServerHost.trim() || !Draft.DatabaseName.trim() || !Draft.Port || (RequiresSqlCredentials && (!Draft.Username.trim() || (!this.EditingDatabaseConnectionKey && !Draft.Password)))) {
+    const portText = Draft.Port.trim();
+    const port = portText ? Number(portText) : null;
+    const isPortValid = !portText || (port !== null && Number.isInteger(port) && port >= 1 && port <= 65535);
+    if (!isPortValid) {
+      this.DatabaseConnectionFormError = '連接埠請填入 1 至 65535 的整數，或留空使用具名執行個體。';
+      return;
+    }
+    if (!Draft.DataSourceName.trim() || !Draft.ServerHost.trim() || !Draft.DatabaseName.trim() || (RequiresSqlCredentials && (!Draft.Username.trim() || (!this.EditingDatabaseConnectionKey && !Draft.Password)))) {
       this.DatabaseConnectionFormError = RequiresSqlCredentials
-        ? '請確認資料來源、主機、連接埠、資料庫、帳號與密碼。'
-        : '請確認資料來源、主機、連接埠與資料庫名稱。';
+        ? '請確認資料來源、主機、資料庫、帳號與密碼。'
+        : '請確認資料來源、主機與資料庫名稱。';
       return;
     }
     const request = {
       dataSourceName: Draft.DataSourceName.trim(),
       serverHost: Draft.ServerHost.trim(),
-      port: Number(Draft.Port),
+      port,
       databaseName: Draft.DatabaseName.trim(),
       isEnabled: Draft.Enabled,
       authenticationType: this.DatabaseAuthenticationType,
@@ -1040,6 +1082,9 @@ export class DemoPortalComponent
     this.IsReportUploadPublishing = false;
     this.ReportUploadStep = 'Form';
     this.PublishedUploadedReport = null;
+    this.ReportUploadPreviewReport = null;
+    this.IsReportUploadPreviewLoading = false;
+    this.IsReportUploadPreviewOpen = false;
     this.IsReportDiscardConfirmationOpen = false;
     this.CloseReportCategoryQuickAdd();
     this.RememberInitialReportEditorState();
@@ -1124,6 +1169,30 @@ export class DemoPortalComponent
     this.ReportUploadInvalidField = null;
   }
 
+  private GetReportUploadFailureValidation(error: unknown): ReportUploadValidation {
+    const message = this.GetApiErrorMessage(error);
+    const errorBody = error instanceof HttpErrorResponse ? JSON.stringify(error.error ?? {}) : '';
+    const context = `${message} ${errorBody}`.toLocaleLowerCase();
+
+    if (context.includes('reportcode') || context.includes('報表代碼')) {
+      return { field: 'reportCode', message };
+    }
+    if (context.includes('reportname') || context.includes('報表名稱')) {
+      return { field: 'reportName', message };
+    }
+    if (context.includes('description') || context.includes('報表說明')) {
+      return { field: 'description', message };
+    }
+    if (context.includes('category') || context.includes('報表分類')) {
+      return { field: 'category', message };
+    }
+    if (context.includes('rpt') || context.includes('file') || context.includes('檔案')) {
+      return { field: 'file', message };
+    }
+
+    return { field: null, message };
+  }
+
   private LoadExistingReportUploadCodes(ContinueWhenValid = false): void {
     if (!this.IsReportUploadFlow) return;
     if (ContinueWhenValid) this.IsReportUploadValidationSubmitting = true;
@@ -1186,6 +1255,30 @@ export class DemoPortalComponent
     });
   }
 
+  private LoadUploadedReportForPreview(openWhenLoaded: boolean): void {
+    const reportId = this.PublishedUploadedReport?.ReportId;
+    if (!reportId || this.ReportUploadStep !== 'Preview') return;
+
+    this.IsReportUploadPreviewLoading = true;
+    this.ReportEditorError = '';
+    this.ReportsApi.GetManagedReports().subscribe({
+      next: (reports) => {
+        this.IsReportUploadPreviewLoading = false;
+        const report = reports.find((candidate) => candidate.reportId === reportId);
+        if (!report) {
+          this.ReportEditorError = '報表已上傳，但暫時無法取得預覽設定；請稍後由報表管理重新開啟。';
+          return;
+        }
+        this.ReportUploadPreviewReport = report;
+        this.IsReportUploadPreviewOpen = openWhenLoaded;
+      },
+      error: (error: unknown) => {
+        this.IsReportUploadPreviewLoading = false;
+        this.ReportEditorError = this.GetApiErrorMessage(error);
+      },
+    });
+  }
+
   private GetApiErrorMessage(error: unknown): string {
     return error instanceof HttpErrorResponse &&
       typeof error.error?.message === 'string'
@@ -1213,7 +1306,7 @@ export class DemoPortalComponent
     return {
       DataSourceName: '',
       ServerHost: '',
-      Port: '1433',
+      Port: '',
       DatabaseName: '',
       Username: '',
       ConnectionType: 'ReadOnly',

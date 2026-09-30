@@ -2,6 +2,15 @@
   display: block;
 }
 
+.report-upload-field-error {
+  display: block;
+  margin-top: .35rem;
+  color: var(--color-danger);
+  font-size: .8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 // These base rules were previously supplied by DemoPortal view encapsulation.
 // Feature-specific overrides remain in the existing global stylesheet.
 select {
