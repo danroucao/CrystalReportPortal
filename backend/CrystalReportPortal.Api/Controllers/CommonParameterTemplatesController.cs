@@ -99,6 +99,21 @@ public class CommonParameterTemplatesController : ControllerBase
             : Ok(ToDto(template));
     }
 
+    [HttpGet("{templateId:long}/usage")]
+    public async Task<ActionResult<CommonParameterTemplateUsageDto>> GetTemplateUsage(long templateId)
+    {
+        var templateExists = await _dbContext.CommonParameterTemplates
+            .AsNoTracking()
+            .AnyAsync(template => template.TemplateId == templateId);
+
+        if (!templateExists)
+        {
+            return NotFound(new { message = "找不到指定的常用參數。" });
+        }
+
+        return Ok(await LoadUsageAsync(templateId));
+    }
+
     [HttpPost]
     public async Task<ActionResult<CommonParameterTemplateDto>> CreateTemplate(
         SaveCommonParameterTemplateRequest request)
@@ -263,6 +278,42 @@ public class CommonParameterTemplatesController : ControllerBase
 
         await _dbContext.SaveChangesAsync();
         return Ok(await LoadDtoAsync(templateId));
+    }
+
+    [HttpDelete("{templateId:long}")]
+    public async Task<IActionResult> DeleteTemplate(long templateId)
+    {
+        if (!TryGetOperatorId(out var operatorId))
+        {
+            return Unauthorized();
+        }
+
+        var template = await _dbContext.CommonParameterTemplates
+            .SingleOrDefaultAsync(candidate => candidate.TemplateId == templateId);
+
+        if (template == null)
+        {
+            return NotFound(new { message = "找不到指定的常用參數。" });
+        }
+
+        var usage = await LoadUsageAsync(templateId);
+
+        var boundReportParameterCount = usage.Parameters.Count;
+
+        if (boundReportParameterCount > 0)
+        {
+            return Conflict(new
+            {
+                message = $"此常用參數已套用於 {boundReportParameterCount} 個報表參數，無法刪除。請先在報表參數設定中改用其他設定，或停用此常用參數。"
+            });
+        }
+
+        var now = DateTime.UtcNow;
+        AddAuditLog(operatorId, "DELETE_COMMON_PARAMETER_TEMPLATE", template.TemplateCode, now);
+        _dbContext.CommonParameterTemplates.Remove(template);
+        await _dbContext.SaveChangesAsync();
+
+        return NoContent();
     }
 
     private async Task<ActionResult?> ValidateRequestAsync(
@@ -495,6 +546,30 @@ public class CommonParameterTemplatesController : ControllerBase
             .SingleAsync();
 
         return ToDto(template);
+    }
+
+    private async Task<CommonParameterTemplateUsageDto> LoadUsageAsync(long templateId)
+    {
+        var parameters = await _dbContext.ReportParameters
+            .AsNoTracking()
+            .Where(parameter => parameter.CommonTemplateId == templateId)
+            .OrderBy(parameter => parameter.Report.ReportName)
+            .ThenBy(parameter => parameter.Report.ReportCode)
+            .ThenBy(parameter => parameter.DisplayOrder)
+            .Select(parameter => new CommonParameterTemplateUsageItemDto
+            {
+                ReportId = parameter.ReportId,
+                ReportCode = parameter.Report.ReportCode,
+                ReportName = parameter.Report.ReportName,
+                ParameterName = parameter.ParameterName
+            })
+            .ToListAsync();
+
+        return new CommonParameterTemplateUsageDto
+        {
+            TemplateId = templateId,
+            Parameters = parameters
+        };
     }
 
     private static CommonParameterTemplateDto ToDto(CommonParameterTemplate template)

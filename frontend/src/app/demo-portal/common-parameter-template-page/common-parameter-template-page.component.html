@@ -48,7 +48,10 @@
             </button>
             <span>{{ template.isEnabled ? '啟用' : '停用' }}</span>
           </td>
-          <td><button type="button" class="tertiary-button" (click)="openEditEditor(template)">編輯</button></td>
+          <td class="common-parameter-row-actions">
+            <button type="button" class="tertiary-button" (click)="openEditEditor(template)">編輯</button>
+            <button type="button" class="danger-button" (click)="requestDeleteTemplate(template)">刪除</button>
+          </td>
         </tr>
         <tr *ngIf="!displayedTemplates.length">
           <td colspan="6" class="common-parameter-empty">目前沒有符合條件的常用參數。</td>
@@ -62,14 +65,17 @@
   <section class="edit-user-modal common-parameter-editor" role="dialog" aria-modal="true"
     aria-labelledby="common-parameter-editor-title" (click)="$event.stopPropagation()">
     <div class="modal-heading">
-      <h2 id="common-parameter-editor-title">{{ editingTemplateId === null ? '新增常用參數' : '編輯常用參數' }}</h2>
+      <div class="common-parameter-editor-title-group">
+        <h2 id="common-parameter-editor-title">{{ editingTemplateId === null ? '新增常用參數' : '編輯常用參數' }}</h2>
+        <button type="button" class="common-parameter-help-button" aria-label="查看欄位填寫說明" (click)="openFieldGuide()">?</button>
+      </div>
       <button type="button" class="modal-close-button" aria-label="關閉常用參數編輯視窗" (click)="closeEditor()">×</button>
     </div>
 
     <form class="common-parameter-form" (ngSubmit)="saveTemplate()" novalidate>
       <fieldset class="common-parameter-section common-parameter-wide">
         <legend>1. 識別與自動匹配</legend>
-        <p class="common-parameter-section-hint">系統會依「匹配用參數名稱」比對上傳的 RPT 參數；代碼僅供管理與辨識。</p>
+        <p class="common-parameter-section-hint">此區皆需由管理者設定。系統會以「匹配用參數名稱」搭配資料型別、多值與範圍能力比對上傳的 RPT 參數；代碼僅供管理與辨識。</p>
         <div class="common-parameter-section-grid">
           <label><span class="form-field-label">參數代碼<span class="required-indicator" aria-hidden="true">*</span></span>
             <input name="templateCode" [(ngModel)]="draft.templateCode" placeholder="例如 COMMON_START_DATE" required />
@@ -85,7 +91,7 @@
 
       <fieldset class="common-parameter-section common-parameter-wide">
         <legend>2. 輸入方式與值來源</legend>
-        <p class="common-parameter-section-hint">先選擇資料型別與輸入元件，再決定由使用者輸入、SQL 清單或登入者資訊帶入。</p>
+        <p class="common-parameter-section-hint">新增時系統預設為 String／Text／使用者輸入；選擇目前使用者或勾選允許多值時，系統會自動調整輸入元件，其餘選項由管理者決定。</p>
         <div class="common-parameter-section-grid">
           <label>資料型別
             <select name="dataType" [(ngModel)]="draft.dataType"><option *ngFor="let value of dataTypes" [value]="value">{{ value }}</option></select>
@@ -103,7 +109,7 @@
       <ng-container *ngIf="isSqlLov">
         <fieldset class="common-parameter-section common-parameter-wide common-parameter-sql-section">
           <legend>3. SQL 清單設定</legend>
-          <p class="common-parameter-section-hint">查詢結果需包含值欄位與顯示欄位，僅允許讀取用的單一 SELECT 查詢。</p>
+          <p class="common-parameter-section-hint">常用參數模板不綁定特定 RPT，因此此區需由管理者依實際資料庫填寫。上傳後的報表參數設定頁則會讀取 RPT 參數名稱 <code>&#64;</code> 後的 SELECT 作為預填草稿。查詢結果需包含值欄位與顯示欄位，且僅允許讀取用的單一 SELECT 查詢。</p>
           <div class="common-parameter-section-grid">
         <label><span class="form-field-label">資料來源<span class="required-indicator" aria-hidden="true">*</span></span>
           <select
@@ -131,6 +137,7 @@
 
       <fieldset class="common-parameter-section common-parameter-wide">
         <legend>{{ isSqlLov ? '4' : '3' }}. 預設值與行為</legend>
+        <p class="common-parameter-section-hint">預設值與說明由管理者填寫；行為選項會依資料來源與輸入元件自動限制不相容的組合。</p>
         <div class="common-parameter-section-grid">
           <label>預設值
             <input name="defaultValue" [(ngModel)]="draft.defaultValue" placeholder="未填寫時不預先帶入" />
@@ -156,5 +163,61 @@
         <button type="submit" class="primary-button" [disabled]="isSaving">{{ isSaving ? '儲存中…' : '儲存' }}</button>
       </div>
     </form>
+  </section>
+
+  <section *ngIf="isFieldGuideOpen" class="common-parameter-guide-backdrop" (click)="closeFieldGuide($event)">
+    <section class="common-parameter-field-guide" role="dialog" aria-modal="true" aria-labelledby="common-parameter-field-guide-title" (click)="$event.stopPropagation()">
+      <div class="common-parameter-field-guide-heading">
+        <h2 id="common-parameter-field-guide-title">欄位填寫說明</h2>
+        <button type="button" class="modal-close-button" aria-label="關閉欄位填寫說明" (click)="closeFieldGuide($event)">×</button>
+      </div>
+      <div class="common-parameter-field-guide-grid">
+        <section>
+          <h3>需由管理者填寫</h3>
+          <dl>
+            <div><dt>參數代碼</dt><dd>模板的唯一識別碼，僅供管理與搜尋，不會傳給 RPT。</dd></div>
+            <div><dt>顯示名稱</dt><dd>使用者在報表條件頁看到的名稱。</dd></div>
+            <div><dt>匹配用參數名稱</dt><dd>常用參數模板未綁定特定 RPT，無法預填。請填 RPT 參數名稱；若名稱為 <code>CT&#64;select ...</code>，請填 <code>CT</code>。</dd></div>
+            <div><dt>SQL 資料來源、查詢、值欄位、顯示欄位</dt><dd>僅 SQL LOV 需要。依實際資料庫與 SELECT 結果填寫；值欄位傳給 RPT，顯示欄位提供使用者閱讀。</dd></div>
+            <div><dt>預設值與說明</dt><dd>可自行決定是否預帶，以及提供給後續管理者的用途說明。</dd></div>
+          </dl>
+        </section>
+        <section>
+          <h3>系統預設或自動調整</h3>
+          <dl>
+            <div><dt>新增時的初始值</dt><dd>預設為 String、Text、使用者輸入、必填且顯示於執行頁；多值與範圍預設關閉。這些值可修改。</dd></div>
+            <div><dt>輸入元件</dt><dd>選擇「目前使用者」時，系統改為 Hidden 並隱藏欄位；勾選「允許多值」時，系統改為 MultiSelect。</dd></div>
+            <div><dt>既有模板的欄位值</dt><dd>編輯時顯示的是上次儲存的模板設定，不會重新依 RPT 或 SQL 自動覆寫。</dd></div>
+            <div><dt>RPT SQL 預填規則</dt><dd>在上傳後的「設定報表參數」頁，若 RPT 參數名稱為 <code>CT&#64;select ...</code>，系統會讀取 <code>&#64;</code> 後的 SELECT 並預填 SQL；常用參數模板頁不綁定 RPT，無法預先判定該 SQL。</dd></div>
+            <div><dt>自動套用依據</dt><dd>上傳 RPT 時，系統以匹配名稱、資料型別、多值與範圍能力比對；符合且唯一的已啟用模板才會套用。</dd></div>
+          </dl>
+        </section>
+      </div>
+    </section>
+  </section>
+</section>
+
+<section *ngIf="templatePendingDeletion as template" class="modal-backdrop" (click)="cancelDeleteTemplate()">
+  <section class="edit-user-modal common-parameter-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-common-parameter-title" (click)="$event.stopPropagation()">
+    <div class="modal-heading">
+      <h2 id="delete-common-parameter-title">刪除常用參數</h2>
+      <button type="button" class="modal-close-button" aria-label="關閉刪除確認" [disabled]="isDeletingTemplate" (click)="cancelDeleteTemplate()">×</button>
+    </div>
+    <p>確定要刪除「{{ template.templateName }}」嗎？此動作無法復原。</p>
+    <p class="common-parameter-delete-note">若此常用參數已套用至任何報表參數，系統會拒絕刪除，以保護既有報表設定。</p>
+    <p *ngIf="isLoadingTemplateUsage" class="common-parameter-delete-note">正在確認此參數是否已套用至報表…</p>
+    <section *ngIf="!isLoadingTemplateUsage && templateUsage.length" class="common-parameter-template-usage">
+      <strong>目前套用此參數的報表</strong>
+      <p>為保護既有設定，請先解除下列報表參數的套用，才能刪除。</p>
+      <ul>
+        <li *ngFor="let usage of templateUsage">{{ usage.reportName }}（{{ usage.reportCode }}）－ {{ usage.parameterName }}</li>
+      </ul>
+    </section>
+    <p *ngIf="!isLoadingTemplateUsage && !templateUsage.length && !deleteError" class="common-parameter-delete-note">此常用參數目前尚未套用至任何報表，可以安全刪除。</p>
+    <p *ngIf="deleteError" class="field-error" role="alert">{{ deleteError }}</p>
+    <footer class="modal-actions">
+      <button type="button" class="tertiary-button" [disabled]="isDeletingTemplate" (click)="cancelDeleteTemplate()">取消</button>
+      <button type="button" class="danger-button" [disabled]="isDeletingTemplate || isLoadingTemplateUsage || templateUsage.length > 0" (click)="confirmDeleteTemplate()">{{ isDeletingTemplate ? '刪除中…' : '確認刪除' }}</button>
+    </footer>
   </section>
 </section>

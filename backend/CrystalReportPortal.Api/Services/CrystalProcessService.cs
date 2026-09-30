@@ -53,6 +53,13 @@ public class CrystalProcessService : ICrystalProcessService
 
             RedirectStandardError = true,
 
+            // Crystal Service writes its JSON response as UTF-8. Decode it
+            // explicitly so Traditional Chinese prompt text is not corrupted
+            // before it is stored as a report parameter.
+            StandardOutputEncoding = Encoding.UTF8,
+
+            StandardErrorEncoding = Encoding.UTF8,
+
             CreateNoWindow = true
         };
 

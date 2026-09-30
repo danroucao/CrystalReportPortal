@@ -1,9 +1,12 @@
 <section [class.modal-backdrop]="!inline" [class.review-inline]="inline" (click)="!inline && close()">
   <section class="review-dialog" [attr.role]="inline ? null : 'dialog'" [attr.aria-modal]="inline ? null : 'true'" aria-labelledby="review-title" (click)="$event.stopPropagation()">
     <div class="modal-heading">
-      <div>
+      <div class="review-heading-content">
         <p *ngIf="uploadWorkflow" class="review-workflow-step">第 4 步</p>
-        <h2 id="review-title">{{ isConfigurationMode ? '設定報表參數' : (uploadWorkflow ? '測試預覽並確認報表' : '測試預覽') }}</h2>
+        <div class="review-title-row">
+          <h2 id="review-title">{{ isConfigurationMode ? '設定報表參數' : (uploadWorkflow ? '測試預覽並確認報表' : '測試預覽') }}</h2>
+          <button *ngIf="isConfigurationMode" type="button" class="review-help-button" aria-label="查看欄位填寫說明" (click)="openParameterGuide()">?</button>
+        </div>
         <p *ngIf="uploadWorkflow" class="review-workflow-description">請使用測試條件產生預覽，確認資料與版面正確後按下「確認設定」。完成後，報表便可直接由報表管理啟用。</p>
         <p>{{ report.reportName }}（{{ report.reportCode }}）</p>
       </div>
@@ -23,7 +26,7 @@
       <form class="review-parameters" (ngSubmit)="isConfigurationMode ? saveConfiguration() : testPreview()">
         <h3>{{ isConfigurationMode ? '參數設定' : '測試條件' }}</h3>
         <ng-container *ngIf="isConfigurationMode; else PreviewParameters">
-          <p class="review-help">確認每個 RPT 參數的顯示名稱、輸入方式與是否必填。完成後才能進入測試預覽與啟用流程。</p>
+          <p class="review-help">逐一確認 RPT 參數的顯示名稱、值來源與是否必填。若選擇「SQL 清單（LOV）」，請填寫查詢與回傳欄位；系統會使用此報表設定的資料來源。</p>
           <article *ngFor="let parameter of configurationParameters" class="parameter-configuration-card">
             <div class="parameter-configuration-heading"><strong>{{ parameter.parameterName }}</strong><small>{{ parameter.dataType }}{{ parameter.allowMultipleValues ? '・可多選' : '' }}</small></div>
             <label>顯示名稱
@@ -34,6 +37,7 @@
               <select [name]="'value-source-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].valueSourceType"
                 (ngModelChange)="updateDraft(parameter.parameterId, 'valueSourceType', $event)">
                 <option value="UserInput">使用者輸入</option>
+                <option value="SqlLov">SQL 清單（LOV）</option>
                 <option value="CurrentUser">目前使用者</option>
               </select>
             </label>
@@ -42,13 +46,48 @@
                 [disabled]="parameterDrafts[parameter.parameterId].valueSourceType === 'CurrentUser'"
                 (ngModelChange)="updateDraft(parameter.parameterId, 'defaultValue', $event || null)" />
             </label>
+            <section *ngIf="isSqlLov(parameter.parameterId)" class="parameter-lov-settings">
+              <p>資料來源：<strong>{{ report.dataSourceName || '此報表的資料來源' }}</strong></p>
+              <p class="parameter-lov-hint">系統會依 SELECT 前兩個欄位預填「值欄位」與「顯示欄位」。查詢僅允許單一 SELECT；請確認預填內容，必要時可直接修改。</p>
+              <label class="parameter-lov-query">SQL 查詢
+                <textarea [name]="'sql-query-' + parameter.parameterId" rows="3"
+                  [ngModel]="parameterDrafts[parameter.parameterId].sqlQuery || ''"
+                  (ngModelChange)="updateDraft(parameter.parameterId, 'sqlQuery', $event || null)"
+                  placeholder="例如：SELECT PayCode, PayName FROM PaymentMethod"></textarea>
+              </label>
+              <label>值欄位
+                <input [name]="'value-field-' + parameter.parameterId"
+                  [ngModel]="parameterDrafts[parameter.parameterId].valueField || ''"
+                  (ngModelChange)="updateDraft(parameter.parameterId, 'valueField', $event || null)"
+                  placeholder="例如：PayCode" />
+              </label>
+              <label>顯示欄位
+                <input [name]="'display-field-' + parameter.parameterId"
+                  [ngModel]="parameterDrafts[parameter.parameterId].displayField || ''"
+                  (ngModelChange)="updateDraft(parameter.parameterId, 'displayField', $event || null)"
+                  placeholder="例如：PayName" />
+              </label>
+            </section>
             <div class="parameter-configuration-flags">
               <label><input type="checkbox" [name]="'required-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].isRequired"
                 (ngModelChange)="updateDraft(parameter.parameterId, 'isRequired', $event)" />必填</label>
               <label><input type="checkbox" [name]="'visible-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].isVisible"
                 [disabled]="parameterDrafts[parameter.parameterId].valueSourceType === 'CurrentUser'"
                 (ngModelChange)="updateDraft(parameter.parameterId, 'isVisible', $event)" />前台顯示</label>
+              <label class="parameter-common-template-toggle"><input type="checkbox" [name]="'common-template-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].addToCommonTemplates"
+                (ngModelChange)="updateDraft(parameter.parameterId, 'addToCommonTemplates', $event)" />加入常用參數</label>
             </div>
+            <section *ngIf="parameterDrafts[parameter.parameterId].addToCommonTemplates" class="parameter-common-template-settings">
+              <p>會以目前這張報表的參數設定建立並套用常用參數；下次上傳符合條件的 RPT 參數時可自動帶入。</p>
+              <label>常用參數代碼
+                <input [name]="'template-code-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].newTemplateCode || ''"
+                  (ngModelChange)="updateDraft(parameter.parameterId, 'newTemplateCode', $event || null)" />
+              </label>
+              <label>常用參數名稱
+                <input [name]="'template-name-' + parameter.parameterId" [ngModel]="parameterDrafts[parameter.parameterId].newTemplateName || ''"
+                  (ngModelChange)="updateDraft(parameter.parameterId, 'newTemplateName', $event || null)" />
+              </label>
+            </section>
           </article>
           <button type="submit" class="primary-button" [disabled]="isSavingConfiguration || isLoading">
             {{ isSavingConfiguration ? '儲存中…' : '完成參數設定' }}
@@ -61,11 +100,16 @@
         <label *ngFor="let parameter of visibleParameters">
           <span class="form-field-label">{{ parameter.displayName }}<span *ngIf="parameter.isRequired" class="required-indicator" aria-hidden="true">*</span></span>
 
-          <select *ngIf="parameter.valueSourceType === 'SqlLov' && parameter.allowMultipleValues"
-            multiple [name]="'parameter-' + parameter.parameterId"
-            (change)="selectMultiple(parameter.parameterId, $event)">
-            <option *ngFor="let option of options[parameter.parameterId]" [value]="option.value">{{ option.label }}</option>
-          </select>
+          <section *ngIf="parameter.valueSourceType === 'SqlLov' && parameter.allowMultipleValues" class="review-lov-multiselect">
+            <p>可複選・已選 {{ values[parameter.parameterId].length }} / {{ options[parameter.parameterId].length }}</p>
+            <div class="review-lov-multiselect-options">
+              <label *ngFor="let option of options[parameter.parameterId]" class="inline-option">
+                <input type="checkbox" [checked]="isMultipleValueSelected(parameter.parameterId, option.value)"
+                  (change)="toggleMultipleValue(parameter.parameterId, option.value, $any($event.target).checked)" />
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+          </section>
 
           <select *ngIf="parameter.valueSourceType === 'SqlLov' && !parameter.allowMultipleValues"
             [name]="'parameter-' + parameter.parameterId"
@@ -135,5 +179,23 @@
         {{ isApproving ? '確認中…' : '確認設定' }}
       </button>
     </div>
+  </section>
+</section>
+
+<section *ngIf="isParameterGuideOpen" class="review-guide-backdrop" (click)="closeParameterGuide($event)">
+  <section class="review-parameter-guide" role="dialog" aria-modal="true" aria-labelledby="review-parameter-guide-title" (click)="$event.stopPropagation()">
+    <div class="review-parameter-guide-heading">
+      <h2 id="review-parameter-guide-title">欄位填寫說明</h2>
+      <button type="button" class="modal-close-button" aria-label="關閉欄位填寫說明" (click)="closeParameterGuide($event)">×</button>
+    </div>
+    <dl>
+      <div><dt>參數名稱與資料型別</dt><dd>由上傳的 RPT 讀取，用來辨識該報表參數，不能在此修改。</dd></div>
+      <div><dt>顯示名稱</dt><dd>使用者在執行報表時看到的欄位名稱，可依業務語意調整。</dd></div>
+      <div><dt>值來源</dt><dd>選擇使用者輸入、SQL 清單（LOV）或目前登入使用者。選 SQL LOV 時，請填寫查詢與回傳欄位。</dd></div>
+      <div><dt>預設值</dt><dd>使用者未修改時帶入的值；多選值請以逗號分隔。</dd></div>
+      <div><dt>必填</dt><dd>啟用後，未提供值就不能產生報表。</dd></div>
+      <div><dt>前台顯示</dt><dd>勾選時，參數會出現在使用者執行報表的條件區，讓使用者查看或修改；取消勾選時會隱藏，系統改用預設值或系統帶入值。</dd></div>
+      <div><dt>SQL LOV 欄位</dt><dd>SQL 僅能是單一 SELECT。值欄位是實際傳給 RPT 的欄名；顯示欄位是提供使用者閱讀的欄名。</dd></div>
+    </dl>
   </section>
 </section>

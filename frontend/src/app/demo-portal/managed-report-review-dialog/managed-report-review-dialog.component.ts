@@ -49,6 +49,7 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
   CurrentPreviewPageIndex = 0;
   PreviewZoom = 100;
   previewSucceeded = false;
+  isParameterGuideOpen = false;
 
   get HasPreview(): boolean { return this.PreviewPageUrls.length > 0; }
   get CurrentPreviewPageUrl(): string | null {
@@ -96,10 +97,25 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
     this.closed.emit();
   }
 
-  selectMultiple(parameterId: number, event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    this.values[parameterId] = Array.from(select.selectedOptions, (option) => option.value);
+  toggleMultipleValue(parameterId: number, value: string, selected: boolean): void {
+    const selectedValues = this.values[parameterId] ?? [];
+    this.values[parameterId] = selected
+      ? [...new Set([...selectedValues, value])]
+      : selectedValues.filter((candidate) => candidate !== value);
     this.invalidatePreview();
+  }
+
+  isMultipleValueSelected(parameterId: number, value: string): boolean {
+    return (this.values[parameterId] ?? []).includes(value);
+  }
+
+  openParameterGuide(): void {
+    this.isParameterGuideOpen = true;
+  }
+
+  closeParameterGuide(event?: Event): void {
+    event?.stopPropagation();
+    this.isParameterGuideOpen = false;
   }
 
   setSingleValue(parameterId: number, value: string): void {
@@ -189,11 +205,27 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
     if (!draft) return;
     let updated = { ...draft, [field]: value } as UpdateManagedReportParameterRequest;
     if (field === 'valueSourceType') {
+      const detectedSql = updated.sqlQuery ?? this.sqlFromParameterName(parameterId);
+      const inferredFields = this.lovFieldsFromSql(detectedSql);
       updated = {
         ...updated,
         inputType: value === 'CurrentUser'
           ? 'Hidden'
-          : this.defaultInputType(updated.dataType),
+          : value === 'SqlLov'
+            ? (updated.allowMultipleValues ? 'MultiSelect' : 'Select')
+            : this.defaultInputType(updated.dataType),
+        dataSourceId: value === 'SqlLov'
+          ? (updated.dataSourceId ?? this.report.dataSourceId)
+          : null,
+        sqlQuery: value === 'SqlLov'
+          ? detectedSql
+          : null,
+        valueField: value === 'SqlLov'
+          ? (updated.valueField ?? inferredFields.valueField)
+          : null,
+        displayField: value === 'SqlLov'
+          ? (updated.displayField ?? inferredFields.displayField)
+          : null,
       };
     }
     this.parameterDrafts[parameterId] = updated;
@@ -248,7 +280,12 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
         // irrelevant and must not be requested during dialog initialization.
         if (this.isSavedDataReport) return of([]);
         const lovParameters = response.parameters.filter(
-          (parameter) => parameter.isVisible && parameter.valueSourceType === 'SqlLov',
+          (parameter) => parameter.isVisible &&
+            parameter.valueSourceType === 'SqlLov' &&
+            parameter.dataSourceId !== null &&
+            Boolean(parameter.sqlQuery?.trim()) &&
+            Boolean(parameter.valueField?.trim()) &&
+            Boolean(parameter.displayField?.trim()),
         );
         if (!lovParameters.length) return of([]);
         return forkJoin(lovParameters.map((parameter) =>
@@ -271,29 +308,86 @@ export class ManagedReportReviewDialogComponent implements OnInit, OnDestroy {
     parameter: ManagedReportParameter,
   ): UpdateManagedReportParameterRequest {
     const useCurrentUser = parameter.valueSourceType === 'CurrentUser';
+    const useSqlLov = parameter.valueSourceType === 'SqlLov';
+    const detectedSql = parameter.sqlQuery ?? (useSqlLov
+      ? this.sqlFromParameterName(parameter.parameterId)
+      : null);
+    const inferredFields = this.lovFieldsFromSql(detectedSql);
     return {
       displayName: parameter.displayName,
       dataType: parameter.dataType,
-      inputType: useCurrentUser ? 'Hidden' : parameter.allowMultipleValues ? 'MultiSelect' : this.defaultInputType(parameter.dataType),
-      valueSourceType: useCurrentUser ? 'CurrentUser' : 'UserInput',
+      inputType: useCurrentUser
+        ? 'Hidden'
+        : useSqlLov
+          ? (parameter.allowMultipleValues ? 'MultiSelect' : 'Select')
+          : parameter.allowMultipleValues ? 'MultiSelect' : this.defaultInputType(parameter.dataType),
+      valueSourceType: useCurrentUser ? 'CurrentUser' : useSqlLov ? 'SqlLov' : 'UserInput',
       isRequired: parameter.isRequired,
       allowMultipleValues: parameter.allowMultipleValues,
       allowRangeValues: parameter.allowRangeValues,
       isVisible: parameter.isVisible,
       defaultValue: parameter.defaultValue,
       description: parameter.description,
-      dataSourceId: parameter.dataSourceId,
-      sqlQuery: parameter.sqlQuery,
-      valueField: parameter.valueField,
-      displayField: parameter.displayField,
+      dataSourceId: parameter.dataSourceId ?? (useSqlLov ? this.report.dataSourceId : null),
+      sqlQuery: detectedSql,
+      valueField: parameter.valueField ?? inferredFields.valueField,
+      displayField: parameter.displayField ?? inferredFields.displayField,
       addToCommonTemplates: false,
+      newTemplateCode: `COMMON_${this.normalizedParameterName(parameter.parameterName)}`,
+      newTemplateName: parameter.displayName,
     };
+  }
+
+  private normalizedParameterName(parameterName: string): string {
+    const atIndex = parameterName.indexOf('@');
+    return (atIndex > 0 ? parameterName.slice(0, atIndex) : parameterName)
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9_]+/g, '_');
   }
 
   private defaultInputType(dataType: string): string {
     if (dataType === 'Date') return 'DatePicker';
     if (dataType === 'Number') return 'Number';
     return 'Text';
+  }
+
+  isSqlLov(parameterId: number): boolean {
+    return this.parameterDrafts[parameterId]?.valueSourceType === 'SqlLov';
+  }
+
+  private sqlFromParameterName(parameterId: number): string | null {
+    const parameter = this.parameterResponse?.parameters.find(
+      (candidate) => candidate.parameterId === parameterId,
+    );
+    const marker = parameter?.parameterName.indexOf('@') ?? -1;
+    const sql = marker >= 0 ? parameter!.parameterName.slice(marker + 1).trim() : '';
+    return /^select\s+/i.test(sql) ? sql : null;
+  }
+
+  private lovFieldsFromSql(sql: string | null): {
+    valueField: string | null;
+    displayField: string | null;
+  } {
+    const selectList = sql?.match(/^\s*select\s+(?:distinct\s+)?(.+?)\s+from\s+/is)?.[1];
+    if (!selectList) return { valueField: null, displayField: null };
+
+    // The automatic suggestion intentionally handles the common, unambiguous
+    // two-column LOV form only. SQL expressions, nested SELECTs and complex
+    // aliases remain editable and are left for the administrator to confirm.
+    const columns = selectList.split(',').map((column) => column.trim());
+    return {
+      valueField: this.columnNameFromSqlExpression(columns[0]),
+      displayField: this.columnNameFromSqlExpression(columns[1]),
+    };
+  }
+
+  private columnNameFromSqlExpression(expression: string | undefined): string | null {
+    if (!expression) return null;
+    const alias = expression.match(/\s+as\s+(\[[^\]]+\]|[A-Za-z_][\w$#]*)\s*$/i)?.[1]
+      ?? expression.match(/\s+(\[[^\]]+\]|[A-Za-z_][\w$#]*)\s*$/)?.[1]
+      ?? expression.match(/(?:\w+\.)?(\[[^\]]+\]|[A-Za-z_][\w$#]*)\s*$/)?.[1];
+    return alias ? alias.replace(/^\[|\]$/g, '') : null;
   }
 
   private validate(): string {

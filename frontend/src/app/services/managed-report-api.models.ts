@@ -159,6 +159,8 @@ export interface UpdateManagedReportParameterRequest {
   readonly valueField: string | null;
   readonly displayField: string | null;
   readonly addToCommonTemplates: boolean;
+  readonly newTemplateCode: string | null;
+  readonly newTemplateName: string | null;
 }
 
 export interface CompleteManagedReportParametersResult {

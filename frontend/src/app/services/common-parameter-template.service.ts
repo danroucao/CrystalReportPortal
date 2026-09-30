@@ -6,6 +6,7 @@ import { API_BASE_URL } from './api.config';
 import {
   CommonParameterDataSourceOption,
   CommonParameterTemplate,
+  CommonParameterTemplateUsage,
   SaveCommonParameterTemplateRequest,
 } from './common-parameter-template-api.models';
 
@@ -44,6 +45,16 @@ export class CommonParameterTemplateService {
     return this.http.patch<CommonParameterTemplate>(
       `${this.endpoint}/${templateId}/status`,
       { isEnabled },
+    );
+  }
+
+  deleteTemplate(templateId: number): Observable<void> {
+    return this.http.delete<void>(`${this.endpoint}/${templateId}`);
+  }
+
+  getTemplateUsage(templateId: number): Observable<CommonParameterTemplateUsage> {
+    return this.http.get<CommonParameterTemplateUsage>(
+      `${this.endpoint}/${templateId}/usage`,
     );
   }
 

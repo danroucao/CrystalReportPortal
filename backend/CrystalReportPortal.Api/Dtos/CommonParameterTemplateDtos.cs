@@ -51,3 +51,17 @@ public class UpdateCommonParameterTemplateStatusRequest
 {
     public bool IsEnabled { get; set; }
 }
+
+public class CommonParameterTemplateUsageDto
+{
+    public long TemplateId { get; set; }
+    public IReadOnlyList<CommonParameterTemplateUsageItemDto> Parameters { get; set; } = [];
+}
+
+public class CommonParameterTemplateUsageItemDto
+{
+    public long ReportId { get; set; }
+    public string ReportCode { get; set; } = string.Empty;
+    public string ReportName { get; set; } = string.Empty;
+    public string ParameterName { get; set; } = string.Empty;
+}

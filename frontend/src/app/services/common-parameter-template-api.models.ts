@@ -68,3 +68,15 @@ export interface CommonParameterDataSourceOption {
   readonly dataSourceId: number;
   readonly dataSourceName: string;
 }
+
+export interface CommonParameterTemplateUsageItem {
+  readonly reportId: number;
+  readonly reportCode: string;
+  readonly reportName: string;
+  readonly parameterName: string;
+}
+
+export interface CommonParameterTemplateUsage {
+  readonly templateId: number;
+  readonly parameters: readonly CommonParameterTemplateUsageItem[];
+}

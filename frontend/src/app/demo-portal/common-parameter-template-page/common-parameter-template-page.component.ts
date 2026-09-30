@@ -11,6 +11,7 @@ import {
   CommonParameterValueSourceType,
   SaveCommonParameterTemplateRequest,
   CommonParameterDataSourceOption,
+  CommonParameterTemplateUsageItem,
 } from '../../services/common-parameter-template-api.models';
 import { CommonParameterTemplateService } from '../../services/common-parameter-template.service';
 
@@ -39,10 +40,16 @@ export class CommonParameterTemplatePageComponent implements OnInit {
   searchText = '';
   isLoading = false;
   isSaving = false;
+  isDeletingTemplate = false;
+  isLoadingTemplateUsage = false;
   loadError = '';
   editorError = '';
+  deleteError = '';
   editingTemplateId: number | null = null;
   isEditorOpen = false;
+  isFieldGuideOpen = false;
+  templatePendingDeletion: CommonParameterTemplate | null = null;
+  templateUsage: readonly CommonParameterTemplateUsageItem[] = [];
   draft = this.createEmptyDraft();
 
   get displayedTemplates(): readonly CommonParameterTemplate[] {
@@ -138,7 +145,17 @@ export class CommonParameterTemplatePageComponent implements OnInit {
   closeEditor(): void {
     if (this.isSaving) return;
     this.isEditorOpen = false;
+    this.isFieldGuideOpen = false;
     this.editorError = '';
+  }
+
+  openFieldGuide(): void {
+    this.isFieldGuideOpen = true;
+  }
+
+  closeFieldGuide(event?: Event): void {
+    event?.stopPropagation();
+    this.isFieldGuideOpen = false;
   }
 
   onValueSourceChange(): void {
@@ -221,6 +238,44 @@ export class CommonParameterTemplatePageComponent implements OnInit {
       next: () => this.loadTemplates(),
       error: (error: unknown) => (this.loadError = this.getErrorMessage(error)),
     });
+  }
+
+  requestDeleteTemplate(template: CommonParameterTemplate): void {
+    this.templatePendingDeletion = template;
+    this.deleteError = '';
+    this.templateUsage = [];
+    this.isLoadingTemplateUsage = true;
+    this.api.getTemplateUsage(template.templateId)
+      .pipe(finalize(() => (this.isLoadingTemplateUsage = false)))
+      .subscribe({
+        next: (usage) => (this.templateUsage = usage.parameters),
+        error: (error: unknown) => (this.deleteError = this.getErrorMessage(error)),
+      });
+  }
+
+  cancelDeleteTemplate(): void {
+    if (this.isDeletingTemplate) return;
+    this.templatePendingDeletion = null;
+    this.deleteError = '';
+    this.templateUsage = [];
+  }
+
+  confirmDeleteTemplate(): void {
+    const template = this.templatePendingDeletion;
+    if (!template || this.isDeletingTemplate || this.isLoadingTemplateUsage || this.templateUsage.length) return;
+
+    this.isDeletingTemplate = true;
+    this.deleteError = '';
+    this.api.deleteTemplate(template.templateId)
+      .pipe(finalize(() => (this.isDeletingTemplate = false)))
+      .subscribe({
+        next: () => {
+          this.templatePendingDeletion = null;
+          this.templateUsage = [];
+          this.loadTemplates();
+        },
+        error: (error: unknown) => (this.deleteError = this.getErrorMessage(error)),
+      });
   }
 
   trackByTemplateId(_: number, template: CommonParameterTemplate): number {
