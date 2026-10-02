@@ -10,7 +10,6 @@ A web-based Crystal Reports system for query, preview, PDF export, and printing,
 - [Architecture](#architecture)
 - [Key Features](#key-features)
 - [Technology Stack](#technology-stack)
-- [Language Composition](#language-composition)
 - [Dependencies and Runtime Requirements](#dependencies-and-runtime-requirements)
 - [Repository Structure](#repository-structure)
 - [Configuration](#configuration)
@@ -94,18 +93,6 @@ The system uses:
 ### Crystal Service
 - .NET Framework `4.8` (x64 target in Debug)
 - SAP Crystal Reports assemblies `13.0.4000.0`
-
----
-
-## Language Composition
-
-- C#: 45.7%
-- TypeScript: 28.1%
-- SCSS: 13.2%
-- HTML: 12.1%
-- T-SQL: 0.6%
-- PowerShell: 0.2%
-- JavaScript: 0.1%
 
 ---
 
